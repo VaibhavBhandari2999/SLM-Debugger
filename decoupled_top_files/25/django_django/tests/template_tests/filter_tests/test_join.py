@@ -1,0 +1,102 @@
+from django.template.defaultfilters import join
+from django.test import SimpleTestCase
+from django.utils.safestring import mark_safe
+
+from ..utils import setup
+
+
+class JoinTests(SimpleTestCase):
+
+    @setup({'join01': '{{ a|join:", " }}'})
+    def test_join01(self):
+        output = self.engine.render_to_string('join01', {'a': ['alpha', 'beta & me']})
+        self.assertEqual(output, 'alpha, beta &amp; me')
+
+    @setup({'join02': '{% autoescape off %}{{ a|join:", " }}{% endautoescape %}'})
+    def test_join02(self):
+        output = self.engine.render_to_string('join02', {'a': ['alpha', 'beta & me']})
+        self.assertEqual(output, 'alpha, beta & me')
+
+    @setup({'join03': '{{ a|join:" &amp; " }}'})
+    def test_join03(self):
+        output = self.engine.render_to_string('join03', {'a': ['alpha', 'beta & me']})
+        self.assertEqual(output, 'alpha &amp; beta &amp; me')
+
+    @setup({'join04': '{% autoescape off %}{{ a|join:" &amp; " }}{% endautoescape %}'})
+    def test_join04(self):
+        output = self.engine.render_to_string('join04', {'a': ['alpha', 'beta & me']})
+        self.assertEqual(output, 'alpha &amp; beta & me')
+
+    # Joining with unsafe joiners doesn't result in unsafe strings.
+    @setup({'join05': '{{ a|join:var }}'})
+    def test_join05(self):
+        output = self.engine.render_to_string('join05', {'a': ['alpha', 'beta & me'], 'var': ' & '})
+        self.assertEqual(output, 'alpha &amp; beta &amp; me')
+
+    @setup({'join06': '{{ a|join:var }}'})
+    def test_join06(self):
+        output = self.engine.render_to_string('join06', {'a': ['alpha', 'beta & me'], 'var': mark_safe(' & ')})
+        self.assertEqual(output, 'alpha & beta &amp; me')
+
+    @setup({'join07': '{{ a|join:var|lower }}'})
+    def test_join07(self):
+        output = self.engine.render_to_string('join07', {'a': ['Alpha', 'Beta & me'], 'var': ' & '})
+        self.assertEqual(output, 'alpha &amp; beta &amp; me')
+
+    @setup({'join08': '{{ a|join:var|lower }}'})
+    def test_join08(self):
+        output = self.engine.render_to_string('join08', {'a': ['Alpha', 'Beta & me'], 'var': mark_safe(' & ')})
+        self.assertEqual(output, 'alpha & beta &amp; me')
+
+
+class FunctionTests(SimpleTestCase):
+
+    def test_list(self):
+        self.assertEqual(join([0, 1, 2], 'glue'), '0glue1glue2')
+
+    def test_autoescape(self):
+        """
+        Tests the autoescaping behavior of the `join` function, ensuring that
+        HTML tags are properly escaped when concatenated with other strings.
+        The `join` function takes a list of strings and a separator, and returns
+        a single string where each element from the list is separated by the
+        specified separator. In this case, the list contains HTML tags and the
+        separator is a line break (`<br>`). The expected output is a string where
+        all HTML tags are
+        """
+
+        self.assertEqual(
+            join(['<a>', '<img>', '</a>'], '<br>'),
+            '&lt;a&gt;&lt;br&gt;&lt;img&gt;&lt;br&gt;&lt;/a&gt;',
+        )
+
+    def test_autoescape_off(self):
+        """
+        Tests the behavior of the `join` function with `autoescape=False`.
+        
+        Args:
+        None
+        
+        Returns:
+        None
+        
+        Summary:
+        This function tests the `join` function with `autoescape=False`. It verifies that the function correctly concatenates the given list of strings with the specified separator, without escaping any characters.
+        
+        Important Functions:
+        - `join`: The function being tested, which concatenates a list of strings using a specified separator.
+        - `autoescape=False
+        """
+
+        self.assertEqual(
+            join(['<a>', '<img>', '</a>'], '<br>', autoescape=False),
+            '<a>&lt;br&gt;<img>&lt;br&gt;</a>',
+        )
+
+    def test_noniterable_arg(self):
+        obj = object()
+        self.assertEqual(join(obj, '<br>'), obj)
+
+    def test_noniterable_arg_autoescape_off(self):
+        obj = object()
+        self.assertEqual(join(obj, '<br>', autoescape=False), obj)
