@@ -4,7 +4,7 @@ import nltk
 import numpy as np
 from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer, util
-from src.model_utils import get_codet5_model
+# from src.model_utils import get_codet5_model
 
 nltk.download('punkt', quiet=True)
 
