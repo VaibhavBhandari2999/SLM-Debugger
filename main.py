@@ -84,7 +84,12 @@ for i in np.arange(0.0, 1.0, 0.2):
 
     ## Module-3
     # # Get models for docstring generation
-    summarise_functions(filtered_funcs, n, weightBM25, weightSemantic)
+    try:
+        with open(f"decoupled/{n}/{weightBM25}_{weightSemantic}/Filtered/docstrings.json", "r") as f:
+            docstrings = json.load(f)
+            print("File already exists, skipping iteration.")
+    except FileNotFoundError:
+        summarise_functions(filtered_funcs, n, weightBM25, weightSemantic)
     # module_docstring()
 
     # for key, entry in tn.items():

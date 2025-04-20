@@ -188,8 +188,9 @@ def summarise_functions(filtered_funcs, n, weightBM25, weightSemantic):
     """Process all functions using batched vLLM inference and parallel file I/O."""
     # Initialize the model with multiple GPUs
     model = get_summary_model()
+    func_list = filtered_funcs
     batch_size = 16
-    num_gpus_available = num_gpus if num_gpus else torch.cuda.device_count()
+    num_gpus_available = torch.cuda.device_count()
     adjusted_batch_size = batch_size * max(1, num_gpus_available)
     print(f"Using adjusted batch size: {adjusted_batch_size} based on GPU count: {num_gpus_available}")
     
@@ -223,6 +224,12 @@ def summarise_functions(filtered_funcs, n, weightBM25, weightSemantic):
                 except Exception as e2:
                     print(f"Failed to process function {func_idx+1} individually: {str(e2)}")
     
+    # save the results to a JSON file
+    os.makedirs(f"decoupled/{n}/{weightBM25}_{weightSemantic}/Filtered", exist_ok=True)
+    # Create the directory if it doesn't exist
+    with open(f"decoupled/{n}/{weightBM25}_{weightSemantic}/Filtered/docstrings.json", "w") as f:
+        json.dump(all_results, f, indent=4)
+    print(f"Saved {len(all_results)} docstrings to summary/{n}/{weightBM25}_{weightSemantic}/docstrings.json")
     # Calculate CPU worker count based on system
     import multiprocessing
     cpu_workers = min(8, multiprocessing.cpu_count())

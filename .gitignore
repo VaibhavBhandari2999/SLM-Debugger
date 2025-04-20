@@ -1,1 +1,4 @@
 swe_bench_repos
+.vscode/
+__pycache__/
+*.pyc
