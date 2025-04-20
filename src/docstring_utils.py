@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 import time
 import torch
+import os
 
 def get_summary_model(num_gpus=None):
     """Initialize the vLLM model for generating summaries on multiple GPUs."""
@@ -267,210 +268,248 @@ def summarise_functions(filtered_funcs, n, weightBM25, weightSemantic):
         print("No results to insert!")
 
 
-# # src/docstring_utils.py
-# import ast
-# import os
-# from collections import defaultdict
 
-# def has_module_docstring(file_path, repo_with_underscore, row_idx, n, weightBM25, weightSemantic):
-#     full_path = os.path.join(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{row_idx}/{repo_with_underscore}/", file_path)
-#     try:
-#         with open(full_path, "r", encoding="utf-8") as f:
-#             tree = ast.parse(f.read(), filename=full_path)
-#             return ast.get_docstring(tree) is not None
-#     except Exception as e:
-#         print(f"Error processing {file_path}: {e}")
-#         return False
+def extract_module_docstring(llm_output):
+    """Extract the docstring from the LLM output."""
+    # Clean up and extract the relevant part of the output
+    if '"""' in llm_output:
+        # If triple quotes are in the output, use them as delimiters
+        start_idx = llm_output.find('"""')
+        if start_idx >= 0:
+            content = llm_output[start_idx+3:]
+            end_idx = content.find('"""')
+            if end_idx >= 0:
+                return '"""' + content[:end_idx] + '"""'
+            else:
+                return '"""' + content.strip() + '"""'
+    
+    # If we reached here, no proper docstring format was found
+    # Format it properly as a docstring
+    cleaned_output = llm_output.strip()
+    if "### Summary:" in cleaned_output:
+        # Extract just the summary part
+        cleaned_output = cleaned_output.split("### Summary:", 1)[1].strip()
+    
+    # Format as proper docstring
+    return f'"""{cleaned_output}"""'
 
-# def get_files_missing_module_docstrings(file_list, repo_with_underscore, row_idx=None, n=10, weightBM25=0.5, weightSemantic=0.5):
-#     missing_docstring_files = []
-#     for file in file_list:
-#         if file.endswith(".py") and not has_module_docstring(file, repo_with_underscore, row_idx, n, weightBM25, weightSemantic):
-#             missing_docstring_files.append(file)
-#     return missing_docstring_files
+def create_module_prompt(file_path, content):
+    """Create a prompt for module summary generation."""
+    return f"""Below is the complete source code of a Python file.
 
-# def add_ast_parents(node, parent=None):
-#     node.parent = parent
-#     for child in ast.iter_child_nodes(node):
-#         add_ast_parents(child, node)
-#     return node
+Your task is to read the file and generate a concise and informative docstring that describes:
+- The overall purpose of the file
+- The main classes and functions it defines
+- Key responsibilities or logic handled in this file
+- How the classes and functions interact (if applicable)
 
-# def extract_functions_without_docstrings(file_path, repo_with_underscore, row_idx, n, weightBM25, weightSemantic):
-#     full_path = os.path.join(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{row_idx}/{repo_with_underscore}/", file_path)
-#     functions_data = []
-#     try:
-#         with open(full_path, "r", encoding="utf-8") as f:
-#             source = f.read()
-#         tree = ast.parse(source, filename=full_path)
-#         add_ast_parents(tree)
-#         lines = source.splitlines()
-#         for node in ast.walk(tree):
-#             if isinstance(node, ast.FunctionDef) and ast.get_docstring(node) is None:
-#                 start = node.lineno - 1
-#                 end = node.end_lineno if hasattr(node, 'end_lineno') else start + 1
-#                 func_source = "\n".join(lines[start:end])
-#                 class_name = None
-#                 parent = getattr(node, "parent", None)
-#                 while parent is not None:
-#                     if isinstance(parent, ast.ClassDef):
-#                         class_name = parent.name
-#                         break
-#                     parent = getattr(parent, "parent", None)
-#                 functions_data.append({
-#                     "name": node.name,
-#                     "source": func_source,
-#                     "start_lineno": start + 1,
-#                     "end_lineno": end,
-#                     "file": full_path,
-#                     "class_name": class_name
-#                 })
-#     except Exception as e:
-#         print(f"Error processing {file_path}: {e}")
-#     return functions_data
+Be concise, but include technical details where useful.
 
-# def extract_functions_from_files(file_list, repo_with_underscore, row_idx, n, weightBM25, weightSemantic):
-#     all_functions = []
-#     for file in file_list:
-#         if file.endswith(".py"):
-#             funcs = extract_functions_without_docstrings(file, repo_with_underscore, row_idx, n, weightBM25, weightSemantic)
-#             all_functions.extend(funcs)
-#     return all_functions
+### Python File: {file_path}
+{content}
 
-# def extract_docstring_block(llm_output):
-#     if '"""' not in llm_output:
-#         return llm_output.strip()
-#     parts = llm_output.split('"""', 2)
-#     if len(parts) == 1:
-#         return llm_output.strip()
-#     elif len(parts) == 2:
-#         return parts[1].strip()
-#     else:
-#         return parts[1].strip()
+### Summary:
+"""
 
-# def generate_function_summary(func, summary_tokenizer, summary_model, tokenizer):
-#     prompt = f"""# Original function:
-# {func['source']}
+def has_module_docstring(file_path):
+    """Check if a file already has a module-level docstring."""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            tree = ast.parse(f.read(), filename=file_path)
+            return ast.get_docstring(tree) is not None
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        return False
 
-# # Generate a Python docstring for the provided function. The summary should include key parameters, keywords, and indicate input/output details.
-# \"\"\""""
-#     inputs = summary_tokenizer(prompt, return_tensors="pt").to("cuda")
-#     outputs = summary_model.generate(
-#         **inputs,
-#         max_new_tokens=100,
-#         temperature=0.2,
-#         do_sample=False,
-#         eos_token_id=tokenizer.convert_tokens_to_ids('\"\"\"')
-#     )
-#     generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
-#     print("Generated: ", generated)
-#     extracted = extract_docstring_block(generated)
-#     print("Extracted docstring: ", extracted)
-#     return extracted
+def insert_module_docstring(file_path, docstring):
+    """Insert the generated docstring at the beginning of the file."""
+    try:
+        # Make sure the docstring doesn't have the triple quotes already
+        if docstring.startswith('"""') and docstring.endswith('"""'):
+            clean_docstring = docstring
+        else:
+            clean_docstring = f'"""{docstring}"""'
+        
+        with open(file_path, "r", encoding="utf-8") as f:
+            original_content = f.read()
+        
+        # Write the docstring at the beginning of the file followed by the original content
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(f"{clean_docstring}\n\n{original_content}")
+        
+        print(f"Successfully inserted module docstring in {file_path}")
+        return True
+    except Exception as e:
+        print(f"Error inserting docstring in {file_path}: {e}")
+        return False
 
-# def add_ast_parents_module_level(tree):
-#     for node in ast.walk(tree):
-#         for child in ast.iter_child_nodes(node):
-#             child.parent = node
-#     return tree
 
-# def insert_docstring_by_class_and_name(file_path, class_name, function_name, generated_docstring):
-#     try:
-#         with open(file_path, "r", encoding="utf-8") as f:
-#             source = f.read()
-#         lines = source.splitlines()
-#         tree = ast.parse(source)
-#         add_ast_parents_module_level(tree)
-#         for node in ast.walk(tree):
-#             if isinstance(node, ast.FunctionDef) and node.name == function_name:
-#                 actual_class = None
-#                 parent = node
-#                 while hasattr(parent, "parent"):
-#                     parent = parent.parent
-#                     if isinstance(parent, ast.ClassDef):
-#                         actual_class = parent.name
-#                         break
-#                 if actual_class != class_name:
-#                     continue
-#                 if ast.get_docstring(node) is not None:
-#                     print(f"Function '{function_name}' in class '{class_name}' in {file_path} already has a docstring. Skipping.")
-#                     return
-#                 start_line = node.lineno - 1
-#                 indent = len(lines[start_line]) - len(lines[start_line].lstrip())
-#                 doc_indent = " " * (indent + 4)
-#                 doc_lines = [f'{doc_indent}"""']
-#                 for line in generated_docstring.strip().split("\n"):
-#                     doc_lines.append(f"{doc_indent}{line.strip()}")
-#                 doc_lines.append(f'{doc_indent}"""')
-#                 doc_lines.append("")
-#                 insert_at = start_line + 1
-#                 lines[insert_at:insert_at] = doc_lines
-#                 with open(file_path, "w", encoding="utf-8") as f:
-#                     f.write("\n".join(lines) + "\n")
-#                 print(f"Inserted docstring for function '{function_name}' in class '{class_name}' in {file_path}")
-#                 return
-#         print(f"Function '{function_name}' in class '{class_name}' not found in {file_path}")
-#     except Exception as e:
-#         print(f"Error inserting docstring for '{function_name}' in class '{class_name}' in {file_path}: {e}")
+def batch_generate_module_summaries(file_details, model):
+    """Generate summaries for a batch of modules using vLLM."""
+    # Create prompts for all files in this batch
+    prompts = []
+    valid_files = []
+    
+    for file_info in file_details:
+        try:
+            # Create the prompt for this file
+            prompts.append(create_module_prompt(file_info['path'], file_info['content']))
+            valid_files.append(file_info)
+        except Exception as e:
+            print(f"Error creating prompt for {file_info.get('path', 'unknown')}: {e}")
+    
+    # Configure sampling parameters
+    sampling_params = SamplingParams(
+        temperature=0.2,
+        max_tokens=300,
+        top_k=50,
+    )
+    
+    # Use vLLM to generate all outputs at once
+    outputs = model.generate(prompts, sampling_params)
+    
+    # Process the results
+    results = []
+    for i, output in enumerate(outputs):
+        generated = output.outputs[0].text
+        extracted = extract_module_docstring(generated)
+        results.append((valid_files[i], extracted))
+    
+    return results
 
-# def filter_global_missing_functions_docstrings(global_missing_func_docstring_list):
-#     filtered_functions = [
-#         func for func in global_missing_func_docstring_list
-#         if (func["end_lineno"] - func["start_lineno"]) >= 3 and (func["end_lineno"] - func["start_lineno"]) <= 100
-#     ]
-#     func_count = {}
-#     print("Length of Filtered Functions: ", len(filtered_functions))
-#     for func in filtered_functions:
-#         diff = func["file"]
-#         func_count[diff] = func_count.get(diff, 0) + 1
-#     function_file_count = defaultdict(list)
-#     for file_name, count in func_count.items():
-#         function_file_count[count].append(file_name)
-#     files_to_remove = set()
-#     for key, files in function_file_count.items():
-#         if key > 40:
-#             files_to_remove.update(files)
-#     final_filtered_list = [func for func in filtered_functions if func["file"] not in files_to_remove]
-#     print("After filtering files with too many functions: ", len(final_filtered_list))
-#     return final_filtered_list
+def module_summary(repo_details, n, weightBM25, weightSemantic):
+    """Process all files to generate and insert module-level docstrings."""
+    # Initialize the model with multiple GPUs
+    model = get_summary_model()
+    
+    # Adjust batch size based on GPU count
+    num_gpus_available = torch.cuda.device_count()
+    adjusted_batch_size = batch_size * max(1, num_gpus_available)
+    print(f"Using adjusted batch size: {adjusted_batch_size} based on {num_gpus_available} GPUs")
+    
+    # Collect all files that need module docstrings
+    files_to_process = []
+    
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Iterate through each repo
+    for repo_id, entry in repo_details.items():
+        repo_with_underscore = entry["repo_with_underscore"]
+        file_list = entry["top_n_files"]
+        
+        # Process each file in the repo
+        for file_path in file_list:
+            if not file_path.endswith(".py"):
+                continue
+                
+            # Full path to the file
+            full_path = f"decoupled/{n}/{weightBM25}_{weightSemantic}/{repo_with_underscore}/{file_path}"
+            output_path = f"module_summary/{n}/{weightBM25}_{weightSemantic}/{repo_with_underscore}/{file_path}"
+            
+            # Skip if output directory doesn't exist
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # Check if the file already has a module docstring
+            if has_module_docstring(full_path):
+                print(f"Skipping {file_path} - already has module docstring")
+                continue
+                
+            try:
+                # Read the file content
+                with open(full_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                
+                # Add to the list of files to process
+                files_to_process.append({
+                    'repo_id': repo_id,
+                    'repo': repo_with_underscore,
+                    'path': file_path,
+                    'full_path': full_path,
+                    'output_path': output_path,
+                    'content': content
+                })
+            except Exception as e:
+                print(f"Error reading {file_path}: {e}")
+    
+    print(f"Found {len(files_to_process)} files needing module docstrings")
+    
+    # Process in batches
+    all_results = []
+    batches = [files_to_process[i:i+adjusted_batch_size] for i in range(0, len(files_to_process), adjusted_batch_size)]
+    
+    for batch_idx, batch in enumerate(tqdm(batches, desc="Generating module docstrings")):
+        print(f"\nProcessing batch {batch_idx+1}/{len(batches)} with {len(batch)} files")
+        
+        try:
+            batch_results = batch_generate_module_summaries(batch, model)
+            all_results.extend(batch_results)
+        except Exception as e:
+            print(f"Error processing batch {batch_idx+1}: {str(e)}")
+            # Process one by one as fallback
+            for file_info in batch:
+                try:
+                    single_result = process_single_file(file_info, model)
+                    if single_result:
+                        all_results.append(single_result)
+                except Exception as e2:
+                    print(f"Failed to process {file_info['path']} individually: {str(e2)}")
+    
+    # Calculate CPU worker count based on system
+    import multiprocessing
+    cpu_workers = min(8, multiprocessing.cpu_count())
+    
+    # Insert docstrings in parallel
+    if all_results:
+        print(f"\nInserting {len(all_results)} module docstrings")
+        with ThreadPoolExecutor(max_workers=cpu_workers) as executor:
+            futures = []
+            for file_info, docstring in all_results:
+                # First copy the file to the output directory if needed
+                src_path = file_info['full_path']
+                dest_path = file_info['output_path']
+                
+                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                
+                if src_path != dest_path:
+                    with open(src_path, "r", encoding="utf-8") as src, open(dest_path, "w", encoding="utf-8") as dest:
+                        dest.write(src.read())
+                
+                # Submit the job to insert the docstring
+                futures.append(
+                    executor.submit(insert_module_docstring, dest_path, docstring)
+                )
+            
+            # Wait for all file operations to complete with progress bar
+            completed = 0
+            for future in tqdm(futures, desc="Inserting docstrings"):
+                try:
+                    if future.result():  # This will block until the future is done
+                        completed += 1
+                except Exception as e:
+                    print(f"Error during file operation: {e}")
+            
+            print(f"Successfully inserted {completed} module docstrings out of {len(futures)} attempted")
+    else:
+        print("No results to insert!")
 
-# def extract_module_docstring(generated_string):
-#     start = generated_string.find('### Summary:')
-#     if start == -1:
-#         return generated_string.strip()
-#     start += len('### Summary:')
-#     end = generated_string.find('"""', start)
-#     if end == -1:
-#         return generated_string[start:].strip()
-#     else:
-#         return generated_string[start:end].strip()
 
-# def generate_module_docstring(file_path, repo_with_underscore, tokenizer, llm_model):
-#     full_path = f"decoupled_top_files/{repo_with_underscore}/{file_path}"
-#     with open(full_path, "r", encoding="utf-8") as f:
-#         source_code = f.read()
-#     prompt = (
-#         "Below is the complete source code of a Python file.\n\n"
-#         "Your task is to read the file and generate a concise and informative docstring that describes:\n"
-#         "- The overall purpose of the file\n"
-#         "- The main classes and functions it defines\n"
-#         "- Key responsibilities or logic handled in this file\n"
-#         "- How the classes and functions interact (if applicable)\n\n"
-#         "Be concise, but include technical details where useful.\n\n"
-#         "### Python File:\n" +
-#         source_code +
-#         "\n\n### Summary:\n"
-#     )
-#     print(f"\nPrompt: {prompt}\n")
-#     inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-#     outputs = llm_model.generate(
-#         **inputs,
-#         max_new_tokens=300,
-#         temperature=0.2,
-#         do_sample=False,
-#         eos_token_id=tokenizer.convert_tokens_to_ids('\"\"\"')
-#     )
-#     generated = tokenizer.decode(outputs[0], skip_special_tokens=True)
-#     print("\nGenerated module docstring: ", generated)
-#     extracted = extract_module_docstring(generated)
-#     print("\nExtracted module docstring: ", extracted)
-#     return extracted
+def process_single_file(file_info, model):
+    """Process a single file for debugging purposes."""
+    print(f"Processing single file: {file_info['path']}")
+    
+    try:
+        prompt = create_module_prompt(file_info['path'], file_info['content'])
+        sampling_params = SamplingParams(
+            temperature=0.2,
+            max_tokens=300,
+        )
+        
+        outputs = model.generate([prompt], sampling_params)
+        generated = outputs[0].outputs[0].text
+        extracted = extract_module_docstring(generated)
+        
+        return (file_info, extracted)
+    except Exception as e:
+        print(f"Error processing single file: {e}")
+        return None

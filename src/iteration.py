@@ -61,7 +61,7 @@ def iterate_main(data_lite, n, weightBM25, weightSemantic):
             print("\nFile Absent")
             print("Missing Files: ", find_missing_strings(ground_truth_modified_files, top_n_files))
     
-    with open(f"top_files/{n}_files_{weightBM25}_{weightSemantic}.json", "w") as f:
+    with open(f"top_files/{n}/{weightBM25}_{weightSemantic}.json", "w") as f:
         json.dump(dict_of_top_n_file_structure_lists, f, indent=4)
     
     return no_of_files_present_in_top_n
