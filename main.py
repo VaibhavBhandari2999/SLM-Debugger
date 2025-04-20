@@ -105,15 +105,15 @@ for i in np.arange(0.0, 1.0, 0.2):
 
     ## Module-4
     ## Generate module-level docstrings for files missing them
-    try:
-        with open(f"module_summary/{n}/{weightBM25}_{weightSemantic}/{fil}/module_docstrings.json", "r") as f:
-            module_docstrings = json.load(f)
-            print("File already exists, skipping iteration.")
-    except FileNotFoundError:
-        with open(f"top_files/{n}/{weightBM25}_{weightSemantic}.json", "r") as f:
-            topk = json.load(f)
-        module_summary(topk, n, weightBM25, weightSemantic)
-        print("Module-level docstrings generated.")
+    # try:
+    #     with open(f"module_summary/{n}/{weightBM25}_{weightSemantic}/{fil}/module_docstrings.json", "r") as f:
+    #         module_docstrings = json.load(f)
+    #         print("File already exists, skipping iteration.")
+    # except FileNotFoundError:
+    #     with open(f"top_files/{n}/{weightBM25}_{weightSemantic}.json", "r") as f:
+    #         topk = json.load(f)
+    #     module_summary(topk, n, weightBM25, weightSemantic)
+    #     print("Module-level docstrings generated.")
 
 
 

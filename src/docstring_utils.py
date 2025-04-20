@@ -6,6 +6,47 @@ from tqdm import tqdm
 import time
 import torch
 import os
+import gc
+import ray
+# Dynamically import destroy_model_parallel based on vLLM version
+try:
+    from vllm.distributed.parallel_state import destroy_model_parallel
+except ImportError:
+    from vllm.model_executor.parallel_utils.parallel_state import destroy_model_parallel
+
+
+def release_vllm_model(model):
+    """
+    Tear down a vLLM model or engine instance and free all GPU memory.
+    Handles both vllm.LLM wrappers and raw LLMEngine objects.
+    """
+    # 1) Clear model-parallel state
+    destroy_model_parallel()
+    
+    # 2) Determine the underlying engine
+    engine = getattr(model, "llm_engine", model)
+    
+    # 3) Shutdown executor threads/processes
+    try:
+        engine.model_executor.shutdown()
+    except Exception:
+        pass
+    
+    # 4) Delete executor and model references
+    if hasattr(engine, "model_executor"):
+        del engine.model_executor
+    del model
+    
+    # 5) Force Python GC + empty CUDA cache
+    gc.collect()
+    torch.cuda.empty_cache()
+    
+    # 6) Shutdown Ray to release any actors
+    try:
+        if ray.is_initialized():
+            ray.shutdown()
+    except Exception:
+        pass
 
 def get_summary_model(num_gpus=None):
     """Initialize the vLLM model for generating summaries on multiple GPUs."""
@@ -267,6 +308,7 @@ def summarise_functions(filtered_funcs, n, weightBM25, weightSemantic):
     else:
         print("No results to insert!")
 
+    release_vllm_model(model)
 
 
 def extract_module_docstring(llm_output):
@@ -384,6 +426,7 @@ def module_summary(repo_details, n, weightBM25, weightSemantic):
     
     # Adjust batch size based on GPU count
     num_gpus_available = torch.cuda.device_count()
+    batch_size = 16
     adjusted_batch_size = batch_size * max(1, num_gpus_available)
     print(f"Using adjusted batch size: {adjusted_batch_size} based on {num_gpus_available} GPUs")
     
