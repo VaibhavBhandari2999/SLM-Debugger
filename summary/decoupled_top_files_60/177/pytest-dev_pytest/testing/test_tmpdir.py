@@ -1,0 +1,510 @@
+import os
+import stat
+import sys
+
+import attr
+
+import pytest
+from _pytest import pathlib
+from _pytest.pathlib import cleanup_numbered_dir
+from _pytest.pathlib import create_cleanup_lock
+from _pytest.pathlib import make_numbered_dir
+from _pytest.pathlib import maybe_delete_a_numbered_dir
+from _pytest.pathlib import on_rm_rf_error
+from _pytest.pathlib import Path
+from _pytest.pathlib import register_cleanup_lock_removal
+from _pytest.pathlib import rm_rf
+from _pytest.tmpdir import get_user
+from _pytest.tmpdir import TempdirFactory
+from _pytest.tmpdir import TempPathFactory
+
+
+def test_tmpdir_fixture(testdir):
+    """
+    Test the functionality of the `tmpdir_fixture` using pytest.
+    
+    This function runs a pytest test on a sample Python file that utilizes the `tmpdir` fixture. The `tmpdir` fixture is used to create a temporary directory for testing purposes. The test checks if the `tmpdir_fixture.py` file passes a test case.
+    
+    Parameters:
+    - testdir (pytest.Testdir): A pytest Testdir object that provides utilities to run tests.
+    
+    Returns:
+    - results (pytest.Result): The result object
+    """
+
+    p = testdir.copy_example("tmpdir/tmpdir_fixture.py")
+    results = testdir.runpytest(p)
+    results.stdout.fnmatch_lines(["*1 passed*"])
+
+
+@attr.s
+class FakeConfig:
+    basetemp = attr.ib()
+
+    @property
+    def trace(self):
+        return self
+
+    def get(self, key):
+        return lambda *k: None
+
+    @property
+    def option(self):
+        return self
+
+
+class TestTempdirHandler:
+    def test_mktemp(self, tmp_path):
+        config = FakeConfig(tmp_path)
+        t = TempdirFactory(TempPathFactory.from_config(config))
+        tmp = t.mktemp("world")
+        assert tmp.relto(t.getbasetemp()) == "world0"
+        tmp = t.mktemp("this")
+        assert tmp.relto(t.getbasetemp()).startswith("this")
+        tmp2 = t.mktemp("this")
+        assert tmp2.relto(t.getbasetemp()).startswith("this")
+        assert tmp2 != tmp
+
+    def test_tmppath_relative_basetemp_absolute(self, tmp_path, monkeypatch):
+        """#4425"""
+        monkeypatch.chdir(tmp_path)
+        config = FakeConfig("hello")
+        t = TempPathFactory.from_config(config)
+        assert t.getbasetemp().resolve() == (tmp_path / "hello").resolve()
+
+
+class TestConfigTmpdir:
+    def test_getbasetemp_custom_removes_old(self, testdir):
+        mytemp = testdir.tmpdir.join("xyz")
+        p = testdir.makepyfile(
+            """
+            def test_1(tmpdir):
+                pass
+        """
+        )
+        testdir.runpytest(p, "--basetemp=%s" % mytemp)
+        mytemp.check()
+        mytemp.ensure("hello")
+
+        testdir.runpytest(p, "--basetemp=%s" % mytemp)
+        mytemp.check()
+        assert not mytemp.join("hello").check()
+
+
+testdata = [
+    ("mypath", True),
+    ("/mypath1", False),
+    ("./mypath1", True),
+    ("../mypath3", False),
+    ("../../mypath4", False),
+    ("mypath5/..", False),
+    ("mypath6/../mypath6", True),
+    ("mypath7/../mypath7/..", False),
+]
+
+
+@pytest.mark.parametrize("basename, is_ok", testdata)
+def test_mktemp(testdir, basename, is_ok):
+    mytemp = testdir.tmpdir.mkdir("mytemp")
+    p = testdir.makepyfile(
+        """
+        def test_abs_path(tmpdir_factory):
+            tmpdir_factory.mktemp('{}', numbered=False)
+        """.format(
+            basename
+        )
+    )
+
+    result = testdir.runpytest(p, "--basetemp=%s" % mytemp)
+    if is_ok:
+        assert result.ret == 0
+        assert mytemp.join(basename).check()
+    else:
+        assert result.ret == 1
+        result.stdout.fnmatch_lines("*ValueError*")
+
+
+def test_tmpdir_always_is_realpath(testdir):
+    # the reason why tmpdir should be a realpath is that
+    # when you cd to it and do "os.getcwd()" you will anyway
+    # get the realpath.  Using the symlinked path can thus
+    # easily result in path-inequality
+    # XXX if that proves to be a problem, consider using
+    # os.environ["PWD"]
+    realtemp = testdir.tmpdir.mkdir("myrealtemp")
+    linktemp = testdir.tmpdir.join("symlinktemp")
+    attempt_symlink_to(linktemp, str(realtemp))
+    p = testdir.makepyfile(
+        """
+        def test_1(tmpdir):
+            import os
+            assert os.path.realpath(str(tmpdir)) == str(tmpdir)
+    """
+    )
+    result = testdir.runpytest("-s", p, "--basetemp=%s/bt" % linktemp)
+    assert not result.ret
+
+
+def test_tmp_path_always_is_realpath(testdir, monkeypatch):
+    """
+    Tests the behavior of `tmp_path` in pytest when a temporary directory is symlinked.
+    
+    This function checks that the `tmp_path` fixture always returns a real path, even if the temporary directory is accessed via a symlink. This is achieved by setting an environment variable `PYTEST_DEBUG_TEMPROOT` to a symlinked temporary directory and running a test that asserts the resolved path of `tmp_path` is the same as `tmp_path` itself.
+    
+    Parameters:
+    - testdir (pytest.Testdir
+    """
+
+    # for reasoning see: test_tmpdir_always_is_realpath test-case
+    realtemp = testdir.tmpdir.mkdir("myrealtemp")
+    linktemp = testdir.tmpdir.join("symlinktemp")
+    attempt_symlink_to(linktemp, str(realtemp))
+    monkeypatch.setenv("PYTEST_DEBUG_TEMPROOT", str(linktemp))
+    testdir.makepyfile(
+        """
+        def test_1(tmp_path):
+            assert tmp_path.resolve() == tmp_path
+    """
+    )
+    reprec = testdir.inline_run()
+    reprec.assertoutcome(passed=1)
+
+
+def test_tmpdir_too_long_on_parametrization(testdir):
+    """
+    This function tests the behavior of pytest's `tmpdir` fixture when used with a parameterized test that has a very long argument. The function creates a test file with a parameterized test function that uses the `tmpdir` fixture to create a file. The `arg` parameter is set to a string of length 1000, which is expected to cause issues with the temporary directory naming. The function runs the test and checks that it passes.
+    
+    Parameters:
+    - testdir: The
+    """
+
+    testdir.makepyfile(
+        """
+        import pytest
+        @pytest.mark.parametrize("arg", ["1"*1000])
+        def test_some(arg, tmpdir):
+            tmpdir.ensure("hello")
+    """
+    )
+    reprec = testdir.inline_run()
+    reprec.assertoutcome(passed=1)
+
+
+def test_tmpdir_factory(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+        @pytest.fixture(scope='session')
+        def session_dir(tmpdir_factory):
+            return tmpdir_factory.mktemp('data', numbered=False)
+        def test_some(session_dir):
+            assert session_dir.isdir()
+    """
+    )
+    reprec = testdir.inline_run()
+    reprec.assertoutcome(passed=1)
+
+
+def test_tmpdir_fallback_tox_env(testdir, monkeypatch):
+    """Test that tmpdir works even if environment variables required by getpass
+    module are missing (#1010).
+    """
+    monkeypatch.delenv("USER", raising=False)
+    monkeypatch.delenv("USERNAME", raising=False)
+    testdir.makepyfile(
+        """
+        def test_some(tmpdir):
+            assert tmpdir.isdir()
+    """
+    )
+    reprec = testdir.inline_run()
+    reprec.assertoutcome(passed=1)
+
+
+@pytest.fixture
+def break_getuser(monkeypatch):
+    monkeypatch.setattr("os.getuid", lambda: -1)
+    # taken from python 2.7/3.4
+    for envvar in ("LOGNAME", "USER", "LNAME", "USERNAME"):
+        monkeypatch.delenv(envvar, raising=False)
+
+
+@pytest.mark.usefixtures("break_getuser")
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="no os.getuid on windows")
+def test_tmpdir_fallback_uid_not_found(testdir):
+    """Test that tmpdir works even if the current process's user id does not
+    correspond to a valid user.
+    """
+
+    testdir.makepyfile(
+        """
+        def test_some(tmpdir):
+            assert tmpdir.isdir()
+    """
+    )
+    reprec = testdir.inline_run()
+    reprec.assertoutcome(passed=1)
+
+
+@pytest.mark.usefixtures("break_getuser")
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="no os.getuid on windows")
+def test_get_user_uid_not_found():
+    """Test that get_user() function works even if the current process's
+    user id does not correspond to a valid user (e.g. running pytest in a
+    Docker container with 'docker run -u'.
+    """
+    assert get_user() is None
+
+
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="win only")
+def test_get_user(monkeypatch):
+    """Test that get_user() function works even if environment variables
+    required by getpass module are missing from the environment on Windows
+    (#1010).
+    """
+    monkeypatch.delenv("USER", raising=False)
+    monkeypatch.delenv("USERNAME", raising=False)
+    assert get_user() is None
+
+
+class TestNumberedDir:
+    PREFIX = "fun-"
+
+    def test_make(self, tmp_path):
+        """
+        Generate numbered directories with a specified prefix in a temporary path.
+        
+        This function creates a series of numbered directories under a specified root path, each prefixed with a given prefix. It also creates a symbolic link named 'current' pointing to the most recently created directory.
+        
+        Parameters:
+        tmp_path (pathlib.Path): The root path where the directories will be created.
+        self (object): An object containing the prefix to be used for the directories.
+        
+        Returns:
+        None: This function does not return any value
+        """
+
+        for i in range(10):
+            d = make_numbered_dir(root=tmp_path, prefix=self.PREFIX)
+            assert d.name.startswith(self.PREFIX)
+            assert d.name.endswith(str(i))
+
+        symlink = tmp_path.joinpath(self.PREFIX + "current")
+        if symlink.exists():
+            # unix
+            assert symlink.is_symlink()
+            assert symlink.resolve() == d.resolve()
+
+    def test_cleanup_lock_create(self, tmp_path):
+        d = tmp_path.joinpath("test")
+        d.mkdir()
+        lockfile = create_cleanup_lock(d)
+        with pytest.raises(OSError, match="cannot create lockfile in .*"):
+            create_cleanup_lock(d)
+
+        lockfile.unlink()
+
+    def test_lock_register_cleanup_removal(self, tmp_path):
+        lock = create_cleanup_lock(tmp_path)
+
+        registry = []
+        register_cleanup_lock_removal(lock, register=registry.append)
+
+        (cleanup_func,) = registry
+
+        assert lock.is_file()
+
+        cleanup_func(original_pid="intentionally_different")
+
+        assert lock.is_file()
+
+        cleanup_func()
+
+        assert not lock.exists()
+
+        cleanup_func()
+
+        assert not lock.exists()
+
+    def _do_cleanup(self, tmp_path):
+        """
+        Cleans up numbered directories in a temporary path.
+        
+        This function performs the following operations:
+        1. Creates test directories in the specified temporary path.
+        2. Cleans up the numbered directories in the temporary path based on the specified prefix, keeping only the latest two directories, and considering a lock file as dead if it was created before the specified timestamp.
+        
+        Parameters:
+        tmp_path (pathlib.Path): The temporary path where the directories are located.
+        
+        Returns:
+        None: This function does not return any value.
+        """
+
+        self.test_make(tmp_path)
+        cleanup_numbered_dir(
+            root=tmp_path,
+            prefix=self.PREFIX,
+            keep=2,
+            consider_lock_dead_if_created_before=0,
+        )
+
+    def test_cleanup_keep(self, tmp_path):
+        self._do_cleanup(tmp_path)
+        a, b = (x for x in tmp_path.iterdir() if not x.is_symlink())
+        print(a, b)
+
+    def test_cleanup_locked(self, tmp_path):
+        p = make_numbered_dir(root=tmp_path, prefix=self.PREFIX)
+
+        create_cleanup_lock(p)
+
+        assert not pathlib.ensure_deletable(
+            p, consider_lock_dead_if_created_before=p.stat().st_mtime - 1
+        )
+        assert pathlib.ensure_deletable(
+            p, consider_lock_dead_if_created_before=p.stat().st_mtime + 1
+        )
+
+    def test_cleanup_ignores_symlink(self, tmp_path):
+        the_symlink = tmp_path / (self.PREFIX + "current")
+        attempt_symlink_to(the_symlink, tmp_path / (self.PREFIX + "5"))
+        self._do_cleanup(tmp_path)
+
+    def test_removal_accepts_lock(self, tmp_path):
+        """
+        Test that the removal of a numbered directory accepts a cleanup lock.
+        
+        This function checks whether a numbered directory can be safely removed even if a cleanup lock is present.
+        
+        Parameters:
+        tmp_path (pathlib.Path): A temporary directory path provided by the testing framework.
+        
+        Returns:
+        None: This function asserts that the directory is still present after the attempted removal, indicating that the removal process respected the cleanup lock.
+        
+        Key Steps:
+        1. Creates a numbered directory using the `make_numbered_dir` function.
+        """
+
+        folder = make_numbered_dir(root=tmp_path, prefix=self.PREFIX)
+        create_cleanup_lock(folder)
+        maybe_delete_a_numbered_dir(folder)
+        assert folder.is_dir()
+
+
+class TestRmRf:
+    def test_rm_rf(self, tmp_path):
+        adir = tmp_path / "adir"
+        adir.mkdir()
+        rm_rf(adir)
+
+        assert not adir.exists()
+
+        adir.mkdir()
+        afile = adir / "afile"
+        afile.write_bytes(b"aa")
+
+        rm_rf(adir)
+        assert not adir.exists()
+
+    def test_rm_rf_with_read_only_file(self, tmp_path):
+        """Ensure rm_rf can remove directories with read-only files in them (#5524)"""
+        fn = tmp_path / "dir/foo.txt"
+        fn.parent.mkdir()
+
+        fn.touch()
+
+        self.chmod_r(fn)
+
+        rm_rf(fn.parent)
+
+        assert not fn.parent.is_dir()
+
+    def chmod_r(self, path):
+        mode = os.stat(str(path)).st_mode
+        os.chmod(str(path), mode & ~stat.S_IWRITE)
+
+    def test_rm_rf_with_read_only_directory(self, tmp_path):
+        """Ensure rm_rf can remove read-only directories (#5524)"""
+        adir = tmp_path / "dir"
+        adir.mkdir()
+
+        (adir / "foo.txt").touch()
+        self.chmod_r(adir)
+
+        rm_rf(adir)
+
+        assert not adir.is_dir()
+
+    def test_on_rm_rf_error(self, tmp_path):
+        adir = tmp_path / "dir"
+        adir.mkdir()
+
+        fn = adir / "foo.txt"
+        fn.touch()
+        self.chmod_r(fn)
+
+        # unknown exception
+        with pytest.warns(pytest.PytestWarning):
+            exc_info = (None, RuntimeError(), None)
+            on_rm_rf_error(os.unlink, str(fn), exc_info, start_path=tmp_path)
+            assert fn.is_file()
+
+        # we ignore FileNotFoundError
+        exc_info = (None, FileNotFoundError(), None)
+        assert not on_rm_rf_error(None, str(fn), exc_info, start_path=tmp_path)
+
+        # unknown function
+        with pytest.warns(
+            pytest.PytestWarning,
+            match=r"^\(rm_rf\) unknown function None when removing .*foo.txt:\nNone: ",
+        ):
+            exc_info = (None, PermissionError(), None)
+            on_rm_rf_error(None, str(fn), exc_info, start_path=tmp_path)
+            assert fn.is_file()
+
+        # ignored function
+        with pytest.warns(None) as warninfo:
+            exc_info = (None, PermissionError(), None)
+            on_rm_rf_error(os.open, str(fn), exc_info, start_path=tmp_path)
+            assert fn.is_file()
+        assert not [x.message for x in warninfo]
+
+        exc_info = (None, PermissionError(), None)
+        on_rm_rf_error(os.unlink, str(fn), exc_info, start_path=tmp_path)
+        assert not fn.is_file()
+
+
+def attempt_symlink_to(path, to_path):
+    """Try to make a symlink from "path" to "to_path", skipping in case this platform
+    does not support it or we don't have sufficient privileges (common on Windows)."""
+    try:
+        Path(path).symlink_to(Path(to_path))
+    except OSError:
+        pytest.skip("could not create symbolic link")
+
+
+def test_tmpdir_equals_tmp_path(tmpdir, tmp_path):
+    assert Path(tmpdir) == tmp_path
+
+
+def test_basetemp_with_read_only_files(testdir):
+    """Integration test for #5524"""
+    testdir.makepyfile(
+        """
+        import os
+        import stat
+
+        def test(tmp_path):
+            fn = tmp_path / 'foo.txt'
+            fn.write_text('hello')
+            mode = os.stat(str(fn)).st_mode
+            os.chmod(str(fn), mode & ~stat.S_IREAD)
+    """
+    )
+    result = testdir.runpytest("--basetemp=tmp")
+    assert result.ret == 0
+    # running a second time and ensure we don't crash
+    result = testdir.runpytest("--basetemp=tmp")
+    assert result.ret == 0

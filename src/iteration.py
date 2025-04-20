@@ -31,7 +31,7 @@ def iterate_main(data_lite, n, weightBM25, weightSemantic):
     
         top_n_files = rank_files_by_name(file_structure_list, issue_description, n, weightBM25, weightSemantic)
     
-        main_file_path = Path(f"decoupled_top_files_without_summaries/{row_idx}/{repo_with_underscore}")
+        main_file_path = Path(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{row_idx}/{repo_with_underscore}")
         os.makedirs(main_file_path, exist_ok=True)
         
         for file in top_n_files:
@@ -61,7 +61,7 @@ def iterate_main(data_lite, n, weightBM25, weightSemantic):
             print("\nFile Absent")
             print("Missing Files: ", find_missing_strings(ground_truth_modified_files, top_n_files))
     
-    with open(f"top_{n}_files.json", "w") as f:
+    with open(f"top_files/{n}_files_{weightBM25}_{weightSemantic}.json", "w") as f:
         json.dump(dict_of_top_n_file_structure_lists, f, indent=4)
     
     return no_of_files_present_in_top_n

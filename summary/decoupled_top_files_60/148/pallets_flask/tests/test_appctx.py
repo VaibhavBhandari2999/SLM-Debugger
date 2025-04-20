@@ -1,0 +1,282 @@
+import pytest
+
+import flask
+from flask.globals import app_ctx
+from flask.globals import request_ctx
+
+
+def test_basic_url_generation(app):
+    """
+    Generate a URL for a given endpoint.
+    
+    This function tests the generation of a basic URL for a specified endpoint using the Flask framework. It sets the server name and preferred URL scheme in the application configuration and then generates a URL for the 'index' endpoint.
+    
+    Parameters:
+    - app (Flask): The Flask application object.
+    
+    Returns:
+    - str: The generated URL for the 'index' endpoint.
+    
+    Key Points:
+    - The server name is set to "localhost".
+    - The preferred URL scheme is set to
+    """
+
+    app.config["SERVER_NAME"] = "localhost"
+    app.config["PREFERRED_URL_SCHEME"] = "https"
+
+    @app.route("/")
+    def index():
+        """
+        This function initializes the Flask application context and request context to handle a request. It ensures that the request environment is properly set up for processing. The function does not take any parameters and does not return any value. It asserts that the request environment has a valid Werkzeug request object before returning an empty string.
+        
+        Key Points:
+        - Initializes Flask application context and request context.
+        - Ensures the request environment is properly set up.
+        - Asserts the presence of a valid Werkzeug request object in the environment.
+        """
+
+        pass
+
+    with app.app_context():
+        rv = flask.url_for("index")
+        assert rv == "https://localhost/"
+
+
+def test_url_generation_requires_server_name(app):
+    with app.app_context():
+        with pytest.raises(RuntimeError):
+            flask.url_for("index")
+
+
+def test_url_generation_without_context_fails():
+    with pytest.raises(RuntimeError):
+        flask.url_for("index")
+
+
+def test_request_context_means_app_context(app):
+    """
+    Tests the request context to ensure it correctly sets and resets the application context.
+    
+    Parameters:
+    app (Flask): The Flask application object used for testing.
+    
+    This function checks that entering a request context with the given Flask application sets the current application context to the provided app. After exiting the context, the current application context is reset to None.
+    """
+
+    with app.test_request_context():
+        assert flask.current_app._get_current_object() is app
+    assert not flask.current_app
+
+
+def test_app_context_provides_current_app(app):
+    with app.app_context():
+        assert flask.current_app._get_current_object() is app
+    assert not flask.current_app
+
+
+def test_app_tearing_down(app):
+    cleanup_stuff = []
+
+    @app.teardown_appcontext
+    def cleanup(exception):
+        cleanup_stuff.append(exception)
+
+    with app.app_context():
+        pass
+
+    assert cleanup_stuff == [None]
+
+
+def test_app_tearing_down_with_previous_exception(app):
+    """
+    Function to test application teardown with previous exception handling.
+    
+    This function sets up a teardown_appcontext handler to clean up resources after an app context is destroyed. It then raises an exception and attempts to run an app context, expecting the teardown handler to be called without recording the exception.
+    
+    Parameters:
+    app (Flask): The Flask application to test.
+    
+    Returns:
+    None: The function asserts that the cleanup handler did not record any exceptions.
+    """
+
+    cleanup_stuff = []
+
+    @app.teardown_appcontext
+    def cleanup(exception):
+        cleanup_stuff.append(exception)
+
+    try:
+        raise Exception("dummy")
+    except Exception:
+        pass
+
+    with app.app_context():
+        pass
+
+    assert cleanup_stuff == [None]
+
+
+def test_app_tearing_down_with_handled_exception_by_except_block(app):
+    cleanup_stuff = []
+
+    @app.teardown_appcontext
+    def cleanup(exception):
+        cleanup_stuff.append(exception)
+
+    with app.app_context():
+        try:
+            raise Exception("dummy")
+        except Exception:
+            pass
+
+    assert cleanup_stuff == [None]
+
+
+def test_app_tearing_down_with_handled_exception_by_app_handler(app, client):
+    app.config["PROPAGATE_EXCEPTIONS"] = True
+    cleanup_stuff = []
+
+    @app.teardown_appcontext
+    def cleanup(exception):
+        cleanup_stuff.append(exception)
+
+    @app.route("/")
+    def index():
+        raise Exception("dummy")
+
+    @app.errorhandler(Exception)
+    def handler(f):
+        return flask.jsonify(str(f))
+
+    with app.app_context():
+        client.get("/")
+
+    assert cleanup_stuff == [None]
+
+
+def test_app_tearing_down_with_unhandled_exception(app, client):
+    app.config["PROPAGATE_EXCEPTIONS"] = True
+    cleanup_stuff = []
+
+    @app.teardown_appcontext
+    def cleanup(exception):
+        cleanup_stuff.append(exception)
+
+    @app.route("/")
+    def index():
+        raise ValueError("dummy")
+
+    with pytest.raises(ValueError, match="dummy"):
+        with app.app_context():
+            client.get("/")
+
+    assert len(cleanup_stuff) == 1
+    assert isinstance(cleanup_stuff[0], ValueError)
+    assert str(cleanup_stuff[0]) == "dummy"
+
+
+def test_app_ctx_globals_methods(app, app_ctx):
+    """
+    This function tests the application context global methods in Flask. It checks the functionality of getting values, checking for the presence of keys, setting default values, popping values, and iterating over the global variables. The function uses an application context provided by the `app_ctx` fixture.
+    
+    Parameters:
+    - app: The Flask application instance.
+    - app_ctx: The application context for the Flask application.
+    
+    Returns:
+    - None: The function performs assertions and does not return any value.
+    """
+
+    # get
+    assert flask.g.get("foo") is None
+    assert flask.g.get("foo", "bar") == "bar"
+    # __contains__
+    assert "foo" not in flask.g
+    flask.g.foo = "bar"
+    assert "foo" in flask.g
+    # setdefault
+    flask.g.setdefault("bar", "the cake is a lie")
+    flask.g.setdefault("bar", "hello world")
+    assert flask.g.bar == "the cake is a lie"
+    # pop
+    assert flask.g.pop("bar") == "the cake is a lie"
+    with pytest.raises(KeyError):
+        flask.g.pop("bar")
+    assert flask.g.pop("bar", "more cake") == "more cake"
+    # __iter__
+    assert list(flask.g) == ["foo"]
+    # __repr__
+    assert repr(flask.g) == "<flask.g of 'flask_test'>"
+
+
+def test_custom_app_ctx_globals_class(app):
+    class CustomRequestGlobals:
+        def __init__(self):
+            self.spam = "eggs"
+
+    app.app_ctx_globals_class = CustomRequestGlobals
+    with app.app_context():
+        assert flask.render_template_string("{{ g.spam }}") == "eggs"
+
+
+def test_context_refcounts(app, client):
+    """
+    Tests the context refcounts in a Flask application.
+    
+    This function sets up teardown functions for both request and app context and then tests the context refcounts by making a GET request to the root URL. It ensures that the request context is properly managed and that the app context is also handled correctly.
+    
+    Parameters:
+    - app: The Flask application instance.
+    - client: The test client for making requests to the application.
+    
+    Returns:
+    - None: The function asserts the expected behavior through assertions.
+    """
+
+    called = []
+
+    @app.teardown_request
+    def teardown_req(error=None):
+        called.append("request")
+
+    @app.teardown_appcontext
+    def teardown_app(error=None):
+        called.append("app")
+
+    @app.route("/")
+    def index():
+        with app_ctx:
+            with request_ctx:
+                pass
+
+        assert flask.request.environ["werkzeug.request"] is not None
+        return ""
+
+    res = client.get("/")
+    assert res.status_code == 200
+    assert res.data == b""
+    assert called == ["request", "app"]
+
+
+def test_clean_pop(app):
+    app.testing = False
+    called = []
+
+    @app.teardown_request
+    def teardown_req(error=None):
+        1 / 0
+
+    @app.teardown_appcontext
+    def teardown_app(error=None):
+        called.append("TEARDOWN")
+
+    try:
+        with app.test_request_context():
+            called.append(flask.current_app.name)
+    except ZeroDivisionError:
+        pass
+
+    assert called == ["flask_test", "TEARDOWN"]
+    assert not flask.current_app

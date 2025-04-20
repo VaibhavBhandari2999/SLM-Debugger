@@ -1,0 +1,34 @@
+from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+from django.db import models
+
+
+class UserManager(BaseUserManager):
+    def _create_user(self, username, **extra_fields):
+        """
+        Creates a new user with the given username and any additional fields.
+        
+        Args:
+        username (str): The username for the new user.
+        extra_fields (dict, optional): Additional fields to be set on the user. Defaults to an empty dictionary.
+        
+        Returns:
+        User: The newly created user instance.
+        
+        This function is used to create a new user instance in the database. It takes a required username and any number of additional fields to customize the user object. The user is saved to the database using
+        """
+
+        user = self.model(username=username, **extra_fields)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, username=None, **extra_fields):
+        return self._create_user(username, **extra_fields)
+
+
+class NoPasswordUser(AbstractBaseUser):
+    password = None
+    last_login = None
+    username = models.CharField(max_length=50, unique=True)
+
+    USERNAME_FIELD = 'username'
+    objects = UserManager()

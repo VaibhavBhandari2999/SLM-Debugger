@@ -1,0 +1,117 @@
+from sympy.combinatorics.generators import symmetric, cyclic, alternating, dihedral
+from sympy.combinatorics.permutations import Permutation
+
+
+def test_generators():
+    """
+    Generates permutations based on different types of symmetry and cyclic structures.
+    
+    This function provides a generator for generating permutations based on cyclic, alternating, symmetric, dihedral, and other types of symmetry. It yields permutations as `Permutation` objects.
+    
+    Parameters:
+    - `n` (int): The size of the permutation set.
+    
+    Yields:
+    - `Permutation`: A permutation object representing a permutation of the set {0, 1, ..., n-1}.
+    
+    Key Types:
+    - `n
+    """
+
+
+    assert list(cyclic(6)) == [
+        Permutation([0, 1, 2, 3, 4, 5]),
+        Permutation([1, 2, 3, 4, 5, 0]),
+        Permutation([2, 3, 4, 5, 0, 1]),
+        Permutation([3, 4, 5, 0, 1, 2]),
+        Permutation([4, 5, 0, 1, 2, 3]),
+        Permutation([5, 0, 1, 2, 3, 4])]
+
+    assert list(cyclic(10)) == [
+        Permutation([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+        Permutation([1, 2, 3, 4, 5, 6, 7, 8, 9, 0]),
+        Permutation([2, 3, 4, 5, 6, 7, 8, 9, 0, 1]),
+        Permutation([3, 4, 5, 6, 7, 8, 9, 0, 1, 2]),
+        Permutation([4, 5, 6, 7, 8, 9, 0, 1, 2, 3]),
+        Permutation([5, 6, 7, 8, 9, 0, 1, 2, 3, 4]),
+        Permutation([6, 7, 8, 9, 0, 1, 2, 3, 4, 5]),
+        Permutation([7, 8, 9, 0, 1, 2, 3, 4, 5, 6]),
+        Permutation([8, 9, 0, 1, 2, 3, 4, 5, 6, 7]),
+        Permutation([9, 0, 1, 2, 3, 4, 5, 6, 7, 8])]
+
+    assert list(alternating(4)) == [
+        Permutation([0, 1, 2, 3]),
+        Permutation([0, 2, 3, 1]),
+        Permutation([0, 3, 1, 2]),
+        Permutation([1, 0, 3, 2]),
+        Permutation([1, 2, 0, 3]),
+        Permutation([1, 3, 2, 0]),
+        Permutation([2, 0, 1, 3]),
+        Permutation([2, 1, 3, 0]),
+        Permutation([2, 3, 0, 1]),
+        Permutation([3, 0, 2, 1]),
+        Permutation([3, 1, 0, 2]),
+        Permutation([3, 2, 1, 0])]
+
+    assert list(symmetric(3)) == [
+        Permutation([0, 1, 2]),
+        Permutation([0, 2, 1]),
+        Permutation([1, 0, 2]),
+        Permutation([1, 2, 0]),
+        Permutation([2, 0, 1]),
+        Permutation([2, 1, 0])]
+
+    assert list(symmetric(4)) == [
+        Permutation([0, 1, 2, 3]),
+        Permutation([0, 1, 3, 2]),
+        Permutation([0, 2, 1, 3]),
+        Permutation([0, 2, 3, 1]),
+        Permutation([0, 3, 1, 2]),
+        Permutation([0, 3, 2, 1]),
+        Permutation([1, 0, 2, 3]),
+        Permutation([1, 0, 3, 2]),
+        Permutation([1, 2, 0, 3]),
+        Permutation([1, 2, 3, 0]),
+        Permutation([1, 3, 0, 2]),
+        Permutation([1, 3, 2, 0]),
+        Permutation([2, 0, 1, 3]),
+        Permutation([2, 0, 3, 1]),
+        Permutation([2, 1, 0, 3]),
+        Permutation([2, 1, 3, 0]),
+        Permutation([2, 3, 0, 1]),
+        Permutation([2, 3, 1, 0]),
+        Permutation([3, 0, 1, 2]),
+        Permutation([3, 0, 2, 1]),
+        Permutation([3, 1, 0, 2]),
+        Permutation([3, 1, 2, 0]),
+        Permutation([3, 2, 0, 1]),
+        Permutation([3, 2, 1, 0])]
+
+    assert list(dihedral(1)) == [
+        Permutation([0, 1]), Permutation([1, 0])]
+
+    assert list(dihedral(2)) == [
+        Permutation([0, 1, 2, 3]),
+        Permutation([1, 0, 3, 2]),
+        Permutation([2, 3, 0, 1]),
+        Permutation([3, 2, 1, 0])]
+
+    assert list(dihedral(3)) == [
+        Permutation([0, 1, 2]),
+        Permutation([2, 1, 0]),
+        Permutation([1, 2, 0]),
+        Permutation([0, 2, 1]),
+        Permutation([2, 0, 1]),
+        Permutation([1, 0, 2])]
+
+    assert list(dihedral(5)) == [
+        Permutation([0, 1, 2, 3, 4]),
+        Permutation([4, 3, 2, 1, 0]),
+        Permutation([1, 2, 3, 4, 0]),
+        Permutation([0, 4, 3, 2, 1]),
+        Permutation([2, 3, 4, 0, 1]),
+        Permutation([1, 0, 4, 3, 2]),
+        Permutation([3, 4, 0, 1, 2]),
+        Permutation([2, 1, 0, 4, 3]),
+        Permutation([4, 0, 1, 2, 3]),
+        Permutation([3, 2, 1, 0, 4])]
