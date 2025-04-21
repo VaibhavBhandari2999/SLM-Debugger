@@ -556,3 +556,82 @@ def process_single_file(file_info, model):
     except Exception as e:
         print(f"Error processing single file: {e}")
         return None
+
+
+def get_files_missing_module_docstrings(file_list, repo_with_underscore, row_idx=None, n=10, weightBM25=0.5, weightSemantic=0.5):
+    missing_docstring_files = []
+    for file in file_list:
+        full_path = os.path.join(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{row_idx}/{repo_with_underscore}/", file)
+        if file.endswith(".py") and not has_module_docstring(full_path):
+            missing_docstring_files.append(file)
+    return missing_docstring_files
+
+
+def extract_functions_from_files(file_list, repo_with_underscore, row_idx, n, weightBM25, weightSemantic):
+    all_functions = []
+    for file in file_list:
+        if file.endswith(".py"):
+            funcs = extract_functions_without_docstrings(file, repo_with_underscore, row_idx, n, weightBM25, weightSemantic)
+            all_functions.extend(funcs)
+    return all_functions
+
+def add_ast_parents(node, parent=None):
+    node.parent = parent
+    for child in ast.iter_child_nodes(node):
+        add_ast_parents(child, node)
+    return node
+
+def filter_global_missing_functions_docstrings(global_missing_func_docstring_list):
+    filtered_functions = [
+        func for func in global_missing_func_docstring_list
+        if (func["end_lineno"] - func["start_lineno"]) >= 3 and (func["end_lineno"] - func["start_lineno"]) <= 100
+    ]
+    func_count = {}
+    print("Length of Filtered Functions: ", len(filtered_functions))
+    for func in filtered_functions:
+        diff = func["file"]
+        func_count[diff] = func_count.get(diff, 0) + 1
+    function_file_count = defaultdict(list)
+    for file_name, count in func_count.items():
+        function_file_count[count].append(file_name)
+    files_to_remove = set()
+    for key, files in function_file_count.items():
+        if key > 40:
+            files_to_remove.update(files)
+    final_filtered_list = [func for func in filtered_functions if func["file"] not in files_to_remove]
+    print("After filtering files with too many functions: ", len(final_filtered_list))
+    return final_filtered_list
+
+
+def extract_functions_without_docstrings(file_path, repo_with_underscore, row_idx, n, weightBM25, weightSemantic):
+    full_path = os.path.join(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{row_idx}/{repo_with_underscore}/", file_path)
+    functions_data = []
+    try:
+        with open(full_path, "r", encoding="utf-8") as f:
+            source = f.read()
+        tree = ast.parse(source, filename=full_path)
+        add_ast_parents(tree)
+        lines = source.splitlines()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and ast.get_docstring(node) is None:
+                start = node.lineno - 1
+                end = node.end_lineno if hasattr(node, 'end_lineno') else start + 1
+                func_source = "\n".join(lines[start:end])
+                class_name = None
+                parent = getattr(node, "parent", None)
+                while parent is not None:
+                    if isinstance(parent, ast.ClassDef):
+                        class_name = parent.name
+                        break
+                    parent = getattr(parent, "parent", None)
+                functions_data.append({
+                    "name": node.name,
+                    "source": func_source,
+                    "start_lineno": start + 1,
+                    "end_lineno": end,
+                    "file": full_path,
+                    "class_name": class_name
+                })
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+    return functions_data

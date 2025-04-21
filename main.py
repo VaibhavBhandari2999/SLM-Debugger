@@ -4,7 +4,8 @@ import os
 import numpy as np
 from src.iteration import iterate_main, iterate_main_file_hits_with_summary
 from src.model_utils import get_qwen_model, get_summary_model
-from src.docstring_utils import (summarise_functions, module_summary)
+from src.docstring_utils import (summarise_functions, module_summary, get_files_missing_module_docstrings, extract_functions_from_files, 
+                                  filter_global_missing_functions_docstrings)
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # Load input data
@@ -24,7 +25,7 @@ get_summary_model()
 n = 60
 weightBM25 = 1.0
 weightSemantic = 0.0
-filter_funcs = True
+filter_funcs = False
 if filter_funcs:
     fil = "Filtered"
 else:
