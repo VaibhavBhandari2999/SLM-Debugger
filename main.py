@@ -25,14 +25,14 @@ get_summary_model()
 n = 60
 weightBM25 = 1.0
 weightSemantic = 0.0
-filter_funcs = False
+filter_funcs = True
 if filter_funcs:
     fil = "Filtered"
 else:
     fil = "Unfiltered"
     
 # check if the file already exists
-for i in np.arange(0.0, 1.0, 0.2):
+for i in np.arange(0.0, 1.2, 0.2):
     weightBM25 = round(i,1)
     weightSemantic = round(1 - i, 1)
     # print(weightBM25, weightSemantic)
@@ -97,12 +97,7 @@ for i in np.arange(0.0, 1.0, 0.2):
 
     ## Module-3
     ## Generate and insert function-level docstrings
-    try:
-        with open(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{fil}/docstrings.json", "r") as f:
-            docstrings = json.load(f)
-            print("File already exists, skipping iteration.")
-    except FileNotFoundError:
-        summarise_functions(filtered_funcs, n, weightBM25, weightSemantic)
+    summarise_functions(filtered_funcs, n, weightBM25, weightSemantic, fil)
 
     ## Module-4
     ## Generate module-level docstrings for files missing them

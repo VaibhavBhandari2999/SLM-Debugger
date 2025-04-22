@@ -2,6 +2,8 @@ from vllm import LLM, SamplingParams
 import ast
 import json
 from concurrent.futures import ThreadPoolExecutor
+import multiprocessing
+import shutil
 from tqdm import tqdm
 import time
 import torch
@@ -101,46 +103,66 @@ def add_ast_parents_module_level(node):
         child.parent = node
         add_ast_parents_module_level(child)
 
-def insert_docstring_by_class_and_name(file_path, class_name, function_name, generated_docstring, n, weightBM25, weightSemantic):
+def insert_docstring_by_class_and_name(file_path, class_name, function_name, generated_docstring, n, weightBM25, weightSemantic, fil):
     """Insert the generated docstring into the function."""
-    try:
-        new_file_path = f"summary/{n}/{weightBM25}_{weightSemantic}" + file_path
-        with open(new_file_path, "r", encoding="utf-8") as f:
-            source = f.read()
-        lines = source.splitlines()
-        tree = ast.parse(source)
-        add_ast_parents_module_level(tree)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name == function_name:
-                actual_class = None
-                parent = node
-                while hasattr(parent, "parent"):
-                    parent = parent.parent
-                    if isinstance(parent, ast.ClassDef):
-                        actual_class = parent.name
-                        break
-                if actual_class != class_name:
-                    continue
-                if ast.get_docstring(node) is not None:
-                    print(f"Function '{function_name}' in class '{class_name}' in {new_file_path} already has a docstring. Skipping.")
-                    return
-                start_line = node.lineno - 1
-                indent = len(lines[start_line]) - len(lines[start_line].lstrip())
-                doc_indent = " " * (indent + 4)
-                doc_lines = [f'{doc_indent}"""']
-                for line in generated_docstring.strip().split("\n"):
-                    doc_lines.append(f"{doc_indent}{line.strip()}")
-                doc_lines.append(f'{doc_indent}"""')
-                doc_lines.append("")
-                insert_at = start_line + 1
-                lines[insert_at:insert_at] = doc_lines
-                with open(new_file_path, "w", encoding="utf-8") as f:
-                    f.write("\n".join(lines) + "\n")
-                print(f"Inserted docstring for function '{function_name}' in class '{class_name}' in {new_file_path}")
+    # try:
+    new_file_path = file_path.replace("decoupled", f"summary/{fil}", 1)
+    # print(new_file_path)
+
+    if not os.path.exists(new_file_path):
+        parts = file_path.split(os.sep)
+        decoupled_index = parts.index("decoupled")
+        short_base = os.path.join(*parts[decoupled_index:decoupled_index + 3])
+
+        # Construct the relative path after that
+        relative_subpath = os.path.join(*parts[decoupled_index + 3:])
+
+        # Create the new summary path
+        summary_base = os.path.join(f"summary/{fil}", *parts[decoupled_index + 1:decoupled_index + 3])
+        # destination_path = os.path.join(summary_base, relative_subpath)
+
+        # os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+        shutil.copytree(short_base, summary_base)
+        print(short_base, "->", summary_base)
+    
+    # Now read the new file and insert the docstring
+    # Read the file content
+    with open(new_file_path, "r", encoding="utf-8") as f:
+        source = f.read()
+    lines = source.splitlines()
+    tree = ast.parse(source)
+    add_ast_parents_module_level(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == function_name:
+            actual_class = None
+            parent = node
+            while hasattr(parent, "parent"):
+                parent = parent.parent
+                if isinstance(parent, ast.ClassDef):
+                    actual_class = parent.name
+                    break
+            if actual_class != class_name:
+                continue
+            if ast.get_docstring(node) is not None:
+                print(f"Function '{function_name}' in class '{class_name}' in {new_file_path} already has a docstring. Skipping.")
                 return
-        print(f"Function '{function_name}' in class '{class_name}' not found in {new_file_path}")
-    except Exception as e:
-        print(f"Error inserting docstring for '{function_name}' in class '{class_name}' in {new_file_path}: {e}")
+            start_line = node.lineno - 1
+            indent = len(lines[start_line]) - len(lines[start_line].lstrip())
+            doc_indent = " " * (indent + 4)
+            doc_lines = [f'{doc_indent}"""']
+            for line in generated_docstring.strip().split("\n"):
+                doc_lines.append(f"{doc_indent}{line.strip()}")
+            doc_lines.append(f'{doc_indent}"""')
+            doc_lines.append("")
+            insert_at = start_line + 1
+            lines[insert_at:insert_at] = doc_lines
+            with open(new_file_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            print(f"Inserted docstring for function '{function_name}' in class '{class_name}' in {new_file_path}")
+            return
+    print(f"Function '{function_name}' in class '{class_name}' not found in {new_file_path}")
+    # except Exception as e:
+    #     print(f"Error inserting docstring for '{function_name}' in class '{class_name}' in {new_file_path}: {e}")
 
 def validate_function(func):
     """Validate that a function object has all required fields."""
@@ -154,32 +176,11 @@ def batch_generate_summaries(functions, model):
     """Generate summaries for a batch of functions using vLLM."""
     # Validate and filter functions
     valid_functions = functions
-    # for i, func in enumerate(functions):
-    #     try:
-    #         if validate_function(func):
-    #             valid_functions.append(func)
-    #         else:
-    #             print(f"Skipping invalid function at index {i}: {func}")
-    #     except Exception as e:
-    #         print(f"Error validating function at index {i}: {e}")
-    
-    # if not valid_functions:
-    #     print("No valid functions in batch!")
-    #     return []
     
     # # Create prompts for all valid functions in this batch
     prompts = []
     for func in valid_functions:
-        # try:
         prompts.append(create_summary_prompt(func))
-        # except Exception as e:
-        #     print(f"Error creating prompt for function {func.get('name', 'unknown')}: {e}")
-        #     # Remove this function from the list of valid functions
-        #     valid_functions.remove(func)
-    
-    # if not prompts:
-    #     print("No valid prompts created!")
-    #     return []
     
     # Configure sampling parameters
     sampling_params = SamplingParams(
@@ -226,54 +227,63 @@ def process_single_function(func, model):
         print(f"Error processing single function: {e}")
         return None
 
-def summarise_functions(filtered_funcs, n, weightBM25, weightSemantic):
+def summarise_functions(filtered_funcs, n, weightBM25, weightSemantic, fil):
     """Process all functions using batched vLLM inference and parallel file I/O."""
     # Initialize the model with multiple GPUs
-    model = get_summary_model()
-    func_list = filtered_funcs
-    batch_size = 16
-    num_gpus_available = torch.cuda.device_count()
-    adjusted_batch_size = batch_size * max(1, num_gpus_available)
-    print(f"Using adjusted batch size: {adjusted_batch_size} based on GPU count: {num_gpus_available}")
-    
-    # Split functions into batches
-    batches = [func_list[i:i+adjusted_batch_size] for i in range(0, len(func_list), adjusted_batch_size)]
-    
-    # Process each batch with vLLM
-    all_results = []
-    for batch_idx, batch in enumerate(tqdm(batches, desc="Generating docstrings")):
-        print(f"\nProcessing batch {batch_idx+1}/{len(batches)} with {len(batch)} functions")
+    try:
+        with open(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{fil}/docstrings.json", "r") as f:
+            docstrings = json.load(f)
+            print("File already exists, skipping iteration.")
+    except FileNotFoundError:
+
+        model = get_summary_model()
+        func_list = filtered_funcs
+        batch_size = 16
+        num_gpus_available = torch.cuda.device_count()
+        adjusted_batch_size = batch_size * max(1, num_gpus_available)
+        print(f"Using adjusted batch size: {adjusted_batch_size} based on GPU count: {num_gpus_available}")
         
-        try:
-            # Validate the batch before processing
-            valid_batch = [func for func in batch if validate_function(func)]
-            if not valid_batch:
-                print(f"Skipping batch {batch_idx+1} - no valid functions found")
-                continue
-                
-            batch_results = batch_generate_summaries(valid_batch, model)
-            all_results.extend(batch_results)
-        except Exception as e:
-            print(f"Error processing batch {batch_idx+1}: {str(e)}")
-            # Try processing one by one for this batch
-            for func_idx, func in enumerate(batch):
-                try:
-                    if validate_function(func):
-                        print(f"Processing function {func_idx+1}/{len(batch)} individually")
-                        result = process_single_function(func, model)
-                        if result:
-                            all_results.append(result)
-                except Exception as e2:
-                    print(f"Failed to process function {func_idx+1} individually: {str(e2)}")
-    
-    # save the results to a JSON file
-    os.makedirs(f"decoupled/{n}/{weightBM25}_{weightSemantic}/Filtered", exist_ok=True)
-    # Create the directory if it doesn't exist
-    with open(f"decoupled/{n}/{weightBM25}_{weightSemantic}/Filtered/docstrings.json", "w") as f:
-        json.dump(all_results, f, indent=4)
-    print(f"Saved {len(all_results)} docstrings to summary/{n}/{weightBM25}_{weightSemantic}/docstrings.json")
-    # Calculate CPU worker count based on system
-    import multiprocessing
+        # Split functions into batches
+        batches = [func_list[i:i+adjusted_batch_size] for i in range(0, len(func_list), adjusted_batch_size)]
+        
+        # Process each batch with vLLM
+        all_results = []
+        for batch_idx, batch in enumerate(tqdm(batches, desc="Generating docstrings")):
+            print(f"\nProcessing batch {batch_idx+1}/{len(batches)} with {len(batch)} functions")
+            
+            try:
+                # Validate the batch before processing
+                valid_batch = [func for func in batch if validate_function(func)]
+                if not valid_batch:
+                    print(f"Skipping batch {batch_idx+1} - no valid functions found")
+                    continue
+                    
+                batch_results = batch_generate_summaries(valid_batch, model)
+                all_results.extend(batch_results)
+            except Exception as e:
+                print(f"Error processing batch {batch_idx+1}: {str(e)}")
+                # Try processing one by one for this batch
+                for func_idx, func in enumerate(batch):
+                    try:
+                        if validate_function(func):
+                            print(f"Processing function {func_idx+1}/{len(batch)} individually")
+                            result = process_single_function(func, model)
+                            if result:
+                                all_results.append(result)
+                    except Exception as e2:
+                        print(f"Failed to process function {func_idx+1} individually: {str(e2)}")
+        release_vllm_model(model)
+        # save the results to a JSON file
+        os.makedirs(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{fil}", exist_ok=True)
+        # Create the directory if it doesn't exist
+        with open(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{fil}/docstrings.json", "w") as f:
+            json.dump(all_results, f, indent=4)
+        print(f"Saved {len(all_results)} docstrings to summary/{n}/{weightBM25}_{weightSemantic}/docstrings.json")
+
+    with open(f"decoupled/{n}/{weightBM25}_{weightSemantic}/{fil}/docstrings.json", "r") as f:
+        all_results = json.load(f)
+        print("File already exists, skipping iteration.")
+
     cpu_workers = min(8, multiprocessing.cpu_count())
     
     # Now process file insertions in parallel
@@ -289,7 +299,7 @@ def summarise_functions(filtered_funcs, n, weightBM25, weightSemantic):
                             func["file"],
                             func["class_name"],
                             func["name"],
-                            docstring, n, weightBM25, weightSemantic
+                            docstring, n, weightBM25, weightSemantic, fil
                         )
                     )
                 except Exception as e:
@@ -308,7 +318,30 @@ def summarise_functions(filtered_funcs, n, weightBM25, weightSemantic):
     else:
         print("No results to insert!")
 
-    release_vllm_model(model)
+    # if all_results:
+    #     print(f"\nInserting {len(all_results)} docstrings")
+    
+    #     completed = 0
+    #     for func, docstring in tqdm(all_results, desc="Inserting docstrings"):
+    #         try:
+    #             insert_docstring_by_class_and_name(
+    #                 func["file"],
+    #                 func["class_name"],
+    #                 func["name"],
+    #                 docstring,
+    #                 n,
+    #                 weightBM25,
+    #                 weightSemantic,
+    #                 fil
+    #             )
+    #             completed += 1
+    #         except Exception as e:
+    #             print(f"Error during file insertion: {e}")
+        
+    #     print(f"Successfully inserted {completed} docstrings out of {len(all_results)} attempted")
+    # else:
+    #     print("No results to insert!")
+
 
 
 def extract_module_docstring(llm_output):
