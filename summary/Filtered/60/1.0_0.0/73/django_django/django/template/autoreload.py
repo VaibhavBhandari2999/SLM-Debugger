@@ -1,0 +1,81 @@
+from pathlib import Path
+
+from django.dispatch import receiver
+from django.template import engines
+from django.template.backends.django import DjangoTemplates
+from django.utils._os import to_path
+from django.utils.autoreload import (
+    autoreload_started, file_changed, is_django_path,
+)
+
+
+def get_template_directories():
+    """
+    Retrieve a set of template directories.
+    
+    This function iterates through each template backend and collects directories
+    where templates are stored. It filters out directories associated with Django
+    templates and returns a set of template directories.
+    
+    Parameters:
+    None
+    
+    Returns:
+    set: A set of template directories, excluding Django template directories.
+    """
+
+    # Iterate through each template backend and find
+    # any template_loader that has a 'get_dirs' method.
+    # Collect the directories, filtering out Django templates.
+    items = set()
+    for backend in engines.all():
+        if not isinstance(backend, DjangoTemplates):
+            continue
+
+        items.update(Path.cwd() / to_path(dir) for dir in backend.engine.dirs)
+
+        for loader in backend.engine.template_loaders:
+            if not hasattr(loader, 'get_dirs'):
+                continue
+            items.update(
+                Path.cwd() / to_path(directory)
+                for directory in loader.get_dirs()
+                if not is_django_path(directory)
+            )
+    return items
+
+
+def reset_loaders():
+    for backend in engines.all():
+        if not isinstance(backend, DjangoTemplates):
+            continue
+        for loader in backend.engine.template_loaders:
+            loader.reset()
+
+
+@receiver(autoreload_started, dispatch_uid='template_loaders_watch_changes')
+def watch_for_template_changes(sender, **kwargs):
+    for directory in get_template_directories():
+        sender.watch_dir(directory, '**/*')
+
+
+@receiver(file_changed, dispatch_uid='template_loaders_file_changed')
+def template_changed(sender, file_path, **kwargs):
+    """
+    Reset Django template loaders when a template file in a specified directory is changed.
+    
+    Parameters:
+    sender (str): The object that triggered the signal, typically the name of the template file.
+    file_path (Path): The path to the file that was changed.
+    **kwargs: Additional keyword arguments passed to the signal handler.
+    
+    Returns:
+    bool: True if the template loaders were reset, False otherwise.
+    
+    This function checks if the changed file is within any of the template directories specified in Django settings
+    """
+
+    for template_dir in get_template_directories():
+        if template_dir in file_path.parents:
+            reset_loaders()
+            return True

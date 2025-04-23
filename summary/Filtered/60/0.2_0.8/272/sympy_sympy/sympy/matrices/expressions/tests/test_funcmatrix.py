@@ -1,0 +1,83 @@
+from sympy.core import symbols, Lambda
+from sympy.functions import KroneckerDelta
+from sympy.matrices import Matrix
+from sympy.matrices.expressions import FunctionMatrix, MatrixExpr, Identity
+from sympy.testing.pytest import raises
+
+
+def test_funcmatrix_creation():
+    """
+    Test function for creating a FunctionMatrix.
+    
+    Parameters:
+    - i, j, k: Symbols representing indices for the matrix.
+    
+    Returns:
+    - FunctionMatrix: A matrix with specified dimensions and a lambda function as its elements.
+    
+    Raises:
+    - ValueError: If the dimensions are not valid integers or if the lambda function does not match the required signature.
+    
+    Examples:
+    - FunctionMatrix(2, 2, Lambda((i, j), 0)) creates a 2x2 matrix with all elements set to
+    """
+
+    i, j, k = symbols('i j k')
+    assert FunctionMatrix(2, 2, Lambda((i, j), 0))
+    assert FunctionMatrix(0, 0, Lambda((i, j), 0))
+
+    raises(ValueError, lambda: FunctionMatrix(-1, 0, Lambda((i, j), 0)))
+    raises(ValueError, lambda: FunctionMatrix(2.0, 0, Lambda((i, j), 0)))
+    raises(ValueError, lambda: FunctionMatrix(2j, 0, Lambda((i, j), 0)))
+    raises(ValueError, lambda: FunctionMatrix(0, -1, Lambda((i, j), 0)))
+    raises(ValueError, lambda: FunctionMatrix(0, 2.0, Lambda((i, j), 0)))
+    raises(ValueError, lambda: FunctionMatrix(0, 2j, Lambda((i, j), 0)))
+
+    raises(ValueError, lambda: FunctionMatrix(2, 2, Lambda(i, 0)))
+    raises(ValueError, lambda: FunctionMatrix(2, 2, lambda i, j: 0))
+    raises(ValueError, lambda: FunctionMatrix(2, 2, Lambda((i,), 0)))
+    raises(ValueError, lambda: FunctionMatrix(2, 2, Lambda((i, j, k), 0)))
+    raises(ValueError, lambda: FunctionMatrix(2, 2, i+j))
+    assert FunctionMatrix(2, 2, "lambda i, j: 0") == \
+        FunctionMatrix(2, 2, Lambda((i, j), 0))
+
+    m = FunctionMatrix(2, 2, KroneckerDelta)
+    assert m.as_explicit() == Identity(2).as_explicit()
+    assert m.args[2] == Lambda((i, j), KroneckerDelta(i, j))
+
+    n = symbols('n')
+    assert FunctionMatrix(n, n, Lambda((i, j), 0))
+    n = symbols('n', integer=False)
+    raises(ValueError, lambda: FunctionMatrix(n, n, Lambda((i, j), 0)))
+    n = symbols('n', negative=True)
+    raises(ValueError, lambda: FunctionMatrix(n, n, Lambda((i, j), 0)))
+
+
+def test_funcmatrix():
+    """
+    Create a 3x3 FunctionMatrix with elements defined as i - j. The matrix is indexed using zero-based indices, and the shape of the matrix is (3, 3).
+    
+    Parameters:
+    - None
+    
+    Returns:
+    - X (FunctionMatrix): A 3x3 matrix with elements defined as i - j.
+    
+    Attributes:
+    - X[1, 1]: The element at the second row and second column, which is 0.
+    - X[1, 2]: The element
+    """
+
+    i, j = symbols('i,j')
+    X = FunctionMatrix(3, 3, Lambda((i, j), i - j))
+    assert X[1, 1] == 0
+    assert X[1, 2] == -1
+    assert X.shape == (3, 3)
+    assert X.rows == X.cols == 3
+    assert Matrix(X) == Matrix(3, 3, lambda i, j: i - j)
+    assert isinstance(X*X + X, MatrixExpr)
+
+
+def test_replace_issue():
+    X = FunctionMatrix(3, 3, KroneckerDelta)
+    assert X.replace(lambda x: True, lambda x: x) == X

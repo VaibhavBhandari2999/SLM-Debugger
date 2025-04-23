@@ -1,0 +1,131 @@
+import functools
+from collections import Counter
+from pathlib import Path
+
+from django.apps import apps
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from django.utils.functional import cached_property
+from django.utils.module_loading import import_string
+
+
+class InvalidTemplateEngineError(ImproperlyConfigured):
+    pass
+
+
+class EngineHandler:
+    def __init__(self, templates=None):
+        """
+        templates is an optional list of template engine definitions
+        (structured like settings.TEMPLATES).
+        """
+        self._templates = templates
+        self._engines = {}
+
+    @cached_property
+    def templates(self):
+        """
+        Generate and return the configured template settings.
+        
+        This method initializes and returns the template settings based on the provided configuration. It ensures that each template engine has a unique alias and that the 'BACKEND' setting is valid. If any template engine is misconfigured, an `ImproperlyConfigured` exception is raised.
+        
+        Parameters:
+        None (the method uses the internal `_templates` attribute and settings.TEMPLATES).
+        
+        Returns:
+        dict: A dictionary containing the configured template settings, where each key is
+        """
+
+        if self._templates is None:
+            self._templates = settings.TEMPLATES
+
+        templates = {}
+        backend_names = []
+        for tpl in self._templates:
+            try:
+                # This will raise an exception if 'BACKEND' doesn't exist or
+                # isn't a string containing at least one dot.
+                default_name = tpl["BACKEND"].rsplit(".", 2)[-2]
+            except Exception:
+                invalid_backend = tpl.get("BACKEND", "<not defined>")
+                raise ImproperlyConfigured(
+                    "Invalid BACKEND for a template engine: {}. Check "
+                    "your TEMPLATES setting.".format(invalid_backend)
+                )
+
+            tpl = {
+                "NAME": default_name,
+                "DIRS": [],
+                "APP_DIRS": False,
+                "OPTIONS": {},
+                **tpl,
+            }
+
+            templates[tpl["NAME"]] = tpl
+            backend_names.append(tpl["NAME"])
+
+        counts = Counter(backend_names)
+        duplicates = [alias for alias, count in counts.most_common() if count > 1]
+        if duplicates:
+            raise ImproperlyConfigured(
+                "Template engine aliases aren't unique, duplicates: {}. "
+                "Set a unique NAME for each engine in settings.TEMPLATES.".format(
+                    ", ".join(duplicates)
+                )
+            )
+
+        return templates
+
+    def __getitem__(self, alias):
+        """
+        Retrieve a template engine by its alias.
+        
+        This method attempts to return the template engine associated with the given alias. If the alias is not found in the `_engines` dictionary, it tries to fetch the configuration from the `templates` list in the settings. If the configuration is not found, it raises an `InvalidTemplateEngineError`.
+        
+        If the backend is not already initialized, it imports the specified backend class, initializes the engine with the provided parameters, and stores it in the `_engines`
+        """
+
+        try:
+            return self._engines[alias]
+        except KeyError:
+            try:
+                params = self.templates[alias]
+            except KeyError:
+                raise InvalidTemplateEngineError(
+                    "Could not find config for '{}' "
+                    "in settings.TEMPLATES".format(alias)
+                )
+
+            # If importing or initializing the backend raises an exception,
+            # self._engines[alias] isn't set and this code may get executed
+            # again, so we must preserve the original params. See #24265.
+            params = params.copy()
+            backend = params.pop("BACKEND")
+            engine_cls = import_string(backend)
+            engine = engine_cls(params)
+
+            self._engines[alias] = engine
+            return engine
+
+    def __iter__(self):
+        return iter(self.templates)
+
+    def all(self):
+        return [self[alias] for alias in self]
+
+
+@functools.lru_cache
+def get_app_template_dirs(dirname):
+    """
+    Return an iterable of paths of directories to load app templates from.
+
+    dirname is the name of the subdirectory containing templates inside
+    installed applications.
+    """
+    template_dirs = [
+        Path(app_config.path) / dirname
+        for app_config in apps.get_app_configs()
+        if app_config.path and (Path(app_config.path) / dirname).is_dir()
+    ]
+    # Immutable return value because it will be cached and shared by callers.
+    return tuple(template_dirs)

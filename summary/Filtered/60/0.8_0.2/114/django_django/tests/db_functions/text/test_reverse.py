@@ -1,0 +1,79 @@
+from django.db import connection
+from django.db.models import CharField
+from django.db.models.functions import Length, Reverse, Trim
+from django.test import TestCase
+from django.test.utils import register_lookup
+
+from ..models import Author
+
+
+class ReverseTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.john = Author.objects.create(name="John Smith", alias="smithj")
+        cls.elena = Author.objects.create(name="Élena Jordan", alias="elena")
+        cls.python = Author.objects.create(name="パイソン")
+
+    def test_null(self):
+        author = Author.objects.annotate(backward=Reverse("alias")).get(
+            pk=self.python.pk
+        )
+        self.assertEqual(
+            author.backward,
+            "" if connection.features.interprets_empty_strings_as_nulls else None,
+        )
+
+    def test_basic(self):
+        authors = Author.objects.annotate(backward=Reverse("name"))
+        self.assertQuerySetEqual(
+            authors,
+            [
+                ("John Smith", "htimS nhoJ"),
+                ("Élena Jordan", "nadroJ anelÉ"),
+                ("パイソン", "ンソイパ"),
+            ],
+            lambda a: (a.name, a.backward),
+            ordered=False,
+        )
+
+    def test_transform(self):
+        """
+        Tests the transformation of a CharField using a custom lookup, 'Reverse'.
+        
+        This function registers a custom lookup 'Reverse' for CharField and then performs tests to ensure that the reverse string comparison works as expected.
+        
+        Parameters:
+        None
+        
+        Returns:
+        None
+        
+        Key Steps:
+        1. Registers the 'Reverse' lookup for CharField.
+        2. Filters the Author objects where the reversed name matches the reversed name of the 'john' object.
+        3. Verifies that the filtered result contains only the '
+        """
+
+        with register_lookup(CharField, Reverse):
+            authors = Author.objects.all()
+            self.assertCountEqual(
+                authors.filter(name__reverse=self.john.name[::-1]), [self.john]
+            )
+            self.assertCountEqual(
+                authors.exclude(name__reverse=self.john.name[::-1]),
+                [self.elena, self.python],
+            )
+
+    def test_expressions(self):
+        author = Author.objects.annotate(backward=Reverse(Trim("name"))).get(
+            pk=self.john.pk
+        )
+        self.assertEqual(author.backward, self.john.name[::-1])
+        with register_lookup(CharField, Reverse), register_lookup(CharField, Length):
+            authors = Author.objects.all()
+            self.assertCountEqual(
+                authors.filter(name__reverse__length__gt=7), [self.john, self.elena]
+            )
+            self.assertCountEqual(
+                authors.exclude(name__reverse__length__gt=7), [self.python]
+            )

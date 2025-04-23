@@ -97,10 +97,12 @@ for i in np.arange(0.0, 1.2, 0.2):
 
     ## Module-3
     ## Generate and insert function-level docstrings
-    summarise_functions(filtered_funcs, n, weightBM25, weightSemantic, fil)
+    # summarise_functions(filtered_funcs, n, weightBM25, weightSemantic, fil)
+
 
     ## Module-4
     ## Generate module-level docstrings for files missing them
+    module_summary(tn, n, weightBM25, weightSemantic, fil)
     # try:
     #     with open(f"module_summary/{n}/{weightBM25}_{weightSemantic}/{fil}/module_docstrings.json", "r") as f:
     #         module_docstrings = json.load(f)
@@ -110,27 +112,3 @@ for i in np.arange(0.0, 1.2, 0.2):
     #         topk = json.load(f)
     #     module_summary(topk, n, weightBM25, weightSemantic)
     #     print("Module-level docstrings generated.")
-
-
-
-# file_hit_ratios = {}
-# for i in range(1,11):
-#     print("-- "*100)
-#     score = iterate_main(data_lite, i,0.2,0.8)
-#     file_hit_ratios[i] = score
-
-#     print(score)
-
-# with open("FileHits/file_hits_no_summary.json", "w") as f:
-#     json.dump(file_hit_ratios, f, indent=4)
-
-# file_hit_ratios = {}
-# for i in range(1,11):
-#     print("-- "*100)
-#     print("Considering top-",i)
-#     with_summary = iterate_main_file_hits_with_summary(i, "decoupled_top_files")
-
-#     file_hit_ratios[i] = with_summary
-
-# with open("FileHits/file_hit_with_summary.json", "w") as f:
-#     json.dump(file_hit_ratios, f, indent=4)

@@ -1,1 +1,4 @@
 *.json filter=lfs diff=lfs merge=lfs -text
+summary/* filter=lfs diff=lfs merge=lfs -text
+decoupled/* filter=lfs diff=lfs merge=lfs -text
+module_summary/* filter=lfs diff=lfs merge=lfs -text

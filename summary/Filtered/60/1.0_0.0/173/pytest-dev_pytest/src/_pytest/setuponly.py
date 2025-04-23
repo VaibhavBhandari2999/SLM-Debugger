@@ -1,0 +1,109 @@
+import sys
+
+import pytest
+
+
+def pytest_addoption(parser):
+    group = parser.getgroup("debugconfig")
+    group.addoption(
+        "--setuponly",
+        "--setup-only",
+        action="store_true",
+        help="only setup fixtures, do not execute tests.",
+    )
+    group.addoption(
+        "--setupshow",
+        "--setup-show",
+        action="store_true",
+        help="show setup of fixtures while executing tests.",
+    )
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_fixture_setup(fixturedef, request):
+    """
+    Function to handle the setup phase of a pytest fixture.
+    
+    This function is responsible for executing the setup phase of a pytest fixture. It captures the setup process and, if the `setupshow` option is enabled in the pytest configuration, it displays the setup action along with any parameters used.
+    
+    Parameters:
+    - fixturedef: The fixture definition object containing information about the fixture being setup.
+    - request: The request object representing the test request.
+    
+    Yields:
+    - None: This function is a generator and yields control
+    """
+
+    yield
+    config = request.config
+    if config.option.setupshow:
+        if hasattr(request, "param"):
+            # Save the fixture parameter so ._show_fixture_action() can
+            # display it now and during the teardown (in .finish()).
+            if fixturedef.ids:
+                if callable(fixturedef.ids):
+                    fixturedef.cached_param = fixturedef.ids(request.param)
+                else:
+                    fixturedef.cached_param = fixturedef.ids[request.param_index]
+            else:
+                fixturedef.cached_param = request.param
+        _show_fixture_action(fixturedef, "SETUP")
+
+
+def pytest_fixture_post_finalizer(fixturedef):
+    if hasattr(fixturedef, "cached_result"):
+        config = fixturedef._fixturemanager.config
+        if config.option.setupshow:
+            _show_fixture_action(fixturedef, "TEARDOWN")
+            if hasattr(fixturedef, "cached_param"):
+                del fixturedef.cached_param
+
+
+def _show_fixture_action(fixturedef, msg):
+    """
+    Show a fixture action.
+    
+    This function is used to display a message indicating the setup or teardown of a fixture in a testing environment. It aligns the output based on the fixture's scope and provides additional information such as dependencies and cached parameters.
+    
+    Parameters:
+    fixturedef (fixture definition): The fixture definition object containing information about the fixture.
+    msg (str): The message to be displayed, indicating whether the action is a setup or teardown.
+    
+    This function does not return any value but prints the message to
+    """
+
+    config = fixturedef._fixturemanager.config
+    capman = config.pluginmanager.getplugin("capturemanager")
+    if capman:
+        capman.suspend_global_capture()
+        out, err = capman.read_global_capture()
+
+    tw = config.get_terminal_writer()
+    tw.line()
+    tw.write(" " * 2 * fixturedef.scopenum)
+    tw.write(
+        "{step} {scope} {fixture}".format(
+            step=msg.ljust(8),  # align the output to TEARDOWN
+            scope=fixturedef.scope[0].upper(),
+            fixture=fixturedef.argname,
+        )
+    )
+
+    if msg == "SETUP":
+        deps = sorted(arg for arg in fixturedef.argnames if arg != "request")
+        if deps:
+            tw.write(" (fixtures used: {})".format(", ".join(deps)))
+
+    if hasattr(fixturedef, "cached_param"):
+        tw.write("[{}]".format(fixturedef.cached_param))
+
+    if capman:
+        capman.resume_global_capture()
+        sys.stdout.write(out)
+        sys.stderr.write(err)
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_cmdline_main(config):
+    if config.option.setuponly:
+        config.option.setupshow = True

@@ -1,0 +1,78 @@
+from sympy.core.logic import fuzzy_and
+from sympy.core.sympify import _sympify
+from sympy.sets.sets import Set
+from .matexpr import MatrixExpr
+
+
+class MatrixSet(Set):
+    """
+    MatrixSet represents the set of matrices with ``shape = (n, m)`` over the
+    given set.
+
+    Examples
+    ========
+
+    >>> from sympy.matrices import MatrixSet, Matrix
+    >>> from sympy import S, I
+    >>> M = MatrixSet(2, 2, set=S.Reals)
+    >>> X = Matrix([[1, 2], [3, 4]])
+    >>> X in M
+    True
+    >>> X = Matrix([[1, 2], [I, 4]])
+    >>> X in M
+    False
+
+    """
+    is_empty = False
+
+    def __new__(cls, n, m, set):
+        n, m, set = _sympify(n), _sympify(m), _sympify(set)
+        cls._check_dim(n)
+        cls._check_dim(m)
+        if not isinstance(set, Set):
+            raise TypeError("{} should be an instance of Set.".format(set))
+        return Set.__new__(cls, n, m, set)
+
+    @property
+    def shape(self):
+        return self.args[:2]
+
+    @property
+    def set(self):
+        return self.args[2]
+
+    def _contains(self, other):
+        """
+        Determine if the current matrix expression contains another matrix expression.
+        
+        Parameters:
+        other (MatrixExpr): The matrix expression to check for containment.
+        
+        Returns:
+        bool or None: True if the current matrix expression contains `other`, False if not, or None if the shapes are symbolic and cannot be definitively determined.
+        
+        Raises:
+        TypeError: If `other` is not an instance of MatrixExpr.
+        
+        Notes:
+        - The function checks if the shapes of the two matrix expressions match. If they do not, it determines
+        """
+
+        if not isinstance(other, MatrixExpr):
+            raise TypeError("{} should be an instance of MatrixExpr.".format(other))
+        if other.shape != self.shape:
+            are_symbolic = any(_sympify(x).is_Symbol for x in other.shape + self.shape)
+            if are_symbolic:
+                return None
+            return False
+        return fuzzy_and(self.set.contains(x) for x in other)
+
+    @classmethod
+    def _check_dim(cls, dim):
+        """Helper function to check invalid matrix dimensions"""
+        from sympy.core.assumptions import check_assumptions
+        ok = check_assumptions(dim, integer=True, nonnegative=True)
+        if ok is False:
+            raise ValueError(
+                "The dimension specification {} should be "
+                "a nonnegative integer.".format(dim))

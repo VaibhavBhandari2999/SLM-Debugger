@@ -1,0 +1,51 @@
+# -*- coding: utf-8 -*-
+
+from sympy import Symbol, Piecewise, Eq
+from sympy.printing.preview import preview
+
+from io import BytesIO
+
+
+def test_preview():
+    """
+    Generate a PNG preview of the given SymPy expression.
+    
+    This function creates a PNG image of the specified SymPy expression and writes it to a BytesIO object. If the LaTeX package is not installed, the function will catch a RuntimeError and pass without further action.
+    
+    Parameters:
+    x (Symbol): The SymPy symbol or expression to be previewed.
+    
+    Returns:
+    BytesIO: A BytesIO object containing the PNG image of the expression.
+    
+    Raises:
+    RuntimeError: If the LaTeX package is not installed
+    """
+
+    x = Symbol('x')
+    obj = BytesIO()
+    try:
+        preview(x, output='png', viewer='BytesIO', outputbuffer=obj)
+    except RuntimeError:
+        pass  # latex not installed on CI server
+
+
+def test_preview_unicode_symbol():
+    # issue 9107
+    a = Symbol('α')
+    obj = BytesIO()
+    try:
+        preview(a, output='png', viewer='BytesIO', outputbuffer=obj)
+    except RuntimeError:
+        pass  # latex not installed on CI server
+
+
+def test_preview_latex_construct_in_expr():
+    # see PR 9801
+    x = Symbol('x')
+    pw = Piecewise((1, Eq(x, 0)), (0, True))
+    obj = BytesIO()
+    try:
+        preview(pw, output='png', viewer='BytesIO', outputbuffer=obj)
+    except RuntimeError:
+        pass  # latex not installed on CI server

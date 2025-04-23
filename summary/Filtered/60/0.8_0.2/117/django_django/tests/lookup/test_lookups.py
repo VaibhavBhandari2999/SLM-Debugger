@@ -1,0 +1,90 @@
+from datetime import datetime
+from unittest import mock
+
+from django.db.models import DateTimeField, Value
+from django.db.models.lookups import Lookup, YearLookup
+from django.test import SimpleTestCase
+
+
+class CustomLookup(Lookup):
+    pass
+
+
+class LookupTests(SimpleTestCase):
+    def test_equality(self):
+        """
+        Tests the equality of Lookup objects.
+        
+        This function checks the equality of Lookup objects under various conditions. It verifies that two Lookup objects with the same left-hand side (lhs) and right-hand side (rhs) values are considered equal. It also checks that a Lookup object is considered equal to itself, to a mock.ANY object, and not equal to a Lookup object with different values or a different type of object.
+        
+        Parameters:
+        None
+        
+        Returns:
+        None
+        
+        Key Points:
+        - Two Lookup objects
+        """
+
+        lookup = Lookup(Value(1), Value(2))
+        self.assertEqual(lookup, lookup)
+        self.assertEqual(lookup, Lookup(lookup.lhs, lookup.rhs))
+        self.assertEqual(lookup, mock.ANY)
+        self.assertNotEqual(lookup, Lookup(lookup.lhs, Value(3)))
+        self.assertNotEqual(lookup, Lookup(Value(3), lookup.rhs))
+        self.assertNotEqual(lookup, CustomLookup(lookup.lhs, lookup.rhs))
+
+    def test_repr(self):
+        tests = [
+            (Lookup(Value(1), Value("a")), "Lookup(Value(1), Value('a'))"),
+            (
+                YearLookup(
+                    Value(datetime(2010, 1, 1, 0, 0, 0)),
+                    Value(datetime(2010, 1, 1, 23, 59, 59)),
+                ),
+                "YearLookup("
+                "Value(datetime.datetime(2010, 1, 1, 0, 0)), "
+                "Value(datetime.datetime(2010, 1, 1, 23, 59, 59)))",
+            ),
+        ]
+        for lookup, expected in tests:
+            with self.subTest(lookup=lookup):
+                self.assertEqual(repr(lookup), expected)
+
+    def test_hash(self):
+        lookup = Lookup(Value(1), Value(2))
+        self.assertEqual(hash(lookup), hash(lookup))
+        self.assertEqual(hash(lookup), hash(Lookup(lookup.lhs, lookup.rhs)))
+        self.assertNotEqual(hash(lookup), hash(Lookup(lookup.lhs, Value(3))))
+        self.assertNotEqual(hash(lookup), hash(Lookup(Value(3), lookup.rhs)))
+        self.assertNotEqual(hash(lookup), hash(CustomLookup(lookup.lhs, lookup.rhs)))
+
+
+class YearLookupTests(SimpleTestCase):
+    def test_get_bound_params(self):
+        """
+        Test the get_bound_params method for YearLookup subclasses.
+        
+        This method is expected to raise a NotImplementedError with a specific message
+        if it is not implemented in a subclass. The method is intended to be called
+        with two datetime objects representing the start and end of a year.
+        
+        Parameters:
+        start_date (datetime): The start datetime for the year.
+        end_date (datetime): The end datetime for the year.
+        
+        Raises:
+        NotImplementedError: If the get_bound_params method is not implemented
+        in the
+        """
+
+        look_up = YearLookup(
+            lhs=Value(datetime(2010, 1, 1, 0, 0, 0), output_field=DateTimeField()),
+            rhs=Value(datetime(2010, 1, 1, 23, 59, 59), output_field=DateTimeField()),
+        )
+        msg = "subclasses of YearLookup must provide a get_bound_params() method"
+        with self.assertRaisesMessage(NotImplementedError, msg):
+            look_up.get_bound_params(
+                datetime(2010, 1, 1, 0, 0, 0), datetime(2010, 1, 1, 23, 59, 59)
+            )

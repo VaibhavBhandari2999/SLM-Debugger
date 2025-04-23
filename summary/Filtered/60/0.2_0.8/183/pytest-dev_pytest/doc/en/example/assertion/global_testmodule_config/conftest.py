@@ -1,0 +1,30 @@
+import os.path
+
+import pytest
+
+mydir = os.path.dirname(__file__)
+
+
+def pytest_runtest_setup(item):
+    """
+    Function: pytest_runtest_setup
+    
+    This function is a pytest hook that runs before each test function is executed.
+    
+    Parameters:
+    - item (pytest.Function): The test function that is about to be executed.
+    
+    Returns:
+    - None: This function does not return any value. It is designed to modify the behavior of the test setup.
+    
+    Notes:
+    - The function checks if the test function is located in a specific directory (`mydir`).
+    - If the test function is in the specified directory and the module it
+    """
+
+    if isinstance(item, pytest.Function):
+        if not item.fspath.relto(mydir):
+            return
+        mod = item.getparent(pytest.Module).obj
+        if hasattr(mod, "hello"):
+            print(f"mod.hello {mod.hello!r}")

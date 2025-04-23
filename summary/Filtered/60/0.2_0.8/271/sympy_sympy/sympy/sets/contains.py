@@ -1,0 +1,64 @@
+from __future__ import print_function, division
+
+from sympy.core import S
+from sympy.core.relational import Eq, Ne
+from sympy.logic.boolalg import BooleanFunction
+from sympy.utilities.misc import func_name
+
+
+class Contains(BooleanFunction):
+    """
+    Asserts that x is an element of the set S
+
+    Examples
+    ========
+
+    >>> from sympy import Symbol, Integer, S
+    >>> from sympy.sets.contains import Contains
+    >>> Contains(Integer(2), S.Integers)
+    True
+    >>> Contains(Integer(-2), S.Naturals)
+    False
+    >>> i = Symbol('i', integer=True)
+    >>> Contains(i, S.Naturals)
+    Contains(i, Naturals)
+
+    References
+    ==========
+
+    .. [1] https://en.wikipedia.org/wiki/Element_%28mathematics%29
+    """
+    @classmethod
+    def eval(cls, x, s):
+        from sympy.sets.sets import Set
+
+        if not isinstance(s, Set):
+            raise TypeError('expecting Set, not %s' % func_name(s))
+
+        ret = s.contains(x)
+        if not isinstance(ret, Contains) and (
+                ret in (S.true, S.false) or isinstance(ret, Set)):
+            return ret
+
+    @property
+    def binary_symbols(self):
+        """
+        Generate the set of binary symbols used in the given Boolean expression or expression tree.
+        
+        Parameters:
+        self (Expr): The root expression or expression tree from which to extract binary symbols.
+        
+        Returns:
+        set: A set of symbols that are used in the binary context within the expression or expression tree.
+        
+        Explanation:
+        This function traverses the expression tree rooted at `self` and collects all symbols that appear in a binary context, such as in Boolean operations or comparison expressions. It does not include symbols that
+        """
+
+        return set().union(*[i.binary_symbols
+            for i in self.args[1].args
+            if i.is_Boolean or i.is_Symbol or
+            isinstance(i, (Eq, Ne))])
+
+    def as_set(self):
+        raise NotImplementedError()

@@ -1,0 +1,220 @@
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.forms import ClearableFileInput, MultiWidget
+
+from .base import WidgetTest
+
+
+class FakeFieldFile:
+    """
+    Quacks like a FieldFile (has a .url and string representation), but
+    doesn't require us to care about storages etc.
+    """
+    url = 'something'
+
+    def __str__(self):
+        return self.url
+
+
+class ClearableFileInputTest(WidgetTest):
+    widget = ClearableFileInput()
+
+    def test_clear_input_renders(self):
+        """
+        A ClearableFileInput with is_required False and rendered with an
+        initial value that is a file renders a clear checkbox.
+        """
+        self.check_html(self.widget, 'myfile', FakeFieldFile(), html=(
+            """
+            Currently: <a href="something">something</a>
+            <input type="checkbox" name="myfile-clear" id="myfile-clear_id">
+            <label for="myfile-clear_id">Clear</label><br>
+            Change: <input type="file" name="myfile">
+            """
+        ))
+
+    def test_html_escaped(self):
+        """
+        A ClearableFileInput should escape name, filename, and URL
+        when rendering HTML (#15182).
+        """
+        class StrangeFieldFile:
+            url = "something?chapter=1&sect=2&copy=3&lang=en"
+
+            def __str__(self):
+                return '''something<div onclick="alert('oops')">.jpg'''
+
+        self.check_html(ClearableFileInput(), 'my<div>file', StrangeFieldFile(), html=(
+            """
+            Currently: <a href="something?chapter=1&amp;sect=2&amp;copy=3&amp;lang=en">
+            something&lt;div onclick=&quot;alert(&#x27;oops&#x27;)&quot;&gt;.jpg</a>
+            <input type="checkbox" name="my&lt;div&gt;file-clear" id="my&lt;div&gt;file-clear_id">
+            <label for="my&lt;div&gt;file-clear_id">Clear</label><br>
+            Change: <input type="file" name="my&lt;div&gt;file">
+            """
+        ))
+
+    def test_clear_input_renders_only_if_not_required(self):
+        """
+        A ClearableFileInput with is_required=True does not render a clear
+        checkbox.
+        """
+        widget = ClearableFileInput()
+        widget.is_required = True
+        self.check_html(widget, 'myfile', FakeFieldFile(), html=(
+            """
+            Currently: <a href="something">something</a> <br>
+            Change: <input type="file" name="myfile">
+            """
+        ))
+
+    def test_clear_input_renders_only_if_initial(self):
+        """
+        A ClearableFileInput instantiated with no initial value does not render
+        a clear checkbox.
+        """
+        self.check_html(self.widget, 'myfile', None, html='<input type="file" name="myfile">')
+
+    def test_render_disabled(self):
+        self.check_html(
+            self.widget,
+            'myfile',
+            FakeFieldFile(),
+            attrs={'disabled': True},
+            html=(
+                'Currently: <a href="something">something</a>'
+                '<input type="checkbox" name="myfile-clear" '
+                'id="myfile-clear_id" disabled>'
+                '<label for="myfile-clear_id">Clear</label><br>'
+                'Change: <input type="file" name="myfile" disabled>'
+            ),
+        )
+
+    def test_render_as_subwidget(self):
+        """A ClearableFileInput as a subwidget of MultiWidget."""
+        widget = MultiWidget(widgets=(self.widget,))
+        self.check_html(widget, 'myfile', [FakeFieldFile()], html=(
+            """
+            Currently: <a href="something">something</a>
+            <input type="checkbox" name="myfile_0-clear" id="myfile_0-clear_id">
+            <label for="myfile_0-clear_id">Clear</label><br>
+            Change: <input type="file" name="myfile_0">
+            """
+        ))
+
+    def test_clear_input_checked_returns_false(self):
+        """
+        ClearableFileInput.value_from_datadict returns False if the clear
+        checkbox is checked, if not required.
+        """
+        value = self.widget.value_from_datadict(
+            data={'myfile-clear': True},
+            files={},
+            name='myfile',
+        )
+        self.assertIs(value, False)
+
+    def test_clear_input_checked_returns_false_only_if_not_required(self):
+        """
+        ClearableFileInput.value_from_datadict never returns False if the field
+        is required.
+        """
+        widget = ClearableFileInput()
+        widget.is_required = True
+        field = SimpleUploadedFile('something.txt', b'content')
+
+        value = widget.value_from_datadict(
+            data={'myfile-clear': True},
+            files={'myfile': field},
+            name='myfile',
+        )
+        self.assertEqual(value, field)
+
+    def test_html_does_not_mask_exceptions(self):
+        """
+        A ClearableFileInput should not mask exceptions produced while
+        checking that it has a value.
+        """
+        class FailingURLFieldFile:
+            @property
+            def url(self):
+                raise ValueError('Canary')
+
+            def __str__(self):
+                return 'value'
+
+        with self.assertRaisesMessage(ValueError, 'Canary'):
+            self.widget.render('myfile', FailingURLFieldFile())
+
+    def test_url_as_property(self):
+        """
+        Tests the rendering of a URLFieldFile object in a widget.
+        
+        This function checks if the widget correctly renders a URLFieldFile object by including an HTML anchor tag with the URL and the file's value as the link text.
+        
+        Parameters:
+        None
+        
+        Returns:
+        None
+        
+        Key Elements:
+        - URLFieldFile: A mock file-like object with a `url` property and a `__str__` method.
+        - `render`: The method of the widget being tested, which takes a
+        """
+
+        class URLFieldFile:
+            @property
+            def url(self):
+                return 'https://www.python.org/'
+
+            def __str__(self):
+                return 'value'
+
+        html = self.widget.render('myfile', URLFieldFile())
+        self.assertInHTML('<a href="https://www.python.org/">value</a>', html)
+
+    def test_return_false_if_url_does_not_exists(self):
+        """
+        Tests the behavior of the widget when rendering a form field with a URLFieldFile object that does not have a URL. The function creates a mock object `NoURLFieldFile` that does not have a URL field and renders it using the widget's `render` method. The expected output is an HTML input element of type 'file' without any additional attributes. The function asserts that the rendered HTML matches the expected output.
+        
+        Parameters:
+        - None
+        
+        Returns:
+        - None
+        
+        Key behavior:
+        - Creates
+        """
+
+        class NoURLFieldFile:
+            def __str__(self):
+                return 'value'
+
+        html = self.widget.render('myfile', NoURLFieldFile())
+        self.assertHTMLEqual(html, '<input name="myfile" type="file">')
+
+    def test_use_required_attribute(self):
+        """
+        Tests the `use_required_attribute` method of the widget.
+        
+        This method checks whether a required attribute should be used for a file input.
+        It returns `True` if the file input is required and `False` if it is not.
+        
+        Parameters:
+        - `value` (str, None): The value of the file input. If `None`, it indicates that the file input is left blank by the user to keep the existing, initial value.
+        
+        Returns:
+        - bool: `True` if the
+        """
+
+        # False when initial data exists. The file input is left blank by the
+        # user to keep the existing, initial value.
+        self.assertIs(self.widget.use_required_attribute(None), True)
+        self.assertIs(self.widget.use_required_attribute('resume.txt'), False)
+
+    def test_value_omitted_from_data(self):
+        widget = ClearableFileInput()
+        self.assertIs(widget.value_omitted_from_data({}, {}, 'field'), True)
+        self.assertIs(widget.value_omitted_from_data({}, {'field': 'x'}, 'field'), False)
+        self.assertIs(widget.value_omitted_from_data({'field-clear': 'y'}, {}, 'field'), False)

@@ -2,6 +2,8 @@ from vllm import LLM, SamplingParams
 import ast
 import json
 from concurrent.futures import ThreadPoolExecutor
+from collections import defaultdict
+import re
 import multiprocessing
 import shutil
 from tqdm import tqdm
@@ -452,7 +454,7 @@ def batch_generate_module_summaries(file_details, model):
     
     return results
 
-def module_summary(repo_details, n, weightBM25, weightSemantic):
+def module_summary(repo_details, n, weightBM25, weightSemantic, fil):
     """Process all files to generate and insert module-level docstrings."""
     # Initialize the model with multiple GPUs
     model = get_summary_model()
@@ -467,7 +469,7 @@ def module_summary(repo_details, n, weightBM25, weightSemantic):
     files_to_process = []
     
     # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
+    # os.makedirs(output_dir, exist_ok=True)
     
     # Iterate through each repo
     for repo_id, entry in repo_details.items():

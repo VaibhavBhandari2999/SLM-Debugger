@@ -1,0 +1,31 @@
+from sympy.core.compatibility import range
+from sympy.ntheory import npartitions
+
+
+def test_partitions():
+    """
+    Generate the nth partition number.
+    
+    This function calculates the nth partition number, which is the number of
+    ways to write the integer n as a sum of positive integers, disregarding the
+    order of the summands.
+    
+    Parameters:
+    n (int): The integer for which to calculate the partition number.
+    
+    Returns:
+    int: The nth partition number.
+    
+    Examples:
+    >>> test_partitions()
+    True
+    """
+
+    assert [npartitions(k) for k in range(13)] == \
+        [1, 1, 2, 3, 5, 7, 11, 15, 22, 30, 42, 56, 77]
+    assert npartitions(100) == 190569292
+    assert npartitions(200) == 3972999029388
+    assert npartitions(1000) == 24061467864032622473692149727991
+    assert npartitions(2000) == 4720819175619413888601432406799959512200344166
+    assert npartitions(10000) % 10**10 == 6916435144
+    assert npartitions(100000) % 10**10 == 9421098519

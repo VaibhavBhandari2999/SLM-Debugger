@@ -1,0 +1,212 @@
+from docutils.parsers.rst import Directive
+
+from matplotlib import _mathtext, _mathtext_data
+
+
+symbols = [
+    ["Lower-case Greek",
+     6,
+     r"""\alpha \beta \gamma \chi \delta \epsilon \eta \iota \kappa
+         \lambda \mu \nu \omega \phi \pi \psi \rho \sigma \tau \theta
+         \upsilon \xi \zeta \digamma \varepsilon \varkappa \varphi
+         \varpi \varrho \varsigma \vartheta"""],
+    ["Upper-case Greek",
+     8,
+     r"""\Delta \Gamma \Lambda \Omega \Phi \Pi \Psi \Sigma \Theta
+     \Upsilon \Xi \mho \nabla"""],
+    ["Hebrew",
+     6,
+     r"""\aleph \beth \daleth \gimel"""],
+    ["Delimiters",
+     6,
+     r"""| \{ \lfloor / \Uparrow \llcorner \vert \} \rfloor \backslash
+         \uparrow \lrcorner \| \langle \lceil [ \Downarrow \ulcorner
+         \Vert \rangle \rceil ] \downarrow \urcorner"""],
+    ["Big symbols",
+     6,
+     r"""\bigcap \bigcup \bigodot \bigoplus \bigotimes \biguplus
+         \bigvee \bigwedge \coprod \oint \prod \sum \int"""],
+    ["Standard function names",
+     6,
+     r"""\arccos \csc \ker \min \arcsin \deg \lg \Pr \arctan \det \lim
+         \gcd \ln \sup \cot \hom \log \tan \coth \inf \max \tanh
+         \sec \arg \dim \liminf \sin \cos \exp \limsup \sinh \cosh"""],
+    ["Binary operation and relation symbols",
+     4,
+     r"""\ast \pm \slash \cap \star \mp \cup \cdot \uplus
+     \triangleleft \circ \odot \sqcap \triangleright \bullet \ominus
+     \sqcup \bigcirc \oplus \wedge \diamond \oslash \vee
+     \bigtriangledown \times \otimes \dag \bigtriangleup \div \wr
+     \ddag \barwedge \veebar \boxplus \curlywedge \curlyvee \boxminus
+     \Cap \Cup \boxtimes \bot \top \dotplus \boxdot \intercal
+     \rightthreetimes \divideontimes \leftthreetimes \equiv \leq \geq
+     \perp \cong \prec \succ \mid \neq \preceq \succeq \parallel \sim
+     \ll \gg \bowtie \simeq \subset \supset \Join \approx \subseteq
+     \supseteq \ltimes \asymp \sqsubset \sqsupset \rtimes \doteq
+     \sqsubseteq \sqsupseteq \smile \propto \dashv \vdash \frown
+     \models \in \ni \notin \approxeq \leqq \geqq \lessgtr \leqslant
+     \geqslant \lesseqgtr \backsim \lessapprox \gtrapprox \lesseqqgtr
+     \backsimeq \lll \ggg \gtreqqless \triangleq \lessdot \gtrdot
+     \gtreqless \circeq \lesssim \gtrsim \gtrless \bumpeq \eqslantless
+     \eqslantgtr \backepsilon \Bumpeq \precsim \succsim \between
+     \doteqdot \precapprox \succapprox \pitchfork \Subset \Supset
+     \fallingdotseq \subseteqq \supseteqq \risingdotseq \sqsubset
+     \sqsupset \varpropto \preccurlyeq \succcurlyeq \Vdash \therefore
+     \curlyeqprec \curlyeqsucc \vDash \because \blacktriangleleft
+     \blacktriangleright \Vvdash \eqcirc \trianglelefteq
+     \trianglerighteq \neq \vartriangleleft \vartriangleright \ncong
+     \nleq \ngeq \nsubseteq \nmid \nsupseteq \nparallel \nless \ngtr
+     \nprec \nsucc \subsetneq \nsim \supsetneq \nVDash \precnapprox
+     \succnapprox \subsetneqq \nvDash \precnsim \succnsim \supsetneqq
+     \nvdash \lnapprox \gnapprox \ntriangleleft \ntrianglelefteq
+     \lneqq \gneqq \ntriangleright \lnsim \gnsim \ntrianglerighteq
+     \coloneq \eqsim \nequiv \napprox \nsupset \doublebarwedge \nVdash
+     \Doteq \nsubset \eqcolon \ne
+     """],
+    ["Arrow symbols",
+     4,
+     r"""\leftarrow \longleftarrow \uparrow \Leftarrow \Longleftarrow
+     \Uparrow \rightarrow \longrightarrow \downarrow \Rightarrow
+     \Longrightarrow \Downarrow \leftrightarrow \updownarrow
+     \longleftrightarrow \updownarrow \Leftrightarrow
+     \Longleftrightarrow \Updownarrow \mapsto \longmapsto \nearrow
+     \hookleftarrow \hookrightarrow \searrow \leftharpoonup
+     \rightharpoonup \swarrow \leftharpoondown \rightharpoondown
+     \nwarrow \rightleftharpoons \leadsto \dashrightarrow
+     \dashleftarrow \leftleftarrows \leftrightarrows \Lleftarrow
+     \Rrightarrow \twoheadleftarrow \leftarrowtail \looparrowleft
+     \leftrightharpoons \curvearrowleft \circlearrowleft \Lsh
+     \upuparrows \upharpoonleft \downharpoonleft \multimap
+     \leftrightsquigarrow \rightrightarrows \rightleftarrows
+     \rightrightarrows \rightleftarrows \twoheadrightarrow
+     \rightarrowtail \looparrowright \rightleftharpoons
+     \curvearrowright \circlearrowright \Rsh \downdownarrows
+     \upharpoonright \downharpoonright \rightsquigarrow \nleftarrow
+     \nrightarrow \nLeftarrow \nRightarrow \nleftrightarrow
+     \nLeftrightarrow \to \Swarrow \Searrow \Nwarrow \Nearrow
+     \leftsquigarrow
+     """],
+    ["Miscellaneous symbols",
+     4,
+     r"""\neg \infty \forall \wp \exists \bigstar \angle \partial
+     \nexists \measuredangle \eth \emptyset \sphericalangle \clubsuit
+     \varnothing \complement \diamondsuit \imath \Finv \triangledown
+     \heartsuit \jmath \Game \spadesuit \ell \hbar \vartriangle \cdots
+     \hslash \vdots \blacksquare \ldots \blacktriangle \ddots \sharp
+     \prime \blacktriangledown \Im \flat \backprime \Re \natural
+     \circledS \P \copyright \ss \circledR \S \yen \AA \checkmark \$
+     \iiint \iint \oiiint"""]
+]
+
+
+def run(state_machine):
+    """
+    Generates a symbol table for a LaTeX math environment.
+    
+    This function processes a list of symbols and their categories to generate a formatted symbol table. The table is designed to be used in a LaTeX document to provide a reference for various mathematical symbols.
+    
+    Parameters:
+    state_machine (object): The state machine object used to insert the generated content into the document.
+    
+    Returns:
+    None: The function modifies the input state machine directly by inserting the generated content.
+    
+    Key Parameters:
+    - `state_machine`: The object
+    """
+
+    def render_symbol(sym):
+        """
+        Render a LaTeX symbol for display.
+        
+        This function takes a LaTeX symbol and processes it for rendering. If the symbol
+        starts with a backslash, it is stripped and checked against a set of predefined
+        functions. If the symbol is not recognized as a function, it is converted to a
+        Unicode character using a predefined dictionary. The function then returns the
+        symbol with a leading backslash if it is one of the special characters ('\\' or '|').
+        
+        Parameters:
+        sym (str): The
+        """
+
+        if sym.startswith("\\"):
+            sym = sym[1:]
+            if sym not in (_mathtext.Parser._overunder_functions |
+                           _mathtext.Parser._function_names):
+                sym = chr(_mathtext_data.tex2uni[sym])
+        return f'\\{sym}' if sym in ('\\', '|') else sym
+
+    lines = []
+    for category, columns, syms in symbols:
+        syms = sorted(syms.split())
+        columns = min(columns, len(syms))
+        lines.append("**%s**" % category)
+        lines.append('')
+        max_width = max(map(len, syms)) * 2 + 16
+        header = "    " + (('=' * max_width) + ' ') * columns
+        lines.append(header)
+        for part in range(0, len(syms), columns):
+            row = " ".join(
+                f"{render_symbol(sym)} ``{sym}``".rjust(max_width)
+                for sym in syms[part:part + columns])
+            lines.append(f"    {row}")
+        lines.append(header)
+        lines.append('')
+
+    state_machine.insert_input(lines, "Symbol table")
+    return []
+
+
+class MathSymbolTableDirective(Directive):
+    has_content = False
+    required_arguments = 0
+    optional_arguments = 0
+    final_argument_whitespace = False
+    option_spec = {}
+
+    def run(self):
+        return run(self.state_machine)
+
+
+def setup(app):
+    """
+    Setup function for integrating a custom directive into Sphinx.
+    
+    This function is designed to be called during the initialization of a Sphinx
+    application. It adds a new directive called 'math_symbol_table' to the Sphinx
+    application, which can be used in reStructuredText documents to include a
+    mathematical symbol table.
+    
+    Parameters:
+    app (sphinx.application.Sphinx): The Sphinx application object.
+    
+    Returns:
+    dict: Metadata dictionary containing information about the extension's
+    parallel safety. In this case,
+    """
+
+    app.add_directive("math_symbol_table", MathSymbolTableDirective)
+
+    metadata = {'parallel_read_safe': True, 'parallel_write_safe': True}
+    return metadata
+
+
+if __name__ == "__main__":
+    # Do some verification of the tables
+
+    print("SYMBOLS NOT IN STIX:")
+    all_symbols = {}
+    for category, columns, syms in symbols:
+        if category == "Standard Function Names":
+            continue
+        syms = syms.split()
+        for sym in syms:
+            if len(sym) > 1:
+                all_symbols[sym[1:]] = None
+                if sym[1:] not in _mathtext_data.tex2uni:
+                    print(sym)
+
+    print("SYMBOLS NOT IN TABLE:")
+    for sym in _mathtext_data.tex2uni:
+        if sym not in all_symbols:
+            print(sym)

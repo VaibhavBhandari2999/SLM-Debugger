@@ -1,0 +1,104 @@
+from django.forms import TextInput
+from django.utils.safestring import mark_safe
+
+from .base import WidgetTest
+
+
+class TextInputTest(WidgetTest):
+    widget = TextInput()
+
+    def test_render(self):
+        self.check_html(self.widget, 'email', '', html='<input type="text" name="email">')
+
+    def test_render_none(self):
+        self.check_html(self.widget, 'email', None, html='<input type="text" name="email">')
+
+    def test_render_value(self):
+        self.check_html(self.widget, 'email', 'test@example.com', html=(
+            '<input type="text" name="email" value="test@example.com">'
+        ))
+
+    def test_render_boolean(self):
+        """
+        Boolean values are rendered to their string forms ("True" and
+        "False").
+        """
+        self.check_html(self.widget, 'get_spam', False, html=(
+            '<input type="text" name="get_spam" value="False">'
+        ))
+        self.check_html(self.widget, 'get_spam', True, html=(
+            '<input type="text" name="get_spam" value="True">'
+        ))
+
+    def test_render_quoted(self):
+        """
+        Tests the rendering of a text input widget with a quoted and ampersanded value.
+        
+        This function checks the HTML output of the widget when rendering a text input with the value 'some "quoted" & ampersanded value'. The expected HTML includes proper escaping of quotes and ampersands.
+        
+        Parameters:
+        self: The test case instance.
+        
+        Returns:
+        None: This function is used for asserting the correctness of the widget's HTML output.
+        """
+
+        self.check_html(
+            self.widget, 'email', 'some "quoted" & ampersanded value',
+            html='<input type="text" name="email" value="some &quot;quoted&quot; &amp; ampersanded value">',
+        )
+
+    def test_render_custom_attrs(self):
+        self.check_html(
+            self.widget, 'email', 'test@example.com', attrs={'class': 'fun'},
+            html='<input type="text" name="email" value="test@example.com" class="fun">',
+        )
+
+    def test_render_unicode(self):
+        self.check_html(
+            self.widget, 'email', 'ŠĐĆŽćžšđ', attrs={'class': 'fun'},
+            html=(
+                '<input type="text" name="email" '
+                'value="\u0160\u0110\u0106\u017d\u0107\u017e\u0161\u0111" class="fun">'
+            ),
+        )
+
+    def test_constructor_attrs(self):
+        """
+        Tests the constructor of the TextInput widget.
+        This function creates an instance of the TextInput widget with specified attributes and checks the generated HTML output. It accepts a string value for the input type and a dictionary of attributes. The function validates the HTML output for both an empty and a populated input field.
+        
+        Parameters:
+        - attrs (dict): A dictionary containing the attributes for the widget, such as 'class' and 'type'.
+        
+        Returns:
+        None: This function is used for testing and does not return any
+        """
+
+        widget = TextInput(attrs={'class': 'fun', 'type': 'email'})
+        self.check_html(widget, 'email', '', html='<input type="email" class="fun" name="email">')
+        self.check_html(
+            widget, 'email', 'foo@example.com',
+            html='<input type="email" class="fun" value="foo@example.com" name="email">',
+        )
+
+    def test_attrs_precedence(self):
+        """
+        `attrs` passed to render() get precedence over those passed to the
+        constructor
+        """
+        widget = TextInput(attrs={'class': 'pretty'})
+        self.check_html(
+            widget, 'email', '', attrs={'class': 'special'},
+            html='<input type="text" class="special" name="email">',
+        )
+
+    def test_attrs_safestring(self):
+        widget = TextInput(attrs={'onBlur': mark_safe("function('foo')")})
+        self.check_html(widget, 'email', '', html='<input onBlur="function(\'foo\')" type="text" name="email">')
+
+    def test_use_required_attribute(self):
+        # Text inputs can safely trigger the browser validation.
+        self.assertIs(self.widget.use_required_attribute(None), True)
+        self.assertIs(self.widget.use_required_attribute(''), True)
+        self.assertIs(self.widget.use_required_attribute('resume.txt'), True)
