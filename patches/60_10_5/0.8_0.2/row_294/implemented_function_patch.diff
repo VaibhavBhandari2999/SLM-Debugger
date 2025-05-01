@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/294/sympy_sympy/sympy/utilities/lambdify.py
++++ b/decoupled/60/0.8_0.2/294/sympy_sympy/sympy/utilities/lambdify.py
+@@ -1400,3 +1400,21 @@
+             symfunc should be either a string or
+
+             an UndefinedFunction instance.'''))
+
+     return symfunc
+
++
+
++# Fix for the Python code printer issue
+
++def fix_code_printer():
+
++    from sympy.printing.lambdarepr import LambdaRepr
+
++    from sympy.core import Tuple
+
++
+
++    original_tuple_to_str = LambdaRepr._tuple_to_str
+
++
+
++    def patched_tuple_to_str(self, t):
+
++        if isinstance(t, Tuple) and len(t) == 1:
+
++            # Ensure a trailing comma is added for single-element tuples
+
++            return f"({original_tuple_to_str(self, t)},)"
+
++        return original_tuple_to_str(self, t)
+
++
+
++    LambdaRepr._tuple_to_str = patched_tuple_to_str
+
++
+
++# Apply the fix
+
++fix_code_printer()

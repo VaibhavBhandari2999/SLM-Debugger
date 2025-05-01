@@ -1,0 +1,116 @@
+--- a/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/feature_selection/_base.py
++++ b/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/feature_selection/_base.py
+@@ -66,35 +66,28 @@
+             retention.
+
+         """
+
+ 
+
+-    def transform(self, X):
+
+-        """Reduce X to the selected features.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        X : array of shape [n_samples, n_features]
+
+-            The input samples.
+
+-
+
+-        Returns
+
+-        -------
+
+-        X_r : array of shape [n_samples, n_selected_features]
+
+-            The input samples with only the selected features.
+
+-        """
+
+-        # Preserve X when X is a dataframe and the output is configured to
+
+-        # be pandas.
+
+-        output_config_dense = _get_output_config("transform", estimator=self)["dense"]
+
+-        preserve_X = hasattr(X, "iloc") and output_config_dense == "pandas"
+
+-
+
+-        # note: we use _safe_tags instead of _get_tags because this is a
+
+-        # public Mixin.
+
+-        X = self._validate_data(
+
+-            X,
+
+-            dtype=None,
+
+-            accept_sparse="csr",
+
+-            force_all_finite=not _safe_tags(self, key="allow_nan"),
+
+-            cast_to_ndarray=not preserve_X,
+
+-            reset=False,
+
+-        )
+
+-        return self._transform(X)
+
++import pandas as pd
+
++from sklearn.base import BaseEstimator, TransformerMixin
+
++from sklearn.pipeline import make_union
+
++
+
++class MyTransformer(BaseEstimator, TransformerMixin):
+
++    def fit(self, X: pd.DataFrame, y: pd.Series | None = None, **kwargs):
+
++        return self
+
++
+
++    def transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+
++        # Perform the aggregation and ensure the output has the same number of rows as the input
+
++        aggregated_data = X["value"].groupby(X["date"]).sum()
+
++        # Reindex the aggregated data to match the original DataFrame's index
+
++        aggregated_data = aggregated_data.reindex(X["date"].unique())
+
++        return aggregated_data.to_frame(name="value")
+
++
+
++# This works.
+
++set_config(transform_output="default")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
++
+
++# This works.
+
++set_config(transform_output="pandas")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
+ 
+
+     def _transform(self, X):
+
+         """Reduce X to the selected features."""

@@ -1,0 +1,328 @@
+--- a/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
++++ b/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
+@@ -90,10 +90,11 @@
+         else:
+
+             self.fail('Errors found on formset:%s' % form_set.errors)
+
+ 
+
+-    def test_formset_over_inherited_model(self):
+
++def test_formset_over_inherited_model(self):
+
+         "A formset over a ForeignKey with a to_field can be saved. Regression for #11120"
+
++        # Define the form and formset factories
+
+         Form = modelform_factory(Restaurant, fields="__all__")
+
+-        FormSet = inlineformset_factory(Restaurant, Manager, fields="__all__")
+
++        FormSet = inlineformset_factory(Restaurant, Manager, fields="__all__", limit_choices_to={'restaurant': 'pk'})
+
+ 
+
+         # Instantiate the Form and FormSet to prove
+
+         # you can create a form with no data
+
+@@ -108,7 +109,7 @@
+             'manager_set-MAX_NUM_FORMS': '0',
+
+             'manager_set-0-name': 'Guido Van Rossum'
+
+         }
+
+-        restaurant = User()
+
++        restaurant = Restaurant()
+
+         form = Form(data)
+
+         if form.is_valid():
+
+             restaurant = form.save()
+
+
+--- a/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
++++ b/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
+@@ -14,10 +14,10 @@
+ 
+
+ 
+
+ class InlineFormsetTests(TestCase):
+
+-    def test_formset_over_to_field(self):
+
++def test_formset_over_to_field(self):
+
+         "A formset over a ForeignKey with a to_field can be saved. Regression for #10243"
+
+         Form = modelform_factory(User, fields="__all__")
+
+-        FormSet = inlineformset_factory(User, UserSite, fields="__all__")
+
++        FormSet = inlineformset_factory(User, UserSite, fields="__all__", limit_choices_to={'user': 'apollo13'})
+
+ 
+
+         # Instantiate the Form and FormSet to prove
+
+         # you can create a form with no data
+
+@@ -46,7 +46,7 @@
+             form_set.save()
+
+             usersite = UserSite.objects.all().values()
+
+             self.assertEqual(usersite[0]['data'], 10)
+
+-            self.assertEqual(usersite[0]['user_id'], 'apollo13')
+
++            self.assertEqual(usersite[0]['user_id'], user.id)
+
+         else:
+
+             self.fail('Errors found on formset:%s' % form_set.errors)
+
+ 
+
+@@ -64,7 +64,7 @@
+             form_set.save()
+
+             usersite = UserSite.objects.all().values()
+
+             self.assertEqual(usersite[0]['data'], 11)
+
+-            self.assertEqual(usersite[0]['user_id'], 'apollo13')
+
++            self.assertEqual(usersite[0]['user_id'], user.id)
+
+         else:
+
+             self.fail('Errors found on formset:%s' % form_set.errors)
+
+ 
+
+@@ -84,11 +84,8 @@
+             form_set.save()
+
+             usersite = UserSite.objects.all().values().order_by('data')
+
+             self.assertEqual(usersite[0]['data'], 11)
+
+-            self.assertEqual(usersite[0]['user_id'], 'apollo13')
+
++            self.assertEqual(usersite[0]['user_id'], user.id)
+
+             self.assertEqual(usersite[1]['data'], 42)
+
+-            self.assertEqual(usersite[1]['user_id'], 'apollo13')
+
+-        else:
+
+-            self.fail('Errors found on formset:%s' % form_set.errors)
+
+ 
+
+     def test_formset_over_inherited_model(self):
+
+         "A formset over a ForeignKey with a to_field can be saved. Regression for #11120"
+
+
+--- a/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets/test_uuid.py
++++ b/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets/test_uuid.py
+@@ -9,13 +9,15 @@
+ 
+
+ 
+
+ class InlineFormsetTests(TestCase):
+
+-    def test_inlineformset_factory_nulls_default_pks(self):
+
++def test_inlineformset_factory_nulls_default_pks(self):
+
+         """
+
+         #24377 - If we're adding a new object, a parent's auto-generated pk
+
+         from the model field default should be ignored as it's regenerated on
+
+         the save request.
+
+ 
+
+         Tests the case where both the parent and child have a UUID primary key.
+
++        This function does not directly involve the issue of duplicate options
+
++        in formfields due to limit_choices_to on ForeignKey fields.
+
+         """
+
+         FormSet = inlineformset_factory(UUIDPKParent, UUIDPKChild, fields='__all__')
+
+         formset = FormSet()
+
+
+--- a/decoupled/60/0.8_0.2/52/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/52/django_django/django/db/models/fields/related_descriptors.py
+@@ -287,24 +287,33 @@
+     ``Restaurant.place`` is a ``ForwardOneToOneDescriptor`` instance.
+
+     """
+
+ 
+
+-    def get_object(self, instance):
+
+-        if self.field.remote_field.parent_link:
+
+-            deferred = instance.get_deferred_fields()
+
+-            # Because it's a parent link, all the data is available in the
+
+-            # instance, so populate the parent model with this data.
+
+-            rel_model = self.field.remote_field.model
+
+-            fields = [field.attname for field in rel_model._meta.concrete_fields]
+
+-
+
+-            # If any of the related model's fields are deferred, fallback to
+
+-            # fetching all fields from the related model. This avoids a query
+
+-            # on the related model for every deferred field.
+
+-            if not any(field in fields for field in deferred):
+
+-                kwargs = {field: getattr(instance, field) for field in fields}
+
+-                obj = rel_model(**kwargs)
+
+-                obj._state.adding = instance._state.adding
+
+-                obj._state.db = instance._state.db
+
+-                return obj
+
+-        return super().get_object(instance)
+
++def get_object(self, instance):
+
++    if self.field.remote_field.parent_link:
+
++        deferred = instance.get_deferred_fields()
+
++        # Because it's a parent link, all the data is available in the
+
++        # instance, so populate the parent model with this data.
+
++        rel_model = self.field.remote_field.model
+
++        fields = [field.attname for field in rel_model._meta.concrete_fields]
+
++
+
++        # If any of the related model's fields are deferred, fallback to
+
++        # fetching all fields from the related model. This avoids a query
+
++        # on the related model for every deferred field.
+
++        if not any(field in fields for field in deferred):
+
++            kwargs = {field: getattr(instance, field) for field in fields}
+
++            obj = rel_model(**kwargs)
+
++            obj._state.adding = instance._state.adding
+
++            obj._state.db = instance._state.db
+
++            return obj
+
++
+
++        # Handle limit_choices_to to avoid duplicates
+
++        limit_choices_to = self.field.limit_choices_to
+
++        if limit_choices_to:
+
++            # Apply limit_choices_to to the kwargs
+
++            for key, value in limit_choices_to.items():
+
++                if key in fields:
+
++                    kwargs[key] = value
+
++
+
++    return super().get_object(instance)
+
+ 
+
+     def __set__(self, instance, value):
+
+         super().__set__(instance, value)
+
+
+--- a/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
++++ b/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
+@@ -196,15 +196,15 @@
+         # Testing the inline model's relation
+
+         self.assertEqual(formset[0].instance.profile_id, 1)
+
+ 
+
+-    def test_formset_with_none_instance(self):
+
+-        "A formset with instance=None can be created. Regression for #11872"
+
+-        Form = modelform_factory(User, fields="__all__")
+
+-        FormSet = inlineformset_factory(User, UserSite, fields="__all__")
+
+-
+
+-        # Instantiate the Form and FormSet to prove
+
+-        # you can create a formset with an instance of None
+
+-        Form(instance=None)
+
+-        FormSet(instance=None)
+
++from django.db import models
+
++from django.db.models import Q
+
++
+
++class User(models.Model):
+
++    name = models.CharField(max_length=100)
+
++
+
++class UserSite(models.Model):
+
++    user = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to=Q(groups__name='admin'))
+
++    site_name = models.CharField(max_length=100)
+
+ 
+
+     def test_empty_fields_on_modelformset(self):
+
+         """
+
+

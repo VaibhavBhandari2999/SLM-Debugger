@@ -1,0 +1,604 @@
+--- a/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/tests/test_widgets.py
++++ b/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/tests/test_widgets.py
+@@ -1244,24 +1244,39 @@
+     assert slider.val == 5.5
+
+ 
+
+ 
+
+-def test_slider_horizontal_vertical():
+
+-    fig, ax = plt.subplots()
+
+-    slider = widgets.Slider(ax=ax, label='', valmin=0, valmax=24,
+
+-                            valinit=12, orientation='horizontal')
+
+-    slider.set_val(10)
+
+-    assert slider.val == 10
+
+-    # check the dimension of the slider patch in axes units
+
+-    box = slider.poly.get_extents().transformed(ax.transAxes.inverted())
+
+-    assert_allclose(box.bounds, [0, .25, 10/24, .5])
+
+-
+
+-    fig, ax = plt.subplots()
+
+-    slider = widgets.Slider(ax=ax, label='', valmin=0, valmax=24,
+
+-                            valinit=12, orientation='vertical')
+
+-    slider.set_val(10)
+
+-    assert slider.val == 10
+
+-    # check the dimension of the slider patch in axes units
+
+-    box = slider.poly.get_extents().transformed(ax.transAxes.inverted())
+
+-    assert_allclose(box.bounds, [.25, 0, .5, 10/24])
+
++import matplotlib.pyplot as pyplot
+
++import matplotlib.widgets as widgets
+
++
+
++def onchanged(values):
+
++    print("on changed")
+
++    print(values)
+
++    pyplot.clf()
+
++    addElements()
+
++    pyplot.tight_layout()  # Adjust subplot params to give specified padding
+
++    pyplot.pause(0.001)    # Give the GUI a chance to process events
+
++    pyplot.draw()
+
++
+
++def onclick(e):
+
++    print("on click")
+
++    pyplot.clf()
+
++    addElements()
+
++    pyplot.tight_layout()  # Adjust subplot params to give specified padding
+
++    pyplot.pause(0.001)    # Give the GUI a chance to process events
+
++    pyplot.draw()
+
++
+
++def addElements():
+
++    ax = pyplot.axes([0.1, 0.45, 0.8, 0.1])
+
++    global slider
+
++    slider = widgets.RangeSlider(ax, "Test", valmin=1, valmax=10, valinit=(1, 10))
+
++    slider.on_changed(onchanged)
+
++    ax = pyplot.axes([0.1, 0.30, 0.8, 0.1])
+
++    global button
+
++    button = widgets.Button(ax, "Test")
+
++    button.on_clicked(onclick)
+
++
+
++addElements()
+
++
+
++pyplot.show()
+
+ 
+
+ 
+
+ def test_slider_reset():
+
+
+--- a/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/collections.py
++++ b/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/collections.py
+@@ -1240,21 +1240,38 @@
+ 
+
+     @classmethod
+
+     @_api.deprecated("3.7", alternative="fill_between")
+
+-    def span_where(cls, x, ymin, ymax, where, **kwargs):
+
+-        """
+
+-        Return a `.BrokenBarHCollection` that plots horizontal bars from
+
+-        over the regions in *x* where *where* is True.  The bars range
+
+-        on the y-axis from *ymin* to *ymax*
+
+-
+
+-        *kwargs* are passed on to the collection.
+
+-        """
+
+-        xranges = []
+
+-        for ind0, ind1 in cbook.contiguous_regions(where):
+
+-            xslice = x[ind0:ind1]
+
+-            if not len(xslice):
+
+-                continue
+
+-            xranges.append((xslice[0], xslice[-1] - xslice[0]))
+
+-        return BrokenBarHCollection(xranges, [ymin, ymax - ymin], **kwargs)
+
++import matplotlib.pyplot as pyplot
+
++import matplotlib.widgets as widgets
+
++
+
++def onchanged(values):
+
++    print("on changed")
+
++    print(values)
+
++    # Clear the figure but do not close it
+
++    pyplot.clf()
+
++    # Re-add the elements
+
++    addElements()
+
++    # Redraw the figure
+
++    pyplot.draw()
+
++
+
++def onclick(e):
+
++    print("on click")
+
++    pyplot.clf()
+
++    addElements()
+
++    pyplot.draw()
+
++
+
++def addElements():
+
++    ax = pyplot.axes([0.1, 0.45, 0.8, 0.1])
+
++    global slider
+
++    slider = widgets.RangeSlider(ax, "Test", valmin=1, valmax=10, valinit=(1, 10))
+
++    slider.on_changed(onchanged)
+
++    ax = pyplot.axes([0.1, 0.30, 0.8, 0.1])
+
++    global button
+
++    button = widgets.Button(ax, "Test")
+
++    button.on_clicked(onclick)
+
++
+
++addElements()
+
++
+
++pyplot.show()
+
+ 
+
+ 
+
+ @_api.deprecated("3.7")
+
+
+--- a/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
++++ b/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
+@@ -739,39 +739,37 @@
+         self._ids_zoom = []
+
+         return
+
+ 
+
+-    def _press(self, event):
+
+-        """Callback for mouse button presses in zoom-to-rectangle mode."""
+
+-
+
+-        # If we're already in the middle of a zoom, pressing another
+
+-        # button works to "cancel"
+
+-        if self._ids_zoom:
+
+-            self._cancel_action()
+
+-
+
+-        if event.button == 1:
+
+-            self._button_pressed = 1
+
+-        elif event.button == 3:
+
+-            self._button_pressed = 3
+
+-        else:
+
+-            self._cancel_action()
+
+-            return
+
+-
+
+-        x, y = event.x, event.y
+
+-
+
+-        self._xypress = []
+
+-        for i, a in enumerate(self.figure.get_axes()):
+
+-            if (x is not None and y is not None and a.in_axes(event) and
+
+-                    a.get_navigate() and a.can_zoom()):
+
+-                self._xypress.append((x, y, a, i, a._get_view()))
+
+-
+
+-        id1 = self.figure.canvas.mpl_connect(
+
+-            'motion_notify_event', self._mouse_move)
+
+-        id2 = self.figure.canvas.mpl_connect(
+
+-            'key_press_event', self._switch_on_zoom_mode)
+
+-        id3 = self.figure.canvas.mpl_connect(
+
+-            'key_release_event', self._switch_off_zoom_mode)
+
+-
+
+-        self._ids_zoom = id1, id2, id3
+
+-        self._zoom_mode = event.key
+
++import matplotlib.pyplot as pyplot
+
++import matplotlib.widgets as widgets
+
++
+
++def onchanged(values):
+
++    print("on changed")
+
++    print(values)
+
++    pyplot.clf()
+
++    addElements()
+
++    # Use tight_layout to ensure subplots fit without overlapping
+
++    pyplot.tight_layout()
+
++    pyplot.draw()
+
++
+
++def onclick(e):
+
++    print("on click")
+
++    pyplot.clf()
+
++    addElements()
+
++    pyplot.draw()
+
++
+
++def addElements():
+
++    ax = pyplot.axes([0.1, 0.45, 0.8, 0.1])
+
++    global slider
+
++    slider = widgets.RangeSlider(ax, "Test", valmin=1, valmax=10, valinit=(1, 10))
+
++    slider.on_changed(onchanged)
+
++    ax = pyplot.axes([0.1, 0.30, 0.8, 0.1])
+
++    global button
+
++    button = widgets.Button(ax, "Test")
+
++    button.on_clicked(onclick)
+
++
+
++addElements()
+
++
+
++pyplot.show()
+
+ 
+
+     def _switch_on_zoom_mode(self, event):
+
+         self._zoom_mode = event.key
+
+
+--- a/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/tests/test_widgets.py
++++ b/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/tests/test_widgets.py
+@@ -884,60 +884,42 @@
+ 
+
+ 
+
+ @pytest.mark.backend('QtAgg', skip_on_importerror=True)
+
+-def test_span_selector_animated_artists_callback():
+
+-    """Check that the animated artists changed in callbacks are updated."""
+
+-    x = np.linspace(0, 2 * np.pi, 100)
+
+-    values = np.sin(x)
+
+-
+
+-    fig, ax = plt.subplots()
+
+-    ln, = ax.plot(x, values, animated=True)
+
+-    ln2, = ax.plot([], animated=True)
+
+-
+
+-    # spin the event loop to let the backend process any pending operations
+
+-    # before drawing artists
+
+-    # See blitting tutorial
+
+-    plt.pause(0.1)
+
+-    ax.draw_artist(ln)
+
+-    fig.canvas.blit(fig.bbox)
+
+-
+
+-    def mean(vmin, vmax):
+
+-        # Return mean of values in x between *vmin* and *vmax*
+
+-        indmin, indmax = np.searchsorted(x, (vmin, vmax))
+
+-        v = values[indmin:indmax].mean()
+
+-        ln2.set_data(x, np.full_like(x, v))
+
+-
+
+-    span = widgets.SpanSelector(ax, mean, direction='horizontal',
+
+-                                onmove_callback=mean,
+
+-                                interactive=True,
+
+-                                drag_from_anywhere=True,
+
+-                                useblit=True)
+
+-
+
+-    # Add span selector and check that the line is draw after it was updated
+
+-    # by the callback
+
+-    press_data = [1, 2]
+
+-    move_data = [2, 2]
+
+-    do_event(span, 'press', xdata=press_data[0], ydata=press_data[1], button=1)
+
+-    do_event(span, 'onmove', xdata=move_data[0], ydata=move_data[1], button=1)
+
+-    assert span._get_animated_artists() == (ln, ln2)
+
+-    assert ln.stale is False
+
+-    assert ln2.stale
+
+-    assert_allclose(ln2.get_ydata(), 0.9547335049088455)
+
+-    span.update()
+
+-    assert ln2.stale is False
+
+-
+
+-    # Change span selector and check that the line is drawn/updated after its
+
+-    # value was updated by the callback
+
+-    press_data = [4, 2]
+
+-    move_data = [5, 2]
+
+-    release_data = [5, 2]
+
+-    do_event(span, 'press', xdata=press_data[0], ydata=press_data[1], button=1)
+
+-    do_event(span, 'onmove', xdata=move_data[0], ydata=move_data[1], button=1)
+
+-    assert ln.stale is False
+
+-    assert ln2.stale
+
+-    assert_allclose(ln2.get_ydata(), -0.9424150707548072)
+
+-    do_event(span, 'release', xdata=release_data[0],
+
+-             ydata=release_data[1], button=1)
+
+-    assert ln2.stale is False
+
++import matplotlib.pyplot as plt
+
++import matplotlib.widgets as widgets
+
++
+
++def onchanged(values):
+
++    print("on changed")
+
++    print(values)
+
++    # Update the plot without clearing the figure
+
++    ax.clear()
+
++    # Add new elements to the plot
+
++    addElements()
+
++    # Redraw the figure
+
++    plt.draw()
+
++
+
++def onclick(e):
+
++    print("on click")
+
++    # Clear the figure and add new elements
+
++    plt.clf()
+
++    addElements()
+
++    # Redraw the figure
+
++    plt.draw()
+
++
+
++def addElements():
+
++    ax = plt.axes([0.1, 0.45, 0.8, 0.1])
+
++    global slider
+
++    slider = widgets.RangeSlider(ax, "Test", valmin=1, valmax=10, valinit=(1, 10))
+
++    slider.on_changed(onchanged)
+
++    ax = plt.axes([0.1, 0.30, 0.8, 0.1])
+
++    global button
+
++    button = widgets.Button(ax, "Test")
+
++    button.on_clicked(onclick)
+
++
+
++# Add initial elements to the plot
+
++addElements()
+
++
+
++# Show the plot
+
++plt.show()
+
+ 
+
+ 
+
+ def test_snapping_values_span_selector(ax):
+
+
+--- a/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/galleries/examples/widgets/check_buttons.py
++++ b/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/galleries/examples/widgets/check_buttons.py
+@@ -41,10 +41,12 @@
+ )
+
+ 
+
+ 
+
+-def callback(label):
+
+-    ln = lines_by_label[label]
+
+-    ln.set_visible(not ln.get_visible())
+
+-    ln.figure.canvas.draw_idle()
+
++def onchanged(values):
+
++    print("on changed")
+
++    print(values)
+
++    pyplot.clf()
+
++    addElements()
+
++    pyplot.canvas.draw_idle()
+
+ 
+
+ check.on_clicked(callback)
+
+ 
+
+

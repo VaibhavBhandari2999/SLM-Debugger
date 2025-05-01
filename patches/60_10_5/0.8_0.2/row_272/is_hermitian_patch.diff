@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/common.py
+@@ -1334,7 +1334,7 @@
+         return self._eval_is_diagonal()
+
+ 
+
+     @property
+
+-    def is_hermitian(self):
+
++def is_hermitian(self):
+
+         """Checks if the matrix is Hermitian.
+
+ 
+
+         In a Hermitian matrix element i,j is the complex conjugate of
+
+@@ -1365,7 +1365,11 @@
+         if not self.is_square:
+
+             return False
+
+ 
+
+-        return self._eval_is_matrix_hermitian(_simplify)
+
++        for i in range(self.rows):
+
++            for j in range(self.cols):
+
++                if self[i, j] != self[j, i].conjugate():
+
++                    return False
+
++        return True
+
+ 
+
+     @property
+
+     def is_Identity(self) -> FuzzyBool:

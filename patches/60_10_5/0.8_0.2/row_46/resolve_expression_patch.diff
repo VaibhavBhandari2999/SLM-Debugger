@@ -1,0 +1,116 @@
+--- a/decoupled/60/0.8_0.2/46/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/46/django_django/django/db/models/sql/query.py
+@@ -1021,30 +1021,33 @@
+         self.append_annotation_mask([alias])
+
+         self.annotations[alias] = annotation
+
+ 
+
+-    def resolve_expression(self, query, *args, **kwargs):
+
+-        clone = self.clone()
+
+-        # Subqueries need to use a different set of aliases than the outer query.
+
+-        clone.bump_prefix(query)
+
+-        clone.subquery = True
+
+-        # It's safe to drop ordering if the queryset isn't using slicing,
+
+-        # distinct(*fields) or select_for_update().
+
+-        if (self.low_mark == 0 and self.high_mark is None and
+
+-                not self.distinct_fields and
+
+-                not self.select_for_update):
+
+-            clone.clear_ordering(True)
+
+-        clone.where.resolve_expression(query, *args, **kwargs)
+
+-        for key, value in clone.annotations.items():
+
+-            resolved = value.resolve_expression(query, *args, **kwargs)
+
+-            if hasattr(resolved, 'external_aliases'):
+
+-                resolved.external_aliases.update(clone.external_aliases)
+
+-            clone.annotations[key] = resolved
+
+-        # Outer query's aliases are considered external.
+
+-        for alias, table in query.alias_map.items():
+
+-            clone.external_aliases[alias] = (
+
+-                (isinstance(table, Join) and table.join_field.related_model._meta.db_table != alias) or
+
+-                (isinstance(table, BaseTable) and table.table_name != table.table_alias)
+
+-            )
+
+-        return clone
+
++def resolve_expression(self, query, *args, **kwargs):
+
++    clone = self.clone()
+
++    # Subqueries need to use a different set of aliases than the outer query.
+
++    clone.bump_prefix(query)
+
++    clone.subquery = True
+
++    # It's safe to drop ordering if the queryset isn't using slicing,
+
++    # distinct(*fields) or select_for_update().
+
++    if (self.low_mark == 0 and self.high_mark is None and
+
++            not self.distinct_fields and
+
++            not self.select_for_update):
+
++        clone.clear_ordering(True)
+
++    clone.where.resolve_expression(query, *args, **kwargs)
+
++    for key, value in clone.annotations.items():
+
++        resolved = value.resolve_expression(query, *args, **kwargs)
+
++        if hasattr(resolved, 'external_aliases'):
+
++            resolved.external_aliases.update(clone.external_aliases)
+
++        clone.annotations[key] = resolved
+
++    # Outer query's aliases are considered external.
+
++    for alias, table in query.alias_map.items():
+
++        clone.external_aliases[alias] = (
+
++            (isinstance(table, Join) and table.join_field.related_model._meta.db_table != alias) or
+
++            (isinstance(table, BaseTable) and table.table_name != table.table_alias)
+
++        )
+
++    # Check if the field is filterable and raise an error if not
+
++    if not self.filterable:
+
++        raise NotSupportedError(f"{self.__class__.__name__} is disallowed in the filter clause.")
+
++    return clone
+
+ 
+
+     def get_external_cols(self):
+
+         exprs = chain(self.annotations.values(), self.where.children)

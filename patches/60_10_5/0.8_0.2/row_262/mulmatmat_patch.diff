@@ -1,0 +1,86 @@
+--- a/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/densearith.py
+@@ -147,41 +147,7 @@
+ 
+
+ 
+
+ def mulmatmat(matlist1, matlist2, K):
+
+-    """
+
+-    Multiplies two matrices by multiplying each row with each column at
+
+-    a time. The multiplication of row and column is done with mulrowcol.
+
+-
+
+-    Firstly, the second matrix is converted from a list of rows to a
+
+-    list of columns using zip and then multiplication is done.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.matrices.densearith import mulmatmat
+
+-    >>> from sympy import ZZ
+
+-    >>> from sympy.matrices.densetools import eye
+
+-    >>> a = [
+
+-    ... [ZZ(3), ZZ(4)],
+
+-    ... [ZZ(5), ZZ(6)]]
+
+-    >>> b = [
+
+-    ... [ZZ(1), ZZ(2)],
+
+-    ... [ZZ(7), ZZ(8)]]
+
+-    >>> c = eye(2, ZZ)
+
+-    >>> mulmatmat(a, b, ZZ)
+
+-    [[31, 38], [47, 58]]
+
+-    >>> mulmatmat(a, c, ZZ)
+
+-    [[3, 4], [5, 6]]
+
+-
+
+-    See Also
+
+-    ========
+
+-
+
+-    mulrowcol
+
+-    """
+
+-    matcol = [list(i) for i in zip(*matlist2)]
+
+-    result = []
+
+-    for row in matlist1:
+
+-        result.append([mulrowcol(row, col, K) for col in matcol])
+
+-    return result
+
++    ...
+
+ 
+
+ 
+
+ def mulmatscaler(matlist, scaler, K):

@@ -1,0 +1,226 @@
+--- a/decoupled/60/0.8_0.2/277/sympy_sympy/sympy/core/expr.py
++++ b/decoupled/60/0.8_0.2/277/sympy_sympy/sympy/core/expr.py
+@@ -394,57 +394,61 @@
+             raise TypeError("expected mpmath number (mpf or mpc)")
+
+ 
+
+     @property
+
+-    def is_number(self):
+
+-        """Returns True if ``self`` has no free symbols and no
+
+-        undefined functions (AppliedUndef, to be precise). It will be
+
+-        faster than ``if not self.free_symbols``, however, since
+
+-        ``is_number`` will fail as soon as it hits a free symbol
+
+-        or undefined function.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Integral, cos, sin, pi
+
+-        >>> from sympy.core.function import Function
+
+-        >>> from sympy.abc import x
+
+-        >>> f = Function('f')
+
+-
+
+-        >>> x.is_number
+
+-        False
+
+-        >>> f(1).is_number
+
+-        False
+
+-        >>> (2*x).is_number
+
+-        False
+
+-        >>> (2 + Integral(2, x)).is_number
+
+-        False
+
+-        >>> (2 + Integral(2, (x, 1, 2))).is_number
+
+-        True
+
+-
+
+-        Not all numbers are Numbers in the SymPy sense:
+
+-
+
+-        >>> pi.is_number, pi.is_Number
+
+-        (True, False)
+
+-
+
+-        If something is a number it should evaluate to a number with
+
+-        real and imaginary parts that are Numbers; the result may not
+
+-        be comparable, however, since the real and/or imaginary part
+
+-        of the result may not have precision.
+
+-
+
+-        >>> cos(1).is_number and cos(1).is_comparable
+
+-        True
+
+-
+
+-        >>> z = cos(1)**2 + sin(1)**2 - 1
+
+-        >>> z.is_number
+
+-        True
+
+-        >>> z.is_comparable
+
+-        False
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        sympy.core.basic.Basic.is_comparable
+
+-        """
+
+-        return all(obj.is_number for obj in self.args)
+
++def is_number(self):
+
++    """Returns True if ``self`` has no free symbols and no
+
++    undefined functions (AppliedUndef, to be precise). It will be
+
++    faster than ``if not self.free_symbols``, however, since
+
++    ``is_number`` will fail as soon as it hits a free symbol
+
++    or undefined function.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Integral, cos, sin, pi
+
++    >>> from sympy.core.function import Function
+
++    >>> from sympy.abc import x
+
++    >>> f = Function('f')
+
++
+
++    >>> x.is_number
+
++    False
+
++    >>> f(1).is_number
+
++    False
+
++    >>> (2*x).is_number
+
++    False
+
++    >>> (2 + Integral(2, x)).is_number
+
++    False
+
++    >>> (2 + Integral(2, (x, 1, 2))).is_number
+
++    True
+
++
+
++    Not all numbers are Numbers in the SymPy sense:
+
++
+
++    >>> pi.is_number, pi.is_Number
+
++    (True, False)
+
++
+
++    If something is a number it should evaluate to a number with
+
++    real and imaginary parts that are Numbers; the result may not
+
++    be comparable, however, since the real and/or imaginary part
+
++    of the result may not have precision.
+
++
+
++    >>> cos(1).is_number and cos(1).is_comparable
+
++    True
+
++
+
++    >>> z = cos(1)**2 + sin(1)**2 - 1
+
++    >>> z.is_number
+
++    True
+
++    >>> z.is_comparable
+
++    False
+
++
+
++    See Also
+
++    ========
+
++
+
++    sympy.core.basic.Basic.is_comparable
+
++    """
+
++    # Check for undefined behavior with 0**-oo
+
++    if self == 0**-oo:
+
++        return False
+
++
+
++    return all(obj.is_number for obj in self.args)
+
+ 
+
+     def _random(self, n=None, re_min=-1, im_min=-1, re_max=1, im_max=1):
+
+         """Return self evaluated, if possible, replacing free symbols with

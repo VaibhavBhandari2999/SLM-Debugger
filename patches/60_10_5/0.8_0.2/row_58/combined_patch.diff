@@ -1,0 +1,194 @@
+
+
+--- a/decoupled/60/0.8_0.2/58/django_django/django/db/migrations/optimizer.py
++++ b/decoupled/60/0.8_0.2/58/django_django/django/db/migrations/optimizer.py
+@@ -9,7 +9,7 @@
+     nothing.
+
+     """
+
+ 
+
+-    def optimize(self, operations, app_label):
+
++def optimize(self, operations, app_label):
+
+         """
+
+         Main optimization entry point. Pass in a list of Operation instances,
+
+         get out a new list of Operation instances.
+
+@@ -36,6 +36,32 @@
+             if result == operations:
+
+                 return result
+
+             operations = result
+
++
+
++    def optimize_inner(self, operations, app_label):
+
++        """
+
++        Inner optimization logic. This function is responsible for scanning
+
++        the operations and optimizing them. The key change here is to ensure
+
++        that named tuples are properly expanded when passed to the range function.
+
++        """
+
++        optimized_operations = []
+
++        i = 0
+
++        while i < len(operations):
+
++            op = operations[i]
+
++            if isinstance(op, RangeQueryOperation) and i + 1 < len(operations):
+
++                next_op = operations[i + 1]
+
++                if isinstance(next_op, RangeQueryOperation) and op.model == next_op.model:
+
++                    # Expand the named tuple to ensure it's not passed as an iterator
+
++                    start, end = op.range_args
+
++                    start_expanded = start._asdict() if isinstance(start, namedtuple) else start
+
++                    end_expanded = end._asdict() if isinstance(end, namedtuple) else end
+
++                    optimized_operations.append(RangeQueryOperation(op.model, start_expanded, end_expanded))
+
++                    i += 2
+
++                else:
+
++                    optimized_operations.append(op)
+
++            else:
+
++                optimized_operations.append(op)
+
++            i += 1
+
++        return optimized_operations
+
+ 
+
+     def optimize_inner(self, operations, app_label):
+
+         """Inner optimization loop."""
+
+
+--- a/decoupled/60/0.8_0.2/58/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/58/django_django/django/db/models/query_utils.py
+@@ -246,6 +246,8 @@
+      * load_fields - the set of fields to be loaded on this model
+
+      * reverse - boolean, True if we are checking a reverse select related
+
+     """
+
++    # This function is part of the Django ORM and is not directly related to the issue with named tuples and the range queryset filter.
+
++    # The fix for the issue should be applied in the Django ORM code that handles named tuples and the range queryset filter.
+
+     if not field.remote_field:
+
+         return False
+
+     if field.remote_field.parent_link and not reverse:
+
+
+--- a/decoupled/60/0.8_0.2/58/django_django/tests/template_tests/syntax_tests/test_filter_syntax.py
++++ b/decoupled/60/0.8_0.2/58/django_django/tests/template_tests/syntax_tests/test_filter_syntax.py
+@@ -203,7 +203,7 @@
+             self.assertEqual(output, "12")
+
+ 
+
+     @setup({'filter-syntax23': r'1{{ var.noisy_fail_key }}2'})
+
+-    def test_filter_syntax23(self):
+
++def test_filter_syntax30(self):
+
+         """
+
+         In attribute and dict lookups that raise an unexpected exception
+
+         without a `silent_variable_attribute` set to True, the exception
+
+@@ -211,6 +211,23 @@
+         """
+
+         with self.assertRaises(SomeOtherException):
+
+             self.engine.render_to_string('filter-syntax23', {"var": SomeClass()})
+
++
+
++    def fix_named_tuple_range_filter(self):
+
++        from django.db.models import Lookup
+
++        from django.db.models.sql.query import Query
+
++        from collections import namedtuple
+
++
+
++        # Define a sample named tuple for demonstration
+
++        Point = namedtuple('Point', ['x', 'y'])
+
++
+
++        # Original problematic code
+
++        # point = Point(1, 2)
+
++        # Query.resolve_lookup_value(point)
+
++
+
++        # Fixed code
+
++        point = Point(1, 2)
+
++        # Manually expand the iterator to the constructor
+
++        Query.resolve_lookup_value(*point)
+
+ 
+
+     @setup({'filter-syntax24': r'1{{ var.noisy_fail_attribute }}2'})
+
+     def test_filter_syntax24(self):
+
+
+--- a/decoupled/60/0.8_0.2/58/django_django/tests/template_tests/syntax_tests/test_filter_syntax.py
++++ b/decoupled/60/0.8_0.2/58/django_django/tests/template_tests/syntax_tests/test_filter_syntax.py
+@@ -213,7 +213,7 @@
+             self.engine.render_to_string('filter-syntax23', {"var": SomeClass()})
+
+ 
+
+     @setup({'filter-syntax24': r'1{{ var.noisy_fail_attribute }}2'})
+
+-    def test_filter_syntax24(self):
+
++def test_filter_syntax24(self):
+
+         """
+
+         In attribute and dict lookups that raise an unexpected exception
+
+         without a `silent_variable_attribute` set to True, the exception
+
+

@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/237/sympy_sympy/sympy/core/evalf.py
++++ b/decoupled/60/0.8_0.2/237/sympy_sympy/sympy/core/evalf.py
+@@ -131,7 +131,7 @@
+     h, t = v.as_coeff_Add()
+
+     if not t:
+
+         if or_real:
+
+-            return h, t
+
++            return h, S(0) if h.is_real else None
+
+         return
+
+     c, i = t.as_coeff_Mul()
+
+     if i is S.ImaginaryUnit:

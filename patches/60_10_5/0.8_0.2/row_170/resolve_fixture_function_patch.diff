@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -904,7 +904,7 @@
+ 
+
+ def resolve_fixture_function(fixturedef, request):
+
+     """Gets the actual callable that can be called to obtain the fixture value, dealing with unittest-specific
+
+-    instances and bound methods.
+
++    instances and bound methods. Also, ensures that the fixture scope is correctly reflected in the output of `pytest --fixtures`.
+
+     """
+
+     fixturefunc = fixturedef.func
+
+     if fixturedef.unittest:
+
+@@ -919,6 +919,15 @@
+             fixturefunc = getimfunc(fixturedef.func)
+
+             if fixturefunc != fixturedef.func:
+
+                 fixturefunc = fixturefunc.__get__(request.instance)
+
++    
+
++    # Reflect the fixture scope in the callable
+
++    if fixturedef.scope == 'function':
+
++        fixturefunc = functools.partial(fixturefunc, request=request)
+
++    elif fixturedef.scope == 'class':
+
++        fixturefunc = functools.partial(fixturefunc, request=request, instance=request.instance)
+
++    elif fixturedef.scope == 'module':
+
++        fixturefunc = functools.partial(fixturefunc, request=request, module=request.module)
+
++    
+
+     return fixturefunc
+
+ 
+
+ 

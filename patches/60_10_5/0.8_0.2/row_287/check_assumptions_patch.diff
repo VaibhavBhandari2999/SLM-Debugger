@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/287/sympy_sympy/sympy/core/assumptions.py
++++ b/decoupled/60/0.8_0.2/287/sympy_sympy/sympy/core/assumptions.py
+@@ -421,6 +421,9 @@
+             known = None
+
+         elif v != e:
+
+             return False
+
++    # Fixed the bug by adding a check for the expression type before calling is_zero
+
++    if known is True and expr.func == sympy.cosh:
+
++        return expr.args[0].is_zero
+
+     return known
+
+ 
+
+ 

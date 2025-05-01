@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -177,6 +177,10 @@
+ 
+
+     mulrowcol
+
+     """
+
++    # Check if the second matrix is an identity matrix
+
++    if all(matlist2[i][i] == K(1) and all(matlist2[i][j] == K(0) for j in range(len(matlist2)) if i != j) for i in range(len(matlist2))):
+
++        return matlist1
+
++
+
+     matcol = [list(i) for i in zip(*matlist2)]
+
+     result = []
+
+     for row in matlist1:

@@ -1,0 +1,93 @@
+--- a/decoupled/60/0.8_0.2/78/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/78/django_django/django/db/models/fields/related_descriptors.py
+@@ -287,6 +287,9 @@
+     ``Restaurant.place`` is a ``ForwardOneToOneDescriptor`` instance.
+
+     """
+
+ 
+
++from django.db import models
+
++
+
++class CustomManager(models.Manager):
+
+     def get_object(self, instance):
+
+         if self.field.remote_field.parent_link:
+
+             deferred = instance.get_deferred_fields()
+
+@@ -305,6 +308,36 @@
+                 obj._state.db = instance._state.db
+
+                 return obj
+
+         return super().get_object(instance)
+
++
+
++class CustomModel(models.Model):
+
++    related_field = models.ManyToManyField('self', symmetrical=True, related_name='related_field')
+
++
+
++    objects = CustomManager()
+
++
+
++    def get_object(self, instance):
+
++        if self.field.remote_field.parent_link:
+
++            deferred = instance.get_deferred_fields()
+
++            # Because it's a parent link, all the data is available in the
+
++            # instance, so populate the parent model with this data.
+
++            rel_model = self.field.remote_field.model
+
++            fields = [field.attname for field in rel_model._meta.concrete_fields]
+
++
+
++            # If any of the related model's fields are deferred, fallback to
+
++            # fetching all fields from the related model. This avoids a query
+
++            # on the related model for every deferred field.
+
++            if not any(field in fields for field in deferred):
+
++                kwargs = {field: getattr(instance, field) for field in fields}
+
++                obj = rel_model(**kwargs)
+
++                obj._state.adding = instance._state.adding
+
++                obj._state.db = instance._state.db
+
++                return obj
+
++        return super().get_object(instance)
+
++
+
++    def add_related(self, other_instance, related_name):
+
++        if self.field.remote_field.symmetrical:
+
++            raise ValueError("Cannot define a related_name on a symmetrical ManyToManyField.")
+
++        else:
+
++            self.related_field.add(other_instance, through_defaults={self.field.remote_field.through._meta.auto_created: True})
+
+ 
+
+     def __set__(self, instance, value):
+
+         super().__set__(instance, value)

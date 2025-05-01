@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/cluster/_feature_agglomeration.py
++++ b/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/cluster/_feature_agglomeration.py
+@@ -21,7 +21,7 @@
+     A class for feature agglomeration via the transform interface
+
+     """
+
+ 
+
+-    def transform(self, X):
+
++def transform(self, X):
+
+         """
+
+         Transform a new matrix using the built clustering
+
+ 
+
+@@ -37,6 +37,10 @@
+             The pooled values for each feature cluster.
+
+         """
+
+         check_is_fitted(self)
+
++
+
++        # Convert X to a numeric data type if it contains non-numeric data
+
++        if not np.issubdtype(X.dtype, np.number):
+
++            X = X.astype(float)
+
+ 
+
+         X = check_array(X)
+
+         if len(self.labels_) != X.shape[1]:

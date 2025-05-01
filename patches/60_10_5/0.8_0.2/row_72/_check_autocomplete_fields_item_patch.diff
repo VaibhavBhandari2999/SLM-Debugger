@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/72/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/72/django_django/django/contrib/admin/checks.py
+@@ -174,7 +174,7 @@
+                 for index, field_name in enumerate(obj.autocomplete_fields)
+
+             ]))
+
+ 
+
+-    def _check_autocomplete_fields_item(self, obj, field_name, label):
+
++def _check_autocomplete_fields_item(self, obj, field_name, label):
+
+         """
+
+         Check that an item in `autocomplete_fields` is a ForeignKey or a
+
+         ManyToManyField and that the item has a related ModelAdmin with

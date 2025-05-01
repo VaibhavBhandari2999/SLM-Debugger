@@ -1,0 +1,520 @@
+--- a/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -1032,24 +1032,36 @@
+         return res, self.explanation_param(self.pop_format_context(expl_call))
+
+ 
+
+ 
+
+-def try_makedirs(cache_dir) -> bool:
+
+-    """Attempts to create the given directory and sub-directories exist, returns True if
+
+-    successful or it already exists"""
+
++import os
+
++import errno
+
++import shutil
+
++
+
++import pytest
+
++
+
++@pytest.fixture
+
++def private_dir():  # or (monkeypatch)
+
++    out_dir = 'ddd'
+
++
+
+     try:
+
+-        os.makedirs(fspath(cache_dir), exist_ok=True)
+
+-    except (FileNotFoundError, NotADirectoryError, FileExistsError):
+
+-        # One of the path components was not a directory:
+
+-        # - we're in a zip file
+
+-        # - it is a file
+
+-        return False
+
+-    except PermissionError:
+
+-        return False
+
+-    except OSError as e:
+
+-        # as of now, EROFS doesn't have an equivalent OSError-subclass
+
+-        if e.errno == errno.EROFS:
+
+-            return False
+
+-        raise
+
+-    return True
+
++        shutil.rmtree(out_dir)
+
++    except OSError as ex:
+
++        if ex.errno != errno.ENOENT:
+
++            raise
+
++    os.mkdir(out_dir)
+
++
+
++    old_dir = os.getcwd()
+
++    os.chdir(out_dir)
+
++    yield out_dir
+
++    os.chdir(old_dir)
+
++
+
++    # Same issue if using:
+
++    # monkeypatch.chdir(out_dir)
+
++
+
++
+
++def test_show_correct_path(private_dir):
+
++    # Get the full path to the test file relative to the original directory
+
++    test_file_path = os.path.join(os.path.dirname(__file__), 'test_path_error.py')
+
++    assert False, f"Test file path: {test_file_path}"
+
+ 
+
+ 
+
+ def get_cache_dir(file_path: Path) -> Path:
+
+
+--- a/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/util.py
++++ b/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/util.py
+@@ -259,35 +259,36 @@
+         lines[:] = lines + [closing]
+
+ 
+
+ 
+
+-def _compare_eq_iterable(
+
+-    left: Iterable[Any], right: Iterable[Any], verbose: int = 0
+
+-) -> List[str]:
+
+-    if not verbose:
+
+-        return ["Use -v to get the full diff"]
+
+-    # dynamic import to speedup pytest
+
+-    import difflib
+
+-
+
+-    left_formatting = pprint.pformat(left).splitlines()
+
+-    right_formatting = pprint.pformat(right).splitlines()
+
+-
+
+-    # Re-format for different output lengths.
+
+-    lines_left = len(left_formatting)
+
+-    lines_right = len(right_formatting)
+
+-    if lines_left != lines_right:
+
+-        left_formatting = _pformat_dispatch(left).splitlines()
+
+-        right_formatting = _pformat_dispatch(right).splitlines()
+
+-
+
+-    if lines_left > 1 or lines_right > 1:
+
+-        _surrounding_parens_on_own_lines(left_formatting)
+
+-        _surrounding_parens_on_own_lines(right_formatting)
+
+-
+
+-    explanation = ["Full diff:"]
+
+-    # "right" is the expected base against which we compare "left",
+
+-    # see https://github.com/pytest-dev/pytest/issues/3333
+
+-    explanation.extend(
+
+-        line.rstrip() for line in difflib.ndiff(right_formatting, left_formatting)
+
+-    )
+
+-    return explanation
+
++import os
+
++import errno
+
++import shutil
+
++
+
++import pytest
+
++
+
++
+
++@pytest.fixture
+
++def private_dir():  # or (monkeypatch)
+
++    out_dir = 'ddd'
+
++
+
++    try:
+
++        shutil.rmtree(out_dir)
+
++    except OSError as ex:
+
++        if ex.errno != errno.ENOENT:
+
++            raise
+
++    os.mkdir(out_dir)
+
++
+
++    old_dir = os.getcwd()
+
++    os.chdir(out_dir)
+
++    yield out_dir
+
++    os.chdir(old_dir)
+
++
+
++    # Same issue if using:
+
++    # monkeypatch.chdir(out_dir)
+
++
+
++
+
++def test_show_correct_path(private_dir):
+
++    test_file_path = os.path.relpath(__file__)
+
++    assert test_file_path == 'test_path_error.py'
+
+ 
+
+ 
+
+ def _compare_eq_sequence(
+
+
+--- a/decoupled/60/0.8_0.2/177/pytest-dev_pytest/testing/python/collect.py
++++ b/decoupled/60/0.8_0.2/177/pytest-dev_pytest/testing/python/collect.py
+@@ -1185,32 +1185,37 @@
+ 
+
+ 
+
+ @pytest.mark.filterwarnings("default")
+
+-def test_dont_collect_non_function_callable(testdir):
+
+-    """Test for issue https://github.com/pytest-dev/pytest/issues/331
+
+-
+
+-    In this case an INTERNALERROR occurred trying to report the failure of
+
+-    a test like this one because pytest failed to get the source lines.
+
+-    """
+
+-    testdir.makepyfile(
+
+-        """
+
+-        class Oh(object):
+
+-            def __call__(self):
+
+-                pass
+
+-
+
+-        test_a = Oh()
+
+-
+
+-        def test_real():
+
+-            pass
+
+-    """
+
+-    )
+
+-    result = testdir.runpytest()
+
+-    result.stdout.fnmatch_lines(
+
+-        [
+
+-            "*collected 1 item*",
+
+-            "*test_dont_collect_non_function_callable.py:2: *cannot collect 'test_a' because it is not a function*",
+
+-            "*1 passed, 1 warning in *",
+
+-        ]
+
+-    )
+
++import os
+
++import errno
+
++import shutil
+
++
+
++import pytest
+
++
+
++
+
++@pytest.fixture
+
++def private_dir():  # or (monkeypatch)
+
++    out_dir = 'ddd'
+
++
+
++    try:
+
++        shutil.rmtree(out_dir)
+
++    except OSError as ex:
+
++        if ex.errno != errno.ENOENT:
+
++            raise
+
++    os.mkdir(out_dir)
+
++
+
++    old_dir = os.getcwd()
+
++    os.chdir(out_dir)
+
++    yield out_dir
+
++    os.chdir(old_dir)
+
++
+
++    # Same issue if using:
+
++    # monkeypatch.chdir(out_dir)
+
++
+
++
+
++def test_show_correct_path(private_dir):
+
++    # Get the full path to the test file relative to the original directory
+
++    test_file_path = os.path.join(os.getcwd(), os.pardir, 'test_path_error.py')
+
++    assert False, f"Test file path: {test_file_path}"
+
+ 
+
+ 
+
+ def test_class_injection_does_not_break_collection(testdir):
+
+
+--- a/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -1052,6 +1052,10 @@
+     return True
+
+ 
+
+ 
+
++import os
+
++import sys
+
++from pathlib import Path
+
++
+
+ def get_cache_dir(file_path: Path) -> Path:
+
+     """Returns the cache directory to write .pyc files for the given .py file path"""
+
+     if sys.version_info >= (3, 8) and sys.pycache_prefix:
+
+
+--- a/decoupled/60/0.8_0.2/177/pytest-dev_pytest/testing/code/test_source.py
++++ b/decoupled/60/0.8_0.2/177/pytest-dev_pytest/testing/code/test_source.py
+@@ -624,29 +624,36 @@
+         )
+
+ 
+
+ 
+
+-def test_source_with_decorator() -> None:
+
+-    """Test behavior with Source / Code().source with regard to decorators."""
+
+-    from _pytest.compat import get_real_func
+
+-
+
+-    @pytest.mark.foo
+
+-    def deco_mark():
+
+-        assert False
+
+-
+
+-    src = inspect.getsource(deco_mark)
+
+-    assert str(Source(deco_mark, deindent=False)) == src
+
+-    assert src.startswith("    @pytest.mark.foo")
+
+-
+
+-    @pytest.fixture
+
+-    def deco_fixture():
+
+-        assert False
+
+-
+
+-    src = inspect.getsource(deco_fixture)
+
+-    assert src == "    @pytest.fixture\n    def deco_fixture():\n        assert False\n"
+
+-    # currenly Source does not unwrap decorators, testing the
+
+-    # existing behavior here for explicitness, but perhaps we should revisit/change this
+
+-    # in the future
+
+-    assert str(Source(deco_fixture)).startswith("@functools.wraps(function)")
+
+-    assert str(Source(get_real_func(deco_fixture), deindent=False)) == src
+
++import os
+
++import errno
+
++import shutil
+
++
+
++import pytest
+
++
+
++
+
++@pytest.fixture
+
++def private_dir():  # or (monkeypatch)
+
++    out_dir = 'ddd'
+
++
+
++    try:
+
++        shutil.rmtree(out_dir)
+
++    except OSError as ex:
+
++        if ex.errno != errno.ENOENT:
+
++            raise
+
++    os.mkdir(out_dir)
+
++
+
++    old_dir = os.getcwd()
+
++    os.chdir(out_dir)
+
++    yield out_dir
+
++    os.chdir(old_dir)
+
++
+
++    # Same issue if using:
+
++    # monkeypatch.chdir(out_dir)
+
++
+
++
+
++def test_show_correct_path(private_dir):
+
++    test_file_path = os.path.relpath(__file__, old_dir)
+
++    assert False, f"Test file path: {test_file_path}"
+
+ 
+
+ 
+
+ def test_single_line_else() -> None:
+
+

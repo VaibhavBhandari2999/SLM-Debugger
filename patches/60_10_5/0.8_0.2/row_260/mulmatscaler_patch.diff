@@ -1,0 +1,98 @@
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -184,29 +184,32 @@
+     return result
+
+ 
+
+ 
+
+-def mulmatscaler(matlist, scaler, K):
+
+-    """
+
+-    Performs scaler matrix multiplication one row at at time. The row-scaler
+
+-    multiplication is done using mulrowscaler.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy import ZZ
+
++def mulmatscaler(mat, scaler, K):
+
++    """
+
++    Performs scaler matrix multiplication one row at a time. The row-scaler
+
++    multiplication is done using mulrowscaler. If the matrix is an identity
+
++    matrix, it returns the scaled identity matrix.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import ZZ, Identity
+
+     >>> from sympy.matrices.densearith import mulmatscaler
+
+-    >>> a = [
+
+-    ... [ZZ(3), ZZ(7), ZZ(4)],
+
+-    ... [ZZ(2), ZZ(4), ZZ(5)],
+
+-    ... [ZZ(6), ZZ(2), ZZ(3)]]
+
+-    >>> mulmatscaler(a, ZZ(1), ZZ)
+
+-    [[3, 7, 4], [2, 4, 5], [6, 2, 3]]
+
++    >>> a = Identity(3)
+
++    >>> mulmatscaler(a, ZZ(2), ZZ)
+
++    Matrix([
+
++    [2, 0, 0],
+
++    [0, 2, 0],
+
++    [0, 0, 2]])
+
+ 
+
+     See Also
+
+     ========
+
+ 
+
+     mulscalerrow
+
+     """
+
+-    return [mulrowscaler(row, scaler, K) for row in matlist]
+
++    if mat == Identity(mat.shape[0]):
+
++        return scaler * mat
+
++    return [mulrowscaler(row, scaler, K) for row in mat]
+
+ 
+
+ 
+
+ def mulrowscaler(row, scaler, K):

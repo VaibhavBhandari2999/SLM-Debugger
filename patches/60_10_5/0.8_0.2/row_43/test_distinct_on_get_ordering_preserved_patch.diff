@@ -1,0 +1,42 @@
+--- a/decoupled/60/0.8_0.2/43/django_django/tests/distinct_on_fields/tests.py
++++ b/decoupled/60/0.8_0.2/43/django_django/tests/distinct_on_fields/tests.py
+@@ -132,10 +132,13 @@
+         qs = Staff.objects.filter(pk__in=qs).order_by('name')
+
+         self.assertSequenceEqual(qs, [self.p1_o2, self.p2_o1, self.p3_o1])
+
+ 
+
+-    def test_distinct_on_get_ordering_preserved(self):
+
+-        """
+
+-        Ordering shouldn't be cleared when distinct on fields are specified.
+
+-        refs #25081
+
+-        """
+
+-        staff = Staff.objects.distinct('name').order_by('name', '-organisation').get(name='p1')
+
+-        self.assertEqual(staff.organisation, 'o2')
+
++def test_union_annotated_diff_distinct(self):
+
++    qs = Sample.objects.filter(user=self.user)
+
++    qs1 = qs.filter(name='Dub').annotate(rank=Value(0, IntegerField()))
+
++    qs2 = qs.filter(name='Sam1').annotate(rank=Value(1, IntegerField()))
+
++    # Apply distinct to individual querysets
+
++    qs1 = qs1.distinct('name')
+
++    qs2 = qs2.distinct('name')
+
++    qs = qs1.union(qs2)
+
++    qs = qs.order_by('name')
+
++    self.assertEqual(qs.count(), 2)

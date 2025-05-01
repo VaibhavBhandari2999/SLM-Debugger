@@ -1,0 +1,85 @@
+--- a/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
+@@ -512,6 +512,12 @@
+         codename = get_permission_codename('delete', opts)
+
+         return request.user.has_perm("%s.%s" % (opts.app_label, codename))
+
+ 
+
++from django.contrib.admin import AdminSite
+
++from django.contrib.admin.utils import get_model_from_opts, get_app_list
+
++from django.contrib.auth.models import Permission
+
++from django.contrib.contenttypes.models import ContentType
+
++
+
++class CustomAdminSite(AdminSite):
+
+     def has_view_permission(self, request, obj=None):
+
+         """
+
+         Return True if the given request has permission to view the given
+
+@@ -530,6 +536,29 @@
+             request.user.has_perm('%s.%s' % (opts.app_label, codename_view)) or
+
+             request.user.has_perm('%s.%s' % (opts.app_label, codename_change))
+
+         )
+
++
+
++    def get_app_list(self, request):
+
++        """
+
++        Return the app list for the given request.
+
++        """
+
++        app_list = get_app_list(request)
+
++        # Manipulate app_list here if needed
+
++        return app_list
+
++
+
++    def _build_app_dict(self, request, label=None):
+
++        """
+
++        Build the app dictionary. This method is now public.
+
++        """
+
++        app_dict = {}
+
++        for app in self.get_app_list(request):
+
++            if label and app['app_label'] != label:
+
++                continue
+
++            app_dict[app['app_label']] = app
+
++            if 'models' in app:
+
++                for model in app['models']:
+
++                    if model['name'] == 'ModelName':  # Replace 'ModelName' with the actual model name
+
++                        model['model_class'] = get_model_from_opts(app['app_model_opts'])
+
++        return app_dict
+
+ 
+
+     def has_view_or_change_permission(self, request, obj=None):
+
+         return self.has_view_permission(request, obj) or self.has_change_permission(request, obj)

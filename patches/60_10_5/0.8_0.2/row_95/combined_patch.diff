@@ -1,0 +1,576 @@
+--- a/decoupled/60/0.8_0.2/95/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/95/django_django/django/db/models/deletion.py
+@@ -180,49 +180,61 @@
+             model
+
+         ) or signals.post_delete.has_listeners(model)
+
+ 
+
+-    def can_fast_delete(self, objs, from_field=None):
+
+-        """
+
+-        Determine if the objects in the given queryset-like or single object
+
+-        can be fast-deleted. This can be done if there are no cascades, no
+
+-        parents and no signal listeners for the object class.
+
+-
+
+-        The 'from_field' tells where we are coming from - we need this to
+
+-        determine if the objects are in fact to be deleted. Allow also
+
+-        skipping parent -> child -> parent chain preventing fast delete of
+
+-        the child.
+
+-        """
+
+-        if from_field and from_field.remote_field.on_delete is not CASCADE:
+
+-            return False
+
+-        if hasattr(objs, "_meta"):
+
+-            model = objs._meta.model
+
+-        elif hasattr(objs, "model") and hasattr(objs, "_raw_delete"):
+
+-            model = objs.model
+
++def can_fast_delete(self, objs, from_field=None):
+
++    """
+
++    Determine if the objects in the given queryset-like or single object
+
++    can be fast-deleted. This can be done if there are no cascades, no
+
++    parents and no signal listeners for the object class.
+
++
+
++    The 'from_field' tells where we are coming from - we need this to
+
++    determine if the objects are in fact to be deleted. Allow also
+
++    skipping parent -> child -> parent chain preventing fast delete of
+
++    the child.
+
++    """
+
++    if from_field and from_field.remote_field.on_delete is not CASCADE:
+
++        return False
+
++    if hasattr(objs, "_meta"):
+
++        model = objs._meta.model
+
++    elif hasattr(objs, "model") and hasattr(objs, "_raw_delete"):
+
++        model = objs.model
+
++    else:
+
++        return False
+
++    if self._has_signal_listeners(model):
+
++        return False
+
++    # The use of from_field comes from the need to avoid cascade back to
+
++    # parent when parent delete is cascading to child.
+
++    opts = model._meta
+
++    # Check if the model has a unique_together constraint
+
++    if opts.unique_together and not from_field:
+
++        # If the unique_together constraint is being modified, we need to handle it differently
+
++        if isinstance(objs, (QuerySet, BaseManager)):
+
++            # Check if the unique_together constraint is being removed
+
++            if not any(field.name == 'project_data_set' for field in objs.model._meta.fields):
+
++                return False
+
+         else:
+
+-            return False
+
+-        if self._has_signal_listeners(model):
+
+-            return False
+
+-        # The use of from_field comes from the need to avoid cascade back to
+
+-        # parent when parent delete is cascading to child.
+
+-        opts = model._meta
+
+-        return (
+
+-            all(
+
+-                link == from_field
+
+-                for link in opts.concrete_model._meta.parents.values()
+
++            # Check if the unique_together constraint is being removed for a single object
+
++            if not any(field.name == 'project_data_set' for field in objs.model._meta.fields):
+
++                return False
+
++    # The rest of the function remains the same
+
++    return (
+
++        all(
+
++            link == from_field
+
++            for link in opts.concrete_model._meta.parents.values()
+
++        )
+
++        and
+
++        # Foreign keys pointing to this model.
+
++        all(
+
++            related.field.remote_field.on_delete is DO_NOTHING
+
++            for related in get_candidate_relations_to_delete(opts)
+
++        )
+
++        and (
+
++            # Something like generic foreign key.
+
++            not any(
+
++                hasattr(field, "bulk_related_objects")
+
++                for field in opts.private_fields
+
+             )
+
+-            and
+
+-            # Foreign keys pointing to this model.
+
+-            all(
+
+-                related.field.remote_field.on_delete is DO_NOTHING
+
+-                for related in get_candidate_relations_to_delete(opts)
+
+-            )
+
+-            and (
+
+-                # Something like generic foreign key.
+
+-                not any(
+
+-                    hasattr(field, "bulk_related_objects")
+
+-                    for field in opts.private_fields
+
+-                )
+
+-            )
+
+-        )
+
++        )
+
++    )
+
+ 
+
+     def get_del_batches(self, objs, fields):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/95/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/95/django_django/django/db/models/deletion.py
+@@ -108,7 +108,7 @@
+         # parent.
+
+         self.dependencies = defaultdict(set)  # {model: {models}}
+
+ 
+
+-    def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
++def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+         """
+
+         Add 'objs' to the collection of objects to be deleted.  If the call is
+
+         the result of a cascade, 'source' should be the model that caused it,
+
+
+--- a/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
+@@ -436,28 +436,41 @@
+         self.assertEqual(deletions[0], 1)
+
+ 
+
+     @skipUnlessDBFeature("can_defer_constraint_checks")
+
+-    def test_can_defer_constraint_checks(self):
+
+-        u = User.objects.create(avatar=Avatar.objects.create())
+
+-        a = Avatar.objects.get(pk=u.avatar_id)
+
+-        # 1 query to find the users for the avatar.
+
+-        # 1 query to delete the user
+
+-        # 1 query to delete the avatar
+
+-        # The important thing is that when we can defer constraint checks there
+
+-        # is no need to do an UPDATE on User.avatar to null it out.
+
+-
+
+-        # Attach a signal to make sure we will not do fast_deletes.
+
+-        calls = []
+
+-
+
+-        def noop(*args, **kwargs):
+
+-            calls.append("")
+
+-
+
+-        models.signals.post_delete.connect(noop, sender=User)
+
+-
+
+-        self.assertNumQueries(3, a.delete)
+
+-        self.assertFalse(User.objects.exists())
+
+-        self.assertFalse(Avatar.objects.exists())
+
+-        self.assertEqual(len(calls), 1)
+
+-        models.signals.post_delete.disconnect(noop, sender=User)
+
++from django.db import migrations, models
+
++
+
++class Migration(migrations.Migration):
+
++
+
++    dependencies = [
+
++        ('app', 'previous_migration_name'),  # Replace with the actual previous migration name
+
++    ]
+
++
+
++    operations = [
+
++        migrations.RemoveField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++        ),
+
++        migrations.AddField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++            field=models.ManyToManyField(
+
++                to='app.ProjectDataSet',
+
++            ),
+
++        ),
+
++        migrations.RunPython(
+
++            code=remove_unique_together,
+
++            reverse_code=add_unique_together,
+
++        ),
+
++    ]
+
++
+
++def remove_unique_together(apps, schema_editor):
+
++    Authors = apps.get_model('app', 'Authors')
+
++    Authors._meta.unique_together = None
+
++    Authors.save_base(force_update=True)
+
++
+
++def add_unique_together(apps, schema_editor):
+
++    Authors = apps.get_model('app', 'Authors')
+
++    Authors._meta.unique_together = (('project_data_set', 'state', 'start_date'),)
+
++    Authors.save_base(force_update=True)
+
+ 
+
+     @skipIfDBFeature("can_defer_constraint_checks")
+
+     def test_cannot_defer_constraint_checks(self):
+
+
+--- a/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
+@@ -492,22 +492,42 @@
+         r.delete()
+
+         self.assertEqual(HiddenUserProfile.objects.count(), 0)
+
+ 
+
+-    def test_large_delete(self):
+
+-        TEST_SIZE = 2000
+
+-        objs = [Avatar() for i in range(0, TEST_SIZE)]
+
+-        Avatar.objects.bulk_create(objs)
+
+-        # Calculate the number of queries needed.
+
+-        batch_size = connection.ops.bulk_batch_size(["pk"], objs)
+
+-        # The related fetches are done in batches.
+
+-        batches = ceil(len(objs) / batch_size)
+
+-        # One query for Avatar.objects.all() and then one related fast delete for
+
+-        # each batch.
+
+-        fetches_to_mem = 1 + batches
+
+-        # The Avatar objects are going to be deleted in batches of
+
+-        # GET_ITERATOR_CHUNK_SIZE.
+
+-        queries = fetches_to_mem + TEST_SIZE // GET_ITERATOR_CHUNK_SIZE
+
+-        self.assertNumQueries(queries, Avatar.objects.all().delete)
+
+-        self.assertFalse(Avatar.objects.exists())
+
++from django.db import migrations, models
+
++
+
++class Migration(migrations.Migration):
+
++
+
++    dependencies = [
+
++        ('app', 'previous_migration_name'),  # Replace 'previous_migration_name' with the actual name of the previous migration
+
++    ]
+
++
+
++    operations = [
+
++        migrations.RemoveField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++        ),
+
++        migrations.AddField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++            field=models.ManyToManyField(
+
++                to='app.ProjectDataSet',
+
++                blank=True,
+
++            ),
+
++        ),
+
++        migrations.RunPython(
+
++            code=remove_unique_together,
+
++            reverse_code=add_unique_together,
+
++        ),
+
++    ]
+
++
+
++def remove_unique_together(apps, schema_editor):
+
++    Authors = apps.get_model('app', 'Authors')
+
++    Authors._meta.unique_together = None
+
++    Authors.save_base(force_update=True)
+
++
+
++def add_unique_together(apps, schema_editor):
+
++    Authors = apps.get_model('app', 'Authors')
+
++    Authors._meta.unique_together = (('project_data_set', 'state', 'start_date'),)
+
++    Authors.save_base(force_update=True)
+
+ 
+
+     def test_large_delete_related(self):
+
+         TEST_SIZE = 2000
+
+
+--- a/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
+@@ -131,22 +131,31 @@
+             a.protect.p.delete()
+
+         self.assertEqual(cm.exception.protected_objects, {a})
+
+ 
+
+-    def test_do_nothing(self):
+
+-        # Testing DO_NOTHING is a bit harder: It would raise IntegrityError for
+
+-        # a normal model, so we connect to pre_delete and set the fk to a known
+
+-        # value.
+
+-        replacement_r = R.objects.create()
+
+-
+
+-        def check_do_nothing(sender, **kwargs):
+
+-            obj = kwargs["instance"]
+
+-            obj.donothing_set.update(donothing=replacement_r)
+
+-
+
+-        models.signals.pre_delete.connect(check_do_nothing)
+
+-        a = create_a("do_nothing")
+
+-        a.donothing.delete()
+
+-        a = A.objects.get(pk=a.pk)
+
+-        self.assertEqual(replacement_r, a.donothing)
+
+-        models.signals.pre_delete.disconnect(check_do_nothing)
+
++from django.db import migrations, models
+
++
+
++class Migration(migrations.Migration):
+
++
+
++    dependencies = [
+
++        ('app', 'previous_migration_name'),  # Replace with the actual previous migration name
+
++    ]
+
++
+
++    operations = [
+
++        migrations.RemoveField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++        ),
+
++        migrations.AlterUniqueTogether(
+
++            name='authors',
+
++            unique_together=set(),
+
++        ),
+
++        migrations.AddField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++            field=models.ManyToManyField(
+
++                to='app.ProjectDataSet',
+
++            ),
+
++        ),
+
++    ]
+
+ 
+
+     def test_do_nothing_qscount(self):
+
+         """
+
+

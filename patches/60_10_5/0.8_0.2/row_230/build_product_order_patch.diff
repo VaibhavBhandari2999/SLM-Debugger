@@ -1,0 +1,102 @@
+--- a/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/polys/orderings.py
++++ b/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/polys/orderings.py
+@@ -253,34 +253,19 @@
+             return False
+
+         return self.seq == other.seq
+
+ 
+
+-def build_product_order(arg, gens):
+
+-    """
+
+-    Build a monomial order on ``gens``.
+
+-
+
+-    ``arg`` should be a tuple of iterables. The first element of each iterable
+
+-    should be a string or monomial order (will be passed to monomial_key),
+
+-    the others should be subsets of the generators. This function will build
+
+-    the corresponding product order.
+
+-
+
+-    For example, build a product of two grlex orders:
+
+-
+
+-    >>> from sympy.polys.orderings import grlex, build_product_order
+
+-    >>> from sympy.abc import x, y, z, t
+
+-
+
+-    >>> O = build_product_order((("grlex", x, y), ("grlex", z, t)), [x, y, z, t])
+
+-    >>> O((1, 2, 3, 4))
+
+-    ((3, (1, 2)), (7, (3, 4)))
+
+-
+
+-    """
+
+-    gens2idx = {}
+
+-    for i, g in enumerate(gens):
+
+-        gens2idx[g] = i
+
+-    order = []
+
+-    for expr in arg:
+
+-        name = expr[0]
+
+-        var = expr[1:]
+
+-
+
+-        def makelambda(var):
+
+-            return _ItemGetter(gens2idx[g] for g in var)
+
+-        order.append((monomial_key(name), makelambda(var)))
+
+-    return ProductOrder(*order)
+
++from sympy.combinatorics import Permutation, Cycle
+
++
+
++def build_permutation_from_cycles(cycles):
+
++    """
+
++    Construct a permutation from a list of cycles.
+
++
+
++    If the cycles are non-disjoint, they are applied in left-to-right order.
+
++    """
+
++    # Initialize the permutation as the identity permutation
+
++    perm = Permutation(range(len(cycles[0])))
+
++
+
++    # Apply each cycle to the current permutation
+
++    for cycle in cycles:
+
++        perm *= Cycle(cycle)
+
++
+
++    return perm

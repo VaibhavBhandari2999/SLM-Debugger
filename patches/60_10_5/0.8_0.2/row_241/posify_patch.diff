@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/241/sympy_sympy/sympy/simplify/simplify.py
++++ b/decoupled/60/0.8_0.2/241/sympy_sympy/sympy/simplify/simplify.py
+@@ -258,6 +258,22 @@
+     reps = dict([(s, Dummy(s.name, positive=True))
+
+                  for s in eq.free_symbols if s.is_positive is None])
+
+     eq = eq.subs(reps)
+
++    
+
++    # Check if the substitution leads to an undefined expression
+
++    for s, r in reps.items():
+
++        try:
+
++            # Check if the expression is undefined when s is substituted by r
+
++            if eq.subs(s, r).has(oo) or eq.subs(s, r).has(-oo):
+
++                # If undefined, revert the substitution
+
++                eq = eq.subs(r, s)
+
++                reps = {v: k for k, v in reps.items()}
+
++                break
+
++        except UndefinedFunction:
+
++            # If the expression involves an undefined function, revert the substitution
+
++            eq = eq.subs(r, s)
+
++            reps = {v: k for k, v in reps.items()}
+
++            break
+
++
+
+     return eq, {r: s for s, r in reps.items()}
+
+ 
+
+ 

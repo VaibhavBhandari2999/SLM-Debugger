@@ -1,0 +1,64 @@
+--- a/decoupled/60/0.8_0.2/57/django_django/tests/auth_tests/test_validators.py
++++ b/decoupled/60/0.8_0.2/57/django_django/tests/auth_tests/test_validators.py
+@@ -163,17 +163,20 @@
+         )
+
+ 
+
+     @isolate_apps('auth_tests')
+
+-    def test_validate_property(self):
+
+-        class TestUser(models.Model):
+
+-            pass
+
+-
+
+-            @property
+
+-            def username(self):
+
+-                return 'foobar'
+
+-
+
+-        with self.assertRaises(ValidationError) as cm:
+
+-            UserAttributeSimilarityValidator().validate('foobar', user=TestUser()),
+
+-        self.assertEqual(cm.exception.messages, ['The password is too similar to the username.'])
+
++from django.contrib.auth.tokens import PasswordResetTokenGenerator
+
++from django.utils import six
+
++
+
++class CustomPasswordResetTokenGenerator(PasswordResetTokenGenerator):
+
++    def _make_hash_value(self, user, timestamp):
+
++        # Include the user's email address in the hash value
+
++        email = user.email or ''
+
++        return (
+
++            six.text_type(user.pk) + six.text_type(timestamp) +
+
++            six.text_type(user.email)
+
++        )
+
++
+
++# Usage example
+
++token_generator = CustomPasswordResetTokenGenerator()
+
+ 
+
+     def test_help_text(self):
+
+         self.assertEqual(

@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/157/pydata_xarray/xarray/tests/test_computation.py
++++ b/decoupled/60/0.8_0.2/157/pydata_xarray/xarray/tests/test_computation.py
+@@ -45,6 +45,27 @@
+     # dimension names matter
+
+     assert _UFuncSignature([["x"]]) != _UFuncSignature([["y"]])
+
+ 
+
++
+
++def result_name(names):
+
++    """
+
++    Determine the result name from a list of names.
+
++
+
++    Parameters
+
++    ----------
+
++    names : list
+
++        A list of names, where each name can be a `Named` object or `None`.
+
++
+
++    Returns
+
++    -------
+
++    str or None
+
++        The name of the first `Named` object in the list if all other elements are not `Named` objects or are `None`. Otherwise, returns `None`.
+
++    """
+
++    # Filter out None values and check if all remaining elements are Named objects
+
++    filtered_names = [name for name in names if name is not None]
+
++    if all(isinstance(name, Named) for name in filtered_names):
+
++        return filtered_names[0].name if filtered_names else None
+
++    else:
+
++        return None
+
+ 
+
+ def test_result_name():
+
+     class Named:

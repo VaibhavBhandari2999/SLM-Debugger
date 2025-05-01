@@ -1,0 +1,90 @@
+--- a/decoupled/60/0.8_0.2/165/pylint-dev_pylint/pylint/epylint.py
++++ b/decoupled/60/0.8_0.2/165/pylint-dev_pylint/pylint/epylint.py
+@@ -142,12 +142,18 @@
+     ...
+
+ 
+
+ 
+
++import sys
+
++import shlex
+
++import subprocess
+
++from io import StringIO
+
++from typing import TextIO, Tuple, Optional
+
++
+
+ def py_run(
+
+     command_options: str = "",
+
+     return_std: bool = False,
+
+     stdout: TextIO | int | None = None,
+
+     stderr: TextIO | int | None = None,
+
+-) -> tuple[StringIO, StringIO] | None:
+
++) -> Tuple[StringIO, StringIO] | None:
+
+     """Run pylint from python.
+
+ 
+
+     ``command_options`` is a string containing ``pylint`` command line options;
+
+@@ -178,11 +184,11 @@
+ 
+
+     # Providing standard output and/or error if not set
+
+     if stdout is None:
+
+-        stdout = PIPE if return_std else sys.stdout
+
++        stdout = subprocess.PIPE if return_std else sys.stdout
+
+     if stderr is None:
+
+-        stderr = PIPE if return_std else sys.stderr
+
++        stderr = subprocess.PIPE if return_std else sys.stderr
+
+     # Call pylint in a sub-process
+
+-    with Popen(
+
++    with subprocess.Popen(
+
+         cli,
+
+         shell=False,
+
+         stdout=stdout,
+
+@@ -196,6 +202,10 @@
+             return StringIO(proc_stdout), StringIO(proc_stderr)
+
+         return None
+
+ 
+
++# Helper function to get environment variables
+
++def _get_env() -> dict:
+
++    return os.environ.copy()
+
++
+
+ 
+
+ def Run(argv: Sequence[str] | None = None) -> NoReturn:
+
+     if not argv and len(sys.argv) == 1:

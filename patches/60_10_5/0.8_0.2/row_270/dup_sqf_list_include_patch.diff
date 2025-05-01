@@ -1,0 +1,28 @@
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
+@@ -357,10 +357,11 @@
+ 
+
+     if factors and factors[0][1] == 1:
+
+         g = dup_mul_ground(factors[0][0], coeff, K)
+
+-        return [(g, 1)] + factors[1:]
+
++        factors[0] = (g, factors[0][1])
+
+     else:
+
+         g = dup_strip([coeff])
+
+-        return [(g, 1)] + factors
+
++        factors.insert(0, (g, 1))
+
++    return factors
+
+ 
+
+ 
+
+ def dmp_sqf_list(f, u, K, all=False):

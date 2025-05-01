@@ -1,0 +1,58 @@
+--- a/decoupled/60/0.8_0.2/291/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/291/sympy_sympy/sympy/matrices/common.py
+@@ -117,12 +117,22 @@
+         return classof(self, other)._new(self.rows + other.rows, self.cols,
+
+                                          entry)
+
+ 
+
+-    def _eval_extract(self, rowsList, colsList):
+
+-        mat = list(self)
+
+-        cols = self.cols
+
+-        indices = (i * cols + j for i in rowsList for j in colsList)
+
+-        return self._new(len(rowsList), len(colsList),
+
+-                         list(mat[i] for i in indices))
+
++def _eval_extract(self, rowsList, colsList):
+
++    # Get the number of rows and columns in the original matrix
+
++    rows, cols = self.shape
+
++    
+
++    # Create a new matrix to store the extracted submatrix
+
++    submatrix = self._new(rows, cols, [None] * (rows * cols))
+
++    
+
++    # Iterate over the specified rows and columns
+
++    for i, row in enumerate(rowsList):
+
++        for j, col in enumerate(colsList):
+
++            # Calculate the index in the original matrix
+
++            index = row * cols + col
+
++            # Assign the value from the original matrix to the new submatrix
+
++            submatrix[i, j] = self[index]
+
++    
+
++    return submatrix
+
+ 
+
+     def _eval_get_diag_blocks(self):
+
+         sub_blocks = []

@@ -1,0 +1,849 @@
+--- a/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/common.py
+@@ -1626,35 +1626,47 @@
+                    for j in range(min(i, self.cols)))
+
+ 
+
+     @property
+
+-    def is_zero_matrix(self):
+
+-        """Checks if a matrix is a zero matrix.
+
+-
+
+-        A matrix is zero if every element is zero.  A matrix need not be square
+
+-        to be considered zero.  The empty matrix is zero by the principle of
+
+-        vacuous truth.  For a matrix that may or may not be zero (e.g.
+
+-        contains a symbol), this will be None
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, zeros
+
+-        >>> from sympy.abc import x
+
+-        >>> a = Matrix([[0, 0], [0, 0]])
+
+-        >>> b = zeros(3, 4)
+
+-        >>> c = Matrix([[0, 1], [0, 0]])
+
+-        >>> d = Matrix([])
+
+-        >>> e = Matrix([[x, 0], [0, 0]])
+
+-        >>> a.is_zero_matrix
+
+-        True
+
+-        >>> b.is_zero_matrix
+
+-        True
+
+-        >>> c.is_zero_matrix
+
+-        False
+
+-        >>> d.is_zero_matrix
+
+-        True
+
+-        >>> e.is_zero_matrix
+
+-        """
+
+-        return self._eval_is_zero_matrix()
+
++def is_zero_matrix(self):
+
++    """Checks if a matrix is a zero matrix.
+
++
+
++    A matrix is zero if every element is zero.  A matrix need not be square
+
++    to be considered zero.  The empty matrix is zero by the principle of
+
++    vacuous truth.  For a matrix that may or may not be zero (e.g.
+
++    contains a symbol), this will be None
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, zeros
+
++    >>> from sympy.abc import x
+
++    >>> a = Matrix([[0, 0], [0, 0]])
+
++    >>> b = zeros(3, 4)
+
++    >>> c = Matrix([[0, 1], [0, 0]])
+
++    >>> d = Matrix([])
+
++    >>> e = Matrix([[x, 0], [0, 0]])
+
++    >>> a.is_zero_matrix
+
++    True
+
++    >>> b.is_zero_matrix
+
++    True
+
++    >>> c.is_zero_matrix
+
++    False
+
++    >>> d.is_zero_matrix
+
++    True
+
++    >>> e.is_zero_matrix
+
++    """
+
++    # Check if the matrix is a BlockMatrix
+
++    if isinstance(self, BlockMatrix):
+
++        # Check each block to see if it is a zero matrix
+
++        for block in self.blocks.values():
+
++            if not block.is_zero_matrix:
+
++                return False
+
++        return True
+
++    # Check if the matrix is an empty matrix
+
++    elif self.shape == (0, 0):
+
++        return True
+
++    # Check if all elements in the matrix are zero
+
++    else:
+
++        return self.equals(zeros(*self.shape))
+
+ 
+
+     def values(self):
+
+         """Return non-zero values of self."""
+
+
+--- a/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/common.py
+@@ -1334,7 +1334,7 @@
+         return self._eval_is_diagonal()
+
+ 
+
+     @property
+
+-    def is_hermitian(self):
+
++def is_hermitian(self):
+
+         """Checks if the matrix is Hermitian.
+
+ 
+
+         In a Hermitian matrix element i,j is the complex conjugate of
+
+@@ -1365,7 +1365,11 @@
+         if not self.is_square:
+
+             return False
+
+ 
+
+-        return self._eval_is_matrix_hermitian(_simplify)
+
++        for i in range(self.rows):
+
++            for j in range(self.cols):
+
++                if self[i, j] != self[j, i].conjugate():
+
++                    return False
+
++        return True
+
+ 
+
+     @property
+
+     def is_Identity(self) -> FuzzyBool:
+
+
+--- a/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/common.py
+@@ -1219,76 +1219,76 @@
+         """
+
+         return self._eval_has(*patterns)
+
+ 
+
+-    def is_anti_symmetric(self, simplify=True):
+
+-        """Check if matrix M is an antisymmetric matrix,
+
+-        that is, M is a square matrix with all M[i, j] == -M[j, i].
+
+-
+
+-        When ``simplify=True`` (default), the sum M[i, j] + M[j, i] is
+
+-        simplified before testing to see if it is zero. By default,
+
+-        the SymPy simplify function is used. To use a custom function
+
+-        set simplify to a function that accepts a single argument which
+
+-        returns a simplified expression. To skip simplification, set
+
+-        simplify to False but note that although this will be faster,
+
+-        it may induce false negatives.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, symbols
+
+-        >>> m = Matrix(2, 2, [0, 1, -1, 0])
+
+-        >>> m
+
+-        Matrix([
+
+-        [ 0, 1],
+
+-        [-1, 0]])
+
+-        >>> m.is_anti_symmetric()
+
+-        True
+
+-        >>> x, y = symbols('x y')
+
+-        >>> m = Matrix(2, 3, [0, 0, x, -y, 0, 0])
+
+-        >>> m
+
+-        Matrix([
+
+-        [ 0, 0, x],
+
+-        [-y, 0, 0]])
+
+-        >>> m.is_anti_symmetric()
+
+-        False
+
+-
+
+-        >>> from sympy.abc import x, y
+
+-        >>> m = Matrix(3, 3, [0, x**2 + 2*x + 1, y,
+
+-        ...                   -(x + 1)**2 , 0, x*y,
+
+-        ...                   -y, -x*y, 0])
+
+-
+
+-        Simplification of matrix elements is done by default so even
+
+-        though two elements which should be equal and opposite wouldn't
+
+-        pass an equality test, the matrix is still reported as
+
+-        anti-symmetric:
+
+-
+
+-        >>> m[0, 1] == -m[1, 0]
+
+-        False
+
+-        >>> m.is_anti_symmetric()
+
+-        True
+
+-
+
+-        If 'simplify=False' is used for the case when a Matrix is already
+
+-        simplified, this will speed things up. Here, we see that without
+
+-        simplification the matrix does not appear anti-symmetric:
+
+-
+
+-        >>> m.is_anti_symmetric(simplify=False)
+
+-        False
+
+-
+
+-        But if the matrix were already expanded, then it would appear
+
+-        anti-symmetric and simplification in the is_anti_symmetric routine
+
+-        is not needed:
+
+-
+
+-        >>> m = m.expand()
+
+-        >>> m.is_anti_symmetric(simplify=False)
+
+-        True
+
+-        """
+
+-        # accept custom simplification
+
+-        simpfunc = simplify
+
+-        if not isfunction(simplify):
+
+-            simpfunc = _simplify if simplify else lambda x: x
+
+-
+
+-        if not self.is_square:
+
+-            return False
+
+-        return self._eval_is_anti_symmetric(simpfunc)
+
++def is_anti_symmetric(self, simplify=True):
+
++    """Check if matrix M is an antisymmetric matrix,
+
++    that is, M is a square matrix with all M[i, j] == -M[j, i].
+
++
+
++    When ``simplify=True`` (default), the sum M[i, j] + M[j, i] is
+
++    simplified before testing to see if it is zero. By default,
+
++    the SymPy simplify function is used. To use a custom function
+
++    set simplify to a function that accepts a single argument which
+
++    returns a simplified expression. To skip simplification, set
+
++    simplify to False but note that although this will be faster,
+
++    it may induce false negatives.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, symbols
+
++    >>> m = Matrix(2, 2, [0, 1, -1, 0])
+
++    >>> m
+
++    Matrix([
+
++    [ 0, 1],
+
++    [-1, 0]])
+
++    >>> m.is_anti_symmetric()
+
++    True
+
++    >>> x, y = symbols('x y')
+
++    >>> m = Matrix(2, 3, [0, 0, x, -y, 0, 0])
+
++    >>> m
+
++    Matrix([
+
++    [ 0, 0, x],
+
++    [-y, 0, 0]])
+
++    >>> m.is_anti_symmetric()
+
++    False
+
++
+
++    >>> from sympy.abc import x, y
+
++    >>> m = Matrix(3, 3, [0, x**2 + 2*x + 1, y,
+
++    ...                   -(x + 1)**2 , 0, x*y,
+
++    ...                   -y, -x*y, 0])
+
++
+
++    Simplification of matrix elements is done by default so even
+
++    though two elements which should be equal and opposite wouldn't
+
++    pass an equality test, the matrix is still reported as
+
++    anti-symmetric:
+
++
+
++    >>> m[0, 1] == -m[1, 0]
+
++    False
+
++    >>> m.is_anti_symmetric()
+
++    True
+
++
+
++    If 'simplify=False' is used for the case when a Matrix is already
+
++    simplified, this will speed things up. Here, we see that without
+
++    simplification the matrix does not appear anti-symmetric:
+
++
+
++    >>> m.is_anti_symmetric(simplify=False)
+
++    False
+
++
+
++    But if the matrix were already expanded, then it would appear
+
++    anti-symmetric and simplification in the is_anti_symmetric routine
+
++    is not needed:
+
++
+
++    >>> m = m.expand()
+
++    >>> m.is_anti_symmetric(simplify=False)
+
++    True
+
++    """
+
++    # accept custom simplification
+
++    simpfunc = simplify
+
++    if not isfunction(simplify):
+
++        simpfunc = _simplify if simplify else lambda x: x
+
++
+
++    if not self.is_square:
+
++        return False
+
++    return self._eval_is_anti_symmetric(simpfunc)
+
+ 
+
+     def is_diagonal(self):
+
+         """Check if matrix is diagonal,
+
+
+--- a/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/dense.py
+@@ -57,73 +57,76 @@
+         elif isinstance(other, MatrixBase):
+
+             return _compare_sequence(self._mat, Matrix(other)._mat)
+
+ 
+
+-    def __getitem__(self, key):
+
+-        """Return portion of self defined by key. If the key involves a slice
+
+-        then a list will be returned (if key is a single slice) or a matrix
+
+-        (if key was a tuple involving a slice).
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, I
+
+-        >>> m = Matrix([
+
+-        ... [1, 2 + I],
+
+-        ... [3, 4    ]])
+
+-
+
+-        If the key is a tuple that doesn't involve a slice then that element
+
+-        is returned:
+
+-
+
+-        >>> m[1, 0]
+
+-        3
+
+-
+
+-        When a tuple key involves a slice, a matrix is returned. Here, the
+
+-        first column is selected (all rows, column 0):
+
+-
+
+-        >>> m[:, 0]
+
+-        Matrix([
+
+-        [1],
+
+-        [3]])
+
+-
+
+-        If the slice is not a tuple then it selects from the underlying
+
+-        list of elements that are arranged in row order and a list is
+
+-        returned if a slice is involved:
+
+-
+
+-        >>> m[0]
+
+-        1
+
+-        >>> m[::2]
+
+-        [1, 3]
+
+-        """
+
+-        if isinstance(key, tuple):
+
+-            i, j = key
+
+-            try:
+
+-                i, j = self.key2ij(key)
+
+-                return self._mat[i*self.cols + j]
+
+-            except (TypeError, IndexError):
+
+-                if (isinstance(i, Expr) and not i.is_number) or (isinstance(j, Expr) and not j.is_number):
+
+-                    if ((j < 0) is True) or ((j >= self.shape[1]) is True) or\
+
+-                       ((i < 0) is True) or ((i >= self.shape[0]) is True):
+
+-                        raise ValueError("index out of boundary")
+
+-                    from sympy.matrices.expressions.matexpr import MatrixElement
+
+-                    return MatrixElement(self, i, j)
+
+-
+
+-                if isinstance(i, slice):
+
+-                    i = range(self.rows)[i]
+
+-                elif is_sequence(i):
+
+-                    pass
+
+-                else:
+
+-                    i = [i]
+
+-                if isinstance(j, slice):
+
+-                    j = range(self.cols)[j]
+
+-                elif is_sequence(j):
+
+-                    pass
+
+-                else:
+
+-                    j = [j]
+
+-                return self.extract(i, j)
+
+-        else:
+
+-            # row-wise decomposition of matrix
+
+-            if isinstance(key, slice):
+
+-                return self._mat[key]
+
+-            return self._mat[a2idx(key)]
+
++def __getitem__(self, key):
+
++    """Return portion of self defined by key. If the key involves a slice
+
++    then a list will be returned (if key is a single slice) or a matrix
+
++    (if key was a tuple involving a slice).
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, I
+
++    >>> m = Matrix([
+
++    ... [1, 2 + I],
+
++    ... [3, 4    ]])
+
++
+
++    If the key is a tuple that doesn't involve a slice then that element
+
++    is returned:
+
++
+
++    >>> m[1, 0]
+
++    3
+
++
+
++    When a tuple key involves a slice, a matrix is returned. Here, the
+
++    first column is selected (all rows, column 0):
+
++
+
++    >>> m[:, 0]
+
++    Matrix([
+
++    [1],
+
++    [3]])
+
++
+
++    If the slice is not a tuple then it selects from the underlying
+
++    list of elements that are arranged in row order and a list is
+
++    returned if a slice is involved:
+
++
+
++    >>> m[0]
+
++    1
+
++    >>> m[::2]
+
++    [1, 3]
+
++    """
+
++    if isinstance(key, tuple):
+
++        i, j = key
+
++        try:
+
++            i, j = self.key2ij(key)
+
++            if i < self.shape[0]:  # Check if i is within the bounds of A
+
++                return self._mat[i * self.cols + j]
+
++            else:  # i is within the bounds of B
+
++                return self._mat[self.shape[0] + (i - self.shape[0]) * self.cols + j]
+
++        except (TypeError, IndexError):
+
++            if (isinstance(i, Expr) and not i.is_number) or (isinstance(j, Expr) and not j.is_number):
+
++                if ((j < 0) is True) or ((j >= self.shape[1]) is True) or\
+
++                   ((i < 0) is True) or ((i >= self.shape[0]) is True):
+
++                    raise ValueError("index out of boundary")
+
++                from sympy.matrices.expressions.matexpr import MatrixElement
+
++                return MatrixElement(self, i, j)
+
++
+
++            if isinstance(i, slice):
+
++                i = range(self.rows)[i]
+
++            elif is_sequence(i):
+
++                pass
+
++            else:
+
++                i = [i]
+
++            if isinstance(j, slice):
+
++                j = range(self.cols)[j]
+
++            elif is_sequence(j):
+
++                pass
+
++            else:
+
++                j = [j]
+
++            return self.extract(i, j)
+
++    else:
+
++        # row-wise decomposition of matrix
+
++        if isinstance(key, slice):
+
++            return self._mat[key]
+
++        return self._mat[a2idx(key)]
+
+ 
+
+     def __setitem__(self, key, value):
+
+         raise NotImplementedError()
+
+
+--- a/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/solvers.py
++++ b/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/solvers.py
+@@ -652,28 +652,7 @@
+     To determine which, check ``A * A.pinv() * B == B``.  It will be
+
+     True if exact solutions exist, and False if only a least-squares
+
+     solution exists.  Be aware that the left hand side of that equation
+
+-    may need to be simplified to correctly compare to the right hand
+
+-    side.
+
+-
+
+-    References
+
+-    ==========
+
+-
+
+-    .. [1] https://en.wikipedia.org/wiki/Moore-Penrose_pseudoinverse#Obtaining_all_solutions_of_a_linear_system
+
+-
+
+-    """
+
+-
+
+-    from sympy.matrices import eye
+
+-
+
+-    A      = M
+
+-    A_pinv = M.pinv()
+
+-
+
+-    if arbitrary_matrix is None:
+
+-        rows, cols       = A.cols, B.cols
+
+-        w                = symbols('w:{0}_:{1}'.format(rows, cols), cls=Dummy)
+
+-        arbitrary_matrix = M.__class__(cols, rows, w).T
+
+-
+
+-    return A_pinv.multiply(B) + (eye(A.cols) -
+
+-            A_pinv.multiply(A)).multiply(arbitrary_matrix)
+
++    may need to be simplified to correctly compare to
+
+ 
+
+ 
+
+ def _solve(M, rhs, method='GJ'):
+
+

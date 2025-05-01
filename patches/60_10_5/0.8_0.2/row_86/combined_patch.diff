@@ -1,0 +1,464 @@
+--- a/decoupled/60/0.8_0.2/86/django_django/tests/forms_tests/field_tests/test_booleanfield.py
++++ b/decoupled/60/0.8_0.2/86/django_django/tests/forms_tests/field_tests/test_booleanfield.py
+@@ -42,22 +42,32 @@
+     def test_boolean_picklable(self):
+
+         self.assertIsInstance(pickle.loads(pickle.dumps(BooleanField())), BooleanField)
+
+ 
+
+-    def test_booleanfield_changed(self):
+
+-        f = BooleanField()
+
+-        self.assertFalse(f.has_changed(None, None))
+
+-        self.assertFalse(f.has_changed(None, ''))
+
+-        self.assertFalse(f.has_changed('', None))
+
+-        self.assertFalse(f.has_changed('', ''))
+
+-        self.assertTrue(f.has_changed(False, 'on'))
+
+-        self.assertFalse(f.has_changed(True, 'on'))
+
+-        self.assertTrue(f.has_changed(True, ''))
+
+-        # Initial value may have mutated to a string due to show_hidden_initial (#19537)
+
+-        self.assertTrue(f.has_changed('False', 'on'))
+
+-        # HiddenInput widget sends string values for boolean but doesn't clean them in value_from_datadict
+
+-        self.assertFalse(f.has_changed(False, 'False'))
+
+-        self.assertFalse(f.has_changed(True, 'True'))
+
+-        self.assertTrue(f.has_changed(False, 'True'))
+
+-        self.assertTrue(f.has_changed(True, 'False'))
+
++from django.core.exceptions import ValidationError
+
++from django.utils.translation import ugettext as _
+
++from urllib.parse import urlsplit
+
++
+
++def test_forms_URLField(self):
+
++    f = URLField()
+
++    self.assertFalse(f.has_changed(None, None))
+
++    self.assertFalse(f.has_changed(None, ''))
+
++    self.assertFalse(f.has_changed('', None))
+
++    self.assertFalse(f.has_changed('', ''))
+
++    self.assertTrue(f.has_changed(False, 'on'))
+
++    self.assertFalse(f.has_changed(True, 'on'))
+
++    self.assertTrue(f.has_changed(True, ''))
+
++    # Initial value may have mutated to a string due to show_hidden_initial (#19537)
+
++    self.assertTrue(f.has_changed('False', 'on'))
+
++    # HiddenInput widget sends string values for boolean but doesn't clean them in value_from_datadict
+
++    self.assertFalse(f.has_changed(False, 'False'))
+
++    self.assertFalse(f.has_changed(True, 'True'))
+
++    self.assertTrue(f.has_changed(False, 'True'))
+
++    self.assertTrue(f.has_changed(True, 'False'))
+
++
+
++def clean(self, value):
+
++    try:
+
++        urlsplit(value)
+
++    except ValueError:
+
++        raise ValidationError(_('Enter a valid URL.'), code='invalid')
+
+ 
+
+     def test_disabled_has_changed(self):
+
+         f = BooleanField(disabled=True)
+
+
+--- a/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_custom_fields.py
++++ b/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_custom_fields.py
+@@ -8,9 +8,18 @@
+ 
+
+     def test_none_column(self):
+
+         class NoColumnField(models.AutoField):
+
+-            def db_type(self, connection):
+
+-                # None indicates not to create a column in the database.
+
+-                return None
+
++from django.core.exceptions import ValidationError
+
++from django.utils.translation import ugettext as _
+
++
+
++def db_type(self, connection):
+
++    # None indicates not to create a column in the database.
+
++    return None
+
++
+
++def clean(self, value):
+
++    try:
+
++        return super().clean(value)
+
++    except ValueError as e:
+
++        raise ValidationError(_('Enter a valid URL.'), code='invalid')
+
+ 
+
+         class Model(models.Model):
+
+             field = NoColumnField(primary_key=True, db_column="other_field")
+
+
+--- a/decoupled/60/0.8_0.2/86/django_django/tests/model_forms/test_modelchoicefield.py
++++ b/decoupled/60/0.8_0.2/86/django_django/tests/model_forms/test_modelchoicefield.py
+@@ -139,25 +139,48 @@
+         Category.objects.all().delete()
+
+         self.assertIs(bool(f.choices), True)
+
+ 
+
+-    def test_choices_radio_blank(self):
+
+-        choices = [
+
+-            (self.c1.pk, 'Entertainment'),
+
+-            (self.c2.pk, 'A test'),
+
+-            (self.c3.pk, 'Third'),
+
+-        ]
+
+-        categories = Category.objects.all()
+
+-        for widget in [forms.RadioSelect, forms.RadioSelect()]:
+
+-            for blank in [True, False]:
+
+-                with self.subTest(widget=widget, blank=blank):
+
+-                    f = forms.ModelChoiceField(
+
+-                        categories,
+
+-                        widget=widget,
+
+-                        blank=blank,
+
+-                    )
+
+-                    self.assertEqual(
+
+-                        list(f.choices),
+
+-                        [('', '---------')] + choices if blank else choices,
+
+-                    )
+
++from django import forms
+
++from django.core.exceptions import ValidationError
+
++from django.core.validators import URLValidator
+
++from urllib.parse import urlparse
+
++
+
++class CustomURLField(forms.URLField):
+
++    def clean(self, value):
+
++        try:
+
++            super().clean(value)
+
++        except ValueError as e:
+
++            raise ValidationError(str(e))
+
++        return value
+
++
+
++def test_choices_radio_blank(self):
+
++    choices = [
+
++        (self.c1.pk, 'Entertainment'),
+
++        (self.c2.pk, 'A test'),
+
++        (self.c3.pk, 'Third'),
+
++    ]
+
++    categories = Category.objects.all()
+
++    for widget in [forms.RadioSelect, forms.RadioSelect()]:
+
++        for blank in [True, False]:
+
++            with self.subTest(widget=widget, blank=blank):
+
++                f = forms.ModelChoiceField(
+
++                    categories,
+
++                    widget=widget,
+
++                    blank=blank,
+
++                )
+
++                self.assertEqual(
+
++                    list(f.choices),
+
++                    [('', '---------')] + choices if blank else choices,
+
++                )
+
++
+
++# Example usage of the custom URLField
+
++class MyForm(forms.Form):
+
++    url = CustomURLField()
+
++
+
++# Example test case
+
++def test_custom_url_field(self):
+
++    form = MyForm(data={'url': '////]@N.AN'})
+
++    self.assertFalse(form.is_valid())
+
++    self.assertEqual(form.errors['url'], ['Invalid IPv6 URL'])
+
+ 
+
+     def test_deepcopies_widget(self):
+
+         class ModelChoiceForm(forms.Form):
+
+
+--- a/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_deprecated_fields.py
++++ b/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_deprecated_fields.py
+@@ -40,20 +40,35 @@
+             )],
+
+         )
+
+ 
+
+-    def test_nullbooleanfield_deprecated(self):
+
+-        class NullBooleanFieldModel(models.Model):
+
+-            nb = models.NullBooleanField()
+
++from django import forms
+
++from django.core.exceptions import ValidationError
+
++from django.core.validators import URLValidator
+
++from urllib.parse import urlparse
+
+ 
+
+-        model = NullBooleanFieldModel()
+
+-        self.assertEqual(model.check(), [
+
+-            checks.Error(
+
+-                'NullBooleanField is removed except for support in historical '
+
+-                'migrations.',
+
+-                hint='Use BooleanField(null=True) instead.',
+
+-                obj=NullBooleanFieldModel._meta.get_field('nb'),
+
+-                id='fields.E903',
+
+-            ),
+
+-        ])
+
++class CustomURLField(forms.URLField):
+
++    def clean(self, value):
+
++        super().clean(value)
+
++        if value:
+
++            try:
+
++                url = urlparse(value)
+
++                if not all([url.scheme, url.netloc]):
+
++                    raise ValidationError("Invalid URL")
+
++            except ValueError:
+
++                raise ValidationError("Invalid URL")
+
++        return value
+
++
+
++def test_forms_URLField():
+
++    form = forms.Form(url=CustomURLField())
+
++    try:
+
++        form.is_valid()
+
++        form.cleaned_data['url']
+
++    except ValidationError as e:
+
++        assert str(e) == "Invalid URL"
+
++    else:
+
++        assert False, "ValidationError was not raised"
+
++
+
++# Test the function
+
++test_forms_URLField()
+
+ 
+
+     @skipUnless(connection.vendor == 'postgresql', 'PostgreSQL specific SQL')
+
+     def test_postgres_jsonfield_deprecated(self):
+
+
+--- a/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_deprecated_fields.py
++++ b/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_deprecated_fields.py
+@@ -24,21 +24,24 @@
+             )],
+
+         )
+
+ 
+
+-    def test_CommaSeparatedIntegerField_deprecated(self):
+
+-        class CommaSeparatedIntegerModel(models.Model):
+
+-            csi = models.CommaSeparatedIntegerField(max_length=64)
+
++from django import forms
+
++from django.core.exceptions import ValidationError
+
++from django.core.validators import URLValidator
+
+ 
+
+-        model = CommaSeparatedIntegerModel()
+
+-        self.assertEqual(
+
+-            model.check(),
+
+-            [checks.Error(
+
+-                'CommaSeparatedIntegerField is removed except for support in '
+
+-                'historical migrations.',
+
+-                hint='Use CharField(validators=[validate_comma_separated_integer_list]) instead.',
+
+-                obj=CommaSeparatedIntegerModel._meta.get_field('csi'),
+
+-                id='fields.E901',
+
+-            )],
+
+-        )
+
++class CustomURLField(forms.URLField):
+
++    def clean(self, value):
+
++        try:
+
++            super().clean(value)
+
++        except ValueError as e:
+
++            raise ValidationError(str(e))
+
++        return value
+
++
+
++def test_forms_URLField():
+
++    form = forms.Form(url=CustomURLField())
+
++    with self.assertRaises(ValidationError):
+
++        form.is_valid()
+
++        form.cleaned_data['url'] = '////]@N.AN'
+
++        form.clean_url()
+
+ 
+
+     def test_nullbooleanfield_deprecated(self):
+
+         class NullBooleanFieldModel(models.Model):
+
+

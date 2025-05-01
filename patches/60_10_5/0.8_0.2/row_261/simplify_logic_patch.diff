@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/261/sympy_sympy/sympy/logic/boolalg.py
++++ b/decoupled/60/0.8_0.2/261/sympy_sympy/sympy/logic/boolalg.py
+@@ -2353,6 +2353,18 @@
+         return SOPform(variables, truthtable)
+
+     return POSform(variables, truthtable)
+
+ 
+
++# Fix the TR6 function in fu.py
+
++def TR6(expr):
+
++    if expr.is_real:
+
++        return _TR56(expr, cos, sin, lambda x: 1 - x, max=True, pow=True)
+
++    else:
+
++        return expr
+
++
+
++# Fix the _TR56 function in fu.py
+
++def _TR56(expr, cos, sin, f, max=False, pow=False):
+
++    if expr.is_real:
+
++        return bottom_up(expr, lambda x: _f(x, cos, sin, f, max
+
++
+
+ 
+
+ def _finger(eq):
+
+     """

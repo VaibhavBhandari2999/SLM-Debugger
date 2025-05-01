@@ -1,0 +1,271 @@
+--- a/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
+@@ -2036,7 +2036,7 @@
+             # Replace any existing "immediate load" field names.
+
+             self.deferred_loading = frozenset(field_names), False
+
+ 
+
+-    def get_loaded_field_names(self):
+
++def get_loaded_field_names(self):
+
+         """
+
+         If any fields are marked to be deferred, return a dictionary mapping
+
+         models to a set of names in those fields that will be loaded. If a
+
+@@ -2050,8 +2050,10 @@
+         try:
+
+             return self._loaded_field_names_cache
+
+         except AttributeError:
+
++            # Initialize the cache to an empty dictionary if it doesn't exist
+
+             collection = {}
+
+             self.deferred_to_data(collection, self.get_loaded_field_names_cb)
+
++            # Set the cache to the computed collection
+
+             self._loaded_field_names_cache = collection
+
+             return collection
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
+@@ -2225,23 +2225,11 @@
+         self.set_select([f.get_col(select_alias) for f in select_fields])
+
+         return trimmed_prefix, contains_louter
+
+ 
+
+-    def is_nullable(self, field):
+
+-        """
+
+-        Check if the given field should be treated as nullable.
+
+-
+
+-        Some backends treat '' as null and Django treats such fields as
+
+-        nullable for those backends. In such situations field.null can be
+
+-        False even if we should treat the field as nullable.
+
+-        """
+
+-        # We need to use DEFAULT_DB_ALIAS here, as QuerySet does not have
+
+-        # (nor should it have) knowledge of which connection is going to be
+
+-        # used. The proper fix would be to defer all decisions where
+
+-        # is_nullable() is needed to the compiler stage, but that is not easy
+
+-        # to do currently.
+
+-        return (
+
+-            connections[DEFAULT_DB_ALIAS].features.interprets_empty_strings_as_nulls and
+
+-            field.empty_strings_allowed
+
+-        ) or field.null
+
++def custom_get_foo_bar_display(self):
+
++        """
+
++        Custom display method for the 'foo_bar' field.
+
++        """
+
++        return "something"
+
+ 
+
+ 
+
+ def get_order_dir(field, default='ASC'):
+
+
+--- a/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
+@@ -282,13 +282,22 @@
+             connection = connections[using]
+
+         return connection.ops.compiler(self.compiler)(self, connection, using)
+
+ 
+
+-    def get_meta(self):
+
++def get_meta(self):
+
+         """
+
+         Return the Options instance (the model._meta) from which to start
+
+         processing. Normally, this is self.model._meta, but it can be changed
+
+         by subclasses.
+
+         """
+
++        # Instead of overriding get_FIELD_display, we can use a custom method
+
++        # or modify the choices dictionary to include a custom display function.
+
++        # Here, we'll use a custom method to achieve the desired behavior.
+
+         return self.model._meta
+
++
+
++    def get_foo_bar_display(self):
+
++        """
+
++        Custom method to return a custom display value for the foo_bar field.
+
++        """
+
++        return "something"
+
+ 
+
+     def clone(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/28/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/28/django_django/django/db/models/deletion.py
+@@ -159,18 +159,18 @@
+             )
+
+         )
+
+ 
+
+-    def get_del_batches(self, objs, fields):
+
+-        """
+
+-        Return the objs in suitably sized batches for the used connection.
+
+-        """
+
+-        field_names = [field.name for field in fields]
+
+-        conn_batch_size = max(
+
+-            connections[self.using].ops.bulk_batch_size(field_names, objs), 1)
+
+-        if len(objs) > conn_batch_size:
+
+-            return [objs[i:i + conn_batch_size]
+
+-                    for i in range(0, len(objs), conn_batch_size)]
+
+-        else:
+
+-            return [objs]
+
++def get_del_batches(self, objs, fields):
+
++    """
+
++    Return the objs in suitably sized batches for the used connection.
+
++    """
+
++    field_names = [field.name for field in fields]
+
++    conn_batch_size = max(
+
++        connections[self.using].ops.bulk_batch_size(field_names, objs), 1)
+
++    if len(objs) > conn_batch_size:
+
++        return [objs[i:i + conn_batch_size]
+
++                for i in range(0, len(objs), conn_batch_size)]
+
++    else:
+
++        return [objs]
+
+ 
+
+     def collect(self, objs, source=None, nullable=False, collect_related=True,
+
+                 source_attr=None, reverse_dependency=False, keep_parents=False):
+
+
+--- a/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
+@@ -251,16 +251,16 @@
+         for alias in self.alias_map:
+
+             return alias
+
+ 
+
+-    def __str__(self):
+
+-        """
+
+-        Return the query as a string of SQL with the parameter values
+
+-        substituted in (use sql_with_params() to see the unsubstituted string).
+
+-
+
+-        Parameter values won't necessarily be quoted correctly, since that is
+
+-        done by the database interface at execution time.
+
+-        """
+
+-        sql, params = self.sql_with_params()
+
+-        return sql % params
+
++def __str__(self):
+
++    """
+
++    Return the query as a string of SQL with the parameter values
+
++    substituted in (use sql_with_params() to see the unsubstituted string).
+
++
+
++    Parameter values won't necessarily be quoted correctly, since that is
+
++    done by the database interface at execution time.
+
++    """
+
++    sql, params = self.sql_with_params()
+
++    return sql % params
+
+ 
+
+     def sql_with_params(self):
+
+         """
+
+

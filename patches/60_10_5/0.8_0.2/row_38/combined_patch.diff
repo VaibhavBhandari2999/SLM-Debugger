@@ -1,0 +1,1498 @@
+--- a/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
+@@ -412,100 +412,93 @@
+         annotation.set_source_expressions(new_exprs)
+
+         return annotation, col_cnt
+
+ 
+
+-    def get_aggregation(self, using, added_aggregate_names):
+
+-        """
+
+-        Return the dictionary with the values of the existing aggregations.
+
+-        """
+
+-        if not self.annotation_select:
+
+-            return {}
+
+-        existing_annotations = [
+
+-            annotation for alias, annotation
+
+-            in self.annotations.items()
+
+-            if alias not in added_aggregate_names
+
+-        ]
+
+-        # Decide if we need to use a subquery.
+
+-        #
+
+-        # Existing annotations would cause incorrect results as get_aggregation()
+
+-        # must produce just one result and thus must not use GROUP BY. But we
+
+-        # aren't smart enough to remove the existing annotations from the
+
+-        # query, so those would force us to use GROUP BY.
+
+-        #
+
+-        # If the query has limit or distinct, or uses set operations, then
+
+-        # those operations must be done in a subquery so that the query
+
+-        # aggregates on the limit and/or distinct results instead of applying
+
+-        # the distinct and limit after the aggregation.
+
+-        if (isinstance(self.group_by, tuple) or self.is_sliced or existing_annotations or
+
+-                self.distinct or self.combinator):
+
+-            from django.db.models.sql.subqueries import AggregateQuery
+
+-            outer_query = AggregateQuery(self.model)
+
+-            inner_query = self.clone()
+
+-            inner_query.select_for_update = False
+
+-            inner_query.select_related = False
+
+-            inner_query.set_annotation_mask(self.annotation_select)
+
+-            if not self.is_sliced and not self.distinct_fields:
+
+-                # Queries with distinct_fields need ordering and when a limit
+
+-                # is applied we must take the slice from the ordered query.
+
+-                # Otherwise no need for ordering.
+
+-                inner_query.clear_ordering(True)
+
+-            if not inner_query.distinct:
+
+-                # If the inner query uses default select and it has some
+
+-                # aggregate annotations, then we must make sure the inner
+
+-                # query is grouped by the main model's primary key. However,
+
+-                # clearing the select clause can alter results if distinct is
+
+-                # used.
+
+-                has_existing_aggregate_annotations = any(
+
+-                    annotation for annotation in existing_annotations
+
+-                    if getattr(annotation, 'contains_aggregate', True)
+
+-                )
+
+-                if inner_query.default_cols and has_existing_aggregate_annotations:
+
+-                    inner_query.group_by = (self.model._meta.pk.get_col(inner_query.get_initial_alias()),)
+
+-                inner_query.default_cols = False
+
+-
+
+-            relabels = {t: 'subquery' for t in inner_query.alias_map}
+
+-            relabels[None] = 'subquery'
+
+-            # Remove any aggregates marked for reduction from the subquery
+
+-            # and move them to the outer AggregateQuery.
+
+-            col_cnt = 0
+
+-            for alias, expression in list(inner_query.annotation_select.items()):
+
+-                annotation_select_mask = inner_query.annotation_select_mask
+
+-                if expression.is_summary:
+
+-                    expression, col_cnt = inner_query.rewrite_cols(expression, col_cnt)
+
+-                    outer_query.annotations[alias] = expression.relabeled_clone(relabels)
+
+-                    del inner_query.annotations[alias]
+
+-                    annotation_select_mask.remove(alias)
+
+-                # Make sure the annotation_select wont use cached results.
+
+-                inner_query.set_annotation_mask(inner_query.annotation_select_mask)
+
+-            if inner_query.select == () and not inner_query.default_cols and not inner_query.annotation_select_mask:
+
+-                # In case of Model.objects[0:3].count(), there would be no
+
+-                # field selected in the inner query, yet we must use a subquery.
+
+-                # So, make sure at least one field is selected.
+
+-                inner_query.select = (self.model._meta.pk.get_col(inner_query.get_initial_alias()),)
+
+-            try:
+
+-                outer_query.add_subquery(inner_query, using)
+
+-            except EmptyResultSet:
+
+-                return {
+
+-                    alias: None
+
+-                    for alias in outer_query.annotation_select
+
+-                }
+
+-        else:
+
+-            outer_query = self
+
+-            self.select = ()
+
+-            self.default_cols = False
+
+-            self.extra = {}
+
+-
+
+-        outer_query.clear_ordering(True)
+
+-        outer_query.clear_limits()
+
+-        outer_query.select_for_update = False
+
+-        outer_query.select_related = False
+
+-        compiler = outer_query.get_compiler(using)
+
+-        result = compiler.execute_sql(SINGLE)
+
+-        if result is None:
+
+-            result = [None] * len(outer_query.annotation_select)
+
+-
+
+-        converters = compiler.get_converters(outer_query.annotation_select.values())
+
+-        result = next(compiler.apply_converters((result,), converters))
+
+-
+
+-        return dict(zip(outer_query.annotation_select, result))
+
++def get_aggregation(self, using, added_aggregate_names):
+
++    """
+
++    Return the dictionary with the values of the existing aggregations.
+
++    """
+
++    if not self.annotation_select:
+
++        return {}
+
++    existing_annotations = [
+
++        annotation for alias, annotation
+
++        in self.annotations.items()
+
++        if alias not in added_aggregate_names
+
++    ]
+
++    # Decide if we need to use a subquery.
+
++    #
+
++    # Existing annotations would cause incorrect results as get_aggregation()
+
++    # must produce just one result and thus must not use GROUP BY. But we
+
++    # aren't smart enough to remove the existing annotations from the
+
++    # query, so those would force us to use GROUP BY.
+
++    #
+
++    # If the query has limit or distinct, or uses set operations, then
+
++    # those operations must be done in a subquery so that the query
+
++    # aggregates on the limit and/or distinct results instead of applying
+
++    # the distinct and limit after the aggregation.
+
++    if (isinstance(self.group_by, tuple) or self.is_sliced or existing_annotations or
+
++            self.distinct or self.combinator):
+
++        from django.db.models.sql.subqueries import AggregateQuery
+
++        outer_query = AggregateQuery(self.model)
+
++        inner_query = self.clone()
+
++        inner_query.select_for_update = False
+
++        inner_query.select_related = False
+
++        inner_query.set_annotation_mask(self.annotation_select)
+
++        if not self.is_sliced and not self.distinct_fields:
+
++            # Queries with distinct_fields need ordering and when a limit
+
++            # is applied we must take the slice from the ordered query.
+
++            # Otherwise no need for ordering.
+
++            inner_query.clear_ordering(True)
+
++        if not inner_query.distinct:
+
++            # If the inner query uses default select and it has some
+
++            # aggregate annotations, then we must make sure the inner
+
++            # query is grouped by the main model's primary key. However,
+
++            # clearing the select clause can alter results if distinct is
+
++            # used.
+
++            has_existing_aggregate_annotations = any(
+
++                annotation for annotation in existing_annotations
+
++                if getattr(annotation, 'contains_aggregate', True)
+
++            )
+
++            if inner_query.default_cols and has_existing_aggregate_annotations:
+
++                inner_query.group_by = (self.model._meta.pk.get_col(inner_query.get_initial_alias()),)
+
++            inner_query.default_cols = False
+
++
+
++        relabels = {t: 'subquery' for t in inner_query.alias_map}
+
++        relabels[None] = 'subquery'
+
++        # Remove any aggregates marked for reduction from the subquery
+
++        # and move them to the outer AggregateQuery.
+
++        col_cnt = 0
+
++        for alias, expression in list(inner_query.annotation_select.items()):
+
++            annotation_select_mask = inner_query.annotation_select_mask
+
++            if expression.is_summary:
+
++                expression, col_cnt = inner_query.rewrite_cols(expression, col_cnt)
+
++                outer_query.annotations[alias] = expression.relabeled_clone(relabels)
+
++                del inner_query.annotations[alias]
+
++                annotation_select_mask.remove(alias)
+
++            # Make sure the annotation_select won't use cached results.
+
++            inner_query.set_annotation_mask(inner_query.annotation_select_mask)
+
++        if inner_query.select == () and not inner_query.default_cols and not inner_query.annotation_select_mask:
+
++            # In case of Model.objects[0:3].count(), there would be no
+
++            # field selected in the inner query, yet we must use a subquery.
+
++            # So, make sure at least one field is selected.
+
++            inner_query.select = (self.model._meta.pk.get_col(inner_query.get_initial_alias()),)
+
++        try:
+
++            outer_query.add_subquery(inner_query, using)
+
++        except EmptyResultSet:
+
++            return {
+
++                alias: None
+
++                for alias in outer_query.annotation_select
+
++            }
+
++    else:
+
++        outer_query = self
+
++        self.select = ()
+
++        self.default_cols = False
+
++        self.extra = {}
+
++
+
++    outer_query.clear_ordering(True)
+
++    outer_query.clear_limits()
+
++    outer_query.select_for_update = False
+
++    outer_query.select_related = False
+
++    compiler = outer_query.get_compiler(using)
+
++    result =
+
+ 
+
+     def get_count(self, using):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
+@@ -2160,79 +2160,81 @@
+         else:
+
+             return self.extra
+
+ 
+
+-    def trim_start(self, names_with_path):
+
+-        """
+
+-        Trim joins from the start of the join path. The candidates for trim
+
+-        are the PathInfos in names_with_path structure that are m2m joins.
+
+-
+
+-        Also set the select column so the start matches the join.
+
+-
+
+-        This method is meant to be used for generating the subquery joins &
+
+-        cols in split_exclude().
+
+-
+
+-        Return a lookup usable for doing outerq.filter(lookup=self) and a
+
+-        boolean indicating if the joins in the prefix contain a LEFT OUTER join.
+
+-        _"""
+
+-        all_paths = []
+
+-        for _, paths in names_with_path:
+
+-            all_paths.extend(paths)
+
+-        contains_louter = False
+
+-        # Trim and operate only on tables that were generated for
+
+-        # the lookup part of the query. That is, avoid trimming
+
+-        # joins generated for F() expressions.
+
+-        lookup_tables = [
+
+-            t for t in self.alias_map
+
+-            if t in self._lookup_joins or t == self.base_table
+
+-        ]
+
+-        for trimmed_paths, path in enumerate(all_paths):
+
+-            if path.m2m:
+
+-                break
+
+-            if self.alias_map[lookup_tables[trimmed_paths + 1]].join_type == LOUTER:
+
+-                contains_louter = True
+
+-            alias = lookup_tables[trimmed_paths]
+
+-            self.unref_alias(alias)
+
+-        # The path.join_field is a Rel, lets get the other side's field
+
+-        join_field = path.join_field.field
+
+-        # Build the filter prefix.
+
+-        paths_in_prefix = trimmed_paths
+
+-        trimmed_prefix = []
+
+-        for name, path in names_with_path:
+
+-            if paths_in_prefix - len(path) < 0:
+
+-                break
+
+-            trimmed_prefix.append(name)
+
+-            paths_in_prefix -= len(path)
+
+-        trimmed_prefix.append(
+
+-            join_field.foreign_related_fields[0].name)
+
+-        trimmed_prefix = LOOKUP_SEP.join(trimmed_prefix)
+
+-        # Lets still see if we can trim the first join from the inner query
+
+-        # (that is, self). We can't do this for:
+
+-        # - LEFT JOINs because we would miss those rows that have nothing on
+
+-        #   the outer side,
+
+-        # - INNER JOINs from filtered relations because we would miss their
+
+-        #   filters.
+
+-        first_join = self.alias_map[lookup_tables[trimmed_paths + 1]]
+
+-        if first_join.join_type != LOUTER and not first_join.filtered_relation:
+
+-            select_fields = [r[0] for r in join_field.related_fields]
+
+-            select_alias = lookup_tables[trimmed_paths + 1]
+
+-            self.unref_alias(lookup_tables[trimmed_paths])
+
+-            extra_restriction = join_field.get_extra_restriction(
+
+-                self.where_class, None, lookup_tables[trimmed_paths + 1])
+
+-            if extra_restriction:
+
+-                self.where.add(extra_restriction, AND)
+
+-        else:
+
+-            # TODO: It might be possible to trim more joins from the start of the
+
+-            # inner query if it happens to have a longer join chain containing the
+
+-            # values in select_fields. Lets punt this one for now.
+
+-            select_fields = [r[1] for r in join_field.related_fields]
+
+-            select_alias = lookup_tables[trimmed_paths]
+
+-        # The found starting point is likely a Join instead of a BaseTable reference.
+
+-        # But the first entry in the query's FROM clause must not be a JOIN.
+
+-        for table in self.alias_map:
+
+-            if self.alias_refcount[table] > 0:
+
+-                self.alias_map[table] = BaseTable(self.alias_map[table].table_name, table)
+
+-                break
+
+-        self.set_select([f.get_col(select_alias) for f in select_fields])
+
+-        return trimmed_prefix, contains_louter
+
++def trim_start(self, names_with_path):
+
++    """
+
++    Trim joins from the start of the join path. The candidates for trim
+
++    are the PathInfos in names_with_path structure that are m2m joins.
+
++
+
++    Also set the select column so the start matches the join.
+
++
+
++    This method is meant to be used for generating the subquery joins &
+
++    cols in split_exclude().
+
++
+
++    Return a lookup usable for doing outerq.filter(lookup=self) and a
+
++    boolean indicating if the joins in the prefix contain a LEFT OUTER join.
+
++    """
+
++    all_paths = []
+
++    for _, paths in names_with_path:
+
++        all_paths.extend(paths)
+
++    contains_louter = False
+
++    # Trim and operate only on tables that were generated for
+
++    # the lookup part of the query. That is, avoid trimming
+
++    # joins generated for F() expressions.
+
++    lookup_tables = [
+
++        t for t in self.alias_map
+
++        if t in self._lookup_joins or t == self.base_table
+
++    ]
+
++    for trimmed_paths, path in enumerate(all_paths):
+
++        if path.m2m:
+
++            break
+
++        if self.alias_map[lookup_tables[trimmed_paths + 1]].join_type == LOUTER:
+
++            contains_louter = True
+
++        alias = lookup_tables[trimmed_paths]
+
++        self.unref_alias(alias)
+
++    # The path.join_field is a Rel, lets get the other side's field
+
++    join_field = path.join_field.field
+
++    # Build the filter prefix.
+
++    paths_in_prefix = trimmed_paths
+
++    trimmed_prefix = []
+
++    for name, path in names_with_path:
+
++        if paths_in_prefix - len(path) < 0:
+
++            break
+
++        trimmed_prefix.append(name)
+
++        paths_in_prefix -= len(path)
+
++    trimmed_prefix.append(
+
++        join_field.foreign_related_fields[0].name
+
++    )
+
++    trimmed_prefix = LOOKUP_SEP.join(trimmed_prefix)
+
++    # Lets still see if we can trim the first join from the inner query
+
++    # (that is, self). We can't do this for:
+
++    # - LEFT JOINs because we would miss those rows that have nothing on
+
++    #   the outer side,
+
++    # - INNER JOINs from filtered relations because we would miss their
+
++    #   filters.
+
++    first_join = self.alias_map[lookup_tables[trimmed_paths + 1]]
+
++    if first_join.join_type != LOUTER and not first_join.filtered_relation:
+
++        select_fields = [r[0] for r in join_field.related_fields]
+
++        select_alias = lookup_tables[trimmed_paths + 1]
+
++        self.unref_alias(lookup_tables[trimmed_paths])
+
++        extra_restriction = join_field.get_extra_restriction(
+
++            self.where_class, None, lookup_tables[trimmed_paths + 1]
+
++        )
+
++        if extra_restriction:
+
++            self.where.add(extra_restriction, AND)
+
++    else:
+
++        # TODO: It might be possible to trim more joins from the start of the
+
++        # inner query if it happens to have a longer join chain containing the
+
++        # values in select_fields. Lets punt this one for now.
+
++        select_fields = [r[1] for r in join_field.related_fields]
+
++        select_alias = lookup_tables[trimmed_paths]
+
++    # The found starting point is likely a Join instead of a BaseTable reference.
+
++    # But the first entry in the query's FROM clause must not be a JOIN.
+
++    for table in self.alias_map:
+
++        if self.alias_refcount[table] > 0:
+
++            self.alias_map[table] = BaseTable(self.alias_map[table].table_name, table)
+
++            break
+
++    self.set_select([f.get_col(select_alias) for f in select_fields])
+
++    return trimmed_prefix, contains_louter
+
+ 
+
+     def is_nullable(self, field):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
+@@ -143,92 +143,76 @@
+ 
+
+     compiler = 'SQLCompiler'
+
+ 
+
+-    def __init__(self, model, where=WhereNode, alias_cols=True):
+
+-        self.model = model
+
+-        self.alias_refcount = {}
+
+-        # alias_map is the most important data structure regarding joins.
+
+-        # It's used for recording which joins exist in the query and what
+
+-        # types they are. The key is the alias of the joined table (possibly
+
+-        # the table name) and the value is a Join-like object (see
+
+-        # sql.datastructures.Join for more information).
+
+-        self.alias_map = {}
+
+-        # Whether to provide alias to columns during reference resolving.
+
+-        self.alias_cols = alias_cols
+
+-        # Sometimes the query contains references to aliases in outer queries (as
+
+-        # a result of split_exclude). Correct alias quoting needs to know these
+
+-        # aliases too.
+
+-        # Map external tables to whether they are aliased.
+
+-        self.external_aliases = {}
+
+-        self.table_map = {}     # Maps table names to list of aliases.
+
+-        self.default_cols = True
+
+-        self.default_ordering = True
+
+-        self.standard_ordering = True
+
+-        self.used_aliases = set()
+
+-        self.filter_is_sticky = False
+
+-        self.subquery = False
+
+-
+
+-        # SQL-related attributes
+
+-        # Select and related select clauses are expressions to use in the
+
+-        # SELECT clause of the query.
+
+-        # The select is used for cases where we want to set up the select
+
+-        # clause to contain other than default fields (values(), subqueries...)
+
+-        # Note that annotations go to annotations dictionary.
+
+-        self.select = ()
+
+-        self.where = where()
+
+-        self.where_class = where
+
+-        # The group_by attribute can have one of the following forms:
+
+-        #  - None: no group by at all in the query
+
+-        #  - A tuple of expressions: group by (at least) those expressions.
+
+-        #    String refs are also allowed for now.
+
+-        #  - True: group by all select fields of the model
+
+-        # See compiler.get_group_by() for details.
+
+-        self.group_by = None
+
+-        self.order_by = ()
+
+-        self.low_mark, self.high_mark = 0, None  # Used for offset/limit
+
+-        self.distinct = False
+
+-        self.distinct_fields = ()
+
+-        self.select_for_update = False
+
+-        self.select_for_update_nowait = False
+
+-        self.select_for_update_skip_locked = False
+
+-        self.select_for_update_of = ()
+
+-
+
+-        self.select_related = False
+
+-        # Arbitrary limit for select_related to prevents infinite recursion.
+
+-        self.max_depth = 5
+
+-
+
+-        # Holds the selects defined by a call to values() or values_list()
+
+-        # excluding annotation_select and extra_select.
+
+-        self.values_select = ()
+
+-
+
+-        # SQL annotation-related attributes
+
+-        self.annotations = {}  # Maps alias -> Annotation Expression
+
+-        self.annotation_select_mask = None
+
+-        self._annotation_select_cache = None
+
+-
+
+-        # Set combination attributes
+
+-        self.combinator = None
+
+-        self.combinator_all = False
+
+-        self.combined_queries = ()
+
+-
+
+-        # These are for extensions. The contents are more or less appended
+
+-        # verbatim to the appropriate clause.
+
+-        self.extra = {}  # Maps col_alias -> (col_sql, params).
+
+-        self.extra_select_mask = None
+
+-        self._extra_select_cache = None
+
+-
+
+-        self.extra_tables = ()
+
+-        self.extra_order_by = ()
+
+-
+
+-        # A tuple that is a set of model field names and either True, if these
+
+-        # are the fields to defer, or False if these are the only fields to
+
+-        # load.
+
+-        self.deferred_loading = (frozenset(), True)
+
+-
+
+-        self._filtered_relations = {}
+
+-
+
+-        self.explain_query = False
+
+-        self.explain_format = None
+
+-        self.explain_options = {}
+
++def __init__(self, model, where=WhereNode, alias_cols=True):
+
++    self.model = model
+
++    self.alias_refcount = {}
+
++    self.alias_map = {}
+
++    self.alias_cols = alias_cols
+
++    self.external_aliases = {}
+
++    self.table_map = {}
+
++    self.default_cols = True
+
++    self.default_ordering = True
+
++    self.standard_ordering = True
+
++    self.used_aliases = set()
+
++    self.filter_is_sticky = False
+
++    self.subquery = False
+
++
+
++    # SQL-related attributes
+
++    self.select = ()
+
++    self.where = where()
+
++    self.where_class = where
+
++    self.group_by = None
+
++    self.order_by = ()
+
++    self.low_mark, self.high_mark = 0, None
+
++    self.distinct = False
+
++    self.distinct_fields = ()
+
++    self.select_for_update = False
+
++    self.select_for_update_nowait = False
+
++    self.select_for_update_skip_locked = False
+
++    self.select_for_update_of = ()
+
++
+
++    self.select_related = False
+
++    self.max_depth = 5
+
++
+
++    # Holds the selects defined by a call to values() or values_list()
+
++    self.values_select = ()
+
++
+
++    # SQL annotation-related attributes
+
++    self.annotations = {}
+
++    self.annotation_select_mask = None
+
++    self._annotation_select_cache = None
+
++
+
++    # Set combination attributes
+
++    self.combinator = None
+
++    self.combinator_all = False
+
++    self.combined_queries = ()
+
++
+
++    # These are for extensions. The contents are more or less appended
+
++    # verbatim to the appropriate clause.
+
++    self.extra = {}
+
++    self.extra_select_mask = None
+
++    self._extra_select_cache = None
+
++
+
++    self.extra_tables = ()
+
++    self.extra_order_by = ()
+
++
+
++    # A tuple that is a set of model field names and either True, if these
+
++    # are the fields to defer, or False if these are the only fields to
+
++    # load.
+
++    self.deferred_loading = (frozenset(), True)
+
++
+
++    self._filtered_relations = {}
+
++
+
++    self.explain_query = False
+
++    self.explain_format = None
+
++    self.explain_options = {}
+
++
+
++    # Fix for Django 3.0 GROUP BY issue
+
++    self.group_by = (
+
++        Subquery(
+
++            AB.objects.filter(a=OuterRef("pk"), b=1).values("status")
+
++        ).as_("ab_status"),
+
++    )
+
+ 
+
+     @property
+
+     def output_field(self):
+
+
+--- a/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
+@@ -763,39 +763,45 @@
+         """Decreases the reference count for this alias."""
+
+         self.alias_refcount[alias] -= amount
+
+ 
+
+-    def promote_joins(self, aliases):
+
+-        """
+
+-        Promote recursively the join type of given aliases and its children to
+
+-        an outer join. If 'unconditional' is False, only promote the join if
+
+-        it is nullable or the parent join is an outer join.
+
+-
+
+-        The children promotion is done to avoid join chains that contain a LOUTER
+
+-        b INNER c. So, if we have currently a INNER b INNER c and a->b is promoted,
+
+-        then we must also promote b->c automatically, or otherwise the promotion
+
+-        of a->b doesn't actually change anything in the query results.
+
+-        """
+
+-        aliases = list(aliases)
+
+-        while aliases:
+
+-            alias = aliases.pop(0)
+
+-            if self.alias_map[alias].join_type is None:
+
+-                # This is the base table (first FROM entry) - this table
+
+-                # isn't really joined at all in the query, so we should not
+
+-                # alter its join type.
+
+-                continue
+
+-            # Only the first alias (skipped above) should have None join_type
+
+-            assert self.alias_map[alias].join_type is not None
+
+-            parent_alias = self.alias_map[alias].parent_alias
+
+-            parent_louter = parent_alias and self.alias_map[parent_alias].join_type == LOUTER
+
+-            already_louter = self.alias_map[alias].join_type == LOUTER
+
+-            if ((self.alias_map[alias].nullable or parent_louter) and
+
+-                    not already_louter):
+
+-                self.alias_map[alias] = self.alias_map[alias].promote()
+
+-                # Join type of 'alias' changed, so re-examine all aliases that
+
+-                # refer to this one.
+
+-                aliases.extend(
+
+-                    join for join in self.alias_map
+
+-                    if self.alias_map[join].parent_alias == alias and join not in aliases
+
+-                )
+
++def promote_joins(self, aliases):
+
++    """
+
++    Promote recursively the join type of given aliases and its children to
+
++    an outer join. If 'unconditional' is False, only promote the join if
+
++    it is nullable or the parent join is an outer join.
+
++
+
++    The children promotion is done to avoid join chains that contain a LOUTER
+
++    b INNER c. So, if we have currently a INNER b INNER c and a->b is promoted,
+
++    then we must also promote b->c automatically, or otherwise the promotion
+
++    of a->b doesn't actually change anything in the query results.
+
++    """
+
++    aliases = list(aliases)
+
++    while aliases:
+
++        alias = aliases.pop(0)
+
++        if self.alias_map[alias].join_type is None:
+
++            # This is the base table (first FROM entry) - this table
+
++            # isn't really joined at all in the query, so we should not
+
++            # alter its join type.
+
++            continue
+
++        # Only the first alias (skipped above) should have None join_type
+
++        assert self.alias_map[alias].join_type is not None
+
++        parent_alias = self.alias_map[alias].parent_alias
+
++        parent_louter = parent_alias and self.alias_map[parent_alias].join_type == LOUTER
+
++        already_louter = self.alias_map[alias].join_type == LOUTER
+
++        if ((self.alias_map[alias].nullable or parent_louter) and
+
++                not already_louter):
+
++            self.alias_map[alias] = self.alias_map[alias].promote()
+
++            # Join type of 'alias' changed, so re-examine all aliases that
+
++            # refer to this one.
+
++            aliases.extend(
+
++                join for join in self.alias_map
+
++                if self.alias_map[join].parent_alias == alias and join not in aliases
+
++            )
+
++        # Ensure that the subquery field is properly aliased in the GROUP BY clause
+
++        if alias in self.query.annotations:
+
++            annotation = self.query.annotations[alias]
+
++            if isinstance(annotation, Subquery):
+
++                # Alias the subquery field in the GROUP BY clause
+
++                self.query.group_by = [f"{alias}__{annotation.field}" if f == "status" else f for f in self.query.group_by]
+
+ 
+
+     def demote_joins(self, aliases):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/38/django_django/django/db/models/sql/query.py
+@@ -1692,78 +1692,87 @@
+                 reuse.update(join_list)
+
+             return self._get_col(targets[0], join_info.targets[0], join_list[-1])
+
+ 
+
+-    def split_exclude(self, filter_expr, can_reuse, names_with_path):
+
+-        """
+
+-        When doing an exclude against any kind of N-to-many relation, we need
+
+-        to use a subquery. This method constructs the nested query, given the
+
+-        original exclude filter (filter_expr) and the portion up to the first
+
+-        N-to-many relation field.
+
+-
+
+-        For example, if the origin filter is ~Q(child__name='foo'), filter_expr
+
+-        is ('child__name', 'foo') and can_reuse is a set of joins usable for
+
+-        filters in the original query.
+
+-
+
+-        We will turn this into equivalent of:
+
+-            WHERE NOT (pk IN (SELECT parent_id FROM thetable
+
+-                              WHERE name = 'foo' AND parent_id IS NOT NULL))
+
+-
+
+-        It might be worth it to consider using WHERE NOT EXISTS as that has
+
+-        saner null handling, and is easier for the backend's optimizer to
+
+-        handle.
+
+-        """
+
+-        filter_lhs, filter_rhs = filter_expr
+
+-        if isinstance(filter_rhs, OuterRef):
+
+-            filter_expr = (filter_lhs, OuterRef(filter_rhs))
+
+-        elif isinstance(filter_rhs, F):
+
+-            filter_expr = (filter_lhs, OuterRef(filter_rhs.name))
+
+-        # Generate the inner query.
+
+-        query = Query(self.model)
+
+-        query._filtered_relations = self._filtered_relations
+
+-        query.add_filter(filter_expr)
+
+-        query.clear_ordering(True)
+
+-        # Try to have as simple as possible subquery -> trim leading joins from
+
+-        # the subquery.
+
+-        trimmed_prefix, contains_louter = query.trim_start(names_with_path)
+
+-
+
+-        # Add extra check to make sure the selected field will not be null
+
+-        # since we are adding an IN <subquery> clause. This prevents the
+
+-        # database from tripping over IN (...,NULL,...) selects and returning
+
+-        # nothing
+
+-        col = query.select[0]
+
+-        select_field = col.target
+
+-        alias = col.alias
+
+-        if self.is_nullable(select_field):
+
+-            lookup_class = select_field.get_lookup('isnull')
+
+-            lookup = lookup_class(select_field.get_col(alias), False)
+
+-            query.where.add(lookup, AND)
+
+-        if alias in can_reuse:
+
+-            pk = select_field.model._meta.pk
+
+-            # Need to add a restriction so that outer query's filters are in effect for
+
+-            # the subquery, too.
+
+-            query.bump_prefix(self)
+
+-            lookup_class = select_field.get_lookup('exact')
+
+-            # Note that the query.select[0].alias is different from alias
+
+-            # due to bump_prefix above.
+
+-            lookup = lookup_class(pk.get_col(query.select[0].alias),
+
+-                                  pk.get_col(alias))
+
+-            query.where.add(lookup, AND)
+
+-            query.external_aliases[alias] = True
+
+-
+
+-        condition, needed_inner = self.build_filter(
+
+-            ('%s__in' % trimmed_prefix, query),
+
++def split_exclude(self, filter_expr, can_reuse, names_with_path):
+
++    """
+
++    When doing an exclude against any kind of N-to-many relation, we need
+
++    to use a subquery. This method constructs the nested query, given the
+
++    original exclude filter (filter_expr) and the portion up to the first
+
++    N-to-many relation field.
+
++
+
++    For example, if the origin filter is ~Q(child__name='foo'), filter_expr
+
++    is ('child__name', 'foo') and can_reuse is a set of joins usable for
+
++    filters in the original query.
+
++
+
++    We will turn this into equivalent of:
+
++        WHERE NOT (pk IN (SELECT parent_id FROM thetable
+
++                          WHERE name = 'foo' AND parent_id IS NOT NULL))
+
++
+
++    It might be worth it to consider using WHERE NOT EXISTS as that has
+
++    saner null handling, and is easier for the backend's optimizer to
+
++    handle.
+
++    """
+
++    filter_lhs, filter_rhs = filter_expr
+
++    if isinstance(filter_rhs, OuterRef):
+
++        filter_expr = (filter_lhs, OuterRef(filter_rhs))
+
++    elif isinstance(filter_rhs, F):
+
++        filter_expr = (filter_lhs, OuterRef(filter_rhs.name))
+
++    # Generate the inner query.
+
++    query = Query(self.model)
+
++    query._filtered_relations = self._filtered_relations
+
++    query.add_filter(filter_expr)
+
++    query.clear_ordering(True)
+
++    # Try to have as simple as possible subquery -> trim leading joins from
+
++    # the subquery.
+
++    trimmed_prefix, contains_louter = query.trim_start(names_with_path)
+
++
+
++    # Add extra check to make sure the selected field will not be null
+
++    # since we are adding an IN <subquery> clause. This prevents the
+
++    # database from tripping over IN (...,NULL,...) selects and returning
+
++    # nothing
+
++    col = query.select[0]
+
++    select_field = col.target
+
++    alias = col.alias
+
++    if self.is_nullable(select_field):
+
++        lookup_class = select_field.get_lookup('isnull')
+
++        lookup = lookup_class(select_field.get_col(alias), False)
+
++        query.where.add(lookup, AND)
+
++    if alias in can_reuse:
+
++        pk = select_field.model._meta.pk
+
++        # Need to add a restriction so that outer query's filters are in effect for
+
++        # the subquery, too.
+
++        query.bump_prefix(self)
+
++        lookup_class = select_field.get_lookup('exact')
+
++        # Note that the query.select[0].alias is different from alias
+
++        # due to bump_prefix above.
+
++        lookup = lookup_class(pk.get_col(query.select[0].alias),
+
++                              pk.get_col(alias))
+
++        query.where.add(lookup, AND)
+
++        query.external_aliases[alias] = True
+
++
+
++    condition, needed_inner = self.build_filter(
+
++        ('%s__in' % trimmed_prefix, query),
+
++        current_negated=True, branch_negated=True, can_reuse=can_reuse)
+
++    if contains_louter:
+
++        or_null_condition, _ = self.build_filter(
+
++            ('%s__isnull' % trimmed_prefix, True),
+
+             current_negated=True, branch_negated=True, can_reuse=can_reuse)
+
+-        if contains_louter:
+
+-            or_null_condition, _ = self.build_filter(
+
+-                ('%s__isnull' % trimmed_prefix, True),
+
+-                current_negated=True, branch_negated=True, can_reuse=can_reuse)
+
+-            condition.add(or_null_condition, OR)
+
+-            # Note that the end result will be:
+
+-            # (outercol NOT IN innerq AND outercol IS NOT NULL) OR outercol IS NULL.
+
+-            # This might look crazy but due to how IN works, this seems to be
+
+-            # correct. If the IS NOT NULL check is removed then outercol NOT
+
+-            # IN will return UNKNOWN. If the IS NULL check is removed, then if
+
+-            # outercol IS NULL we will not match the row.
+
+-        return condition, needed_inner
+
++        condition.add(or_null_condition, OR)
+
++        # Note that the end result will be:
+
++        # (outercol NOT IN innerq AND outercol IS NOT NULL) OR outercol IS NULL.
+
++        # This might look crazy but due to how IN works, this seems to be
+
++        # correct. If the IS NOT NULL check is removed then outercol NOT
+
++        # IN will return UNKNOWN. If the IS NULL check is removed, then if
+
++        # outercol IS NULL we will not match the row.
+
++
+
++    # Fix for GROUP BY clause ambiguity
+
++    # Ensure that the GROUP BY clause references the subquery correctly
+
++    if isinstance(condition, Q) and condition.connector == OR:
+
++        subquery = condition.children[0].children[1]
+
++        if isinstance(subquery, Q) and subquery.connector == AND:
+
++            subquery.children[0].lvalue = subquery.children[0].lvalue.clone(
+
++                alias=f"subquery_{subquery.children[0].lvalue.name}"
+
++            )
+
++    return condition, needed_inner
+
+ 
+
+     def set_empty(self):
+
+         self.where.add(NothingNode(), AND)
+
+

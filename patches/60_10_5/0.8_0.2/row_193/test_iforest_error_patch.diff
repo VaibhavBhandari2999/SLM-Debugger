@@ -1,0 +1,109 @@
+--- a/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_iforest.py
++++ b/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_iforest.py
+@@ -97,6 +97,13 @@
+ @pytest.mark.filterwarnings('ignore:default contamination')
+
+ @pytest.mark.filterwarnings('ignore:threshold_ attribute')
+
+ @pytest.mark.filterwarnings('ignore:behaviour="old"')
+
++from sklearn.ensemble import IsolationForest
+
++from sklearn.base import clone
+
++import pytest
+
++import numpy as np
+
++from sklearn.utils._testing import assert_no_warnings
+
++from sklearn.exceptions import UserWarning
+
++
+
+ def test_iforest_error():
+
+     """Test that it gives proper exception on deficient input."""
+
+     X = iris.data
+
+@@ -139,6 +146,40 @@
+     assert_raises_regex(AttributeError, msg, getattr,
+
+                         IsolationForest(behaviour='new'), 'threshold_')
+
+ 
+
++def fix_isolation_forest_warm_start():
+
++    """
+
++    Expose the `warm_start` parameter in `IsolationForest` and add a test to ensure it works properly.
+
++    """
+
++    class WarmStartIsolationForest(IsolationForest):
+
++        def __init__(self, warm_start=False, **kwargs):
+
++            self.warm_start = warm_start
+
++            super().__init__(**kwargs)
+
++
+
++        def fit(self, X, y=None, sample_weight=None):
+
++            if self.warm_start and hasattr(self, 'estimators_'):
+
++                n_estimators = len(self.estimators_)
+
++            else:
+
++                n_estimators = self.n_estimators
+
++            super().fit(X, y, sample_weight=sample_weight)
+
++            if self.warm_start:
+
++                self.n_estimators += n_estimators
+
++            return self
+
++
+
++    # Test the new WarmStartIsolationForest class
+
++    def test_warm_start():
+
++        X = iris.data
+
++        y = iris.target
+
++
+
++        # Initialize with warm_start=True
+
++        iforest = WarmStartIsolationForest(warm_start=True, n_estimators=10)
+
++        iforest.fit(X, y)
+
++        iforest.fit(X, y)  # Should add more estimators
+
++
+
++        # Check that the number of estimators increased
+
++        assert len(iforest.estimators_) > 10
+
++
+
++    test_warm_start()
+
++
+
+ 
+
+ @pytest.mark.filterwarnings('ignore:default contamination')
+
+ @pytest.mark.filterwarnings('ignore:behaviour="old"')

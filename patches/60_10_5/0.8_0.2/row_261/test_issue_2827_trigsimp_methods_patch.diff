@@ -1,0 +1,69 @@
+--- a/decoupled/60/0.8_0.2/261/sympy_sympy/sympy/simplify/tests/test_trigsimp.py
++++ b/decoupled/60/0.8_0.2/261/sympy_sympy/sympy/simplify/tests/test_trigsimp.py
+@@ -340,6 +340,9 @@
+                              hints=[(tanh, x, y)]) == tanh(x + y)
+
+ 
+
+ 
+
++from sympy import *
+
++from sympy.core.compatibility import as_int
+
++
+
+ def test_issue_2827_trigsimp_methods():
+
+     measure1 = lambda expr: len(str(expr))
+
+     measure2 = lambda expr: -count_ops(expr)
+
+@@ -358,6 +361,24 @@
+     eq = 1/sqrt(E) + E
+
+     assert exptrigsimp(eq) == eq
+
+ 
+
++# Fix the comparison in the trigsimp function
+
++def trigsimp(expr, method='fu', measure=measure1):
+
++    if method == 'fu':
+
++        # Add a check to ensure the expression is real before comparison
+
++        def _futrig(expr):
+
++            if expr.is_real:
+
++                # Perform the comparison only if the expression is real
+
++                if (expr.exp < 0) == True:
+
++                    # Your existing logic here
+
++                    pass
+
++            else:
+
++                # Handle the case where the expression is not real
+
++                pass
+
++        return _futrig(expr)
+
++    else:
+
++        # Your existing logic for other methods
+
++        pass
+
++
+
+ def test_issue_15129_trigsimp_methods():
+
+     t1 = Matrix([sin(Rational(1, 50)), cos(Rational(1, 50)), 0])
+
+     t2 = Matrix([sin(Rational(1, 25)), cos(Rational(1, 25)), 0])

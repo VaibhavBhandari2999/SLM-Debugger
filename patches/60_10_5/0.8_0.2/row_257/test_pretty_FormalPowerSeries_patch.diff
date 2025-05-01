@@ -1,0 +1,58 @@
+--- a/decoupled/60/0.8_0.2/257/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/257/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -3887,7 +3887,6 @@
+ def test_pretty_FormalPowerSeries():
+
+     f = fps(log(1 + x))
+
+ 
+
+-
+
+     ascii_str = \
+
+ """\
+
+   oo             \n\
+
+@@ -3897,8 +3896,8 @@
+   \\   -(-1)  *x  \n\
+
+   /   -----------\n\
+
+  /         k     \n\
+
+-/___,            \n\
+
+-k = 1            \
+
++ ‾‾‾‾            \n\
+
++x = 1            \
+
+ """
+
+ 
+
+     ucode_str = \
+
+@@ -3910,9 +3909,8 @@
+    ╲  -(-1)  ⋅x  \n\
+
+    ╱  ───────────\n\
+
+   ╱        k     \n\
+
+- ╱               \n\
+
+  ‾‾‾‾            \n\
+
+-k = 1            \
+
++x = 1            \
+
+ """)
+
+ 
+
+     assert pretty(f) == ascii_str

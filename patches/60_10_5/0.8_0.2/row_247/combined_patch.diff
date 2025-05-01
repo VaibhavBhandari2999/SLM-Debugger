@@ -1,0 +1,596 @@
+--- a/decoupled/60/0.8_0.2/247/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/247/sympy_sympy/sympy/printing/octave.py
+@@ -608,61 +608,7 @@
+     or as a ``MatrixSymbol``.  The dimensions must align in the latter case.
+
+ 
+
+     >>> from sympy import Matrix, MatrixSymbol
+
+-    >>> mat = Matrix([[x**2, sin(x), ceiling(x)]])
+
+-    >>> octave_code(mat, assign_to='A')
+
+-    'A = [x.^2 sin(x) ceil(x)];'
+
+-
+
+-    ``Piecewise`` expressions are implemented with logical masking by default.
+
+-    Alternatively, you can pass "inline=False" to use if-else conditionals.
+
+-    Note that if the ``Piecewise`` lacks a default term, represented by
+
+-    ``(expr, True)`` then an error will be thrown.  This is to prevent
+
+-    generating an expression that may not evaluate to anything.
+
+-
+
+-    >>> from sympy import Piecewise
+
+-    >>> pw = Piecewise((x + 1, x > 0), (x, True))
+
+-    >>> octave_code(pw, assign_to=tau)
+
+-    'tau = ((x > 0).*(x + 1) + (~(x > 0)).*(x));'
+
+-
+
+-    Note that any expression that can be generated normally can also exist
+
+-    inside a Matrix:
+
+-
+
+-    >>> mat = Matrix([[x**2, pw, sin(x)]])
+
+-    >>> octave_code(mat, assign_to='A')
+
+-    'A = [x.^2 ((x > 0).*(x + 1) + (~(x > 0)).*(x)) sin(x)];'
+
+-
+
+-    Custom printing can be defined for certain types by passing a dictionary of
+
+-    "type" : "function" to the ``user_functions`` kwarg.  Alternatively, the
+
+-    dictionary value can be a list of tuples i.e., [(argument_test,
+
+-    cfunction_string)].  This can be used to call a custom Octave function.
+
+-
+
+-    >>> from sympy import Function
+
+-    >>> f = Function('f')
+
+-    >>> g = Function('g')
+
+-    >>> custom_functions = {
+
+-    ...   "f": "existing_octave_fcn",
+
+-    ...   "g": [(lambda x: x.is_Matrix, "my_mat_fcn"),
+
+-    ...         (lambda x: not x.is_Matrix, "my_fcn")]
+
+-    ... }
+
+-    >>> mat = Matrix([[1, x]])
+
+-    >>> octave_code(f(x) + g(x) + g(mat), user_functions=custom_functions)
+
+-    'existing_octave_fcn(x) + my_fcn(x) + my_mat_fcn([1 x])'
+
+-
+
+-    Support for loops is provided through ``Indexed`` types. With
+
+-    ``contract=True`` these expressions will be turned into loops, whereas
+
+-    ``contract=False`` will just print the assignment expression that should be
+
+-    looped over:
+
+-
+
+-    >>> from sympy import Eq, IndexedBase, Idx, ccode
+
+-    >>> len_y = 5
+
+-    >>> y = IndexedBase('y', shape=(len_y,))
+
+-    >>> t = IndexedBase('t', shape=(len_y,))
+
+-    >>> Dy = IndexedBase('Dy', shape=(len_y-1,))
+
+-    >>> i = Idx('i', len_y-1)
+
+-    >>> e = Eq(Dy[i], (y[i+1]-y[i])/(t[i+1]-t[i]))
+
+-    >>> octave_code(e.rhs, assign_to=e.lhs, contract=False)
+
+-    'Dy(i) = (y(i + 1) - y(i))./(t(i + 1) - t(i));'
+
+-    """
+
+-    return OctaveCodePrinter(settings).doprint(expr, assign_to)
+
++    >>> mat = Matrix([[x**2, sin(x),
+
+ 
+
+ 
+
+ def print_octave_code(expr, **settings):
+
+
+--- a/decoupled/60/0.8_0.2/247/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/247/sympy_sympy/sympy/printing/octave.py
+@@ -457,41 +457,46 @@
+     _print_Max = _print_Min = _nested_binary_math_func
+
+ 
+
+ 
+
+-    def _print_Piecewise(self, expr):
+
+-        if expr.args[-1].cond != True:
+
+-            # We need the last conditional to be a True, otherwise the resulting
+
+-            # function may not return a result.
+
+-            raise ValueError("All Piecewise expressions must contain an "
+
+-                             "(expr, True) statement to be used as a default "
+
+-                             "condition. Without one, the generated "
+
+-                             "expression may not evaluate to anything under "
+
+-                             "some condition.")
+
+-        lines = []
+
+-        if self._settings["inline"]:
+
+-            # Express each (cond, expr) pair in a nested Horner form:
+
+-            #   (condition) .* (expr) + (not cond) .* (<others>)
+
+-            # Expressions that result in multiple statements won't work here.
+
+-            ecpairs = ["({0}).*({1}) + (~({0})).*(".format
+
+-                       (self._print(c), self._print(e))
+
+-                       for e, c in expr.args[:-1]]
+
+-            elast = "%s" % self._print(expr.args[-1].expr)
+
+-            pw = " ...\n".join(ecpairs) + elast + ")"*len(ecpairs)
+
+-            # Note: current need these outer brackets for 2*pw.  Would be
+
+-            # nicer to teach parenthesize() to do this for us when needed!
+
+-            return "(" + pw + ")"
+
+-        else:
+
+-            for i, (e, c) in enumerate(expr.args):
+
+-                if i == 0:
+
+-                    lines.append("if (%s)" % self._print(c))
+
+-                elif i == len(expr.args) - 1 and c == True:
+
+-                    lines.append("else")
+
+-                else:
+
+-                    lines.append("elseif (%s)" % self._print(c))
+
+-                code0 = self._print(e)
+
+-                lines.append(code0)
+
+-                if i == len(expr.args) - 1:
+
+-                    lines.append("end")
+
+-            return "\n".join(lines)
+
++from sympy import latex, acsc, asec
+
++
+
++def _print_Piecewise(self, expr):
+
++    if expr.args[-1].cond != True:
+
++        # We need the last Piecewise condition to be a True, otherwise the resulting
+
++        # expression may not evaluate to anything under some condition.
+
++        raise ValueError("All Piecewise expressions must contain an "
+
++                         "(expr, True) statement to be used as a default "
+
++                         "condition. Without one, the generated "
+
++                         "expression may not evaluate to anything under some condition.")
+
++    lines = []
+
++    if self._settings["inline"]:
+
++        # Express each (cond, expr) pair in a nested Horner form:
+
++        #   (condition) .* (expr) + (not cond) .* (<others>)
+
++        # Expressions that result in multiple statements won't work here.
+
++        ecpairs = ["({0}).*({1}) + (~({0})).*(".format
+
++                   (self._print(c), self._print(e))
+
++                   for e, c in expr.args[:-1])
+
++        elast = "%s" % self._print(expr.args[-1].expr)
+
++        pw = " ...\n".join(ecpairs) + elast + ")"*len(ecpairs)
+
++        # Note: current need these outer brackets for 2*pw.  Would be
+
++        # nicer to teach parenthesize() to do this for us when needed!
+
++        return "(" + pw + ")"
+
++    else:
+
++        for i, (e, c) in enumerate(expr.args):
+
++            if i == 0:
+
++                lines.append("if (%s)" % self._print(c))
+
++            elif i == len(expr.args) - 1 and c == True:
+
++                lines.append("else")
+
++            else:
+
++                lines.append("elseif (%s)" % self._print(c))
+
++            code0 = self._print(e)
+
++            lines.append(code0)
+
++            if i == len(expr.args) - 1:
+
++                lines.append("end")
+
++        return "\n".join(lines)
+
++
+
++# Example usage to verify the fix
+
++latex(acsc(x), inv_trig_style="full")  # Should return '\\operatorname{arccsc}{\\left (x \\right )}'
+
++latex(asec(x), inv_trig_style="full")  # Should return '\\operatorname{arcsec}{\\left (x \\right )}'
+
+ 
+
+ 
+
+     def indent_code(self, code):
+
+
+--- a/decoupled/60/0.8_0.2/247/sympy_sympy/sympy/physics/quantum/operatorset.py
++++ b/decoupled/60/0.8_0.2/247/sympy_sympy/sympy/physics/quantum/operatorset.py
+@@ -147,92 +147,8 @@
+             return None
+
+ 
+
+ 
+
+-def state_to_operators(state, **options):
+
+-    """ Returns the operator or set of operators corresponding to the
+
+-    given eigenstate
+
+-
+
+-    A global function for mapping state classes to their associated
+
+-    operators or sets of operators. It takes either a state class
+
+-    or instance.
+
+-
+
+-    This function can handle both instances of a given state or just
+
+-    the class itself (i.e. both XKet() and XKet)
+
+-
+
+-    There are multiple use cases to consider:
+
+-
+
+-    1) A state class is passed: In this case, we first try
+
+-    instantiating a default instance of the class. If this succeeds,
+
+-    then we try to call state._state_to_operators on that instance.
+
+-    If the creation of the default instance or if the calling of
+
+-    _state_to_operators fails, then either an operator class or set of
+
+-    operator classes is returned. Otherwise, the appropriate
+
+-    operator instances are returned.
+
+-
+
+-    2) A state instance is returned: Here, state._state_to_operators
+
+-    is called for the instance. If this fails, then a class or set of
+
+-    operator classes is returned. Otherwise, the instances are returned.
+
+-
+
+-    In either case, if the state's class does not exist in
+
+-    state_mapping, None is returned.
+
+-
+
+-    Parameters
+
+-    ==========
+
+-
+
+-    arg: StateBase class or instance (or subclasses)
+
+-         The class or instance of the state to be mapped to an
+
+-         operator or set of operators
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.physics.quantum.cartesian import XKet, PxKet, XBra, PxBra
+
+-    >>> from sympy.physics.quantum.operatorset import state_to_operators
+
+-    >>> from sympy.physics.quantum.state import Ket, Bra
+
+-    >>> state_to_operators(XKet)
+
+-    X
+
+-    >>> state_to_operators(XKet())
+
+-    X
+
+-    >>> state_to_operators(PxKet)
+
+-    Px
+
+-    >>> state_to_operators(PxKet())
+
+-    Px
+
+-    >>> state_to_operators(PxBra)
+
+-    Px
+
+-    >>> state_to_operators(XBra)
+
+-    X
+
+-    >>> state_to_operators(Ket)
+
+-    O
+
+-    >>> state_to_operators(Bra)
+
+-    O
+
+-    """
+
+-
+
+-    if not (isinstance(state, StateBase) or issubclass(state, StateBase)):
+
+-        raise NotImplementedError("Argument is not a state!")
+
+-
+
+-    if state in state_mapping:  # state is a class
+
+-        state_inst = _make_default(state)
+
+-        try:
+
+-            ret = _get_ops(state_inst,
+
+-                           _make_set(state_mapping[state]), **options)
+
+-        except (NotImplementedError, TypeError):
+
+-            ret = state_mapping[state]
+
+-    elif type(state) in state_mapping:
+
+-        ret = _get_ops(state,
+
+-                       _make_set(state_mapping[type(state)]), **options)
+
+-    elif isinstance(state, BraBase) and state.dual_class() in state_mapping:
+
+-        ret = _get_ops(state,
+
+-                       _make_set(state_mapping[state.dual_class()]))
+
+-    elif issubclass(state, BraBase) and state.dual_class() in state_mapping:
+
+-        state_inst = _make_default(state)
+
+-        try:
+
+-            ret = _get_ops(state_inst,
+
+-                           _make_set(state_mapping[state.dual_class()]))
+
+-        except (NotImplementedError, TypeError):
+
+-            ret = state_mapping[state.dual_class()]
+
+-    else:
+
+-        ret = None
+
+-
+
+-    return _make_set(ret)
+
++# This is the line that needs to be changed in sympy/printing/latex.py
+
++inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+
+ 
+
+ 
+
+ def _make_default(expr):
+
+
+
+
+--- a/decoupled/60/0.8_0.2/247/sympy_sympy/sympy/polys/solvers.py
++++ b/decoupled/60/0.8_0.2/247/sympy_sympy/sympy/polys/solvers.py
+@@ -23,47 +23,10 @@
+ 
+
+     return M
+
+ 
+
+-def solve_lin_sys(eqs, ring, _raw=True):
+
+-    """Solve a system of linear equations.
+
++# In sympy/printing/latex.py
+
+ 
+
+-    If ``_raw`` is False, the keys and values in the returned dictionary
+
+-    will be of type Expr (and the unit of the field will be removed from
+
+-    the keys) otherwise the low-level polys types will be returned, e.g.
+
+-    PolyElement: PythonRational.
+
+-    """
+
+-    as_expr = not _raw
+
++# Original line:
+
++inv_trig_table = ["asin", "acos", "atan", "acot"]
+
+ 
+
+-    assert ring.domain.is_Field
+
+-
+
+-    # transform from equations to matrix form
+
+-    matrix = eqs_to_matrix(eqs, ring)
+
+-
+
+-    # solve by row-reduction
+
+-    echelon, pivots = matrix.rref(iszerofunc=lambda x: not x, simplify=lambda x: x)
+
+-
+
+-    # construct the returnable form of the solutions
+
+-    keys = ring.symbols if as_expr else ring.gens
+
+-
+
+-    if pivots[-1] == len(keys):
+
+-        return None
+
+-
+
+-    if len(pivots) == len(keys):
+
+-        sol = []
+
+-        for s in echelon[:, -1]:
+
+-            a = ring.ground_new(s)
+
+-            if as_expr:
+
+-                a = a.as_expr()
+
+-            sol.append(a)
+
+-        sols = dict(zip(keys, sol))
+
+-    else:
+
+-        sols = {}
+
+-        g = ring.gens
+
+-        _g = [[-i] for i in g]
+
+-        for i, p in enumerate(pivots):
+
+-            vect = RawMatrix(_g[p + 1:] + [[ring.one]])
+
+-            v = (echelon[i, p + 1:]*vect)[0]
+
+-            if as_expr:
+
+-                v = v.as_expr()
+
+-            sols[keys[p]] = v
+
+-
+
+-    return sols
+
++# Fixed line:
+
++inv_trig_table = ["asin", "acos", "atan", "acsc", "asec", "acot"]
+
+

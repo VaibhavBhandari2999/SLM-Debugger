@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
+@@ -2641,9 +2641,9 @@
+ 
+
+     __bool__ = __nonzero__
+
+ 
+
+-    def as_coeff_Mul(self, rational=False):  # XXX this routine should be deleted
+
+-        """Efficiently extract the coefficient of a summation. """
+
+-        return S.One, self
+
++def as_coeff_Mul(self, rational=False):  # XXX this routine should be deleted
+
++    """Efficiently extract the coefficient of a summation. """
+
++    return S.One, self
+
+ 
+
+ 
+
+ class One(IntegerConstant, metaclass=Singleton):

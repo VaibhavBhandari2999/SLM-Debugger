@@ -1,0 +1,94 @@
+--- a/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -161,6 +161,46 @@
+         raise ValueError('param1 may not be equal to param2')
+
+     return True
+
+ 
+
++
+
++import struct
+
++import pathlib
+
++
+
++def consume_struct(_: struct.Struct) -> None:
+
++    """This function consumes a struct.Struct object.
+
++
+
++    Parameters
+
++    ----------
+
++    _ : struct.Struct
+
++        The struct.Struct object to consume.
+
++
+
++    Returns
+
++    -------
+
++    None
+
++        This function does not return anything.
+
++
+
++    """
+
++    pass
+
++
+
++def make_struct() -> struct.Struct:
+
++    """This function creates and returns a struct.Struct object.
+
++
+
++    Returns
+
++    -------
+
++    struct.Struct
+
++        The created struct.Struct object.
+
++    """
+
++    mystruct = struct.Struct('HH')
+
++    return mystruct
+
++
+
++def make_path() -> pathlib.Path:
+
++    """This function creates and returns a pathlib.Path object.
+
++
+
++    Returns
+
++    -------
+
++    pathlib.Path
+
++        The created pathlib.Path object.
+
++    """
+
++    return pathlib.Path()
+
+ 
+
+ def example_generator(n):
+
+     """Generators have a ``Yields`` section instead of a ``Returns`` section.

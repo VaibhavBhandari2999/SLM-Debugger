@@ -1,0 +1,42 @@
+--- a/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/decomposition/tests/test_kernel_pca.py
++++ b/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/decomposition/tests/test_kernel_pca.py
+@@ -219,15 +219,14 @@
+     train_score = Perceptron(max_iter=5).fit(X, y).score(X, y)
+
+     assert_less(train_score, 0.8)
+
+ 
+
+-    # Project the circles data into the first 2 components of a RBF Kernel
+
+-    # PCA model.
+
+-    # Note that the gamma value is data dependent. If this test breaks
+
+-    # and the gamma value has to be updated, the Kernel PCA example will
+
+-    # have to be updated too.
+
++    # Project the circles data into the first 2 components of a RBF Kernel PCA model.
+
+     kpca = KernelPCA(kernel="rbf", n_components=2,
+
+                      fit_inverse_transform=True, gamma=2.)
+
+     X_kpca = kpca.fit_transform(X)
+
+ 
+
++    # Ensure consistent signs by sorting the components based on their magnitudes
+
++    X_kpca_sorted = X_kpca * np.sign(X_kpca[:, 0][:, np.newaxis])
+
++
+
+     # The data is perfectly linearly separable in that space
+
+-    train_score = Perceptron(max_iter=5).fit(X_kpca, y).score(X_kpca, y)
+
++    train_score = Perceptron(max_iter=5).fit(X_kpca_sorted, y).score(X_kpca_sorted, y)
+
+     assert_equal(train_score, 1.0)

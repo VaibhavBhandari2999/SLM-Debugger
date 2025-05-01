@@ -1,0 +1,107 @@
+--- a/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
+@@ -1419,7 +1419,7 @@
+                 "undecidable set membership is found in every candidates.")
+
+ 
+
+     @staticmethod
+
+-    def _handle_finite_sets(args):
+
++def _handle_finite_sets(args):
+
+         '''Simplify intersection of one or more FiniteSets and other sets'''
+
+ 
+
+         # First separate the FiniteSets from the others
+
+@@ -1451,16 +1451,12 @@
+         # don't know if m or n is real. We want to remove n here but it is
+
+         # possibly in because it might be equal to m. So what we do now is
+
+         # extract the elements that are definitely in the remaining finite
+
+-        # sets iteratively until we end up with {n}, {}. At that point if we
+
+-        # get any empty set all remaining elements are discarded.
+
+-
+
+-        fs_elements = reduce(lambda a, b: a | b, fs_sets, set())
+
+-
+
+-        # Need fuzzy containment testing
+
+-        fs_symsets = [FiniteSet(*s) for s in fs_sets]
+
+-
+
+-        while fs_elements:
+
+-            for e in fs_elements:
+
++        # sets iteratively until we end up with {n}, {}. We create a copy of
+
++        # fs_sets to avoid modifying it while iterating.
+
++        fs_sets_copy = fs_sets.copy()
+
++
+
++        while fs_sets_copy:
+
++            for e in fs_sets_copy:
+
+                 infs = fuzzy_and(s.contains(e) for s in fs_symsets)
+
+                 if infs is True:
+
+                     definite.add(e)
+
+@@ -1470,7 +1466,7 @@
+                         if e in s:
+
+                             s.remove(e)
+
+                             fs_symsets[n] = FiniteSet(*s)
+
+-                    fs_elements.remove(e)
+
++                    fs_sets_copy.remove(e)
+
+                     break
+
+             # If we completed the for loop without removing anything we are
+
+             # done so quit the outer while loop
+
+@@ -1511,12 +1507,7 @@
+             if rest.is_Intersection:
+
+                 sets.extend(rest.args)
+
+             else:
+
+-                sets.append(rest)
+
+-
+
+-        if len(sets) == 1:
+
+-            return sets[0]
+
+-        else:
+
+-            return Intersection(*sets, evaluate=False)
+
++                sets.append
+
+ 
+
+     def as_relational(self, symbol):
+
+         """Rewrite an Intersection in terms of equalities and logic operators"""

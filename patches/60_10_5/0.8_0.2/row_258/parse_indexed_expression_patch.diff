@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/codegen/array_utils.py
++++ b/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/codegen/array_utils.py
+@@ -1094,6 +1094,8 @@
+     result, indices = _codegen_array_parse(expr)
+
+     if not first_indices:
+
+         return result
+
++
+
++    # Ensure that all provided indices are included in the result
+
+     for i in first_indices:
+
+         if i not in indices:
+
+             first_indices.remove(i)

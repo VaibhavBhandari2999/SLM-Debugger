@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -3148,7 +3148,7 @@
+         self.stale = True
+
+ 
+
+     @_docstring.dedent_interpd
+
+-    def grid(self, visible=None, which='major', axis='both', **kwargs):
+
++def grid(self, visible=None, which='major', axis='both', **kwargs):
+
+         """
+
+         Configure the grid lines.
+
+ 
+
+@@ -3187,8 +3187,12 @@
+         _api.check_in_list(['x', 'y', 'both'], axis=axis)
+
+         if axis in ['x', 'both']:
+
+             self.xaxis.grid(visible, which=which, **kwargs)
+
++            # Ensure xlim_changed is emitted after setting x-axis grid
+
++            self.callbacks.process('xlim_changed', self)
+
+         if axis in ['y', 'both']:
+
+             self.yaxis.grid(visible, which=which, **kwargs)
+
++            # Ensure xlim_changed is emitted after setting y-axis grid
+
++            self.callbacks.process('xlim_changed', self)
+
+ 
+
+     def ticklabel_format(self, *, axis='both', style='', scilimits=None,
+
+                          useOffset=None, useLocale=None, useMathText=None):

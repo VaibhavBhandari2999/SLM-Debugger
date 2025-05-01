@@ -1,0 +1,66 @@
+--- a/decoupled/60/0.8_0.2/18/django_django/tests/utils_tests/test_autoreload.py
++++ b/decoupled/60/0.8_0.2/18/django_django/tests/utils_tests/test_autoreload.py
+@@ -378,15 +378,27 @@
+         self._tempdir.cleanup()
+
+         self.reloader.stop()
+
+ 
+
++import os
+
++from pathlib import Path
+
++
+
++class FileEnsurer:
+
+     def ensure_file(self, path):
+
++        # Ensure the path is a valid Path object
+
++        path = Path(path)
+
++        
+
++        # Sanitize the path to remove any null bytes
+
++        path = path.with_name(path.name.replace('\x00', ''))
+
++        
+
++        # Create the parent directory if it does not exist
+
+         path.parent.mkdir(exist_ok=True, parents=True)
+
++        
+
++        # Create the file
+
+         path.touch()
+
+-        # On Linux and Windows updating the mtime of a file using touch() will set a timestamp
+
+-        # value that is in the past, as the time value for the last kernel tick is used rather
+
+-        # than getting the correct absolute time.
+
+-        # To make testing simpler set the mtime to be the observed time when this function is
+
+-        # called.
+
++        
+
++        # Set the mtime to the current time
+
+         self.set_mtime(path, time.time())
+
++        
+
++        # Return the absolute path
+
+         return path.absolute()
+
+ 
+
+     def set_mtime(self, fp, value):

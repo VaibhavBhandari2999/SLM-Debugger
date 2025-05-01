@@ -1,0 +1,24 @@
+--- a/decoupled/60/0.8_0.2/155/psf_requests/requests/safe_mode.py
++++ b/decoupled/60/0.8_0.2/155/psf_requests/requests/safe_mode.py
+@@ -28,6 +28,11 @@
+         if (kwargs.get('config') and kwargs.get('config').get('safe_mode')) or (kwargs.get('session')
+
+                                             and kwargs.get('session').config.get('safe_mode')):
+
+             try:
+
++                # Ensure hooks are correctly formatted as a dictionary with lists of hooks
+
++                hooks = kwargs.get('hooks', {})
+
++                for key, value in hooks.items():
+
++                    if not isinstance(value, (list, tuple)):
+
++                        hooks[key] = [value]
+
+                 return function(method, url, **kwargs)
+
+             except (RequestException, ConnectionError, HTTPError,
+
+                     socket.timeout, socket.gaierror) as e:

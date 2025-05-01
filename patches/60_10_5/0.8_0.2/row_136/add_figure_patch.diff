@@ -1,0 +1,74 @@
+--- a/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
++++ b/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
+@@ -484,17 +484,25 @@
+         self.home_views = WeakKeyDictionary()
+
+         super().__init__(*args, **kwargs)
+
+ 
+
+-    def add_figure(self, figure):
+
+-        """Add the current figure to the stack of views and positions."""
+
+-
+
+-        if figure not in self.views:
+
+-            self.views[figure] = cbook.Stack()
+
+-            self.positions[figure] = cbook.Stack()
+
+-            self.home_views[figure] = WeakKeyDictionary()
+
+-            # Define Home
+
+-            self.push_current(figure)
+
+-            # Make sure we add a home view for new axes as they're added
+
+-            figure.add_axobserver(lambda fig: self.update_home_views(fig))
+
++import weakref
+
++import cbook
+
++import matplotlib.figure
+
++import matplotlib.backends.backend_qt4agg
+
++
+
++def add_figure(self, figure):
+
++    """Add the current figure to the stack of views and positions."""
+
++    
+
++    if figure not in self.views:
+
++        self.views[figure] = cbook.Stack()
+
++        self.positions[figure] = cbook.Stack()
+
++        self.home_views[figure] = weakref.WeakKeyDictionary()  # Use weak reference for home_views
+
++        
+
++        # Define Home
+
++        self.push_current(figure)
+
++        
+
++        # Make sure we add a home view for new axes as they're added
+
++        # Use a lambda function that does not capture the FigureCanvasQTAgg object by reference
+
++        figure.add_axobserver(lambda fig: self.update_home_views(fig))
+
+ 
+
+     def clear(self, figure):
+
+         """Reset the axes stack."""

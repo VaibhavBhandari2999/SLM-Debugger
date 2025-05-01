@@ -1,0 +1,30 @@
+--- a/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/sphinx/util/pycompat.py
++++ b/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/sphinx/util/pycompat.py
+@@ -31,6 +31,14 @@
+ # convert_with_2to3():
+
+ # support for running 2to3 over config files
+
+ def convert_with_2to3(filepath: str) -> str:
+
++    """
+
++    Convert a Python file to a new version using lib2to3.
+
++
+
++    :param filepath: The path to the Python file to be converted.
+
++    :type filepath: str
+
++    :return: The converted Python file as a string.
+
++    :rtype: str
+
++    """
+
+     try:
+
+         from lib2to3.refactor import RefactoringTool, get_fixers_from_package
+
+         from lib2to3.pgen2.parse import ParseError

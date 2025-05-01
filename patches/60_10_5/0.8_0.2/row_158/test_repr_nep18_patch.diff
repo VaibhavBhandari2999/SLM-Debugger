@@ -1,0 +1,126 @@
+--- a/decoupled/60/0.8_0.2/158/pydata_xarray/xarray/tests/test_dataset.py
++++ b/decoupled/60/0.8_0.2/158/pydata_xarray/xarray/tests/test_dataset.py
+@@ -313,28 +313,40 @@
+         assert expected == actual
+
+ 
+
+     @pytest.mark.skipif(not IS_NEP18_ACTIVE, reason="requires __array_function__")
+
+-    def test_repr_nep18(self):
+
+-        class Array:
+
+-            def __init__(self):
+
+-                self.shape = (2,)
+
+-                self.dtype = np.dtype(np.float64)
+
+-
+
+-            def __array_function__(self, *args, **kwargs):
+
+-                pass
+
+-
+
+-            def __repr__(self):
+
+-                return "Custom\nArray"
+
+-
+
+-        dataset = Dataset({"foo": ("x", Array())})
+
+-        expected = dedent(
+
+-            """\
+
+-            <xarray.Dataset>
+
+-            Dimensions:  (x: 2)
+
+-            Dimensions without coordinates: x
+
+-            Data variables:
+
+-                foo      (x) float64 Custom Array"""
+
+-        )
+
+-        assert expected == repr(dataset)
+
++import xarray as xr
+
++import numpy as np
+
++
+
++def test_repr_nep18():
+
++    class Array:
+
++        def __init__(self):
+
++            self.shape = (2,)
+
++            self.dtype = np.dtype(np.float64)
+
++
+
++        def __array_function__(self, *args, **kwargs):
+
++            pass
+
++
+
++        def __repr__(self):
+
++            return "Custom\nArray"
+
++
+
++    # Create a dataset with units for coordinates and data variables
+
++    dataset = xr.Dataset({
+
++        "foo": (("x",), Array(), {"units": "custom_unit"})},
+
++        coords={
+
++            "x": ("x", [0, 1], {"units": "meters"})}
+
++    )
+
++
+
++    expected = dedent(
+
++        """\
+
++        <xarray.Dataset>
+
++        Dimensions:  (x: 2)
+
++        Dimensions without coordinates: x
+
++        Data variables:
+
++            foo      (x) float64 Custom Array  units: 'custom_unit'
+
++            x        (x) float64 0.0 1.0       units: 'meters'"""
+
++    )
+
++    assert expected == repr(dataset)
+
++
+
++# Note: This function is a hypothetical example to illustrate the fix. In a real scenario, the `Array` class and `Dataset` would be from the xarray library.
+
+ 
+
+     def test_info(self):
+
+         ds = create_test_data(seed=123)

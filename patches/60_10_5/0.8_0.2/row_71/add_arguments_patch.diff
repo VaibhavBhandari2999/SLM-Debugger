@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/71/django_django/django/core/management/commands/makemigrations.py
++++ b/decoupled/60/0.8_0.2/71/django_django/django/core/management/commands/makemigrations.py
+@@ -24,7 +24,7 @@
+ class Command(BaseCommand):
+
+     help = "Creates new migration(s) for apps."
+
+ 
+
+-    def add_arguments(self, parser):
+
++def add_arguments(self, parser):
+
+         parser.add_argument(
+
+             'args', metavar='app_label', nargs='*',
+
+             help='Specify the app label(s) to create migrations for.',
+
+@@ -57,6 +57,14 @@
+             '--check', action='store_true', dest='check_changes',
+
+             help='Exit with a non-zero status if model changes are missing migrations.',
+
+         )
+
++
+
++        # Fix for trailing slash issue
+
++        def validate_directory(target):
+
++            import os
+
++            return self.validate_name(os.path.basename(target.rstrip(os.sep)), 'directory')
+
++        
+
++        # Replace the original validate_name call with the new one
+
++        self.validate_name = validate_directory
+
+ 
+
+     @no_translations
+
+     def handle(self, *app_labels, **options):

@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/68/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/68/django_django/django/db/models/query_utils.py
+@@ -285,7 +285,7 @@
+ class FilteredRelation:
+
+     """Specify custom filtering in the ON clause of SQL joins."""
+
+ 
+
+-    def __init__(self, relation_name, *, condition=Q()):
+
++def __init__(self, relation_name, *, condition=Q()):
+
+         if not relation_name:
+
+             raise ValueError('relation_name cannot be empty.')
+
+         self.relation_name = relation_name
+
+@@ -295,6 +295,16 @@
+         self.condition = condition
+
+         self.path = []
+
+ 
+
++    def __and__(self, other):
+
++        if not isinstance(other, Q):
+
++            raise TypeError(f'Unsupported operand type(s) for &: {type(self)} and {type(other)}')
+
++        return Q(condition=(self.condition & other))
+
++
+
++    def __rand__(self, other):
+
++        if not isinstance(other, Q):
+
++            raise TypeError(f'Unsupported operand type(s) for &: {type(other)} and {Q}')
+
++        return Q(condition=(other.condition & self))
+
++
+
+     def __eq__(self, other):
+
+         if not isinstance(other, self.__class__):
+
+             return NotImplemented

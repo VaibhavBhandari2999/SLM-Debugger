@@ -1,0 +1,58 @@
+--- a/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/matrices/expressions/tests/test_blockmatrix.py
++++ b/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/matrices/expressions/tests/test_blockmatrix.py
+@@ -101,14 +101,24 @@
+     X = BlockMatrix([[A, B], [C, D]])
+
+     assert trace(X) == trace(A) + trace(D)
+
+ 
+
++import pickle
+
++import sympy
+
++from sympy.matrices import MatrixSymbol, det
+
++from sympy.assumptions import assuming
+
++from sympy.assumptions.ask import Q
+
++
+
+ def test_BlockMatrix_Determinant():
+
+     A, B, C, D = [MatrixSymbol(s, 3, 3) for s in 'ABCD']
+
+     X = BlockMatrix([[A, B], [C, D]])
+
+-    from sympy import assuming, Q
+
++    
+
++    # Use sympy's Float instead of Python's float to ensure compatibility
+
++    from sympy import Float
+
++    X_with_float = BlockMatrix([[A, Float(1.0)], [C, D]])
+
++    
+
+     with assuming(Q.invertible(A)):
+
+-        assert det(X) == det(A) * det(D - C*A.I*B)
+
+-
+
+-    assert isinstance(det(X), Expr)
+
++        assert det(X_with_float) == det(A) * det(D - C*A.I*Float(1.0)*B)
+
++
+
++    assert isinstance(det(X_with_float), sympy.Expr)
+
+ 
+
+ def test_squareBlockMatrix():
+
+     A = MatrixSymbol('A', n, n)

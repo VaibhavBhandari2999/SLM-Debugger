@@ -1,0 +1,34 @@
+--- a/decoupled/60/0.8_0.2/97/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/97/django_django/django/template/base.py
+@@ -1034,6 +1034,16 @@
+         return self.s
+
+ 
+
+ 
+
++from django.utils.html import json_script
+
++from django.core.serializers.json import DjangoJSONEncoder
+
++
+
++def json_script(value, encoder=DjangoJSONEncoder, **kwargs):
+
++    """
+
++    Safely serialize a value to a JSON string that can be safely embedded in a script tag.
+
++    An optional custom encoder can be passed to override the default DjangoJSONEncoder.
+
++    """
+
++    return json_script(value, encoder=encoder, **kwargs)
+
++
+
+ def render_value_in_context(value, context):
+
+     """
+
+     Convert any value to a string to become part of a rendered template. This

@@ -1,0 +1,70 @@
+--- a/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
+@@ -160,19 +160,22 @@
+     """
+
+     sign, man, expt, bc = mpf
+
+     if not man:
+
+-        # hack for mpf_normalize which does not do this;
+
+-        # it assumes that if man is zero the result is 0
+
+-        # (see issue 6639)
+
+-        if not bc:
+
+-            return fzero
+
+-        else:
+
+-            # don't change anything; this should already
+
+-            # be a well formed mpf tuple
+
+-            return mpf
+
+-
+
+-    # Necessary if mpmath is using the gmpy backend
+
++        # If the mantissa is zero, we need to handle the sign correctly.
+
++        # For zero, the sign is zero, and the absolute value is also zero.
+
++        # We need to return a tuple that represents zero.
+
++        return (0, 0, 0, bc)
+
++    
+
++    # Calculate the sign using the absolute value
+
++    if man > 0:
+
++        new_sign = 1
+
++    elif man < 0:
+
++        new_sign = -1
+
++    else:
+
++        new_sign = 0  # This should not happen for non-zero mantissa
+
++
+
++    # Normalize the mantissa and exponent
+
+     from mpmath.libmp.backend import MPZ
+
+-    rv = mpf_normalize(sign, MPZ(man), expt, bc, prec, rnd)
+
++    rv = mpf_normalize(new_sign, MPZ(man), expt, bc, prec, rnd)
+
+     return rv
+
+ 
+
+ # TODO: we should use the warnings module

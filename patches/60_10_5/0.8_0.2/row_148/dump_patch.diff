@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
++++ b/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
+@@ -44,6 +44,16 @@
+     return _json.dumps(obj, **kwargs)
+
+ 
+
+ 
+
++def from_file(self, filename: str, load: t.Callable[[t.IO[bytes]], t.Any], mode: str = "r") -> None:
+
++    """Load a configuration from a file.
+
++
+
++    :param filename: The filename of the file to load.
+
++    :param load: A callable that takes a file-like object in binary mode and returns a dictionary.
+
++    :param mode: The mode in which to open the file. Defaults to "r" (read text).
+
++    """
+
++    with open(os.path.join(self.root_path, filename), mode) as file:
+
++        self.from_mapping(load(file))
+
++
+
+ def dump(obj: t.Any, fp: t.IO[str], **kwargs: t.Any) -> None:
+
+     """Serialize data as JSON and write to a file.
+
+ 
+
+@@ -63,7 +73,7 @@
+         Calls ``current_app.json.dump``, allowing an app to override
+
+         the behavior.
+
+ 
+
+-    .. versionchanged:: 2.0
+
++    .. versionchanged:: 2:0
+
+         Writing to a binary file, and the ``encoding`` argument, will be
+
+         removed in Flask 2.1.
+
+     """

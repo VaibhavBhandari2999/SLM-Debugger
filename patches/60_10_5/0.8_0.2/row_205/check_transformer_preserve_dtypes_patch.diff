@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -1770,7 +1770,7 @@
+ 
+
+         for Xt, method in zip([X_trans1, X_trans2], ["fit_transform", "transform"]):
+
+             if isinstance(Xt, tuple):
+
+-                # cross-decompostion returns a tuple of (x_scores, y_scores)
+
++                # cross-decomposition returns a tuple of (x_scores, y_scores)
+
+                 # when given y with fit_transform; only check the first element
+
+                 Xt = Xt[0]
+
+ 
+
+@@ -1779,6 +1779,18 @@
+                 f"{name} (method={method}) does not preserve dtype. "
+
+                 f"Original/Expected dtype={dtype.__name__}, got dtype={Xt.dtype}."
+
+             )
+
++
+
++    # Fix for unique_labels with nullable dtypes
+
++    for dtype in ["Int64", "Float64", "boolean"]:
+
++        y_true = pd.Series([1, 0, 0, 1, 0, 1, 1, 0, 1], dtype=dtype)
+
++        y_predicted = pd.Series([0, 0, 1, 1, 0, 1, 1, 1, 1], dtype="int64")
+
++
+
++        # Convert pandas Series to numpy arrays with the correct dtypes
+
++        y_true_np = y_true.to_numpy(dtype=dtype)
+
++        y_predicted_np = y_predicted.to_numpy(dtype="int64")
+
++
+
++        # Ensure unique_labels can handle the correct dtypes
+
++        unique_labels(y_true_np, y_predicted_np)
+
+ 
+
+ 
+
+ @ignore_warnings(category=FutureWarning)

@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/189/scikit-learn_scikit-learn/sklearn/base.py
++++ b/decoupled/60/0.8_0.2/189/scikit-learn_scikit-learn/sklearn/base.py
+@@ -435,6 +435,9 @@
+ class TransformerMixin(object):
+
+     """Mixin class for all transformers in scikit-learn."""
+
+ 
+
++from sklearn.preprocessing import OneHotEncoder
+
++
+
++class CustomOneHotEncoder(OneHotEncoder):
+
+     def fit_transform(self, X, y=None, **fit_params):
+
+         """Fit to data, then transform it.
+
+ 
+
+@@ -453,9 +456,14 @@
+         -------
+
+         X_new : numpy array of shape [n_samples, n_features_new]
+
+             Transformed array.
+
+-
+
+-        """
+
+-        # non-optimized default implementation; override when a better
+
++        """
+
++        # Check if categories are strings and convert to object type if necessary
+
++        if isinstance(X[0, 0], str):
+
++            max_category_length = max(len(cat) for cat in self.categories_[0])
+
++            if max_category_length > 10:  # Threshold for conversion
+
++                self.categories_[0] = self.categories_[0].astype(object)
+
++
+
++        # Non-optimized default implementation; override when a better
+
+         # method is possible for a given clustering algorithm
+
+         if y is None:
+
+             # fit method of arity 1 (unsupervised transformation)

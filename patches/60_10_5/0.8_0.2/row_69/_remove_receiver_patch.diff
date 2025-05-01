@@ -1,0 +1,62 @@
+--- a/decoupled/60/0.8_0.2/69/django_django/django/dispatch/dispatcher.py
++++ b/decoupled/60/0.8_0.2/69/django_django/django/dispatch/dispatcher.py
+@@ -260,14 +260,22 @@
+                 non_weak_receivers.append(receiver)
+
+         return non_weak_receivers
+
+ 
+
+-    def _remove_receiver(self, receiver=None):
+
+-        # Mark that the self.receivers list has dead weakrefs. If so, we will
+
+-        # clean those up in connect, disconnect and _live_receivers while
+
+-        # holding self.lock. Note that doing the cleanup here isn't a good
+
+-        # idea, _remove_receiver() will be called as side effect of garbage
+
+-        # collection, and so the call can happen while we are already holding
+
+-        # self.lock.
+
+-        self._dead_receivers = True
+
++import functools
+
++
+
++class ResolverMatch:
+
++    def __init__(self, view, args=None, kwargs=None):
+
++        # Unwrap functools.partial objects to get the underlying function and arguments
+
++        if isinstance(view, functools.partial):
+
++            view = view.func
+
++            args = view.args if view.args else args
+
++            kwargs = view.keywords if view.keywords else kwargs
+
++        
+
++        self.view = view
+
++        self.args = args
+
++        self.kwargs = kwargs
+
++
+
++    def __repr__(self):
+
++        return f"ResolverMatch(view={self.view}, args={self.args}, kwargs={self.kwargs})"
+
+ 
+
+ 
+
+ def receiver(signal, **kwargs):

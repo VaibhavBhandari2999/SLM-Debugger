@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/242/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/242/sympy_sympy/sympy/core/numbers.py
+@@ -2522,9 +2522,18 @@
+ 
+
+     __bool__ = __nonzero__
+
+ 
+
+-    def as_coeff_Mul(self, rational=False):  # XXX this routine should be deleted
+
+-        """Efficiently extract the coefficient of a summation. """
+
+-        return S.One, self
+
++def as_coeff_Mul(self, rational=False):
+
++    """Efficiently extract the coefficient of a summation. """
+
++    return 1, self
+
++
+
++# Fixing the rendering of SeqFormula
+
++def fix_seqformula_rendering(expr):
+
++    return expr.args[0], sp.Sum(*expr.args[1:]).doit()
+
++
+
++# Example usage
+
++expr = sp.SeqFormula(n**2, (n,0,sp.oo))
+
++fixed_expr = fix_seqformula_rendering(expr)
+
++print(fixed_expr)
+
+ 
+
+ 
+
+ class One(with_metaclass(Singleton, IntegerConstant)):

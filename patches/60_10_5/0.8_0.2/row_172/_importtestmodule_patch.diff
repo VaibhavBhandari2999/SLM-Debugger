@@ -1,0 +1,210 @@
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/python.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/python.py
+@@ -493,55 +493,55 @@
+ 
+
+         self.obj.__pytest_setup_function = xunit_setup_function_fixture
+
+ 
+
+-    def _importtestmodule(self):
+
+-        # we assume we are only called once per module
+
+-        importmode = self.config.getoption("--import-mode")
+
+-        try:
+
+-            mod = self.fspath.pyimport(ensuresyspath=importmode)
+
+-        except SyntaxError:
+
+-            raise self.CollectError(
+
+-                _pytest._code.ExceptionInfo.from_current().getrepr(style="short")
+
+-            )
+
+-        except self.fspath.ImportMismatchError:
+
+-            e = sys.exc_info()[1]
+
+-            raise self.CollectError(
+
+-                "import file mismatch:\n"
+
+-                "imported module %r has this __file__ attribute:\n"
+
+-                "  %s\n"
+
+-                "which is not the same as the test file we want to collect:\n"
+
+-                "  %s\n"
+
+-                "HINT: remove __pycache__ / .pyc files and/or use a "
+
+-                "unique basename for your test file modules" % e.args
+
+-            )
+
+-        except ImportError:
+
+-            from _pytest._code.code import ExceptionInfo
+
+-
+
+-            exc_info = ExceptionInfo.from_current()
+
+-            if self.config.getoption("verbose") < 2:
+
+-                exc_info.traceback = exc_info.traceback.filter(filter_traceback)
+
+-            exc_repr = (
+
+-                exc_info.getrepr(style="short")
+
+-                if exc_info.traceback
+
+-                else exc_info.exconly()
+
+-            )
+
+-            formatted_tb = str(exc_repr)
+
+-            raise self.CollectError(
+
+-                "ImportError while importing test module '{fspath}'.\n"
+
+-                "Hint: make sure your test modules/packages have valid Python names.\n"
+
+-                "Traceback:\n"
+
+-                "{traceback}".format(fspath=self.fspath, traceback=formatted_tb)
+
+-            )
+
+-        except _pytest.runner.Skipped as e:
+
+-            if e.allow_module_level:
+
+-                raise
+
+-            raise self.CollectError(
+
+-                "Using pytest.skip outside of a test is not allowed. "
+
+-                "To decorate a test function, use the @pytest.mark.skip "
+
+-                "or @pytest.mark.skipif decorators instead, and to skip a "
+
+-                "module use `pytestmark = pytest.mark.{skip,skipif}."
+
+-            )
+
+-        self.config.pluginmanager.consider_module(mod)
+
+-        return mod
+
++def _importtestmodule(self):
+
++    importmode = self.config.getoption("--import-mode")
+
++    try:
+
++        mod = self.fspath.pyimport(ensuresyspath=importmode)
+
++    except SyntaxError:
+
++        raise self.CollectError(
+
++            _pytest._code.ExceptionInfo.from_current().getrepr(style="short")
+
++        )
+
++    except self.fspath.ImportMismatchError:
+
++        e = sys.exc_info()[1]
+
++        raise self.CollectError(
+
++            "import file mismatch:\n"
+
++            "imported module %r has this __file__ attribute:\n"
+
++            "  %s\n"
+
++            "which is not the same as the test file we want to collect:\n"
+
++            "  %s\n"
+
++            "HINT: remove __pycache__ / .pyc files and/or use a "
+
++            "unique basename for your test file modules" % e.args
+
++        )
+
++    except ImportError:
+
++        from _pytest._code.code import ExceptionInfo
+
++
+
++        exc_info = ExceptionInfo.from_current()
+
++        if self.config.getoption("verbose") < 2:
+
++            exc_info.traceback = exc_info.traceback.filter(filter_traceback)
+
++        exc_repr = (
+
++            exc_info.getrepr(style="short")
+
++            if exc_info.traceback
+
++            else exc_info.exconly()
+
++        )
+
++        # Get the full traceback and format it
+
++        formatted_tb = "\n".join(exc_info.traceback.format())
+
++        raise self.CollectError(
+
++            "ImportError while importing test module '{fspath}'.\n"
+
++            "Hint: make sure your test modules/packages have valid Python names.\n"
+
++            "Traceback:\n"
+
++            "{traceback}".format(fspath=self.fspath, traceback=formatted_tb)
+
++        )
+
++    except _pytest.runner.Skipped as e:
+
++        if e.allow_module_level:
+
++            raise
+
++        raise self.CollectError(
+
++            "Using pytest.skip outside of a test is not allowed. "
+
++            "To decorate a test function, use the @pytest.mark.skip "
+
++            "or @pytest.mark.skipif decorators instead, and to skip a "
+
++            "module use `pytestmark = pytest.mark.{skip,skipif}."
+
++        )
+
++    self.config.pluginmanager.consider_module(mod)
+
++    return mod
+
+ 
+
+ 
+
+ class Package(Module):

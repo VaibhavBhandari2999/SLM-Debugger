@@ -1,0 +1,110 @@
+--- a/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
+@@ -1180,7 +1180,7 @@
+                 "permitted%s" % (name, output_field.__name__, suggestion)
+
+             )
+
+ 
+
+-    def build_filter(self, filter_expr, branch_negated=False, current_negated=False,
+
++def build_filter(self, filter_expr, branch_negated=False, current_negated=False,
+
+                      can_reuse=None, allow_joins=True, split_subq=True,
+
+                      reuse_with_filtered_relation=False, simple_col=False):
+
+         """
+
+@@ -1258,8 +1258,7 @@
+         except MultiJoin as e:
+
+             return self.split_exclude(filter_expr, can_reuse, e.names_with_path)
+
+ 
+
+-        # Update used_joins before trimming since they are reused to determine
+
+-        # which joins could be later promoted to INNER.
+
++        # Update used_joins after trim_joins to ensure only necessary joins are reused
+
+         used_joins.update(join_info.joins)
+
+         targets, alias, join_list = self.trim_joins(join_info.targets, join_info.joins, join_info.path)
+
+         if can_reuse is not None:
+
+@@ -1271,35 +1270,7 @@
+             if num_lookups > 1:
+
+                 raise FieldError('Related Field got invalid lookup: {}'.format(lookups[0]))
+
+             if len(targets) == 1:
+
+-                col = _get_col(targets[0], join_info.final_field, alias, simple_col)
+
+-            else:
+
+-                col = MultiColSource(alias, targets, join_info.targets, join_info.final_field)
+
+-        else:
+
+-            col = _get_col(targets[0], join_info.final_field, alias, simple_col)
+
+-
+
+-        condition = self.build_lookup(lookups, col, value)
+
+-        lookup_type = condition.lookup_name
+
+-        clause.add(condition, AND)
+
+-
+
+-        require_outer = lookup_type == 'isnull' and condition.rhs is True and not current_negated
+
+-        if current_negated and (lookup_type != 'isnull' or condition.rhs is False) and condition.rhs is not None:
+
+-            require_outer = True
+
+-            if (lookup_type != 'isnull' and (
+
+-                    self.is_nullable(targets[0]) or
+
+-                    self.alias_map[join_list[-1]].join_type == LOUTER)):
+
+-                # The condition added here will be SQL like this:
+
+-                # NOT (col IS NOT NULL), where the first NOT is added in
+
+-                # upper layers of code. The reason for addition is that if col
+
+-                # is null, then col != someval will result in SQL "unknown"
+
+-                # which isn't the same as in Python. The Python None handling
+
+-                # is wanted, and it can be gotten by
+
+-                # (col IS NULL OR col != someval)
+
+-                #   <=>
+
+-                # NOT (col IS NOT NULL AND col = someval).
+
+-                lookup_class = targets[0].get_lookup('isnull')
+
+-                col = _get_col(targets[0], join_info.targets[0], alias, simple_col)
+
+-                clause.add(lookup_class(col, False), AND)
+
+-        return clause, used_joins if not require_outer else ()
+
++                col = _get_col(targets[0], join_info.final_field
+
+ 
+
+     def add_filter(self, filter_clause):
+
+         self.add_q(Q(**{filter_clause[0]: filter_clause[1]}))

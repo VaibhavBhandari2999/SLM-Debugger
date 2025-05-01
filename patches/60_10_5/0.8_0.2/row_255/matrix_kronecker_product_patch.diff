@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
++++ b/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
+@@ -253,6 +253,9 @@
+         return c_part*KroneckerProduct(*nc_part)
+
+     return kron
+
+ 
+
++
+
++from sympy import MatrixBase, IndexedBase, Indexed, Matrix
+
++from sympy.printing.mathml import MathMLPrinter
+
+ 
+
+ def matrix_kronecker_product(*matrices):
+
+     """Compute the Kronecker product of a sequence of SymPy Matrices.
+
+@@ -333,6 +336,14 @@
+     else:
+
+         return MatrixClass(matrix_expansion)
+
+ 
+
++# Fix for the mathml printer issue
+
++class CustomMathMLPrinter(MathMLPrinter):
+
++    def _print_Indexed(self, expr):
+
++        # Handle Indexed objects by converting them to a string
+
++        return self._print(expr.base) + '[%s]' % ','.join(map(str, expr.indices))
+
++
+
++MathMLPrinter.register(CustomMathMLPrinter)
+
++
+
+ 
+
+ def explicit_kronecker_product(kron):
+
+     # Make sure we have a sequence of Matrices

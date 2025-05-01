@@ -1,0 +1,104 @@
+--- a/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -52,29 +52,28 @@
+ """
+
+ 
+
+ 
+
+-def function_with_types_in_docstring(param1, param2):
+
+-    """Example function with types documented in the docstring.
+
+-
+
+-    `PEP 484`_ type annotations are supported. If attribute, parameter, and
+
+-    return types are annotated according to `PEP 484`_, they do not need to be
+
+-    included in the docstring:
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    param1 : int
+
+-        The first parameter.
+
+-    param2 : str
+
+-        The second parameter.
+
+-
+
+-    Returns
+
+-    -------
+
+-    bool
+
+-        True if successful, False otherwise.
+
+-
+
+-    .. _PEP 484:
+
+-        https://www.python.org/dev/peps/pep-0484/
+
+-
+
+-    """
+
++# conf.py
+
++
+
++# ... other configurations ...
+
++
+
++# Add the struct module to the autodoc member order
+
++autodoc_member_order = 'bysource'
+
++
+
++# Optionally, use the autodoc_typehints extension to handle type hints
+
++extensions = [
+
++    # ... other extensions ...
+
++    'sphinx.ext.autodoc',
+
++    'sphinx.ext.autosectionlabel',
+
++    'sphinx.ext.intersphinx',
+
++    'sphinx.ext.doctest',
+
++    'sphinx.ext.todo',
+
++    'sphinx.ext.autodoc.typehints',  # Add this line
+
++]
+
++
+
++# Configure autodoc_typehints to use the 'signature' style
+
++autodoc_typehints = 'signature'
+
++
+
++# ... other configurations ...
+
+ 
+
+ 
+
+ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:

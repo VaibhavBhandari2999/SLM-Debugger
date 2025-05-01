@@ -1,0 +1,471 @@
+--- a/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
++++ b/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
+@@ -105,7 +105,11 @@
+     return _json.loads(s, **kwargs)
+
+ 
+
+ 
+
+-def load(fp: t.IO[t.AnyStr], **kwargs: t.Any) -> t.Any:
+
++from typing import IO, Any, TypeVar, Type
+
++
+
++T = TypeVar('T')
+
++
+
++def load(fp: IO[Any], mode: str = 'r', **kwargs: Any) -> T:
+
+     """Deserialize data as JSON read from a file.
+
+ 
+
+     If :data:`~flask.current_app` is available, it will use its
+
+@@ -113,6 +117,7 @@
+     method, otherwise it will use :func:`json.load`.
+
+ 
+
+     :param fp: A file opened for reading text or UTF-8 bytes.
+
++    :param mode: The mode in which to open the file. Defaults to 'r' (text mode).
+
+     :param kwargs: Arguments passed to the ``load`` implementation.
+
+ 
+
+     .. versionchanged:: 2.3
+
+@@ -133,6 +138,20 @@
+         return current_app.json.load(fp, **kwargs)
+
+ 
+
+     return _json.load(fp, **kwargs)
+
++
+
++def from_file(filename: str, load: Type[callable], mode: str = 'r', **kwargs: Any) -> None:
+
++    """Load configuration from a file.
+
++
+
++    :param filename: The name of the file to load.
+
++    :param load: The function to use for loading the configuration.
+
++    :param mode: The mode in which to open the file. Defaults to 'r' (text mode).
+
++    :param kwargs: Additional arguments to pass to the `load` function.
+
++
+
++    .. versionadded:: 2.3
+
++        Added the `mode` parameter to support binary file mode.
+
++    """
+
++    with open(filename, mode) as file:
+
++        app.config.from_mapping(load(file, **kwargs))
+
+ 
+
+ 
+
+ def jsonify(*args: t.Any, **kwargs: t.Any) -> Response:
+
+
+--- a/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
++++ b/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
+@@ -135,36 +135,14 @@
+     return _json.load(fp, **kwargs)
+
+ 
+
+ 
+
+-def jsonify(*args: t.Any, **kwargs: t.Any) -> Response:
+
+-    """Serialize the given arguments as JSON, and return a
+
+-    :class:`~flask.Response` object with the ``application/json``
+
+-    mimetype. A dict or list returned from a view will be converted to a
+
+-    JSON response automatically without needing to call this.
+
++def fix_config_from_file(self, filename: str, load_func: Callable, mode: str = 'r') -> None:
+
++    """
+
++    Load a configuration from the given file. The file can be in multiple formats.
+
++    This method now supports specifying the file mode when loading the file.
+
+ 
+
+-    This requires an active request or application context, and calls
+
+-    :meth:`app.json.response() <flask.json.provider.JSONProvider.response>`.
+
+-
+
+-    In debug mode, the output is formatted with indentation to make it
+
+-    easier to read. This may also be controlled by the provider.
+
+-
+
+-    Either positional or keyword arguments can be given, not both.
+
+-    If no arguments are given, ``None`` is serialized.
+
+-
+
+-    :param args: A single value to serialize, or multiple values to
+
+-        treat as a list to serialize.
+
+-    :param kwargs: Treat as a dict to serialize.
+
+-
+
+-    .. versionchanged:: 2.2
+
+-        Calls ``current_app.json.response``, allowing an app to override
+
+-        the behavior.
+
+-
+
+-    .. versionchanged:: 2.0.2
+
+-        :class:`decimal.Decimal` is supported by converting to a string.
+
+-
+
+-    .. versionchanged:: 0.11
+
+-        Added support for serializing top-level arrays. This was a
+
+-        security risk in ancient browsers. See :ref:`security-json`.
+
+-
+
+-    .. versionadded:: 0.2
+
++    :param filename: The name of the configuration file to load.
+
++    :param load_func: The function to load the configuration data.
+
++    :param mode: The mode in which to open the file. Default is 'r' for text mode.
+
+     """
+
+-    return current_app.json.response(*args, **kwargs)
+
++    with self.open_resource(filename, mode=mode) as config_file:
+
++        self.from_mapping(load_func(config_file))
+
+
+--- a/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
++++ b/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
+@@ -44,6 +44,16 @@
+     return _json.dumps(obj, **kwargs)
+
+ 
+
+ 
+
++def from_file(self, filename: str, load: t.Callable[[t.IO[bytes]], t.Any], mode: str = "r") -> None:
+
++    """Load a configuration from a file.
+
++
+
++    :param filename: The filename of the file to load.
+
++    :param load: A callable that takes a file-like object in binary mode and returns a dictionary.
+
++    :param mode: The mode in which to open the file. Defaults to "r" (read text).
+
++    """
+
++    with open(os.path.join(self.root_path, filename), mode) as file:
+
++        self.from_mapping(load(file))
+
++
+
+ def dump(obj: t.Any, fp: t.IO[str], **kwargs: t.Any) -> None:
+
+     """Serialize data as JSON and write to a file.
+
+ 
+
+@@ -63,7 +73,7 @@
+         Calls ``current_app.json.dump``, allowing an app to override
+
+         the behavior.
+
+ 
+
+-    .. versionchanged:: 2.0
+
++    .. versionchanged:: 2:0
+
+         Writing to a binary file, and the ``encoding`` argument, will be
+
+         removed in Flask 2.1.
+
+     """
+
+
+--- a/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
++++ b/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
+@@ -74,35 +74,20 @@
+         _json.dump(obj, fp, **kwargs)
+
+ 
+
+ 
+
+-def loads(s: str | bytes, **kwargs: t.Any) -> t.Any:
+
+-    """Deserialize data as JSON.
+
++def fixed_from_file(filename: str, load: t.Callable, mode: str = "r", **kwargs: t.Any) -> None:
+
++    """Load a configuration from a file.
+
+ 
+
+-    If :data:`~flask.current_app` is available, it will use its
+
+-    :meth:`app.json.loads() <flask.json.provider.JSONProvider.loads>`
+
+-    method, otherwise it will use :func:`json.loads`.
+
+-
+
+-    :param s: Text or UTF-8 bytes.
+
+-    :param kwargs: Arguments passed to the ``loads`` implementation.
+
+-
+
+-    .. versionchanged:: 2.3
+
+-        The ``app`` parameter was removed.
+
+-
+
+-    .. versionchanged:: 2.2
+
+-        Calls ``current_app.json.loads``, allowing an app to override
+
+-        the behavior.
+
+-
+
+-    .. versionchanged:: 2.0
+
+-        ``encoding`` will be removed in Flask 2.1. The data must be a
+
+-        string or UTF-8 bytes.
+
+-
+
+-    .. versionchanged:: 1.0.3
+
+-        ``app`` can be passed directly, rather than requiring an app
+
+-        context for configuration.
+
++    :param filename: The filename of the configuration file.
+
++    :param load: A callable to load the configuration data.
+
++    :param mode: The mode in which to open the file.
+
++    :param kwargs: Additional keyword arguments passed to the `load` callable.
+
+     """
+
+     if current_app:
+
+-        return current_app.json.loads(s, **kwargs)
+
+-
+
+-    return _json.loads(s, **kwargs)
+
++        with current_app.open_resource(filename, mode=mode) as config_file:
+
++            current_app.config.from_mapping(load(config_file, **kwargs))
+
++    else:
+
++        with open(os.path.join(current_app.root_path, filename), mode=mode) as config_file:
+
++            current_app.config.from_mapping(load(config_file, **kwargs))
+
+ 
+
+ 
+
+ def load(fp: t.IO[t.AnyStr], **kwargs: t.Any) -> t.Any:
+
+
+--- a/decoupled/60/0.8_0.2/148/pallets_flask/tests/test_reqctx.py
++++ b/decoupled/60/0.8_0.2/148/pallets_flask/tests/test_reqctx.py
+@@ -277,39 +277,47 @@
+     assert test_client.get("/get_dynamic_cookie").data == b"616"
+
+ 
+
+ 
+
+-def test_bad_environ_raises_bad_request():
+
++import flask
+
++import unittest
+
++
+
++class TestBadEnviron(unittest.TestCase):
+
++    def test_bad_environ_raises_bad_request(self):
+
++        app = flask.Flask(__name__)
+
++
+
++        # Set up the environment with a non-printable character in the Host header
+
++        environ = {
+
++            "HTTP_HOST": "\x8a",
+
++            "PATH_INFO": "/",
+
++            "METHOD": "GET"
+
++        }
+
++
+
++        with app.test_request_context(environ):
+
++            response = app.full_dispatch_request()
+
++        
+
++        # Assert that the response status code is 400 Bad Request
+
++        self.assertEqual(response.status_code, 400)
+
++
+
++if __name__ == "__main__":
+
++    unittest.main()
+
++
+
++
+
++def test_environ_for_valid_idna_completes():
+
+     app = flask.Flask(__name__)
+
++
+
++    @app.route("/")
+
++    def index():
+
++        return "Hello World!"
+
+ 
+
+     from flask.testing import EnvironBuilder
+
+ 
+
+     builder = EnvironBuilder(app)
+
+     environ = builder.get_environ()
+
+ 
+
+-    # use a non-printable character in the Host - this is key to this test
+
+-    environ["HTTP_HOST"] = "\x8a"
+
++    # these characters are all IDNA-compatible
+
++    environ["HTTP_HOST"] = "ąśźäüжŠßя.com"
+
+ 
+
+     with app.request_context(environ):
+
+         response = app.full_dispatch_request()
+
+-    assert response.status_code == 400
+
+-
+
+-
+
+-def test_environ_for_valid_idna_completes():
+
+-    app = flask.Flask(__name__)
+
+-
+
+-    @app.route("/")
+
+-    def index():
+
+-        return "Hello World!"
+
+-
+
+-    from flask.testing import EnvironBuilder
+
+-
+
+-    builder = EnvironBuilder(app)
+
+-    environ = builder.get_environ()
+
+-
+
+-    # these characters are all IDNA-compatible
+
+-    environ["HTTP_HOST"] = "ąśźäüжŠßя.com"
+
+-
+
+-    with app.request_context(environ):
+
+-        response = app.full_dispatch_request()
+
+ 
+
+     assert response.status_code == 200
+
+ 
+
+

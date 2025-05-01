@@ -1,0 +1,77 @@
+--- a/decoupled/60/0.8_0.2/135/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/135/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -493,6 +493,10 @@
+     return isinstance(val, str) or not np.iterable(val)
+
+ 
+
+ 
+
++import matplotlib.pyplot as plt
+
++from matplotlib.colors import LogNorm
+
++import numpy as np
+
++
+
+ def get_sample_data(fname, asfileobj=True, *, np_load=False):
+
+     """
+
+     Return a sample data file.  *fname* is a path relative to the
+
+@@ -529,6 +533,27 @@
+             return path.open('rb')
+
+     else:
+
+         return str(path)
+
++
+
++# create some random data to fill a 2d plot
+
++rng = np.random.default_rng(0)
+
++img = rng.uniform(1, 5, (25, 25))
+
++
+
++# plot it
+
++fig, ax = plt.subplots(layout="constrained")
+
++plot = ax.pcolormesh(img)
+
++cbar = fig.colorbar(plot, ax=ax)
+
++
+
++vmin = 1
+
++vmax = 5
+
++
+
++plt.ion()
+
++fig.show()
+
++plt.pause(0.5)
+
++
+
++plot.norm = LogNorm(vmin, vmax)
+
++plot.autoscale()
+
++cbar.update_normal(plot)  # Update the colorbar to reflect the new norm
+
++plt.pause(0.5)
+
+ 
+
+ 
+
+ def _get_data_path(*args):

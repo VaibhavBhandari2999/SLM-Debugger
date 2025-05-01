@@ -1,0 +1,106 @@
+--- a/decoupled/60/0.8_0.2/232/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/232/sympy_sympy/sympy/core/numbers.py
+@@ -75,34 +75,25 @@
+         return diff <= tol
+
+ 
+
+ 
+
+-def mpf_norm(mpf, prec):
+
+-    """Return the mpf tuple normalized appropriately for the indicated
+
+-    precision after doing a check to see if zero should be returned or
+
+-    not when the mantissa is 0. ``mpf_normlize`` always assumes that this
+
+-    is zero, but it may not be since the mantissa for mpf's values "+inf",
+
+-    "-inf" and "nan" have a mantissa of zero, too.
+
+-
+
+-    Note: this is not intended to validate a given mpf tuple, so sending
+
+-    mpf tuples that were not created by mpmath may produce bad results. This
+
+-    is only a wrapper to ``mpf_normalize`` which provides the check for non-
+
+-    zero mpfs that have a 0 for the mantissa.
+
++def decompose(poly_dict, separate=True):
+
+     """
+
+-    sign, man, expt, bc = mpf
+
+-    if not man:
+
+-        # hack for mpf_normalize which does not do this;
+
+-        # it assumes that if man is zero the result is 0
+
+-        # (see issue 6639)
+
+-        if not bc:
+
+-            return _mpf_zero
+
+-        else:
+
+-            # don't change anything; this should already
+
+-            # be a well formed mpf tuple
+
+-            return mpf
+
+-
+
+-    # Necessary if mpmath is using the gmpy backend
+
+-    from mpmath.libmp.backend import MPZ
+
+-    rv = mpf_normalize(sign, MPZ(man), expt, bc, prec, rnd)
+
+-    return rv
+
++    Decompose a polynomial dictionary into a sorted list of its values.
+
++
+
++    Parameters:
+
++    poly_dict (dict): The polynomial dictionary to decompose.
+
++    separate (bool): If True, decompose the polynomial dictionary into a list of its values.
+
++
+
++    Returns:
+
++    list: A sorted list of the values from the polynomial dictionary.
+
++    """
+
++    if separate:
+
++        # Extract the values from the dictionary
+
++        values = list(poly_dict.values())
+
++        # Sort the values before returning
+
++        return sorted(values)
+
++    else:
+
++        # If separate is False, return the dictionary as is
+
++        return poly_dict
+
+ 
+
+ # TODO: we should use the warnings module
+
+ _errdict = {"divide": False}

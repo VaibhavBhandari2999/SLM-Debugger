@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -3265,7 +3265,7 @@
+             raise AttributeError(
+
+                 "This method only works with the ScalarFormatter") from err
+
+ 
+
+-    def locator_params(self, axis='both', tight=None, **kwargs):
+
++def locator_params(self, axis='both', tight=None, **kwargs):
+
+         """
+
+         Control behavior of major tick locators.
+
+ 
+
+@@ -3304,7 +3304,12 @@
+                 loc = self._axis_map[name].get_major_locator()
+
+                 loc.set_params(**kwargs)
+
+                 self._request_autoscale_view(name, tight=tight)
+
+-        self.stale = True
+
++        # Move the callback call outside of the if emit: statement
+
++        self.callbacks.process('xlim_changed', self)
+
++        # Call all of the other x-axes that are shared with this one
+
++        for other in self._shared_x_axes.get_siblings(self):
+
++            if other is not self:
+
++                other.set_xlim(self.viewLim.intervalx, auto=True)
+
+ 
+
+     def tick_params(self, axis='both', **kwargs):
+
+         """

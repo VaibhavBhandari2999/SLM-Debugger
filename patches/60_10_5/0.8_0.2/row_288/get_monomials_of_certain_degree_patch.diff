@@ -1,0 +1,75 @@
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -332,6 +332,13 @@
+         """
+
+         return binomial(self.degree_m + self.n - 1, self.n - 1)
+
+ 
+
++import itertools
+
++from sympy import Mul
+
++
+
++class MonomialGenerator:
+
++    def __init__(self, variables):
+
++        self.variables = variables
+
++
+
+     def get_monomials_of_certain_degree(self, degree):
+
+         """
+
+         Returns
+
+@@ -340,12 +347,17 @@
+         monomials: list
+
+             A list of monomials of a certain degree.
+
+         """
+
+-        monomials = [Mul(*monomial) for monomial
+
+-                     in combinations_with_replacement(self.variables,
+
+-                                                      degree)]
+
+-
+
+-        return sorted(monomials, reverse=True,
+
+-                      key=monomial_key('lex', self.variables))
+
++        # Generate all combinations with repetition of variables for the given degree
+
++        monomials_combinations = itertools.product(self.variables, repeat=degree)
+
++        # Create the monomials from the combinations
+
++        monomials = [Mul(*monomial) for monomial in monomials_combinations]
+
++        # Sort the monomials based on the grlex ordering
+
++        return sorted(monomials, key=lambda m: m.as_poly().total_degree())
+
++
+
++# Example usage:
+
++gen = MonomialGenerator([x1, x2, x3])
+
++monomials = gen.get_monomials_of_certain_degree(3)
+
++print(monomials)
+
+ 
+
+     def get_row_coefficients(self):
+
+         """

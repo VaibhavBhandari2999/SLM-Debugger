@@ -1,0 +1,61 @@
+--- a/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -539,7 +539,7 @@
+             transform = None
+
+         return _path.point_in_path(point[0], point[1], radius, self, transform)
+
+ 
+
+-    def contains_points(self, points, transform=None, radius=0.0):
+
++def contains_points(self, points, transform=None, radius=0.0):
+
+         """
+
+         Return whether the area enclosed by the path contains the given points.
+
+ 
+
+@@ -580,6 +580,21 @@
+         """
+
+         if transform is not None:
+
+             transform = transform.frozen()
+
++        
+
++        # Ensure the canvas is correctly referenced
+
++        if self.ref_artist is not None and self.ref_artist.figure is not None:
+
++            canvas = self.ref_artist.figure.canvas
+
++            if canvas is not None:
+
++                self.disconnect()
+
++            else:
+
++                # If the canvas is None, we need to handle this case
+
++                # For example, we can raise an error or return a default value
+
++                raise ValueError("Figure canvas is None. Cannot disconnect.")
+
++        else:
+
++            # If ref_artist or its figure is None, we need to handle this case
+
++            # For example, we can raise an error or return a default value
+
++            raise ValueError("ref_artist or its figure is None. Cannot disconnect.")
+
++        
+
+         result = _path.points_in_path(points, radius, self, transform)
+
+         return result.astype('bool')
+
+ 

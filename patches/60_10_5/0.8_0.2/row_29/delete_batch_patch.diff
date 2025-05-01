@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/subqueries.py
++++ b/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/subqueries.py
+@@ -23,7 +23,7 @@
+         cursor = self.get_compiler(using).execute_sql(CURSOR)
+
+         return cursor.rowcount if cursor else 0
+
+ 
+
+-    def delete_batch(self, pk_list, using):
+
++def delete_batch(self, pk_list, using):
+
+         """
+
+         Set up and execute delete queries for all the objects in pk_list.
+
+ 

@@ -1,0 +1,93 @@
+--- a/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -1725,6 +1725,10 @@
+ 
+
+ 
+
+ @contextlib.contextmanager
+
++import matplotlib.pyplot as plt
+
++import pickle
+
++import contextlib
+
++
+
+ def _lock_path(path):
+
+     """
+
+     Context manager for locking a path.
+
+@@ -1761,6 +1765,35 @@
+         yield
+
+     finally:
+
+         lock_path.unlink()
+
++
+
++def pickle_figure(fig):
+
++    """
+
++    Pickle a figure with draggable legend.
+
++    """
+
++    with contextlib.suppress(AttributeError):
+
++        leg = fig.legends[0]
+
++        if leg.get_draggable():
+
++            leg.set_draggable(False)
+
++
+
++    pickled_fig = pickle.dumps(fig)
+
++    with contextlib.suppress(AttributeError):
+
++        leg.set_draggable(True)
+
++
+
++    return pickled_fig
+
++
+
++# Example usage
+
++fig = plt.figure()
+
++ax = fig.add_subplot(111)
+
++
+
++time = [0, 1, 2, 3, 4]
+
++speed = [40, 43, 45, 47, 48]
+
++
+
++ax.plot(time, speed, label="speed")
+
++leg = ax.legend()
+
++leg.set_draggable(True)
+
++
+
++pickled_fig = pickle_figure(fig)
+
++plt.show()
+
+ 
+
+ 
+
+ def _topmost_artist(

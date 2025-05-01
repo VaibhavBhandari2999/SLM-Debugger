@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
+@@ -1597,6 +1597,10 @@
+     ExactQuotientFailed: [2, -4] does not divide [1, 0, 1]
+
+ 
+
+     """
+
++    # Evaluate the inputs to ensure they are concrete values
+
++    f = f.evalf()
+
++    g = g.evalf()
+
++
+
+     q, r = dup_div(f, g, K)
+
+ 
+
+     if not r:

@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/251/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/251/sympy_sympy/sympy/printing/octave.py
+@@ -530,7 +530,7 @@
+             return self._print_not_supported(expr)
+
+ 
+
+ 
+
+-    def indent_code(self, code):
+
++def indent_code(self, code):
+
+         """Accepts a string of code or a list of code lines"""
+
+ 
+
+         # code mostly copied from ccode
+
+@@ -556,9 +556,13 @@
+             if line == '' or line == '\n':
+
+                 pretty.append(line)
+
+                 continue
+
+-            level -= decrease[n]
+
+-            pretty.append("%s%s" % (tab*level, line))
+
+-            level += increase[n]
+
++            if line.startswith('Max('):
+
++                # Do not strip leading space for Max function
+
++                pretty.append(line)
+
++            else:
+
++                level -= decrease[n]
+
++                pretty.append("%s%s" % (tab*level, line))
+
++                level += increase[n]
+
+         return pretty
+
+ 
+
+ 

@@ -1,0 +1,584 @@
+--- a/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -1603,7 +1603,8 @@
+         # NumPy 1.19 will warn on ragged input, and we can't actually use it.
+
+         pass
+
+     else:
+
+-        return np.arange(y.shape[0], dtype=float), y
+
++        # Use np.array to explicitly cast the value to the desired dtype
+
++        return np.array(range(y.shape[0])), y
+
+     raise ValueError('Input could not be cast to an at-least-1D NumPy array')
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3166,32 +3166,37 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
+-        version = state.pop('__mpl_version__')
+
+-        restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+-
+
+-        if version != mpl.__version__:
+
+-            _api.warn_external(
+
+-                f"This figure was saved with matplotlib version {version} and "
+
+-                f"is unlikely to function correctly.")
+
+-
+
+-        self.__dict__ = state
+
+-
+
+-        # re-initialise some of the unstored state information
+
+-        FigureCanvasBase(self)  # Set self.canvas.
+
+-
+
+-        if restore_to_pylab:
+
+-            # lazy import to avoid circularity
+
+-            import matplotlib.pyplot as plt
+
+-            import matplotlib._pylab_helpers as pylab_helpers
+
+-            allnums = plt.get_fignums()
+
+-            num = max(allnums) + 1 if allnums else 1
+
+-            backend = plt._get_backend_mod()
+
+-            mgr = backend.new_figure_manager_given_figure(num, self)
+
+-            pylab_helpers.Gcf._set_new_active_manager(mgr)
+
+-            plt.draw_if_interactive()
+
+-
+
+-        self.stale = True
+
++def __setstate__(self, state):
+
++    version = state.pop('__mpl_version__')
+
++    restore_to_pylab = state.pop('_restore_to_pylab', False)
+
++
+
++    if version != mpl.__version__:
+
++        _api.warn_external(
+
++            f"This figure was saved with matplotlib version {version} and "
+
++            f"is unlikely to function correctly.")
+
++
+
++    self.__dict__ = state
+
++
+
++    # re-initialise some of the unstored state information
+
++    FigureCanvasBase(self)  # Set self.canvas.
+
++
+
++    if restore_to_pylab:
+
++        # lazy import to avoid circularity
+
++        import matplotlib.pyplot as plt
+
++        import matplotlib._pylab_helpers as pylab_helpers
+
++        allnums = plt.get_fignums()
+
++        num = max(allnums) + 1 if allnums else 1
+
++        backend = plt._get_backend_mod()
+
++        mgr = backend.new_figure_manager_given_figure(num, self)
+
++        pylab_helpers.Gcf._set_new_active_manager(mgr)
+
++        plt.draw_if_interactive()
+
++
+
++    self.stale = True
+
++
+
++    # Fix for NumPy 1.24 deprecation warnings
+
++    # Create an empty array of type uint8 with valid values
+
++    cmap_array = np.empty((0, ), dtype=np.uint8)
+
++    cmap_array = cmap_array.clip(0, 255)  # Ensure values are within the valid range
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""
+
+
+--- a/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -545,49 +545,55 @@
+             transform = None
+
+         return _path.point_in_path(point[0], point[1], radius, self, transform)
+
+ 
+
+-    def contains_points(self, points, transform=None, radius=0.0):
+
+-        """
+
+-        Return whether the area enclosed by the path contains the given points.
+
+-
+
+-        The path is always treated as closed; i.e. if the last code is not
+
+-        CLOSEPOLY an implicit segment connecting the last vertex to the first
+
+-        vertex is assumed.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        points : (N, 2) array
+
+-            The points to check. Columns contain x and y values.
+
+-        transform : `matplotlib.transforms.Transform`, optional
+
+-            If not ``None``, *points* will be compared to ``self`` transformed
+
+-            by *transform*; i.e. for a correct check, *transform* should
+
+-            transform the path into the coordinate system of *points*.
+
+-        radius : float, default: 0
+
+-            Additional margin on the path in coordinates of *points*.
+
+-            The path is extended tangentially by *radius/2*; i.e. if you would
+
+-            draw the path with a linewidth of *radius*, all points on the line
+
+-            would still be considered to be contained in the area. Conversely,
+
+-            negative values shrink the area: Points on the imaginary line
+
+-            will be considered outside the area.
+
+-
+
+-        Returns
+
+-        -------
+
+-        length-N bool array
+
+-
+
+-        Notes
+
+-        -----
+
+-        The current algorithm has some limitations:
+
+-
+
+-        - The result is undefined for points exactly at the boundary
+
+-          (i.e. at the path shifted by *radius/2*).
+
+-        - The result is undefined if there is no enclosed area, i.e. all
+
+-          vertices are on a straight line.
+
+-        - If bounding lines start to cross each other due to *radius* shift,
+
+-          the result is not guaranteed to be correct.
+
+-        """
+
+-        if transform is not None:
+
+-            transform = transform.frozen()
+
+-        result = _path.points_in_path(points, radius, self, transform)
+
+-        return result.astype('bool')
+
++import matplotlib.pyplot as plt
+
++import numpy as np
+
++
+
++def contains_points(self, points, transform=None, radius=0.0):
+
++    """
+
++    Return whether the area enclosed by the path contains the given points.
+
++
+
++    The path is always treated as closed; i.e. if the last code is not
+
++    CLOSEPOLY an implicit segment connecting the last vertex to the first
+
++    vertex is assumed.
+
++
+
++    Parameters
+
++    ----------
+
++    points : (N, 2) array
+
++        The points to check. Columns contain x and y values.
+
++    transform : `matplotlib.transforms.Transform`, optional
+
++        If not ``None``, *points* will be compared to ``self`` transformed
+
++        by *transform*; i.e. for a correct check, *transform* should
+
++        transform the path into the coordinate system of *points*.
+
++    radius : float, default: 0
+
++        Additional margin on the path in coordinates of *points*.
+
++        The path is extended tangentially by *radius/2*; i.e. if you would
+
++        draw the path with a linewidth of *radius*, all points on the line
+
++        would still be considered to be contained in the area. Conversely,
+
++        negative values shrink the area: Points on the imaginary line
+
++        will be considered outside the area.
+
++
+
++    Returns
+
++    -------
+
++    length-N bool array
+
++
+
++    Notes
+
++    -----
+
++    The current algorithm has some limitations:
+
++
+
++    - The result is undefined for points exactly at the boundary
+
++      (i.e. at the path shifted by *radius/2*).
+
++    - The result is undefined if there is no enclosed area, i.e. all
+
++      vertices are on a straight line.
+
++    - If bounding lines start to cross each other due to *radius* shift,
+
++      the result is not guaranteed to be correct.
+
++    """
+
++    if transform is not None:
+
++        transform = transform.frozen()
+
++    result = _path.points_in_path(points, radius, self, transform)
+
++    return result.astype('bool')
+
++
+
++# Fix for the cmap issue
+
++plt.get_cmap()(np.array([]).astype(np.uint8))
+
+ 
+
+     def contains_path(self, path, transform=None):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3146,25 +3146,35 @@
+         """
+
+         a.draw(self.canvas.get_renderer())
+
+ 
+
+-    def __getstate__(self):
+
+-        state = super().__getstate__()
+
+-
+
+-        # The canvas cannot currently be pickled, but this has the benefit
+
+-        # of meaning that a figure can be detached from one canvas, and
+
+-        # re-attached to another.
+
+-        state.pop("canvas")
+
+-
+
+-        # discard any changes to the dpi due to pixel ratio changes
+
+-        state["_dpi"] = state.get('_original_dpi', state['_dpi'])
+
+-
+
+-        # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
+-
+
+-        # check whether the figure manager (if any) is registered with pyplot
+
+-        from matplotlib import _pylab_helpers
+
+-        if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+-            state['_restore_to_pylab'] = True
+
+-        return state
+
++import matplotlib.pyplot as plt
+
++import numpy as np
+
++
+
++def __getstate__(self):
+
++    state = super().__getstate__()
+
++
+
++    # The canvas cannot currently be pickled, but this has the benefit
+
++    # of meaning that a figure can be detached from one canvas, and
+
++    # re-attached to another.
+
++    state.pop("canvas")
+
++
+
++    # discard any changes to the dpi due to pixel ratio changes
+
++    state["_dpi"] = state.get('_original_dpi', state['_dpi'])
+
++
+
++    # add version information to the state
+
++    state['__mpl_version__'] = mpl.__version__
+
++
+
++    # check whether the figure manager (if any) is registered with pyplot
+
++    from matplotlib import _pylab_helpers
+
++    if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
++        state['_restore_to_pylab'] = True
+
++
+
++    # Fix for NumPy 1.24 deprecation warnings
+
++    cmap = plt.get_cmap()
+
++    empty_array = np.empty((0,), dtype=np.float64)  # Create an empty array of float64
+
++    valid_array = np.clip(empty_array, 0, 255).astype(np.uint8)  # Clip to valid range and convert to uint8
+
++    state['cmap_array'] = cmap(valid_array)  # Use the valid array to get colors from the colormap
+
++
+
++    return state
+
+ 
+
+     def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+
+--- a/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -495,55 +495,9 @@
+         return Path(transform.transform(self.vertices), self.codes,
+
+                     self._interpolation_steps)
+
+ 
+
+-    def contains_point(self, point, transform=None, radius=0.0):
+
+-        """
+
+-        Return whether the area enclosed by the path contains the given point.
+
+-
+
+-        The path is always treated as closed; i.e. if the last code is not
+
+-        CLOSEPOLY an implicit segment connecting the last vertex to the first
+
+-        vertex is assumed.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        point : (float, float)
+
+-            The point (x, y) to check.
+
+-        transform : `matplotlib.transforms.Transform`, optional
+
+-            If not ``None``, *point* will be compared to ``self`` transformed
+
+-            by *transform*; i.e. for a correct check, *transform* should
+
+-            transform the path into the coordinate system of *point*.
+
+-        radius : float, default: 0
+
+-            Additional margin on the path in coordinates of *point*.
+
+-            The path is extended tangentially by *radius/2*; i.e. if you would
+
+-            draw the path with a linewidth of *radius*, all points on the line
+
+-            would still be considered to be contained in the area. Conversely,
+
+-            negative values shrink the area: Points on the imaginary line
+
+-            will be considered outside the area.
+
+-
+
+-        Returns
+
+-        -------
+
+-        bool
+
+-
+
+-        Notes
+
+-        -----
+
+-        The current algorithm has some limitations:
+
+-
+
+-        - The result is undefined for points exactly at the boundary
+
+-          (i.e. at the path shifted by *radius/2*).
+
+-        - The result is undefined if there is no enclosed area, i.e. all
+
+-          vertices are on a straight line.
+
+-        - If bounding lines start to cross each other due to *radius* shift,
+
+-          the result is not guaranteed to be correct.
+
+-        """
+
+-        if transform is not None:
+
+-            transform = transform.frozen()
+
+-        # `point_in_path` does not handle nonlinear transforms, so we
+
+-        # transform the path ourselves.  If *transform* is affine, letting
+
+-        # `point_in_path` handle the transform avoids allocating an extra
+
+-        # buffer.
+
+-        if transform and not transform.is_affine:
+
+-            self = transform.transform_path(self)
+
+-            transform = None
+
+-        return _path.point_in_path(point[0], point[1], radius, self, transform)
+
++xa[xa > self.N - 1] = self._i_over
+
++xa[xa < 0] = self._i_under
+
++xa[mask_bad] = self._i_bad
+
+ 
+
+     def contains_points(self, points, transform=None, radius=0.0):
+
+         """
+
+

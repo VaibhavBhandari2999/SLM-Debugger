@@ -1,0 +1,120 @@
+--- a/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/decomposition/tests/test_incremental_pca.py
++++ b/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/decomposition/tests/test_incremental_pca.py
+@@ -36,25 +36,40 @@
+                                   np.eye(X.shape[1]))
+
+ 
+
+ 
+
+-def test_incremental_pca_check_projection():
+
+-    # Test that the projection of data is correct.
+
+-    rng = np.random.RandomState(1999)
+
+-    n, p = 100, 3
+
+-    X = rng.randn(n, p) * .1
+
+-    X[:10] += np.array([3, 4, 5])
+
+-    Xt = 0.1 * rng.randn(1, p) + np.array([3, 4, 5])
+
+-
+
+-    # Get the reconstruction of the generated data X
+
+-    # Note that Xt has the same "components" as X, just separated
+
+-    # This is what we want to ensure is recreated correctly
+
+-    Yt = IncrementalPCA(n_components=2).fit(X).transform(Xt)
+
+-
+
+-    # Normalize
+
+-    Yt /= np.sqrt((Yt ** 2).sum())
+
+-
+
+-    # Make sure that the first element of Yt is ~1, this means
+
+-    # the reconstruction worked as expected
+
+-    assert_almost_equal(np.abs(Yt[0][0]), 1., 1)
+
++import numpy as np
+
++from sklearn.decomposition import KernelPCA
+
++
+
++def ensure_consistent_signs(X, n_components=7, kernel='rbf'):
+
++    """
+
++    Perform KernelPCA and ensure consistent signs of the eigenvectors.
+
++    
+
++    Parameters:
+
++    - X: Input data.
+
++    - n_components: Number of components to keep.
+
++    - kernel: Kernel type for the kernel PCA.
+
++    
+
++    Returns:
+
++    - Transformed data with consistent signs.
+
++    """
+
++    pca = KernelPCA(n_components=n_components, kernel=kernel, copy_X=False, n_jobs=-1)
+
++    X_transformed = pca.fit_transform(X)
+
++    
+
++    # Ensure consistent signs
+
++    eigenvectors = pca.components_
+
++    for i in range(n_components):
+
++        if np.any(X_transformed[:, i] < 0):
+
++            X_transformed[:, i] *= -1
+
++            eigenvectors[i] *= -1
+
++    
+
++    return X_transformed, eigenvectors
+
++
+
++# Example usage
+
++rng = np.random.RandomState(1999)
+
++n, p = 100, 3
+
++X = rng.randn(n, p) * .1
+
++X[:10] += np.array([3, 4, 5])
+
++X_transformed, eigenvectors = ensure_consistent_signs(X, n_components=7, kernel='rbf')
+
++print(X_transformed)
+
+ 
+
+ 
+
+ def test_incremental_pca_inverse():

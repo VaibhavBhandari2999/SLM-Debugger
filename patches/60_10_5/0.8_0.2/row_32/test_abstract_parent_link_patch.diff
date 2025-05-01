@@ -1,0 +1,60 @@
+--- a/decoupled/60/0.8_0.2/32/django_django/tests/model_inheritance/tests.py
++++ b/decoupled/60/0.8_0.2/32/django_django/tests/model_inheritance/tests.py
+@@ -159,20 +159,15 @@
+         self.assertEqual(m.other_attr, 1)
+
+ 
+
+     @isolate_apps('model_inheritance')
+
+-    def test_abstract_parent_link(self):
+
+-        class A(models.Model):
+
+-            pass
+
+-
+
+-        class B(A):
+
+-            a = models.OneToOneField('A', parent_link=True, on_delete=models.CASCADE)
+
+-
+
+-            class Meta:
+
+-                abstract = True
+
+-
+
+-        class C(B):
+
+-            pass
+
+-
+
+-        self.assertIs(C._meta.parents[A], C._meta.get_field('a'))
+
++from django.db import models
+
++
+
++class A(models.Model):
+
++    foo_choice = [("A", "output1"), ("B", "output2")]
+
++    field_foo = models.CharField(max_length=254, choices=foo_choice)
+
++
+
++class B(A):
+
++    foo_choice = [("A", "output1"), ("B", "output2"), ("C", "output3")]
+
++    field_foo = models.CharField(max_length=254, choices=foo_choice)
+
+ 
+
+     @isolate_apps('model_inheritance')
+
+     def test_init_subclass(self):

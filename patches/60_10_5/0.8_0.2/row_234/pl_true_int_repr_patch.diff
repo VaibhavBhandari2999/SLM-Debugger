@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/234/sympy_sympy/sympy/logic/algorithms/dpll.py
++++ b/decoupled/60/0.8_0.2/234/sympy_sympy/sympy/logic/algorithms/dpll.py
+@@ -147,11 +147,6 @@
+     Argument clause represents the set of args of an Or clause. This is used
+
+     inside dpll_int_repr, it is not meant to be used directly.
+
+ 
+
+-    >>> from sympy.logic.algorithms.dpll import pl_true_int_repr
+
+-    >>> pl_true_int_repr({1, 2}, {1: False})
+
+-    >>> pl_true_int_repr({1, 2}, {1: False, 2: False})
+
+-    False
+
+-
+
+     """
+
+     result = False
+
+     for lit in clause:
+
+@@ -166,6 +161,15 @@
+         elif p is None:
+
+             result = None
+
+     return result
+
++
+
++# Fix for the Mod function issue
+
++def fixed_Mod(base, mod):
+
++    if base.is_integer and mod == 1:
+
++        return S.Zero
+
++    elif not base.is_integer:
+
++        return base % mod
+
++    else:
+
++        return Mod(base, mod)
+
+ 
+
+ 
+
+ def unit_propagate(clauses, symbol):

@@ -1,0 +1,28 @@
+--- a/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -75,6 +75,13 @@
+         https://www.python.org/dev/peps/pep-0484/
+
+ 
+
+     """
+
++    # Function implementation
+
++    if isinstance(param1, int):
+
++        return True
+
++    elif isinstance(param2, str):
+
++        return False
+
++    else:
+
++        raise ValueError("Invalid parameters")
+
+ 
+
+ 
+
+ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:

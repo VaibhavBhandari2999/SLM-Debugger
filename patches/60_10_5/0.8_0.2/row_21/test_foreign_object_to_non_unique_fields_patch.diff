@@ -1,0 +1,174 @@
+--- a/decoupled/60/0.8_0.2/21/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/21/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -375,35 +375,57 @@
+             ),
+
+         ])
+
+ 
+
+-    def test_foreign_object_to_non_unique_fields(self):
+
+-        class Person(models.Model):
+
+-            # Note that both fields are not unique.
+
+-            country_id = models.IntegerField()
+
+-            city_id = models.IntegerField()
+
+-
+
+-        class MMembership(models.Model):
+
+-            person_country_id = models.IntegerField()
+
+-            person_city_id = models.IntegerField()
+
+-
+
+-            person = models.ForeignObject(
+
+-                Person,
+
+-                on_delete=models.CASCADE,
+
+-                from_fields=['person_country_id', 'person_city_id'],
+
+-                to_fields=['country_id', 'city_id'],
+
+-            )
+
+-
+
+-        field = MMembership._meta.get_field('person')
+
+-        self.assertEqual(field.check(), [
+
+-            Error(
+
+-                "No subset of the fields 'country_id', 'city_id' on model 'Person' is unique.",
+
+-                hint=(
+
+-                    "Add unique=True on any of those fields or add at least "
+
+-                    "a subset of them to a unique_together constraint."
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E310',
+
+-            )
+
+-        ])
+
++from django.db import models
+
++from django.core.exceptions import ValidationError
+
++from django.core.checks import Error
+
++
+
++def test_foreign_object_to_non_unique_fields(self):
+
++    class Person(models.Model):
+
++        # Note that both fields are not unique.
+
++        country_id = models.IntegerField()
+
++        city_id = models.IntegerField()
+
++
+
++    class MMembership(models.Model):
+
++        person_country_id = models.IntegerField()
+
++        person_city_id = models.IntegerField()
+
++
+
++        person = models.ForeignObject(
+
++            Person,
+
++            on_delete=models.CASCADE,
+
++            from_fields=['person_country_id', 'person_city_id'],
+
++            to_fields=['country_id', 'city_id'],
+
++        )
+
++
+
++        # Add a check for max_length and choices
+
++        def check(self):
+
++            errors = []
+
++            for field_name in ['person_country_id', 'person_city_id']:
+
++                field = self._meta.get_field(field_name)
+
++                if field.choices:
+
++                    max_choice_length = max(len(str(choice[0])) for choice in field.choices)
+
++                    if field.max_length < max_choice_length:
+
++                        errors.append(
+
++                            Error(
+
++                                f"Field {field_name} max_length is too small to fit the longest choice.",
+
++                                hint=f"Set max_length to at least {max_choice_length} for field {field_name}.",
+
++                                obj=field,
+
++                                id='fields.E311',
+
++                            )
+
++                        )
+
++            return errors
+
++
+
++    field = MMembership._meta.get_field('person')
+
++    self.assertEqual(field.check() + MMembership.check(), [
+
++        Error(
+
++            "No subset of the fields 'country_id', 'city_id' on model 'Person' is unique.",
+
++            hint=(
+
++                "Add unique=True on any of those fields or add at least "
+
++                "a subset of them to a unique_together constraint."
+
++            ),
+
++            obj=field,
+
++            id='fields.E310',
+
++        )
+
++    ])
+
+ 
+
+     def test_on_delete_set_null_on_non_nullable_field(self):
+
+         class Person(models.Model):

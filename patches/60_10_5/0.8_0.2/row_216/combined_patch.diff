@@ -1,0 +1,336 @@
+--- a/decoupled/60/0.8_0.2/216/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/216/sphinx-doc_sphinx/sphinx/extension.py
+@@ -40,23 +40,7 @@
+         self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
+ 
+
+ 
+
+-def verify_needs_extensions(app: "Sphinx", config: Config) -> None:
+
+-    """Verify the required Sphinx extensions are loaded."""
+
+-    if config.needs_extensions is None:
+
+-        return
+
+-
+
+-    for extname, reqversion in config.needs_extensions.items():
+
+-        extension = app.extensions.get(extname)
+
+-        if extension is None:
+
+-            logger.warning(__('The %s extension is required by needs_extensions settings, '
+
+-                              'but it is not loaded.'), extname)
+
+-            continue
+
+-
+
+-        if extension.version == 'unknown version' or reqversion > extension.version:
+
+-            raise VersionRequirementError(__('This project needs the extension %s at least in '
+
+-                                             'version %s and therefore cannot be built with '
+
+-                                             'the loaded version (%s).') %
+
+-                                          (extname, reqversion, extension.version))
+
++numfig = True
+
+ 
+
+ 
+
+ def setup(app: "Sphinx") -> Dict[str, Any]:
+
+
+--- a/decoupled/60/0.8_0.2/216/sphinx-doc_sphinx/sphinx/pycode/__init__.py
++++ b/decoupled/60/0.8_0.2/216/sphinx-doc_sphinx/sphinx/pycode/__init__.py
+@@ -29,52 +29,52 @@
+     cache = {}  # type: Dict[Tuple[str, str], Any]
+
+ 
+
+     @staticmethod
+
+-    def get_module_source(modname: str) -> Tuple[Optional[str], Optional[str]]:
+
+-        """Try to find the source code for a module.
+
+-
+
+-        Returns ('filename', 'source'). One of it can be None if
+
+-        no filename or source found
+
+-        """
+
+-        try:
+
+-            mod = import_module(modname)
+
+-        except Exception as err:
+
+-            raise PycodeError('error importing %r' % modname, err) from err
+
+-        loader = getattr(mod, '__loader__', None)
+
+-        filename = getattr(mod, '__file__', None)
+
+-        if loader and getattr(loader, 'get_source', None):
+
+-            # prefer Native loader, as it respects #coding directive
+
+-            try:
+
+-                source = loader.get_source(modname)
+
+-                if source:
+
+-                    # no exception and not None - it must be module source
+
+-                    return filename, source
+
+-            except ImportError:
+
+-                pass  # Try other "source-mining" methods
+
+-        if filename is None and loader and getattr(loader, 'get_filename', None):
+
+-            # have loader, but no filename
+
+-            try:
+
+-                filename = loader.get_filename(modname)
+
+-            except ImportError as err:
+
+-                raise PycodeError('error getting filename for %r' % modname, err) from err
+
+-        if filename is None:
+
+-            # all methods for getting filename failed, so raise...
+
+-            raise PycodeError('no source found for module %r' % modname)
+
+-        filename = path.normpath(path.abspath(filename))
+
+-        if filename.lower().endswith(('.pyo', '.pyc')):
+
+-            filename = filename[:-1]
+
+-            if not path.isfile(filename) and path.isfile(filename + 'w'):
+
+-                filename += 'w'
+
+-        elif not filename.lower().endswith(('.py', '.pyw')):
+
+-            raise PycodeError('source is not a .py file: %r' % filename)
+
+-        elif ('.egg' + path.sep) in filename:
+
+-            pat = '(?<=\\.egg)' + re.escape(path.sep)
+
+-            eggpath, _ = re.split(pat, filename, 1)
+
+-            if path.isfile(eggpath):
+
+-                return filename, None
+
+-
+
+-        if not path.isfile(filename):
+
+-            raise PycodeError('source file is not present: %r' % filename)
+
+-        return filename, None
+
++def get_module_source(modname: str) -> Tuple[Optional[str], Optional[str]]:
+
++    """Try to find the source code for a module.
+
++
+
++    Returns ('filename', 'source'). One of it can be None if
+
++    no filename or source found
+
++    """
+
++    try:
+
++        mod = import_module(modname)
+
++    except Exception as err:
+
++        raise PycodeError('error importing %r' % modname, err) from err
+
++    loader = getattr(mod, '__loader__', None)
+
++    filename = getattr(mod, '__file__', None)
+
++    if loader and getattr(loader, 'get_source', None):
+
++        # prefer Native loader, as it respects #coding directive
+
++        try:
+
++            source = loader.get_source(modname)
+
++            if source:
+
++                # no exception and not None - it must be module source
+
++                return filename, source
+
++        except ImportError:
+
++            pass  # Try other "source-mining" methods
+
++    if filename is None and loader and getattr(loader, 'get_filename', None):
+
++        # have loader, but no filename
+
++        try:
+
++            filename = loader.get_filename(modname)
+
++        except ImportError as err:
+
++            raise PycodeError('error getting filename for %r' % modname, err) from err
+
++    if filename is None:
+
++        # all methods for getting filename failed, so raise...
+
++        raise PycodeError('no source found for module %r' % modname)
+
++    filename = path.normpath(path.abspath(filename))
+
++    if filename.lower().endswith(('.pyo', '.pyc')):
+
++        filename = filename[:-1]
+
++        if not path.isfile(filename) and path.isfile(filename + 'w'):
+
++            filename += 'w'
+
++    elif not filename.lower().endswith(('.py', '.pyw')):
+
++        raise PycodeError('source is not a .py file: %r' % filename)
+
++    elif ('.egg' + path.sep) in filename:
+
++        pat = '(?<=\\.egg)' + re.escape(path.sep)
+
++        eggpath, _ = re.split(pat, filename, 1)
+
++        if path.isfile(eggpath):
+
++            return filename, None
+
++
+
++    if not path.isfile(filename):
+
++        raise PycodeError('source file is not present: %r' % filename)
+
++    return filename, None
+
+ 
+
+     @classmethod
+
+     def for_string(cls, string: str, modname: str, srcname: str = '<string>'
+
+
+--- a/decoupled/60/0.8_0.2/216/sphinx-doc_sphinx/sphinx/util/typing.py
++++ b/decoupled/60/0.8_0.2/216/sphinx-doc_sphinx/sphinx/util/typing.py
+@@ -58,10 +58,10 @@
+ 
+
+ 
+
+ def get_type_hints(obj: Any, globalns: Dict = None, localns: Dict = None) -> Dict[str, Any]:
+
+-    """Return a dictionary containing type hints for a function, method, module or class object.
+
+-
+
+-    This is a simple wrapper of `typing.get_type_hints()` that does not raise an error on
+
+-    runtime.
+
++    """Return a dictionary containing type hints for a function, method, module, or class object.
+
++
+
++    This is a simple wrapper of `typing.get_type_hints()` that handles various exceptions that may occur
+
++    during the evaluation of type hints, such as `NameError`, `TypeError`, `KeyError`, and `AttributeError`.
+
+     """
+
+     from sphinx.util.inspect import safe_getattr  # lazy loading
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/216/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/216/sphinx-doc_sphinx/sphinx/extension.py
+@@ -23,21 +23,8 @@
+ 
+
+ 
+
+ class Extension:
+
+-    def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
+-        self.name = name
+
+-        self.module = module
+
+-        self.metadata = kwargs
+
+-        self.version = kwargs.pop('version', 'unknown version')
+
+-
+
+-        # The extension supports parallel read or not.  The default value
+
+-        # is ``None``.  It means the extension does not tell the status.
+
+-        # It will be warned on parallel reading.
+
+-        self.parallel_read_safe = kwargs.pop('parallel_read_safe', None)
+
+-
+
+-        # The extension supports parallel write or not.  The default value
+
+-        # is ``True``.  Sphinx writes parallelly documents even if
+
+-        # the extension does not tell its status.
+
+-        self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
++def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
++    # ... (unchanged code)
+
+ 
+
+ 
+
+ def verify_needs_extensions(app: "Sphinx", config: Config) -> None:
+
+
+
+

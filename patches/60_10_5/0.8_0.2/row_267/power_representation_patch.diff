@@ -1,0 +1,81 @@
+--- a/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/solvers/diophantine.py
++++ b/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/solvers/diophantine.py
+@@ -3150,15 +3150,12 @@
+     Examples
+
+     ========
+
+ 
+
++    Represent 1729 as a sum of two cubes:
+
++
+
+     >>> from sympy.solvers.diophantine import power_representation
+
+ 
+
+-    Represent 1729 as a sum of two cubes:
+
+-
+
+-    >>> f = power_representation(1729, 3, 2)
+
+-    >>> next(f)
+
+-    (9, 10)
+
+-    >>> next(f)
+
+-    (1, 12)
+
++    >>> list(power_representation(1729, 3, 2))
+
++    [(9, 10), (1, 12)]
+
+ 
+
+     If the flag `zeros` is True, the solution may contain tuples with
+
+     zeros; any such solutions will be generated after the solutions
+
+@@ -3230,19 +3227,7 @@
+ 
+
+     if k == 2 and p > 2:
+
+         be = perfect_power(n)
+
+-        if be and be[1] % p == 0:
+
+-            return  # Fermat: a**n + b**n = c**n has no solution for n > 2
+
+-
+
+-    if n >= k:
+
+-        a = integer_nthroot(n - (k - 1), p)[0]
+
+-        for t in pow_rep_recursive(a, k, n, [], p):
+
+-            yield tuple(reversed(t))
+
+-
+
+-    if zeros:
+
+-        a = integer_nthroot(n, p)[0]
+
+-        for i in range(1, k):
+
+-            for t in pow_rep_recursive(a, i, n, [], p):
+
+-                yield tuple(reversed(t + (0,) * (k - i)))
+
++        if be and be[1] % p ==
+
+ 
+
+ 
+
+ sum_of_powers = power_representation

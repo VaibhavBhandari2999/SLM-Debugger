@@ -1,0 +1,289 @@
+--- a/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
++++ b/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
+@@ -1376,26 +1376,7 @@
+     cv = check_cv(cv, X, y, classifier=is_classifier(estimator))
+
+     # We clone the estimator to make sure that all the folds are
+
+     # independent, and that it is pickle-able.
+
+-    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+-                        pre_dispatch=pre_dispatch)
+
+-    preds_blocks = parallel(delayed(_fit_and_predict)(clone(estimator), X, y,
+
+-                                                      train, test, verbose,
+
+-                                                      fit_params)
+
+-                            for train, test in cv)
+
+-
+
+-    preds = [p for p, _ in preds_blocks]
+
+-    locs = np.concatenate([loc for _, loc in preds_blocks])
+
+-    if not _check_is_partition(locs, _num_samples(X)):
+
+-        raise ValueError('cross_val_predict only works for partitions')
+
+-    inv_locs = np.empty(len(locs), dtype=int)
+
+-    inv_locs[locs] = np.arange(len(locs))
+
+-
+
+-    # Check for sparse predictions
+
+-    if sp.issparse(preds[0]):
+
+-        preds = sp.vstack(preds, format=preds[0].format)
+
+-    else:
+
+-        preds = np.concatenate(preds)
+
+-    return preds[inv_locs]
+
++    parallel = Parallel(n_jobs=n_jobs
+
+ 
+
+ 
+
+ def _fit_and_predict(estimator, X, y, train, test, verbose, fit_params):
+
+
+--- a/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
++++ b/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
+@@ -2009,35 +2009,6 @@
+             ``scipy.sparse.csr_matrix``. Else, output type is the same as the
+
+             input type.
+
+ 
+
+-    Examples
+
+-    --------
+
+-    >>> import numpy as np
+
+-    >>> from sklearn.cross_validation import train_test_split
+
+-    >>> X, y = np.arange(10).reshape((5, 2)), range(5)
+
+-    >>> X
+
+-    array([[0, 1],
+
+-           [2, 3],
+
+-           [4, 5],
+
+-           [6, 7],
+
+-           [8, 9]])
+
+-    >>> list(y)
+
+-    [0, 1, 2, 3, 4]
+
+-
+
+-    >>> X_train, X_test, y_train, y_test = train_test_split(
+
+-    ...     X, y, test_size=0.33, random_state=42)
+
+-    ...
+
+-    >>> X_train
+
+-    array([[4, 5],
+
+-           [0, 1],
+
+-           [6, 7]])
+
+-    >>> y_train
+
+-    [2, 0, 3]
+
+-    >>> X_test
+
+-    array([[2, 3],
+
+-           [8, 9]])
+
+-    >>> y_test
+
+-    [1, 4]
+
+-
+
+     """
+
+     n_arrays = len(arrays)
+
+     if n_arrays == 0:
+
+@@ -2054,16 +2025,14 @@
+     if test_size is None and train_size is None:
+
+         test_size = 0.25
+
+     arrays = indexable(*arrays)
+
++
+
+     if stratify is not None:
+
+-        cv = StratifiedShuffleSplit(stratify, test_size=test_size,
+
+-                                    train_size=train_size,
+
+-                                    random_state=random_state)
+
+-    else:
+
+-        n_samples = _num_samples(arrays[0])
+
+-        cv = ShuffleSplit(n_samples, test_size=test_size,
+
+-                          train_size=train_size,
+
+-                          random_state=random_state)
+
+-
+
+-    train, test = next(iter(cv))
+
+-    return list(chain.from_iterable((safe_indexing(a, train),
+
+-                                     safe_indexing(a, test)) for a in arrays))
+
++        # Check if the stratify array is empty
+
++        if len(stratify) > 0:
+
++            cv = StratifiedShuffleSplit(stratify, test_size=test_size,
+
++                                        train_size=train_size,
+
++                                        random_state=random_state)
+
++        else:
+
++            cv = ShuffleSplit(len(arrays[0]), test_size=test_size,
+
++                              train_size=train_size,
+
++                              random_state
+
+
+--- a/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/feature_extraction/text.py
++++ b/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/feature_extraction/text.py
+@@ -496,7 +496,7 @@
+         self._get_hasher().fit(X, y=y)
+
+         return self
+
+ 
+
+-    def transform(self, X):
+
++def transform(self, X):
+
+         """Transform a sequence of documents to a document-term matrix.
+
+ 
+
+         Parameters
+
+@@ -515,6 +515,10 @@
+             raise ValueError(
+
+                 "Iterable over raw text documents expected, "
+
+                 "string object received.")
+
++
+
++        # Check if X is an empty list
+
++        if not X:
+
++            return np.array([], dtype=int)
+
+ 
+
+         analyzer = self.build_analyzer()
+
+         X = self._get_hasher().transform(analyzer(doc) for doc in X)
+
+
+--- a/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
++++ b/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
+@@ -1575,11 +1575,7 @@
+     # independent, and that it is pickle-able.
+
+     parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+                         pre_dispatch=pre_dispatch)
+
+-    scores = parallel(delayed(_fit_and_score)(clone(estimator), X, y, scorer,
+
+-                                              train, test, verbose, None,
+
+-                                              fit_params)
+
+-                      for train, test in cv)
+
+-    return np.array(scores)[:, 0]
+
++    scores = parallel(delayed(_fit_and_score)(clone(estimator), X
+
+ 
+
+ 
+
+ def _fit_and_score(estimator, X, y, scorer, train, test, verbose,
+
+
+--- a/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/metrics/pairwise.py
++++ b/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/metrics/pairwise.py
+@@ -693,6 +693,7 @@
+     Returns
+
+     -------
+
+     distances : ndarray (n_samples, )
+
++        Array of distances between the pairs of samples.
+
+ 
+
+     Examples
+
+     --------
+
+@@ -713,6 +714,8 @@
+     elif callable(metric):
+
+         # Check the matrix first (it is usually done by the metric)
+
+         X, Y = check_paired_arrays(X, Y)
+
++        if len(X) == 0 or len(Y) == 0:
+
++            return np.array([], dtype=float)
+
+         distances = np.zeros(len(X))
+
+         for i in range(len(X)):
+
+             distances[i] = metric(X[i], Y[i])
+
+

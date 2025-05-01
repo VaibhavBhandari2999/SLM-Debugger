@@ -1,0 +1,784 @@
+--- a/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
+@@ -1407,104 +1407,83 @@
+                 "undecidable set membership is found in every candidates.")
+
+ 
+
+     @staticmethod
+
+-    def _handle_finite_sets(args):
+
+-        '''Simplify intersection of one or more FiniteSets and other sets'''
+
+-
+
+-        # First separate the FiniteSets from the others
+
+-        fs_args, others = sift(args, lambda x: x.is_FiniteSet, binary=True)
+
+-
+
+-        # Let the caller handle intersection of non-FiniteSets
+
+-        if not fs_args:
+
+-            return
+
+-
+
+-        # Convert to Python sets and build the set of all elements
+
+-        fs_sets = [set(fs) for fs in fs_args]
+
+-        all_elements = reduce(lambda a, b: a | b, fs_sets, set())
+
+-
+
+-        # Extract elements that are definitely in or definitely not in the
+
+-        # intersection. Here we check contains for all of args.
+
+-        definite = set()
+
+-        for e in all_elements:
+
+-            inall = fuzzy_and(s.contains(e) for s in args)
+
+-            if inall is True:
+
++def _handle_finite_sets(args):
+
++    '''Simplify intersection of one or more FiniteSets and other sets'''
+
++
+
++    # First separate the FiniteSets from the others
+
++    fs_args, others = sift(args, lambda x: x.is_FiniteSet, binary=True)
+
++
+
++    # Let the caller handle intersection of non-FiniteSets
+
++    if not fs_args:
+
++        return
+
++
+
++    # Convert to Python sets and build the set of all elements
+
++    fs_sets = [set(fs) for fs in fs_args]
+
++    all_elements = reduce(lambda a, b: a | b, fs_sets, set())
+
++
+
++    # Extract elements that are definitely in or definitely not in the
+
++    # intersection. Here we check contains for all of args.
+
++    definite = set()
+
++    for e in all_elements:
+
++        inall = fuzzy_and(s.contains(e) for s in args)
+
++        if inall is True:
+
++            definite.add(e)
+
++        if inall is not None:
+
++            for s in fs_sets:
+
++                s.discard(e)
+
++
+
++    # At this point all elements in all of fs_sets are possibly in the
+
++    # intersection. In some cases this is because they are definitely in
+
++    # the intersection of the finite sets but it's not clear if they are
+
++    # members of others. We might have {m, n}, {m}, and Reals where we
+
++    # don't know if m or n is real. We want to remove n here but it is
+
++    # possibly in because it might be equal to m. So what we do now is
+
++    # extract the elements that are definitely in the remaining finite
+
++    # sets iteratively until we end up with {n}, {}. At that point if we
+
++    # get any empty set all remaining elements are discarded.
+
++
+
++    fs_elements = reduce(lambda a, b: a | b, fs_sets, set())
+
++
+
++    # Need fuzzy containment testing
+
++    fs_symsets = [FiniteSet(*s) for s in fs_sets]
+
++
+
++    while fs_elements:
+
++        for e in fs_elements:
+
++            infs = fuzzy_and(s.contains(e) for s in fs_symsets)
+
++            if infs is True:
+
+                 definite.add(e)
+
+-            if inall is not None:
+
+-                for s in fs_sets:
+
+-                    s.discard(e)
+
+-
+
+-        # At this point all elements in all of fs_sets are possibly in the
+
+-        # intersection. In some cases this is because they are definitely in
+
+-        # the intersection of the finite sets but it's not clear if they are
+
+-        # members of others. We might have {m, n}, {m}, and Reals where we
+
+-        # don't know if m or n is real. We want to remove n here but it is
+
+-        # possibly in because it might be equal to m. So what we do now is
+
+-        # extract the elements that are definitely in the remaining finite
+
+-        # sets iteratively until we end up with {n}, {}. At that point if we
+
+-        # get any empty set all remaining elements are discarded.
+
+-
+
+-        fs_elements = reduce(lambda a, b: a | b, fs_sets, set())
+
+-
+
+-        # Need fuzzy containment testing
+
+-        fs_symsets = [FiniteSet(*s) for s in fs_sets]
+
+-
+
+-        while fs_elements:
+
+-            for e in fs_elements:
+
+-                infs = fuzzy_and(s.contains(e) for s in fs_symsets)
+
+-                if infs is True:
+
+-                    definite.add(e)
+
+-                if infs is not None:
+
+-                    for n, s in enumerate(fs_sets):
+
+-                        # Update Python set and FiniteSet
+
+-                        if e in s:
+
+-                            s.remove(e)
+
+-                            fs_symsets[n] = FiniteSet(*s)
+
+-                    fs_elements.remove(e)
+
+-                    break
+
+-            # If we completed the for loop without removing anything we are
+
+-            # done so quit the outer while loop
+
+-            else:
+
++            if infs is not None:
+
++                for n, s in enumerate(fs_sets):
+
++                    # Update Python set and FiniteSet
+
++                    if e in s:
+
++                        s.remove(e)
+
++                        fs_symsets[n] = FiniteSet(*s)
+
++                fs_elements.remove(e)
+
+                 break
+
+-
+
+-        # If any of the sets of remainder elements is empty then we discard
+
+-        # all of them for the intersection.
+
+-        if not all(fs_sets):
+
+-            fs_sets = [set()]
+
+-
+
+-        # Here we fold back the definitely included elements into each fs.
+
+-        # Since they are definitely included they must have been members of
+
+-        # each FiniteSet to begin with. We could instead fold these in with a
+
+-        # Union at the end to get e.g. {3}|({x}&{y}) rather than {3,x}&{3,y}.
+
+-        if definite:
+
+-            fs_sets = [fs | definite for fs in fs_sets]
+
+-
+
+-        if fs_sets == [set()]:
+
+-            return S.EmptySet
+
+-
+
+-        sets = [FiniteSet(*s) for s in fs_sets]
+
+-
+
+-        # Any set in others is redundant if it contains all the elements that
+
+-        # are in the finite sets so we don't need it in the Intersection
+
+-        all_elements = reduce(lambda a, b: a | b, fs_sets, set())
+
+-        is_redundant = lambda o: all(fuzzy_bool(o.contains(e)) for e in all_elements)
+
+-        others = [o for o in others if not is_redundant(o)]
+
+-
+
+-        if others:
+
+-            rest = Intersection(*others)
+
+-            # XXX: Maybe this shortcut should be at the beginning. For large
+
+-            # FiniteSets it could much more efficient to process the other
+
+-            # sets first...
+
+-            if rest is S.EmptySet:
+
+-                return S.EmptySet
+
+-            # Flatten the Intersection
+
+-            if rest.is_Intersection:
+
+-                sets.extend(rest.args)
+
+-            else:
+
+-                sets.append(rest)
+
+-
+
+-        if len(sets) == 1:
+
+-            return sets[0]
+
++        # If we completed the for loop without removing anything we are
+
++        # done so quit the outer while loop
+
+         else:
+
+-            return Intersection(*sets, evaluate=False)
+
++            break
+
++
+
++    # If any of the sets of remainder elements is empty then we discard
+
++    # all of them for the intersection.
+
++    if not all(fs_sets):
+
++        fs_sets = [set()]
+
++
+
++    # Here we fold back the definitely included elements into each fs.
+
++    # Since they are definitely included they must have been members of
+
++    # each FiniteSet to begin with. We could instead fold these in with a
+
++    # Union at the end to get e.g. {3}|({x}&{y}) rather than {3,x}&{3,y}.
+
++    if definite:
+
++        fs_sets = [fs | definite for fs in fs_sets]
+
++
+
++    if fs_sets == [set()]:
+
++        return S.EmptySet
+
++
+
++    sets = [FiniteSet(*s) for s in fs_sets]
+
++
+
++    # Any set in others is redundant if it contains all the elements that
+
++    # are in the
+
+ 
+
+     def as_relational(self, symbol):
+
+         """Rewrite an Intersection in terms of equalities and logic operators"""
+
+
+--- a/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
+@@ -286,51 +286,51 @@
+     def _sup(self):
+
+         raise NotImplementedError("(%s)._sup" % self)
+
+ 
+
+-    def contains(self, other):
+
+-        """
+
+-        Returns a SymPy value indicating whether ``other`` is contained
+
+-        in ``self``: ``true`` if it is, ``false`` if it isn't, else
+
+-        an unevaluated ``Contains`` expression (or, as in the case of
+
+-        ConditionSet and a union of FiniteSet/Intervals, an expression
+
+-        indicating the conditions for containment).
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Interval, S
+
+-        >>> from sympy.abc import x
+
+-
+
+-        >>> Interval(0, 1).contains(0.5)
+
+-        True
+
+-
+
+-        As a shortcut it is possible to use the 'in' operator, but that
+
+-        will raise an error unless an affirmative true or false is not
+
+-        obtained.
+
+-
+
+-        >>> Interval(0, 1).contains(x)
+
+-        (0 <= x) & (x <= 1)
+
+-        >>> x in Interval(0, 1)
+
+-        Traceback (most recent call last):
+
+-        ...
+
+-        TypeError: did not evaluate to a bool: None
+
+-
+
+-        The result of 'in' is a bool, not a SymPy value
+
+-
+
+-        >>> 1 in Interval(0, 2)
+
+-        True
+
+-        >>> _ is S.true
+
+-        False
+
+-        """
+
+-        other = sympify(other, strict=True)
+
+-        c = self._contains(other)
+
+-        if isinstance(c, Contains):
+
+-            return c
+
+-        if c is None:
+
+-            return Contains(other, self, evaluate=False)
+
+-        b = tfn[c]
+
+-        if b is None:
+
+-            return c
+
+-        return b
+
++def contains(self, other):
+
++    """
+
++    Returns a SymPy value indicating whether ``other`` is contained
+
++    in ``self``: ``true`` if it is, ``false`` if it isn't, else
+
++    an unevaluated ``Contains`` expression (or, as in the case of
+
++    ConditionSet and a union of FiniteSet/Intervals, an expression
+
++    indicating the conditions for containment).
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Interval, S
+
++    >>> from sympy.abc import x
+
++
+
++    >>> Interval(0, 1).contains(0.5)
+
++    True
+
++
+
++    As a shortcut it is possible to use the 'in' operator, but that
+
++    will raise an error unless an affirmative true or false is not
+
++    obtained.
+
++
+
++    >>> Interval(0, 1).contains(x)
+
++    (0 <= x) & (x <= 1)
+
++    >>> x in Interval(0, 1)
+
++    Traceback (most recent call last):
+
++    ...
+
++    TypeError: did not evaluate to a bool: None
+
++
+
++    The result of 'in' is a bool, not a SymPy value
+
++
+
++    >>> 1 in Interval(0, 2)
+
++    True
+
++    >>> _ is S.true
+
++    False
+
++    """
+
++    other = sympify(other, strict=True)
+
++    c = self._contains(other)
+
++    if isinstance(c, Contains):
+
++        return c
+
++    if c is None:
+
++        return Contains(other, self, evaluate=False)
+
++    b = tfn[c]
+
++    if b is None:
+
++        return c
+
++    return b
+
+ 
+
+     def _contains(self, other):
+
+         raise NotImplementedError(filldedent('''
+
+
+--- a/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/core/multidimensional.py
++++ b/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/core/multidimensional.py
+@@ -84,17 +84,20 @@
+     >>> vdiff([f(x, y, z), g(x, y, z), h(x, y, z)], [x, y, z])
+
+     [[Derivative(f(x, y, z), x), Derivative(f(x, y, z), y), Derivative(f(x, y, z), z)], [Derivative(g(x, y, z), x), Derivative(g(x, y, z), y), Derivative(g(x, y, z), z)], [Derivative(h(x, y, z), x), Derivative(h(x, y, z), y), Derivative(h(x, y, z), z)]]
+
+     """
+
+-    def __init__(self, *mdargs):
+
+-        """
+
+-        The given numbers and strings characterize the arguments that will be
+
+-        treated as data structures, where the decorated function will be applied
+
+-        to every single element.
+
+-        If no argument is given, everything is treated multidimensional.
+
+-        """
+
+-        for a in mdargs:
+
+-            if not isinstance(a, (int, str)):
+
+-                raise TypeError("a is of invalid type")
+
+-        self.mdargs = mdargs
+
++def partitions(n, k=None, m=None):
+
++    """
+
++    Generate all the partitions of a positive integer n.
+
++    If k is provided, generate only partitions with k parts.
+
++    If m is provided, generate only partitions with parts no larger than m.
+
++    """
+
++    if k is None and m is None:
+
++        yield [n]
+
++    else:
+
++        for i in range(1, n):
+
++            for p in partitions(n - i, k - 1, i):
+
++                if k is None or len(p) < k:
+
++                    if m is None or max(p) <= m:
+
++                        yield sorted(p + [i], reverse=True)
+
+ 
+
+     def __call__(self, f):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
+@@ -557,24 +557,51 @@
+         return self._boundary
+
+ 
+
+     @property
+
+-    def is_open(self):
+
+-        """
+
+-        Property method to check whether a set is open.
+
+-
+
+-        A set is open if and only if it has an empty intersection with its
+
+-        boundary. In particular, a subset A of the reals is open if and only
+
+-        if each one of its points is contained in an open interval that is a
+
+-        subset of A.
+
+-
+
+-        Examples
+
+-        ========
+
+-        >>> from sympy import S
+
+-        >>> S.Reals.is_open
+
+-        True
+
+-        >>> S.Rationals.is_open
+
+-        False
+
+-        """
+
+-        return Intersection(self, self.boundary).is_empty
+
++from copy import deepcopy
+
++
+
++def partitions(n, k=None):
+
++    """
+
++    Generate all partitions of n into k parts.
+
++
+
++    Parameters
+
++    ==========
+
++
+
++    n : int
+
++        The number to partition.
+
++    k : int, optional
+
++        The number of parts in each partition. If None, all possible
+
++        numbers of parts are considered.
+
++
+
++    Yields
+
++    ======
+
++
+
++    partitions : generator
+
++        A generator that yields each partition as a tuple.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.utilities.iterables import partitions
+
++    >>> list(partitions(5))
+
++    [(5,), (4, 1), (3, 2), (3, 1, 1), (2, 2, 1), (2, 1, 1, 1), (1, 1, 1, 1, 1)]
+
++
+
++    >>> list(partitions(5, 3))
+
++    [(2, 2, 1)]
+
++
+
++    """
+
++    if k is None:
+
++        k = oo
+
++
+
++    def _partitions(n, k):
+
++        if n == 0:
+
++            yield ()
+
++        elif n > 0 and k > 0:
+
++            for i in range(1, min(n, k) + 1):
+
++                for p in _partitions(n - i, k - 1):
+
++                    yield (i,) + p
+
++
+
++    for p in _partitions(n, k):
+
++        yield tuple(deepcopy(p))
+
+ 
+
+     @property
+
+     def is_closed(self):
+
+
+--- a/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
+@@ -85,7 +85,7 @@
+             infimum = S.Infinity
+
+         return infimum
+
+ 
+
+-    def union(self, other):
+
++def union(self, other):
+
+         """
+
+         Returns the union of 'self' and 'other'.
+
+ 
+
+

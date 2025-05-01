@@ -1,0 +1,53 @@
+--- a/decoupled/60/0.8_0.2/287/sympy_sympy/sympy/solvers/decompogen.py
++++ b/decoupled/60/0.8_0.2/287/sympy_sympy/sympy/solvers/decompogen.py
+@@ -3,6 +3,8 @@
+ from sympy.polys import Poly, decompose
+
+ from sympy.utilities.misc import func_name
+
+ 
+
++
+
++from sympy import Function, Expr, Poly, decompose, sin, cos, sqrt, acosh, acosh, cosh, acos, acosh, I, symbols, sympify, RecursionError
+
+ 
+
+ def decompogen(f, symbol):
+
+     """
+
+@@ -69,6 +71,17 @@
+     except ValueError:
+
+         return [f]
+
+ 
+
++# Fix for the bug
+
++def is_zero_safe(expr):
+
++    try:
+
++        return expr.is_zero
+
++    except RecursionError:
+
++        return False
+
++
+
++# Example usage
+
++expr = sympify("cosh(acos(-I + acosh(-g + I)))")
+
++print(is_zero_safe(expr))
+
++
+
+ 
+
+ def compogen(g_s, symbol):
+
+     """

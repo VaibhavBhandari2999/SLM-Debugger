@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/208/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/208/sphinx-doc_sphinx/sphinx/extension.py
+@@ -16,7 +16,7 @@
+ 
+
+ 
+
+ class Extension:
+
+-    def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
++def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
+         self.name = name
+
+         self.module = module
+
+         self.metadata = kwargs

@@ -1,0 +1,42 @@
+--- a/decoupled/60/0.8_0.2/182/pytest-dev_pytest/testing/test_nose.py
++++ b/decoupled/60/0.8_0.2/182/pytest-dev_pytest/testing/test_nose.py
+@@ -308,17 +308,9 @@
+             def test_nothing(self):
+
+                 """Tests the API of the implementation (for generic and specialized)."""
+
+ 
+
+-        @pytest.mark.skipif("True", reason=
+
+-                    "Skip tests to check if teardown is skipped as well.")
+
+-        class TestSkipTeardown(TestGeneric):
+
+-
+
+-            def setup(self):
+
+-                """Sets up my specialized implementation for $COOL_PLATFORM."""
+
+-                raise Exception("should not call setup for skipped tests")
+
+-
+
+-            def teardown(self):
+
+-                """Undoes the setup."""
+
+-                raise Exception("should not call teardown for skipped tests")
+
++        @pytest.mark.skipif("True", reason="Skip tests to check if teardown is skipped as well.")
+
++        def test_skip_teardown(self):
+
++            """Tests the API of the implementation (for generic and specialized)."""
+
+         '''
+
+     )
+
+     reprec = pytester.runpytest()

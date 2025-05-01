@@ -1,0 +1,112 @@
+--- a/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
+@@ -1115,7 +1115,7 @@
+     return dup_pdiv(f, g, K)[0]
+
+ 
+
+ 
+
+-def dup_pexquo(f, g, K):
+
++def dup_pexquo(f, g, K, evaluate=False):
+
+     """
+
+     Polynomial pseudo-quotient in ``K[x]``.
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
+@@ -1597,6 +1597,10 @@
+     ExactQuotientFailed: [2, -4] does not divide [1, 0, 1]
+
+ 
+
+     """
+
++    # Evaluate the inputs to ensure they are concrete values
+
++    f = f.evalf()
+
++    g = g.evalf()
+
++
+
+     q, r = dup_div(f, g, K)
+
+ 
+
+     if not r:
+
+
+--- a/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/core/assumptions.py
++++ b/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/core/assumptions.py
+@@ -321,7 +321,7 @@
+         return {}
+
+ 
+
+     # get all assumptions for each
+
+-    assume = [assumptions(i, _check=check) for i in sympify(exprs)]
+
++    assume = [assumptions(i, _check=check) for i in exprs]
+
+     # focus on those of interest that are True
+
+     for i, e in enumerate(assume):
+
+         assume[i] = {k: e[k] for k in set(e) & check}
+
+
+--- a/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/core/assumptions.py
++++ b/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/core/assumptions.py
+@@ -423,7 +423,7 @@
+     failing_assumptions
+
+ 
+
+     """
+
+-    expr = sympify(expr)
+
++    expr = sympify(expr, evaluate=False)  # Disable evaluation during sympification
+
+     if against is not None:
+
+         if assume:
+
+             raise ValueError(
+
+
+--- a/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
+@@ -1694,7 +1694,11 @@
+     ExactQuotientFailed: [[2], [2]] does not divide [[1], [1, 0], []]
+
+ 
+
+     """
+
+-    q, r = dmp_div(f, g, u, K)
+
++    from sympy import Point2D
+
++
+
++    with sp.evaluate(False):
+
++        # Temporarily exit the evaluate context for Point2D construction
+
++        q, r = dmp_div(f, g, u, K)
+
+ 
+
+     if dmp_zero_p(r, u):
+
+         return q
+
+

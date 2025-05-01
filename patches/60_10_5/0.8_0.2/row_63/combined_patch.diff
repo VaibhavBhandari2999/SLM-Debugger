@@ -1,0 +1,343 @@
+--- a/decoupled/60/0.8_0.2/63/django_django/django/template/smartif.py
++++ b/decoupled/60/0.8_0.2/63/django_django/django/template/smartif.py
+@@ -53,13 +53,15 @@
+             self.second = parser.expression(bp)
+
+             return self
+
+ 
+
+-        def eval(self, context):
+
++def eval(self, context):
+
+             try:
+
+                 return func(context, self.first, self.second)
+
+-            except Exception:
+
++            except Exception as e:
+
+                 # Templates shouldn't throw exceptions when rendering.  We are
+
+                 # most likely to get exceptions for things like {% if foo in bar
+
+                 # %} where 'bar' does not support 'in', so default to False
+
++                from django.utils.log import logger
+
++                logger.exception("Exception occurred in template tag evaluation: %s", e)
+
+                 return False
+
+ 
+
+     return Operator
+
+
+
+
+--- a/decoupled/60/0.8_0.2/63/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/63/django_django/django/template/base.py
+@@ -743,51 +743,51 @@
+     (The example assumes VARIABLE_ATTRIBUTE_SEPARATOR is '.')
+
+     """
+
+ 
+
+-    def __init__(self, var):
+
+-        self.var = var
+
+-        self.literal = None
+
+-        self.lookups = None
+
+-        self.translate = False
+
+-        self.message_context = None
+
+-
+
+-        if not isinstance(var, str):
+
+-            raise TypeError(
+
+-                "Variable must be a string or number, got %s" % type(var))
+
++def __init__(self, var):
+
++    self.var = var
+
++    self.literal = None
+
++    self.lookups = None
+
++    self.translate = False
+
++    self.message_context = None
+
++
+
++    if not isinstance(var, str):
+
++        raise TypeError(
+
++            "Variable must be a string or number, got %s" % type(var))
+
++    try:
+
++        # First try to treat this variable as a number.
+
++        #
+
++        # Note that this could cause an OverflowError here that we're not
+
++        # catching. Since this should only happen at compile time, that's
+
++        # probably OK.
+
++
+
++        # Try to interpret values containing a period or an 'e'/'E'
+
++        # (possibly scientific notation) as a float;  otherwise, try int.
+
++        if '.' in var or 'e' in var.lower():
+
++            self.literal = float(var)
+
++            # "2." is invalid
+
++            if var.endswith('.'):
+
++                raise ValueError
+
++        else:
+
++            self.literal = int(var)
+
++    except ValueError:
+
++        # A ValueError means that the variable isn't a number.
+
++        if var.startswith('_(') and var.endswith(')'):
+
++            # The result of the lookup should be translated at rendering
+
++            # time.
+
++            self.translate = True
+
++            var = var[2:-1]
+
++        # If it's wrapped with quotes (single or double), then
+
++        # we're also dealing with a literal.
+
+         try:
+
+-            # First try to treat this variable as a number.
+
+-            #
+
+-            # Note that this could cause an OverflowError here that we're not
+
+-            # catching. Since this should only happen at compile time, that's
+
+-            # probably OK.
+
+-
+
+-            # Try to interpret values containing a period or an 'e'/'E'
+
+-            # (possibly scientific notation) as a float;  otherwise, try int.
+
+-            if '.' in var or 'e' in var.lower():
+
+-                self.literal = float(var)
+
+-                # "2." is invalid
+
+-                if var.endswith('.'):
+
+-                    raise ValueError
+
+-            else:
+
+-                self.literal = int(var)
+
++            self.literal = mark_safe(unescape_string_literal(var))
+
+         except ValueError:
+
+-            # A ValueError means that the variable isn't a number.
+
+-            if var.startswith('_(') and var.endswith(')'):
+
+-                # The result of the lookup should be translated at rendering
+
+-                # time.
+
+-                self.translate = True
+
+-                var = var[2:-1]
+
+-            # If it's wrapped with quotes (single or double), then
+
+-            # we're also dealing with a literal.
+
+-            try:
+
+-                self.literal = mark_safe(unescape_string_literal(var))
+
+-            except ValueError:
+
+-                # Otherwise we'll set self.lookups so that resolve() knows we're
+
+-                # dealing with a bonafide variable
+
+-                if var.find(VARIABLE_ATTRIBUTE_SEPARATOR + '_') > -1 or var[0] == '_':
+
+-                    raise TemplateSyntaxError("Variables and attributes may "
+
+-                                              "not begin with underscores: '%s'" %
+
+-                                              var)
+
+-                self.lookups = tuple(var.split(VARIABLE_ATTRIBUTE_SEPARATOR))
+
++            # Otherwise we set self.lookups so that resolve() knows we're
+
++            # dealing with a bonafide variable
+
++            if var.find(VARIABLE_ATTRIBUTE_SEPARATOR + '_') > -1 or var[0] == '_':
+
++                raise TemplateSyntaxError("Variables and attributes may "
+
++                                          "not begin with underscores: '%s'" %
+
++                                          var)
+
++            self.lookups = tuple(var.split(VARIABLE_ATTRIBUTE_SEPARATOR))
+
+ 
+
+     def resolve(self, context):
+
+         """Resolve this variable against a given context."""
+
+
+--- a/decoupled/60/0.8_0.2/63/django_django/django/template/smartif.py
++++ b/decoupled/60/0.8_0.2/63/django_django/django/template/smartif.py
+@@ -40,6 +40,8 @@
+         return "(" + " ".join(out) + ")"
+
+ 
+
+ 
+
++import logging
+
++
+
+ def infix(bp, func):
+
+     """
+
+     Create an infix operator, given a binding power and a function that
+
+@@ -56,10 +58,11 @@
+         def eval(self, context):
+
+             try:
+
+                 return func(context, self.first, self.second)
+
+-            except Exception:
+
++            except Exception as e:
+
+                 # Templates shouldn't throw exceptions when rendering.  We are
+
+                 # most likely to get exceptions for things like {% if foo in bar
+
+                 # %} where 'bar' does not support 'in', so default to False
+
++                logging.exception("Exception occurred during evaluation of template expression")
+
+                 return False
+
+ 
+
+     return Operator
+
+
+--- a/decoupled/60/0.8_0.2/63/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/63/django_django/django/template/base.py
+@@ -504,18 +504,19 @@
+         node.origin = self.origin
+
+         nodelist.append(node)
+
+ 
+
+-    def error(self, token, e):
+
+-        """
+
+-        Return an exception annotated with the originating token. Since the
+
+-        parser can be called recursively, check if a token is already set. This
+
+-        ensures the innermost token is highlighted if an exception occurs,
+
+-        e.g. a compile error within the body of an if statement.
+
+-        """
+
+-        if not isinstance(e, Exception):
+
+-            e = TemplateSyntaxError(e)
+
+-        if not hasattr(e, 'token'):
+
+-            e.token = token
+
+-        return e
+
++import logging
+
++
+
++logger = logging.getLogger(__name__)
+
++
+
++def send_robust(signal, sender, **kwargs):
+
++    """
+
++    Send a signal and handle exceptions robustly.
+
++    """
+
++    for receiver in signal.receivers:
+
++        try:
+
++            receiver(signal=signal, sender=sender, **kwargs)
+
++        except Exception as e:
+
++            logger.exception(f"Exception occurred in signal receiver: {e}")
+
+ 
+
+     def invalid_block_tag(self, token, command, parse_until=None):
+
+         if parse_until:
+
+

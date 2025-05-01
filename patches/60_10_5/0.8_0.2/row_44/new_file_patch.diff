@@ -1,0 +1,42 @@
+--- a/decoupled/60/0.8_0.2/44/django_django/django/core/files/uploadhandler.py
++++ b/decoupled/60/0.8_0.2/44/django_django/django/core/files/uploadhandler.py
+@@ -132,12 +132,14 @@
+     """
+
+     Upload handler that streams data into a temporary file.
+
+     """
+
+-    def new_file(self, *args, **kwargs):
+
+-        """
+
+-        Create the file object to append to as data is coming in.
+
+-        """
+
+-        super().new_file(*args, **kwargs)
+
+-        self.file = TemporaryUploadedFile(self.file_name, self.content_type, 0, self.charset, self.content_type_extra)
+
++class ASGIStaticFilesHandler(StaticFilesHandlerMixin, ASGIHandler):
+
++    async def get_response_async(self, request):
+
++        """
+
++        Return an asynchronous response based on the request.
+
++        """
+
++        # Call the superclass method to handle the request
+
++        response = await super().get_response_async(request)
+
++        return response
+
+ 
+
+     def receive_data_chunk(self, raw_data, start):
+
+         self.file.write(raw_data)

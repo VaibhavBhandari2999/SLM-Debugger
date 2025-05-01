@@ -1,0 +1,57 @@
+--- a/decoupled/60/0.8_0.2/277/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/277/sympy_sympy/sympy/core/numbers.py
+@@ -146,6 +146,9 @@
+         return diff <= tol
+
+ 
+
+ 
+
++from mpmath.libmp.backend import MPZ
+
++from sympy import zoo
+
++
+
+ def mpf_norm(mpf, prec):
+
+     """Return the mpf tuple normalized appropriately for the indicated
+
+     precision after doing a check to see if zero should be returned or
+
+@@ -164,14 +167,16 @@
+         # it assumes that if man is zero the result is 0
+
+         # (see issue 6639)
+
+         if not bc:
+
+-            return fzero
+
++            if expt == -float('inf'):
+
++                return zoo
+
++            else:
+
++                return fzero
+
+         else:
+
+             # don't change anything; this should already
+
+             # be a well formed mpf tuple
+
+             return mpf
+
+ 
+
+     # Necessary if mpmath is using the gmpy backend
+
+-    from mpmath.libmp.backend import MPZ
+
+     rv = mpf_normalize(sign, MPZ(man), expt, bc, prec, rnd)
+
+     return rv
+
+ 

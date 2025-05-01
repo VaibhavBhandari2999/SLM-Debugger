@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/66/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/66/django_django/django/db/models/deletion.py
+@@ -96,7 +96,7 @@
+         # parent.
+
+         self.dependencies = defaultdict(set)  # {model: {models}}
+
+ 
+
+-    def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
++def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+         """
+
+         Add 'objs' to the collection of objects to be deleted.  If the call is
+
+         the result of a cascade, 'source' should be the model that caused it,
+
+@@ -111,7 +111,12 @@
+         instances = self.data[model]
+
+         for obj in objs:
+
+             if obj not in instances:
+
+-                new_objs.append(obj)
+
++                # Check if the relationship is set and the related object has a primary key
+
++                if hasattr(obj, 'product') and obj.product and obj.product.pk:
+
++                    new_objs.append(obj)
+
++                else:
+
++                    # If the relationship is not set or the related object does not have a primary key, skip adding it
+
++                    continue
+
+         instances.update(new_objs)
+
+         # Nullable relationships can be ignored -- they are nulled out before
+
+         # deleting, and therefore do not affect the order in which objects have

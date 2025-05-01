@@ -1,0 +1,48 @@
+--- a/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
+@@ -34,6 +34,23 @@
+         decorators = decorators[::-1]
+
+     else:
+
+         decorators = [decorators]
+
++
+
++from functools import partial, wraps
+
++from types import MethodType
+
++
+
++class SimpleLazyObject:
+
++    def __init__(self, func):
+
++        self._setup = func
+
++        self._wrapped = None
+
++
+
++    def _setup(self):
+
++        if self._wrapped is None:
+
++            self._wrapped = self._setup()
+
++
+
++    def __radd__(self, other):
+
++        if self._wrapped is None:
+
++            self._setup()
+
++        return other + self._wrapped
+
+ 
+
+     def _wrapper(self, *args, **kwargs):
+
+         # bound_method has the signature that 'decorator' expects i.e. no

@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
++++ b/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
+@@ -104,6 +104,10 @@
+     """
+
+     is_KroneckerProduct = True
+
+ 
+
++from sympy import Indexed, IndexedBase, MatrixBase, prod, Identity, KroneckerProduct, sympify
+
++
+
++class KroneckerProduct:
+
++    @staticmethod
+
+     def __new__(cls, *args, **kwargs):
+
+         args = list(map(sympify, args))
+
+         if all(a.is_Identity for a in args):
+
+@@ -117,6 +121,16 @@
+         if check:
+
+             validate(*args)
+
+         return super(KroneckerProduct, cls).__new__(cls, *args)
+
++
+
++# Add a printer method for Indexed
+
++class MathMLPrinter(sympy.printing.mathml.MathMLPrinter):
+
++    def _print_Indexed(self, expr):
+
++        base = self._print(expr.base)
+
++        indices = ' '.join(self._print(i) for i in expr.indices)
+
++        return f'<apply><csymbol cd="set1">set</csymbol><ci>{base}</ci><ci>{indices}</ci></apply>'
+
++
+
++# Replace the original MathMLPrinter with the new one
+
++sympy.printing.mathml.MathMLPrinter = MathMLPrinter
+
+ 
+
+     @property
+
+     def shape(self):

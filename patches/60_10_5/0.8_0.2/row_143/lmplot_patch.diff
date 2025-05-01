@@ -1,0 +1,77 @@
+--- a/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/regression.py
+@@ -599,6 +599,10 @@
+     cols = np.unique([a for a in need_cols if a is not None]).tolist()
+
+     data = data[cols]
+
+ 
+
++    # Ensure hue_order is complete
+
++    if hue is not None and hue_order is None:
+
++        hue_order = data[hue].unique()
+
++
+
+     # Initialize the grid
+
+     facets = FacetGrid(
+
+         data, row=row, col=col, hue=hue,
+
+@@ -624,26 +628,7 @@
+     def update_datalim(data, x, y, ax, **kws):
+
+         xys = data[[x, y]].to_numpy().astype(float)
+
+         ax.update_datalim(xys, updatey=False)
+
+-        ax.autoscale_view(scaley=False)
+
+-
+
+-    facets.map_dataframe(update_datalim, x=x, y=y)
+
+-
+
+-    # Draw the regression plot on each facet
+
+-    regplot_kws = dict(
+
+-        x_estimator=x_estimator, x_bins=x_bins, x_ci=x_ci,
+
+-        scatter=scatter, fit_reg=fit_reg, ci=ci, n_boot=n_boot, units=units,
+
+-        seed=seed, order=order, logistic=logistic, lowess=lowess,
+
+-        robust=robust, logx=logx, x_partial=x_partial, y_partial=y_partial,
+
+-        truncate=truncate, x_jitter=x_jitter, y_jitter=y_jitter,
+
+-        scatter_kws=scatter_kws, line_kws=line_kws,
+
+-    )
+
+-    facets.map_dataframe(regplot, x=x, y=y, **regplot_kws)
+
+-    facets.set_axis_labels(x, y)
+
+-
+
+-    # Add a legend
+
+-    if legend and (hue is not None) and (hue not in [col, row]):
+
+-        facets.add_legend()
+
+-    return facets
+
++        ax.autos
+
+ 
+
+ 
+
+ lmplot.__doc__ = dedent("""\

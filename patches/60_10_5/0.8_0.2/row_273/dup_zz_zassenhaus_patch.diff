@@ -1,0 +1,28 @@
+--- a/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
+@@ -271,11 +271,8 @@
+ 
+
+     fc = f[-1]
+
+     A = dup_max_norm(f, K)
+
+-    b = dup_LC(f, K)
+
+-    B = int(abs(K.sqrt(K(n + 1))*2**n*A*b))
+
+-    C = int((n + 1)**(2*n)*A**(2*n - 1))
+
+-    gamma = int(_ceil(2*_log(C, 2)))
+
+-    bound = int(2*gamma*_log(gamma))
+
++    # Using Knuth-Cohen bound instead of Mignotte bound
+
++    bound = int(K**(2*n)*A**(2*n - 1))
+
+     a = []
+
+     # choose a prime number `p` such that `f` be square free in Z_p
+
+     # if there are many factors in Z_p, choose among a few different `p`

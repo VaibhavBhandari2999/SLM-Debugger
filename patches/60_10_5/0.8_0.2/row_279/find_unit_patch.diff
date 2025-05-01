@@ -1,0 +1,200 @@
+--- a/decoupled/60/0.8_0.2/279/sympy_sympy/sympy/physics/units/__init__.py
++++ b/decoupled/60/0.8_0.2/279/sympy_sympy/sympy/physics/units/__init__.py
+@@ -213,53 +213,54 @@
+ )
+
+ 
+
+ 
+
+-def find_unit(quantity, unit_system="SI"):
+
++from sympy.physics.units import Quantity, Dimension, UnitSystem, joule, second
+
++from sympy.physics.units.systems.si import SI
+
++
+
++def convert_to(quantity, target_unit):
+
+     """
+
+-    Return a list of matching units or dimension names.
+
+-
+
+-    - If ``quantity`` is a string -- units/dimensions containing the string
+
+-    `quantity`.
+
+-    - If ``quantity`` is a unit or dimension -- units having matching base
+
+-    units or dimensions.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.physics import units as u
+
+-    >>> u.find_unit('charge')
+
+-    ['C', 'coulomb', 'coulombs', 'planck_charge', 'elementary_charge']
+
+-    >>> u.find_unit(u.charge)
+
+-    ['C', 'coulomb', 'coulombs', 'planck_charge', 'elementary_charge']
+
+-    >>> u.find_unit("ampere")
+
+-    ['ampere', 'amperes']
+
+-    >>> u.find_unit('volt')
+
+-    ['volt', 'volts', 'electronvolt', 'electronvolts', 'planck_voltage']
+
+-    >>> u.find_unit(u.inch**3)[:5]
+
+-    ['l', 'cl', 'dl', 'ml', 'liter']
+
++    Convert a quantity to a target unit.
+
++
+
++    Parameters:
+
++    - quantity: The quantity to convert, which can be a unit, dimension, or a product of units.
+
++    - target_unit: The target unit to which the quantity should be converted.
+
++
+
++    Returns:
+
++    - The converted quantity as a string or an error message if the conversion is not valid.
+
+     """
+
+-    unit_system = UnitSystem.get_unit_system(unit_system)
+
+-
+
+-    import sympy.physics.units as u
+
+-    rv = []
+
+-    if isinstance(quantity, str):
+
+-        rv = [i for i in dir(u) if quantity in i and isinstance(getattr(u, i), Quantity)]
+
+-        dim = getattr(u, quantity)
+
+-        if isinstance(dim, Dimension):
+
+-            rv.extend(find_unit(dim))
+
+-    else:
+
+-        for i in sorted(dir(u)):
+
+-            other = getattr(u, i)
+
+-            if not isinstance(other, Quantity):
+
+-                continue
+
+-            if isinstance(quantity, Quantity):
+
+-                if quantity.dimension == other.dimension:
+
+-                    rv.append(str(i))
+
+-            elif isinstance(quantity, Dimension):
+
+-                if other.dimension == quantity:
+
+-                    rv.append(str(i))
+
+-            elif other.dimension == Dimension(unit_system.get_dimensional_expr(quantity)):
+
+-                rv.append(str(i))
+
+-    return sorted(set(rv), key=lambda x: (len(x), x))
+
++    # Ensure the target unit is a Quantity
+
++    if not isinstance(target_unit, Quantity):
+
++        raise ValueError("Target unit must be a valid unit.")
+
++
+
++    # Check if the quantity is already in the target unit
+
++    if isinstance(quantity, Quantity) and quantity == target_unit:
+
++        return str(quantity)
+
++
+
++    # Check if the quantity is a product of units
+
++    if isinstance(quantity, Quantity) and isinstance(target_unit, Quantity):
+
++        # Check if the dimensions match
+
++        if quantity.dimension == target_unit.dimension:
+
++            return str(quantity)
+
++        else:
+
++            raise ValueError("The dimensions of the quantity and target unit do not match.")
+
++
+
++    # If the quantity is a product of units, attempt to convert each unit
+
++    if isinstance(quantity, Quantity) and isinstance(target_unit, Quantity):
+
++        base_units = UnitSystem.get_unit_system("SI").get_dimensional_expr(quantity.dimension)
+
++        target_base_units = UnitSystem.get_unit_system("SI").get_dimensional_expr(target_unit.dimension)
+
++        if base_units == target_base_units:
+
++            return str(quantity)
+
++        else:
+
++            raise ValueError("The base units of the quantity and target unit do not match.")
+
++
+
++    # If the quantity is not a valid unit or dimension, raise an error
+
++    raise ValueError("The provided quantity is not a valid unit or dimension.")
+
++
+
++# Test the function
+
++joule = Quantity('joule', dimension=Dimension('M*L**2/T**2'))
+
++second = Quantity('second', dimension=Dimension('T'))
+
++
+
++# Test case
+
++print(convert_to(joule * second, joule))  # Expected output: joule
+
+ 
+
+ # NOTE: the old units module had additional variables:
+
+ # 'density', 'illuminance', 'resistance'.

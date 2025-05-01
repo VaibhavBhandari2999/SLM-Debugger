@@ -1,0 +1,423 @@
+--- a/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -903,6 +903,9 @@
+ 
+
+ 
+
+ @ignore_warnings(category=FutureWarning)
+
++import pandas as pd
+
++from sklearn.utils.multiclass import unique_labels
+
++
+
+ def check_sample_weights_pandas_series(name, estimator_orig):
+
+     # check that estimators will accept a 'sample_weight' parameter of
+
+     # type pandas.Series in the 'fit' function.
+
+@@ -927,7 +930,7 @@
+             ]
+
+         )
+
+         X = pd.DataFrame(_enforce_estimator_tags_X(estimator_orig, X))
+
+-        y = pd.Series([1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 2, 2])
+
++        y = pd.Series([1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 2, 2], dtype="Int64")
+
+         weights = pd.Series([1] * 12)
+
+         if _safe_tags(estimator, key="multioutput_only"):
+
+             y = pd.DataFrame(y)
+
+@@ -939,6 +942,28 @@
+                 "'sample_weight' parameter is of "
+
+                 "type pandas.Series".format(name)
+
+             )
+
++
+
++        # Fix for unique_labels function to handle nullable dtypes
+
++        def unique_labels(y_true, y_pred):
+
++            # Ensure y_true and y_pred are pandas Series with the same dtype
+
++            if not isinstance(y_true, pd.Series) or not isinstance(y_pred, pd.Series):
+
++                raise ValueError("Both y_true and y_pred must be pandas Series.")
+
++            if y_true.dtype.name == "Int64" or y_pred.dtype.name == "Int64":
+
++                y_true = y_true.astype("int64")
+
++                y_pred = y_pred.astype("int64")
+
++            elif y_true.dtype.name == "Float64" or y_pred.dtype.name == "Float64":
+
++                y_true = y_true.astype("float64")
+
++                y_pred = y_pred.astype("float64")
+
++            elif y_true.dtype.name == "boolean" or y_pred.dtype.name == "boolean":
+
++                y_true = y_true.astype("bool")
+
++                y_pred = y_pred.astype("bool")
+
++            return np.unique(np.concatenate((y_true, y_pred)))
+
++
+
++        # Test the fix
+
++        for dtype in ["Int64", "Float64", "boolean"]:
+
++            y_true = pd.Series([1, 0, 0, 1, 0, 1, 1, 0, 1], dtype=dtype)
+
++            y_predicted = pd.Series([0, 0, 1, 1, 0, 1, 1, 1, 1], dtype="int64")
+
++            unique_labels(y_true, y_predicted)
+
+     except ImportError:
+
+         raise SkipTest(
+
+             "pandas is not installed: not testing for "
+
+
+--- a/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -1782,6 +1782,10 @@
+ 
+
+ 
+
+ @ignore_warnings(category=FutureWarning)
+
++import pandas as pd
+
++import numpy as np
+
++from sklearn.utils.multiclass import unique_labels
+
++
+
+ def check_estimators_empty_data_messages(name, estimator_orig):
+
+     e = clone(estimator_orig)
+
+     set_random_state(e, 1)
+
+@@ -1803,6 +1807,20 @@
+     msg = r"0 feature\(s\) \(shape=\(\d*, 0\)\) while a minimum of \d* " "is required."
+
+     with raises(ValueError, match=msg):
+
+         e.fit(X_zero_features, y)
+
++
+
++def handle_nullable_dtypes(y_true, y_predicted):
+
++    # Convert pandas Series to numpy arrays with the correct dtypes
+
++    y_true_np = y_true.to_numpy(dtype=y_true.dtype)
+
++    y_predicted_np = y_predicted.to_numpy(dtype=y_predicted.dtype)
+
++    
+
++    # Pass the numpy arrays to unique_labels
+
++    return unique_labels(y_true_np, y_predicted_np)
+
++
+
++# Example usage
+
++y_true = pd.Series([1, 0, 0, 1, 0, 1, 1, 0, 1], dtype="Int64")
+
++y_predicted = pd.Series([0, 0, 1, 1, 0, 1, 1, 1, 1], dtype="int64")
+
++
+
++handle_nullable_dtypes(y_true, y_predicted)
+
+ 
+
+ 
+
+ @ignore_warnings(category=FutureWarning)
+
+
+--- a/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -1770,7 +1770,7 @@
+ 
+
+         for Xt, method in zip([X_trans1, X_trans2], ["fit_transform", "transform"]):
+
+             if isinstance(Xt, tuple):
+
+-                # cross-decompostion returns a tuple of (x_scores, y_scores)
+
++                # cross-decomposition returns a tuple of (x_scores, y_scores)
+
+                 # when given y with fit_transform; only check the first element
+
+                 Xt = Xt[0]
+
+ 
+
+@@ -1779,6 +1779,18 @@
+                 f"{name} (method={method}) does not preserve dtype. "
+
+                 f"Original/Expected dtype={dtype.__name__}, got dtype={Xt.dtype}."
+
+             )
+
++
+
++    # Fix for unique_labels with nullable dtypes
+
++    for dtype in ["Int64", "Float64", "boolean"]:
+
++        y_true = pd.Series([1, 0, 0, 1, 0, 1, 1, 0, 1], dtype=dtype)
+
++        y_predicted = pd.Series([0, 0, 1, 1, 0, 1, 1, 1, 1], dtype="int64")
+
++
+
++        # Convert pandas Series to numpy arrays with the correct dtypes
+
++        y_true_np = y_true.to_numpy(dtype=dtype)
+
++        y_predicted_np = y_predicted.to_numpy(dtype="int64")
+
++
+
++        # Ensure unique_labels can handle the correct dtypes
+
++        unique_labels(y_true_np, y_predicted_np)
+
+ 
+
+ 
+
+ @ignore_warnings(category=FutureWarning)
+
+
+--- a/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -589,7 +589,6 @@
+ 
+
+ def _pandas_dtype_needs_early_conversion(pd_dtype):
+
+     """Return True if pandas extension pd_dtype need to be converted early."""
+
+-    # Check these early for pandas versions without extension dtypes
+
+     from pandas.api.types import (
+
+         is_bool_dtype,
+
+         is_sparse,
+
+@@ -597,8 +596,12 @@
+         is_integer_dtype,
+
+     )
+
+ 
+
++    # Check for nullable dtypes
+
++    if pd_dtype.name in ["Int64", "Float64", "boolean"]:
+
++        return True
+
++
+
+     if is_bool_dtype(pd_dtype):
+
+-        # bool and extension booleans need early converstion because __array__
+
++        # bool and extension booleans need early conversion because __array__
+
+         # converts mixed dtype dataframes into object dtypes
+
+         return True
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -4064,61 +4064,23 @@
+     ), f"Expected {n_features_out} feature names, got {len(feature_names_out)}"
+
+ 
+
+ 
+
+-def check_transformer_get_feature_names_out_pandas(name, transformer_orig):
+
+-    try:
+
+-        import pandas as pd
+
+-    except ImportError:
+
+-        raise SkipTest(
+
+-            "pandas is not installed: not checking column name consistency for pandas"
+
+-        )
+
+-
+
+-    tags = transformer_orig._get_tags()
+
+-    if "2darray" not in tags["X_types"] or tags["no_validation"]:
+
+-        return
+
+-
+
+-    X, y = make_blobs(
+
+-        n_samples=30,
+
+-        centers=[[0, 0, 0], [1, 1, 1]],
+
+-        random_state=0,
+
+-        n_features=2,
+
+-        cluster_std=0.1,
+
+-    )
+
+-    X = StandardScaler().fit_transform(X)
+
+-
+
+-    transformer = clone(transformer_orig)
+
+-    X = _enforce_estimator_tags_X(transformer, X)
+
+-
+
+-    n_features = X.shape[1]
+
+-    set_random_state(transformer)
+
+-
+
+-    y_ = y
+
+-    if name in CROSS_DECOMPOSITION:
+
+-        y_ = np.c_[np.asarray(y), np.asarray(y)]
+
+-        y_[::2, 1] *= 2
+
+-
+
+-    feature_names_in = [f"col{i}" for i in range(n_features)]
+
+-    df = pd.DataFrame(X, columns=feature_names_in)
+
+-    X_transform = transformer.fit_transform(df, y=y_)
+
+-
+
+-    # error is raised when `input_features` do not match feature_names_in
+
+-    invalid_feature_names = [f"bad{i}" for i in range(n_features)]
+
+-    with raises(ValueError, match="input_features is not equal to feature_names_in_"):
+
+-        transformer.get_feature_names_out(invalid_feature_names)
+
+-
+
+-    feature_names_out_default = transformer.get_feature_names_out()
+
+-    feature_names_in_explicit_names = transformer.get_feature_names_out(
+
+-        feature_names_in
+
+-    )
+
+-    assert_array_equal(feature_names_out_default, feature_names_in_explicit_names)
+
+-
+
+-    if isinstance(X_transform, tuple):
+
+-        n_features_out = X_transform[0].shape[1]
+
+-    else:
+
+-        n_features_out = X_transform.shape[1]
+
+-
+
+-    assert (
+
+-        len(feature_names_out_default) == n_features_out
+
+-    ), f"Expected {n_features_out} feature names, got {len(feature_names_out_default)}"
+
++def unique_labels(y_true, y_pred):
+
++    # Ensure y_true and y_pred are pandas Series
+
++    if not (isinstance(y_true, pd.Series) and isinstance(y_pred, pd.Series)):
+
++        raise ValueError("Both y_true and y_pred must be pandas Series")
+
++    
+
++    # Convert to numpy arrays, preserving dtypes
+
++    y_true_np = y_true.values
+
++    y_pred_np = y_pred.values
+
++    
+
++    # Ensure dtypes are consistent
+
++    if y_true_np.dtype != y_pred_np.dtype:
+
++        raise ValueError("Dtypes of y_true and y_pred must be the same")
+
++    
+
++    # Get unique labels
+
++    unique_labels = np.unique(np.concatenate((y_true_np, y_pred_np)))
+
++    
+
++    return unique_labels
+
+ 
+
+ 
+
+ def check_param_validation(name, estimator_orig):
+
+

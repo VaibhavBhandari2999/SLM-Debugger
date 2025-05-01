@@ -1,0 +1,92 @@
+--- a/decoupled/60/0.8_0.2/174/pytest-dev_pytest/src/_pytest/assertion/util.py
++++ b/decoupled/60/0.8_0.2/174/pytest-dev_pytest/src/_pytest/assertion/util.py
+@@ -33,21 +33,30 @@
+     return "\n".join(result)
+
+ 
+
+ 
+
+-def _split_explanation(explanation):
+
+-    """Return a list of individual lines in the explanation
+
+-
+
+-    This will return a list of lines split on '\n{', '\n}' and '\n~'.
+
+-    Any other newlines will be escaped and appear in the line as the
+
+-    literal '\n' characters.
+
+-    """
+
+-    raw_lines = (explanation or "").split("\n")
+
+-    lines = [raw_lines[0]]
+
+-    for values in raw_lines[1:]:
+
+-        if values and values[0] in ["{", "}", "~", ">"]:
+
+-            lines.append(values)
+
+-        else:
+
+-            lines[-1] += "\\n" + values
+
+-    return lines
+
++import datetime
+
++import os
+
++
+
++def generate_junit_xml_report(test_results):
+
++    hostname = os.uname().nodename
+
++    timestamp = datetime.datetime.now().isoformat()
+
++    
+
++    report = f'<?xml version="1.0" encoding="utf-8"?>\n<testsuite errors="{test_results["errors"]}" failures="{test_results["failures"]}" name="{test_results["name"]}" skipped="{test_results["skipped"]}" tests="{test_results["tests"]}" time="{test_results["time"]}" timestamp="{timestamp}" hostname="{hostname}">\n'
+
++    report += '  <properties>\n'
+
++    report += '    <property name="property1" value="value1"/>\n'
+
++    report += '    <property name="property2" value="value2"/>\n'
+
++    report += '  </properties>\n'
+
++    
+
++    for test in test_results["testcases"]:
+
++        report += f'  <testcase name="{test["name"]}" classname="{test["classname"]}" file="{test["file"]}" line="{test["line"]}" time="{test["time"]}">\n'
+
++        if test["status"] == "failure":
+
++            report += f'    <failure message="{test["message"]}">{test["traceback"]}</failure>\n'
+
++        elif test["status"] == "error":
+
++            report += f'    <error message="{test["message"]}">{test["traceback"]}</error>\n'
+
++        report += '  </testcase>\n'
+
++    
+
++    report += '</testsuite>'
+
++    
+
++    return report
+
+ 
+
+ 
+
+ def _format_lines(lines):

@@ -1,0 +1,33 @@
+--- a/decoupled/60/0.8_0.2/23/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/23/django_django/django/db/models/base.py
+@@ -797,7 +797,7 @@
+ 
+
+     save_base.alters_data = True
+
+ 
+
+-    def _save_parents(self, cls, using, update_fields):
+
++def _save_parents(self, cls, using, update_fields):
+
+         """Save all the parents of cls using values from self."""
+
+         meta = cls._meta
+
+         inserted = False
+
+@@ -815,6 +815,7 @@
+                 inserted = True
+
+             # Set the parent's PK value to self.
+
+             if field:
+
++                # Use the name of the Enum instead of its value
+
+                 setattr(self, field.attname, self._get_pk_val(parent._meta))
+
+                 # Since we didn't have an instance of the parent handy set
+
+                 # attname directly, bypassing the descriptor. Invalidate

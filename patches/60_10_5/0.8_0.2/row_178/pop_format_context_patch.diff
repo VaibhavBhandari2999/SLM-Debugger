@@ -1,0 +1,94 @@
+--- a/decoupled/60/0.8_0.2/178/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/178/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -790,26 +790,26 @@
+         self.explanation_specifiers = {}  # type: Dict[str, ast.expr]
+
+         self.stack.append(self.explanation_specifiers)
+
+ 
+
+-    def pop_format_context(self, expl_expr: ast.expr) -> ast.Name:
+
+-        """Format the %-formatted string with current format context.
+
+-
+
+-        The expl_expr should be an str ast.expr instance constructed from
+
+-        the %-placeholders created by .explanation_param().  This will
+
+-        add the required code to format said string to .expl_stmts and
+
+-        return the ast.Name instance of the formatted string.
+
+-
+
+-        """
+
+-        current = self.stack.pop()
+
+-        if self.stack:
+
+-            self.explanation_specifiers = self.stack[-1]
+
+-        keys = [ast.Str(key) for key in current.keys()]
+
+-        format_dict = ast.Dict(keys, list(current.values()))
+
+-        form = ast.BinOp(expl_expr, ast.Mod(), format_dict)
+
+-        name = "@py_format" + str(next(self.variable_counter))
+
+-        if self.enable_assertion_pass_hook:
+
+-            self.format_variables.append(name)
+
+-        self.expl_stmts.append(ast.Assign([ast.Name(name, ast.Store())], form))
+
+-        return ast.Name(name, ast.Load())
+
++def pop_format_context(self, expl_expr: ast.expr) -> ast.Name:
+
++    """Format the %-formatted string with current format context.
+
++
+
++    The expl_expr should be an str ast.expr instance constructed from
+
++    the %-placeholders created by .explanation_param().  This will
+
++    add the required code to format said string to .expl_stmts and
+
++    return the ast.Name instance of the formatted string.
+
++
+
++    """
+
++    current = self.stack.pop()
+
++    if self.stack:
+
++        self.explanation_specifiers = self.stack[-1]
+
++    keys = [ast.Str(key) for key in current.keys()]
+
++    format_dict = ast.Dict(keys, list(current.values()))
+
++    form = ast.BinOp(expl_expr, ast.Mod(), format_dict)
+
++    name = "@py_format" + str(next(self.variable_counter))
+
++    if self.enable_assertion_pass_hook:
+
++        self.format_variables.append(name)
+
++    self.expl_stmts.append(ast.Assign([ast.Name(name, ast.Store())], form))
+
++    return ast.Name(name, ast.Load())
+
+ 
+
+     def generic_visit(self, node: ast.AST) -> Tuple[ast.Name, str]:
+
+         """Handle expressions we don't have custom code for."""

@@ -1,0 +1,48 @@
+--- a/decoupled/60/0.8_0.2/151/psf_requests/requests/packages/chardet/utf8prober.py
++++ b/decoupled/60/0.8_0.2/151/psf_requests/requests/packages/chardet/utf8prober.py
+@@ -66,11 +66,15 @@
+ 
+
+         return self.get_state()
+
+ 
+
+-    def get_confidence(self):
+
+-        unlike = 0.99
+
+-        if self._mNumOfMBChar < 6:
+
+-            for i in range(0, self._mNumOfMBChar):
+
+-                unlike = unlike * ONE_CHAR_PROB
+
+-            return 1.0 - unlike
+
+-        else:
+
+-            return unlike
+
++import requests
+
++from requests.exceptions import ConnectionError
+
++
+
++def dir_parse(url):
+
++    try:
+
++        response = requests.get(url)
+
++        response.raise_for_status()  # Raises an HTTPError for bad responses
+
++        root = ElementTree.fromstring(response.text)
+
++        # Further processing...
+
++    except requests.exceptions.RequestException as e:
+
++        # Catch all request-related exceptions, including socket errors
+
++        raise ConnectionError(f"Failed to parse directory: {e}")

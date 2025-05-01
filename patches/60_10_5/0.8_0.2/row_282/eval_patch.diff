@@ -1,0 +1,278 @@
+--- a/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/singularity_functions.py
++++ b/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/singularity_functions.py
+@@ -113,72 +113,73 @@
+             raise ArgumentIndexError(self, argindex)
+
+ 
+
+     @classmethod
+
+-    def eval(cls, variable, offset, exponent):
+
+-        """
+
+-        Returns a simplified form or a value of Singularity Function depending
+
+-        on the argument passed by the object.
+
+-
+
+-        Explanation
+
+-        ===========
+
+-
+
+-        The ``eval()`` method is automatically called when the
+
+-        ``SingularityFunction`` class is about to be instantiated and it
+
+-        returns either some simplified instance or the unevaluated instance
+
+-        depending on the argument passed. In other words, ``eval()`` method is
+
+-        not needed to be called explicitly, it is being called and evaluated
+
+-        once the object is called.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import SingularityFunction, Symbol, nan
+
+-        >>> from sympy.abc import x, a, n
+
+-        >>> SingularityFunction(x, a, n)
+
+-        SingularityFunction(x, a, n)
+
+-        >>> SingularityFunction(5, 3, 2)
+
+-        4
+
+-        >>> SingularityFunction(x, a, nan)
+
+-        nan
+
+-        >>> SingularityFunction(x, 3, 0).subs(x, 3)
+
+-        1
+
+-        >>> SingularityFunction(x, a, n).eval(3, 5, 1)
+
+-        0
+
+-        >>> SingularityFunction(x, a, n).eval(4, 1, 5)
+
+-        243
+
+-        >>> x = Symbol('x', positive = True)
+
+-        >>> a = Symbol('a', negative = True)
+
+-        >>> n = Symbol('n', nonnegative = True)
+
+-        >>> SingularityFunction(x, a, n)
+
+-        (-a + x)**n
+
+-        >>> x = Symbol('x', negative = True)
+
+-        >>> a = Symbol('a', positive = True)
+
+-        >>> SingularityFunction(x, a, n)
+
+-        0
+
+-
+
+-        """
+
+-
+
+-        x = sympify(variable)
+
+-        a = sympify(offset)
+
+-        n = sympify(exponent)
+
+-        shift = (x - a)
+
+-
+
+-        if fuzzy_not(im(shift).is_zero):
+
+-            raise ValueError("Singularity Functions are defined only for Real Numbers.")
+
+-        if fuzzy_not(im(n).is_zero):
+
+-            raise ValueError("Singularity Functions are not defined for imaginary exponents.")
+
+-        if shift is S.NaN or n is S.NaN:
+
+-            return S.NaN
+
+-        if (n + 2).is_negative:
+
+-            raise ValueError("Singularity Functions are not defined for exponents less than -2.")
+
+-        if shift.is_extended_negative:
+
++def eval(cls, variable, offset, exponent):
+
++    """
+
++    Returns a simplified form or a value of Singularity Function depending
+
++    on the argument passed by the object.
+
++
+
++    Explanation
+
++    ===========
+
++
+
++    The ``eval()`` method is automatically called when the
+
++    ``SingularityFunction`` class is about to be instantiated and it
+
++    returns either some simplified instance or the unevaluated instance
+
++    depending on the argument passed. In other words, ``eval()`` method is
+
++    not needed to be called explicitly, it is being called and evaluated
+
++    once the object is called.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import SingularityFunction, Symbol, nan
+
++    >>> from sympy.abc import x, a, n
+
++    >>> SingularityFunction(x, a, n)
+
++    SingularityFunction(x, a, n)
+
++    >>> SingularityFunction(5, 3, 2)
+
++    4
+
++    >>> SingularityFunction(x, a, nan)
+
++    nan
+
++    >>> SingularityFunction(x, 3, 0).subs(x, 3)
+
++    1
+
++    >>> SingularityFunction(x, a, n).eval(3, 5, 1)
+
++    0
+
++    >>> SingularityFunction(x, a, n).eval(4, 1, 5)
+
++    243
+
++    >>> x = Symbol('x', positive = True)
+
++    >>> a = Symbol('a', negative = True)
+
++    >>> n = Symbol('n', nonnegative = True)
+
++    >>> SingularityFunction(x, a, n)
+
++    (-a + x)**n
+
++    >>> x = Symbol('x', negative = True)
+
++    >>> a = Symbol('a', positive = True)
+
++    >>> SingularityFunction(x, a, n)
+
++    0
+
++
+
++    """
+
++
+
++    x = sympify(variable)
+
++    a = sympify(offset)
+
++    n = sympify(exponent)
+
++    shift = (x - a)
+
++
+
++    if fuzzy_not(im(shift).is_zero):
+
++        raise ValueError("Singularity Functions are defined only for Real Numbers.")
+
++    if fuzzy_not(im(n).is_zero):
+
++        raise ValueError("Singularity Functions are not defined for imaginary exponents.")
+
++    if shift is S.NaN or n is S.NaN:
+
++        return S.NaN
+
++    if (n + 2).is_negative:
+
++        raise ValueError("Singularity Functions are not defined for exponents less than -2.")
+
++    if shift.is_extended_negative:
+
++        return S.Zero
+
++    if n.is_nonnegative and shift.is_extended_nonnegative:
+
++        return (x - a)**n
+
++    if n == -1 or n == -2:
+
++        if shift.is_negative or shift.is_extended_positive:
+
+             return S.Zero
+
+-        if n.is_nonnegative and shift.is_extended_nonnegative:
+
+-            return (x - a)**n
+
+-        if n == -1 or n == -2:
+
+-            if shift.is_negative or shift.is_extended_positive:
+
+-                return S.Zero
+
+-            if shift.is_zero:
+
+-                return S.Infinity
+
++        if shift.is_zero:
+
++            return S.Infinity
+
++    return (x - a)**n  # Simplify the expression when conditions are met
+
+ 
+
+     def _eval_rewrite_as_Piecewise(self, *args, **kwargs):
+
+         '''

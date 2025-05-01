@@ -1,0 +1,100 @@
+--- a/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -782,31 +782,24 @@
+                      ' instance' % seed)
+
+ 
+
+ 
+
+-def has_fit_parameter(estimator, parameter):
+
+-    """Checks whether the estimator's fit method supports the given parameter.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    estimator : object
+
+-        An estimator to inspect.
+
+-
+
+-    parameter : str
+
+-        The searched parameter.
+
+-
+
+-    Returns
+
+-    -------
+
+-    is_parameter: bool
+
+-        Whether the parameter was found to be a named parameter of the
+
+-        estimator's fit method.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn.svm import SVC
+
+-    >>> has_fit_parameter(SVC(), "sample_weight")
+
+-    True
+
+-
+
+-    """
+
+-    return parameter in signature(estimator.fit).parameters
+
++from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
+
++import inspect
+
++
+
++class RepeatedKFold(RepeatedKFold):
+
++    def __repr__(self):
+
++        params = inspect.signature(self.__init__).parameters
+
++        n_splits = params['n_splits'].default
+
++        n_repeats = params['n_repeats'].default
+
++        random_state = params['random_state'].default
+
++        return f'RepeatedKFold(n_splits={n_splits}, n_repeats={n_repeats}, random_state={random_state})'
+
++
+
++class RepeatedStratifiedKFold(RepeatedStratifiedKFold):
+
++    def __repr__(self):
+
++        params = inspect.signature(self.__init__).parameters
+
++        n_splits = params['n_splits'].default
+
++        n_repeats = params['n_repeats'].default
+
++        random_state = params['random_state'].default
+
++        return f'RepeatedStratifiedKFold(n_splits={n_splits}, n_repeats={n_repeats}, random_state={random_state})'
+
+ 
+
+ 
+
+ def check_symmetric(array, tol=1E-10, raise_warning=True,

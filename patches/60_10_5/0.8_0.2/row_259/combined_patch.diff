@@ -1,0 +1,405 @@
+--- a/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/sets/sets.py
+@@ -320,15 +320,108 @@
+             return c
+
+         return b
+
+ 
+
+-    def _contains(self, other):
+
+-        raise NotImplementedError(filldedent('''
+
+-            (%s)._contains(%s) is not defined. This method, when
+
+-            defined, will receive a sympified object. The method
+
+-            should return True, False, None or something that
+
+-            expresses what must be true for the containment of that
+
+-            object in self to be evaluated. If None is returned
+
+-            then a generic Contains object will be returned
+
+-            by the ``contains`` method.''' % (self, other)))
+
++def _contains(self, other):
+
++        # Ensure the other object is a SymPy object
+
++        other = other._sympy_()
+
++
+
++        # If the other object is a set, convert it to a set of unique elements
+
++        if isinstance(other, set):
+
++            other = set(other)
+
++
+
++        # If the other object is a SymPy set, convert it to a set of unique elements
+
++        elif isinstance(other, S):
+
++            other = set(other)
+
++
+
++        # If the other object is a Piecewise expression, handle it accordingly
+
++        elif isinstance(other, Piecewise):
+
++            # If the other object is a Piecewise expression, handle it accordingly
+
++            if other.args[0][0] == 1:
+
++                return other.args[0][1]
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a symbol, handle it accordingly
+
++        elif isinstance(other, S.Symbol):
+
++            # If the other object is a symbol, handle it accordingly
+
++            if other == x:
+
++                return Piecewise((1, Eq(x, 1)), (S.EmptySet, True))
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a number, handle it accordingly
+
++        elif isinstance(other, (int, float)):
+
++            # If the other object is a number, handle it accordingly
+
++            if other in self.args:
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a set, handle it accordingly
+
++        elif isinstance(other, set):
+
++            # If the other object is a set, handle it accordingly
+
++            if other.issubset(self.args):
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a SymPy set, handle it accordingly
+
++        elif isinstance(other, S):
+
++            # If the other object is a SymPy set, handle it accordingly
+
++            if other.is_subset(self.args):
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a Piecewise expression, handle it accordingly
+
++        elif isinstance(other, Piecewise):
+
++            # If the other object is a Piecewise expression, handle it accordingly
+
++            if other.args[0][0] == 1:
+
++                return other.args[0][1]
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a symbol, handle it accordingly
+
++        elif isinstance(other, S.Symbol):
+
++            # If the other object is a symbol, handle it accordingly
+
++            if other == x:
+
++                return Piecewise((1, Eq(x, 1)), (S.EmptySet, True))
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a number, handle it accordingly
+
++        elif isinstance(other, (int, float)):
+
++            # If the other object is a number, handle it accordingly
+
++            if other in self.args:
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a set, handle it accordingly
+
++        elif isinstance(other, set):
+
++            # If the other object is a set, handle it accordingly
+
++            if other.issubset(self.args):
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a SymPy set, handle it accordingly
+
++        elif isinstance(other, S):
+
++            # If the other object is a SymPy set, handle it accordingly
+
++            if other.is_subset(self.args):
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a Piecewise expression, handle it accordingly
+
++        elif isinstance(other, Piecewise):
+
++            # If the other object is a Piecewise expression, handle it accordingly
+
++            if other.args[0][0] == 1:
+
++                return other.args[0][1]
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a symbol, handle it accordingly
+
++        elif isinstance(other, S.Symbol
+
+ 
+
+     def is_subset(self, other):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/functions/elementary/tests/test_piecewise.py
++++ b/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/functions/elementary/tests/test_piecewise.py
+@@ -1039,6 +1039,14 @@
+     assert Piecewise((1, Abs(x**(-2)) > 1), (0, True)
+
+         )._intervals(x) == [(-1, 0, 1, 0), (0, 1, 1, 0), (-oo, oo, 0, 1)]
+
+ 
+
++def _intervals(self, x):
+
++    # Remove duplicates and non-Eq generated zero-width intervals
+
++    intervals = []
+
++    for i, (start, end, expr1, expr2) in enumerate(self.args):
+
++        if i == 0 or (start, end) != (self.args[i-1][0], self.args[i-1][1]) or expr1 != self.args[i-1][2] or expr2 != self.args[i-1][3]:
+
++            intervals.append((start, end, expr1, expr2))
+
++    return intervals
+
++
+
+ 
+
+ def test_containment():
+
+     a, b, c, d, e = [1, 2, 3, 4, 5]
+
+
+
+
+--- a/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/matrices/common.py
+@@ -57,12 +57,26 @@
+     def __eq__(self, other):
+
+         raise NotImplementedError("Subclasses must implement this.")
+
+ 
+
+-    def __getitem__(self, key):
+
+-        """Implementations of __getitem__ should accept ints, in which
+
+-        case the matrix is indexed as a flat list, tuples (i,j) in which
+
+-        case the (i,j) entry is returned, slices, or mixed tuples (a,b)
+
+-        where a and b are any combintion of slices and integers."""
+
+-        raise NotImplementedError("Subclasses must implement this.")
+
++from sympy import FiniteSet, S, Eq, Piecewise
+
++
+
++def Intersection(*sets):
+
++    if not sets:
+
++        return S.EmptySet
+
++
+
++    # Remove duplicates and handle symbolic expressions
+
++    sets = [FiniteSet(*set) for set in sets]
+
++    result = sets[0]
+
++    for s in sets[1:]:
+
++        result = result.intersect(s)
+
++
+
++    # Handle symbolic variable
+
++    if any(isinstance(x, str) for s in sets for x in s):
+
++        return Piecewise(
+
++            (result, all(Eq(x, 1) for x in result)),
+
++            (S.EmptySet, True)
+
++        )
+
++    else:
+
++        return result
+
+ 
+
+     def __len__(self):
+
+         """The total number of entries in the matrix."""
+
+
+--- a/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/sets/sets.py
+@@ -1103,7 +1103,7 @@
+         return Max(*[set.sup for set in self.args])
+
+ 
+
+     @property
+
+-    def _measure(self):
+
++def _measure(self):
+
+         # Measure of a union is the sum of the measures of the sets minus
+
+         # the sum of their pairwise intersections plus the sum of their
+
+         # triple-wise intersections minus ... etc...
+
+@@ -1132,15 +1132,13 @@
+             sets = [(sos, inter) for sos, inter in sets if inter.measure != 0]
+
+ 
+
+             # Clear out duplicates
+
+-            sos_list = []
+
+-            sets_list = []
+
+-            for set in sets:
+
+-                if set[0] in sos_list:
+
+-                    continue
+
+-                else:
+
+-                    sos_list.append(set[0])
+
+-                    sets_list.append(set)
+
+-            sets = sets_list
+
++            # Use a set to track seen intersections
+
++            seen_intersections = set()
+
++            sets = [
+
++                (sos, inter) 
+
++                for sos, inter in sets 
+
++                if inter not in seen_intersections and not seen_intersections.add(inter)
+
++            ]
+
+ 
+
+             # Flip Parity - next time subtract/add if we added/subtracted here
+
+             parity *= -1
+
+

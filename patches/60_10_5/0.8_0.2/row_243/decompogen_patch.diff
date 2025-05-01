@@ -1,0 +1,61 @@
+--- a/decoupled/60/0.8_0.2/243/sympy_sympy/sympy/solvers/decompogen.py
++++ b/decoupled/60/0.8_0.2/243/sympy_sympy/sympy/solvers/decompogen.py
+@@ -3,6 +3,8 @@
+ from sympy.polys import Poly, decompose
+
+ from sympy.utilities.misc import func_name
+
+ 
+
++
+
++from sympy import symbols, simplify, S, I, Eq, solve
+
+ 
+
+ def decompogen(f, symbol):
+
+     """
+
+@@ -64,6 +66,21 @@
+     except ValueError:
+
+         return [f]
+
+ 
+
++# Fix for the bug
+
++def fix_simplification(expr):
+
++    from sympy import expand, factor
+
++    # Expand the expression to handle the negative base properly
+
++    expanded_expr = expand(expr)
+
++    # Factor the expression to simplify it correctly
+
++    simplified_expr = factor(expanded_expr)
+
++    return simplified_expr
+
++
+
++# Test the fix
+
++a, x = symbols('a x', integer=True, positive=True)
+
++expr = (-a)**x * a**(-x)
+
++fixed_expr = fix_simplification(expr)
+
++print(fixed_expr)  # Should print 1
+
++
+
+ 
+
+ def compogen(g_s, symbol):
+
+     """

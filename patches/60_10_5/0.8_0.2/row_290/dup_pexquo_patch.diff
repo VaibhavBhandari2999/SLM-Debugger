@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
+@@ -1115,7 +1115,7 @@
+     return dup_pdiv(f, g, K)[0]
+
+ 
+
+ 
+
+-def dup_pexquo(f, g, K):
+
++def dup_pexquo(f, g, K, evaluate=False):
+
+     """
+
+     Polynomial pseudo-quotient in ``K[x]``.
+
+ 

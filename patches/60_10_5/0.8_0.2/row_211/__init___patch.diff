@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -242,7 +242,7 @@
+ 
+
+     """
+
+ 
+
+-    def __init__(self, param1, param2, param3):
+
++def __init__(self, param1, param2, param3):
+
+         """Example of docstring on the __init__ method.
+
+ 
+
+         The __init__ method may be documented in either the class level
+
+@@ -276,6 +276,9 @@
+         self.attr5 = None
+
+         """str: Docstring *after* attribute, with type specified."""
+
+ 
+
++        # Correctly formatted attribute with trailing underscore
+
++        self.hello_ = "hello value"  #: Doc comment for `hello_` attribute
+
++
+
+     @property
+
+     def readonly_property(self):
+
+         """str: Properties should be documented in their getter method."""

@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/25/django_django/tests/foreign_object/test_empty_join.py
++++ b/decoupled/60/0.8_0.2/25/django_django/tests/foreign_object/test_empty_join.py
+@@ -5,7 +5,7 @@
+ 
+
+ class RestrictedConditionsTests(TestCase):
+
+     @classmethod
+
+-    def setUpTestData(cls):
+
++def setUpTestData(cls):
+
+         slugs = [
+
+             'a',
+
+             'a/a',
+
+@@ -14,7 +14,8 @@
+             'x',
+
+             'x/y/z',
+
+         ]
+
+-        SlugPage.objects.bulk_create([SlugPage(slug=slug) for slug in slugs])
+
++        # Ensure all slugs are unique to avoid potential issues
+
++        SlugPage.objects.bulk_create([SlugPage(slug=slug) for slug in slugs], ignore_conflicts=True)
+
+ 
+
+     def test_restrictions_with_no_joining_columns(self):
+
+         """

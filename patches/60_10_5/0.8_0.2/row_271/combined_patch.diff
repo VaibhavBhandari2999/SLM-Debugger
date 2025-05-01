@@ -1,0 +1,534 @@
+--- a/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
+@@ -286,7 +286,7 @@
+     def _sup(self):
+
+         raise NotImplementedError("(%s)._sup" % self)
+
+ 
+
+-    def contains(self, other):
+
++def contains(self, other):
+
+         """
+
+         Returns a SymPy value indicating whether ``other`` is contained
+
+         in ``self``: ``true`` if it is, ``false`` if it isn't, else
+
+
+--- a/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
+@@ -1215,7 +1215,7 @@
+         return fuzzy_and(set.is_finite_set for set in self.args)
+
+ 
+
+     @property
+
+-    def _measure(self):
+
++def _measure(self):
+
+         # Measure of a union is the sum of the measures of the sets minus
+
+         # the sum of their pairwise intersections plus the sum of their
+
+         # triple-wise intersections minus ... etc...
+
+@@ -1236,26 +1236,25 @@
+ 
+
+             # For each intersection in sets, compute the intersection with every
+
+             # other set not already part of the intersection.
+
+-            sets = ((sos + FiniteSet(newset), newset.intersect(intersection))
+
+-                    for sos, intersection in sets for newset in self.args
+
+-                    if newset not in sos)
+
++            new_sets = []
+
++            for sos, intersection in sets:
+
++                for newset in self.args:
+
++                    if newset not in sos:
+
++                        new_sos = sos + FiniteSet(newset)
+
++                        new_inter = intersection.intersect(newset)
+
++                        if new_inter.measure != 0:
+
++                            new_sets.append((new_sos, new_inter))
+
+ 
+
+             # Clear out sets with no measure
+
+-            sets = [(sos, inter) for sos, inter in sets if inter.measure != 0]
+
++            new_sets = [(sos, inter) for sos, inter in new_sets if inter.measure != 0]
+
+ 
+
+             # Clear out duplicates
+
+-            sos_list = []
+
+-            sets_list = []
+
+-            for set in sets:
+
+-                if set[0] in sos_list:
+
+-                    continue
+
+-                else:
+
+-                    sos_list.append(set[0])
+
+-                    sets_list.append(set)
+
+-            sets = sets_list
+
++            seen_soss = set()
+
++            new_sets = [(sos, inter) for sos, inter in new_sets if sos not in seen_soss and not seen_soss.add(sos)]
+
+ 
+
+             # Flip Parity - next time subtract/add if we added/subtracted here
+
+             parity *= -1
+
++            sets = new_sets
+
+         return measure
+
+ 
+
+     @property
+
+
+--- a/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
+@@ -1419,7 +1419,7 @@
+                 "undecidable set membership is found in every candidates.")
+
+ 
+
+     @staticmethod
+
+-    def _handle_finite_sets(args):
+
++def _handle_finite_sets(args):
+
+         '''Simplify intersection of one or more FiniteSets and other sets'''
+
+ 
+
+         # First separate the FiniteSets from the others
+
+@@ -1451,16 +1451,12 @@
+         # don't know if m or n is real. We want to remove n here but it is
+
+         # possibly in because it might be equal to m. So what we do now is
+
+         # extract the elements that are definitely in the remaining finite
+
+-        # sets iteratively until we end up with {n}, {}. At that point if we
+
+-        # get any empty set all remaining elements are discarded.
+
+-
+
+-        fs_elements = reduce(lambda a, b: a | b, fs_sets, set())
+
+-
+
+-        # Need fuzzy containment testing
+
+-        fs_symsets = [FiniteSet(*s) for s in fs_sets]
+
+-
+
+-        while fs_elements:
+
+-            for e in fs_elements:
+
++        # sets iteratively until we end up with {n}, {}. We create a copy of
+
++        # fs_sets to avoid modifying it while iterating.
+
++        fs_sets_copy = fs_sets.copy()
+
++
+
++        while fs_sets_copy:
+
++            for e in fs_sets_copy:
+
+                 infs = fuzzy_and(s.contains(e) for s in fs_symsets)
+
+                 if infs is True:
+
+                     definite.add(e)
+
+@@ -1470,7 +1466,7 @@
+                         if e in s:
+
+                             s.remove(e)
+
+                             fs_symsets[n] = FiniteSet(*s)
+
+-                    fs_elements.remove(e)
+
++                    fs_sets_copy.remove(e)
+
+                     break
+
+             # If we completed the for loop without removing anything we are
+
+             # done so quit the outer while loop
+
+@@ -1511,12 +1507,7 @@
+             if rest.is_Intersection:
+
+                 sets.extend(rest.args)
+
+             else:
+
+-                sets.append(rest)
+
+-
+
+-        if len(sets) == 1:
+
+-            return sets[0]
+
+-        else:
+
+-            return Intersection(*sets, evaluate=False)
+
++                sets.append
+
+ 
+
+     def as_relational(self, symbol):
+
+         """Rewrite an Intersection in terms of equalities and logic operators"""
+
+
+--- a/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
+@@ -526,34 +526,55 @@
+         return self._measure
+
+ 
+
+     @property
+
+-    def boundary(self):
+
+-        """
+
+-        The boundary or frontier of a set
+
+-
+
+-        A point x is on the boundary of a set S if
+
+-
+
+-        1.  x is in the closure of S.
+
+-            I.e. Every neighborhood of x contains a point in S.
+
+-        2.  x is not in the interior of S.
+
+-            I.e. There does not exist an open set centered on x contained
+
+-            entirely within S.
+
+-
+
+-        There are the points on the outer rim of S.  If S is open then these
+
+-        points need not actually be contained within S.
+
+-
+
+-        For example, the boundary of an interval is its start and end points.
+
+-        This is true regardless of whether or not the interval is open.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Interval
+
+-        >>> Interval(0, 1).boundary
+
+-        FiniteSet(0, 1)
+
+-        >>> Interval(0, 1, True, False).boundary
+
+-        FiniteSet(0, 1)
+
+-        """
+
+-        return self._boundary
+
++def uniq(lst):
+
++    """
+
++    Returns a list of unique elements in the order they appear.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> uniq([1, 2, 3, 1, 2, 3])
+
++    [1, 2, 3]
+
++    >>> uniq([1, 2, 2, 3, 3])
+
++    [1, 2, 3]
+
++
+
++    """
+
++    seen = set()
+
++    unique_list = []
+
++    for item in lst:
+
++        if item not in seen:
+
++            unique_list.append(item)
+
++            seen.add(item)
+
++    return unique_list
+
++
+
++def boundary(self):
+
++    """
+
++    The boundary or frontier of a set
+
++
+
++    A point x is on the boundary of a set S if
+
++
+
++    1.  x is in the closure of S.
+
++        I.e. Every neighborhood of x contains a point in S.
+
++    2.  x is not in the interior of S.
+
++        I.e. There does not exist an open set centered on x contained
+
++        entirely within S.
+
++
+
++    There are the points on the outer rim of S.  If S is open then these
+
++    points need not actually be contained within S.
+
++
+
++    For example, the boundary of an interval is its start and end points.
+
++    This is true regardless of whether or not the interval is open.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Interval
+
++    >>> Interval(0, 1).boundary
+
++    FiniteSet(0, 1)
+
++    >>> Interval(0, 1, True, False).boundary
+
++    FiniteSet(0, 1)
+
++    """
+
++    return self._boundary
+
+ 
+
+     @property
+
+     def is_open(self):
+
+
+--- a/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
+@@ -1847,31 +1847,42 @@
+ 
+
+         return Set._complement(self, other)
+
+ 
+
+-    def _contains(self, other):
+
+-        """
+
+-        Tests whether an element, other, is in the set.
+
+-
+
+-        The actual test is for mathematical equality (as opposed to
+
+-        syntactical equality). In the worst case all elements of the
+
+-        set must be checked.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import FiniteSet
+
+-        >>> 1 in FiniteSet(1, 2)
+
+-        True
+
+-        >>> 5 in FiniteSet(1, 2)
+
+-        False
+
+-
+
+-        """
+
+-        if other in self._args_set:
+
+-            return True
+
+-        else:
+
+-            # evaluate=True is needed to override evaluate=False context;
+
+-            # we need Eq to do the evaluation
+
+-            return fuzzy_or(fuzzy_bool(Eq(e, other, evaluate=True))
+
+-                for e in self.args)
+
++def _contains(self, other):
+
++    """
+
++    Tests whether an element, other, is in the set.
+
++
+
++    The actual test is for mathematical equality (as opposed to
+
++    syntactical equality). In the worst case all elements of the
+
++    set must be checked.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import FiniteSet
+
++    >>> 1 in FiniteSet(1, 2)
+
++    True
+
++    >>> 5 in FiniteSet(1, 2)
+
++    False
+
++
+
++    """
+
++    # Record the initial size of the set
+
++    initial_size = len(self._args_set)
+
++    
+
++    # Check if the element is in the set
+
++    if other in self._args_set:
+
++        return True
+
++    
+
++    # If not, evaluate the equality for each element
+
++    else:
+
++        # evaluate=True is needed to override evaluate=False context;
+
++        # we need Eq to do the evaluation
+
++        return fuzzy_or(fuzzy_bool(Eq(e, other, evaluate=True))
+
++            for e in self.args)
+
++    
+
++    # Check if the size of the set has changed during iteration
+
++    final_size = len(self._args_set)
+
++    if initial_size != final_size:
+
++        raise RuntimeError("The set changed size during iteration")
+
+ 
+
+     def _eval_is_subset(self, other):
+
+         return fuzzy_and(other._contains(e) for e in self.args)
+
+

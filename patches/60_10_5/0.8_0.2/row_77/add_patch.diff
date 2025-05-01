@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/77/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/77/django_django/django/db/models/deletion.py
+@@ -96,7 +96,7 @@
+         # parent.
+
+         self.dependencies = defaultdict(set)  # {model: {models}}
+
+ 
+
+-    def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
++def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+         """
+
+         Add 'objs' to the collection of objects to be deleted.  If the call is
+
+         the result of a cascade, 'source' should be the model that caused it,
+
+@@ -118,6 +118,9 @@
+         # to be deleted.
+
+         if source is not None and not nullable:
+
+             self.add_dependency(source, model, reverse_dependency=reverse_dependency)
+
++        # Ensure through_fields is a tuple before calling make_hashable
+
++        if isinstance(self.through_fields, list):
+
++            self.through_fields = tuple(self.through_fields)
+
+         return new_objs
+
+ 
+
+     def add_dependency(self, model, dependency, reverse_dependency=False):

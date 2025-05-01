@@ -1,0 +1,96 @@
+--- a/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -317,21 +317,32 @@
+         """
+
+         return True
+
+ 
+
+-    def __special__(self):
+
+-        """By default special members with docstrings are not included.
+
+-
+
+-        Special members are any methods or attributes that start with and
+
+-        end with a double underscore. Any special member with a docstring
+
+-        will be included in the output, if
+
+-        ``napoleon_include_special_with_doc`` is set to True.
+
+-
+
+-        This behavior can be enabled by changing the following setting in
+
+-        Sphinx's conf.py::
+
+-
+
+-            napoleon_include_special_with_doc = True
+
+-
+
+-        """
+
+-        pass
+
++def __special__(self):
+
++    """By default special members with docstrings are not included.
+
++
+
++    Special members are any methods or attributes that start with and
+
++    end with a double underscore. Any special member with a docstring
+
++    will be included in the output, if
+
++    ``napoleon_include_special_with_doc`` is set to True.
+
++
+
++    This behavior can be enabled by changing the following setting in
+
++    Sphinx's conf.py::
+
++
+
++        napoleon_include_special_with_doc = True
+
++
+
++    """
+
++    # Filter out imported members if autosummary_imported_members is False
+
++    if not self.app.config.autosummary_imported_members:
+
++        members = [member for member in members if member not in self.imported_members]
+
++
+
++    # Include special members with docstrings if specified
+
++    if self.app.config.napoleon_include_special_with_doc:
+
++        members.extend([member for member in dir(self.module) if
+
++                        member.startswith('__') and member.endswith('__') and
+
++                        hasattr(getattr(self.module, member), '__doc__')])
+
++
+
++    # Generate autosummary
+
++    self.generate_autosummary(members)
+
+ 
+
+     def __special_without_docstring__(self):
+
+         pass

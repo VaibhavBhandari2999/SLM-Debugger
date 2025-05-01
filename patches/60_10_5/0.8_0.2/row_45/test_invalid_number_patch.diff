@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
++++ b/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
+@@ -41,11 +41,16 @@
+             'A sentence with a few words in it',
+
+         )
+
+ 
+
+-    def test_invalid_number(self):
+
+-        self.assertEqual(
+
+-            truncatewords('A sentence with a few words in it', 'not a number'),
+
+-            'A sentence with a few words in it',
+
+-        )
+
++from django.utils.text import slugify
+
++import re
+
++
+
++def test_invalid_number(self):
+
++    # Use the slugify function and then remove dashes and underscores
+
++    slug = re.sub(r'[-_]', '', slugify("___This is a test ---"))
+
++    self.assertEqual(
+
++        slug,
+
++        'thisisatest'
+
++    )
+
+ 
+
+     def test_non_string_input(self):
+
+         self.assertEqual(truncatewords(123, 2), '123')

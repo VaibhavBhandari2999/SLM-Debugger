@@ -1,0 +1,34 @@
+--- a/decoupled/60/0.8_0.2/4/astropy_astropy/astropy/io/fits/tests/test_table.py
++++ b/decoupled/60/0.8_0.2/4/astropy_astropy/astropy/io/fits/tests/test_table.py
+@@ -2605,11 +2605,14 @@
+         for code in ('PD()', 'QD()'):
+
+             test(code)
+
+ 
+
+-    def test_variable_length_table_format_pd_from_list(self):
+
++def test_variable_length_table_format_pd_from_list(self):
+
+         def test(format_code):
+
+             a = [np.array([7.2e-20, 7.3e-20]), np.array([0.0]),
+
+                  np.array([0.0])]
+
+-            acol = fits.Column(name='testa', format=format_code, array=a)
+
++            # Replace exponent separator in floating point numbers
+
++            output_field = fits.Column(name='testa', format=format_code, array=a).format
+
++            output_field = output_field.replace(encode_ascii('E'), encode_ascii('D'))
+
++            acol = fits.Column(name='testa', format=output_field, array=a)
+
+             tbhdu = fits.BinTableHDU.from_columns([acol])
+
+             with ignore_warnings():
+
+                 tbhdu.writeto(self.temp('newtable.fits'), overwrite=True)

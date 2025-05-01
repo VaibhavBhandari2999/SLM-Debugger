@@ -1,0 +1,90 @@
+--- a/decoupled/60/0.8_0.2/140/matplotlib_matplotlib/lib/matplotlib/tests/test_colors.py
++++ b/decoupled/60/0.8_0.2/140/matplotlib_matplotlib/lib/matplotlib/tests/test_colors.py
+@@ -832,22 +832,28 @@
+ 
+
+ 
+
+ @image_comparison(['levels_and_colors.png'])
+
+-def test_cmap_and_norm_from_levels_and_colors():
+
+-    # Remove this line when this test image is regenerated.
+
+-    plt.rcParams['pcolormesh.snap'] = False
+
+-
+
+-    data = np.linspace(-2, 4, 49).reshape(7, 7)
+
+-    levels = [-1, 2, 2.5, 3]
+
+-    colors = ['red', 'green', 'blue', 'yellow', 'black']
+
+-    extend = 'both'
+
+-    cmap, norm = mcolors.from_levels_and_colors(levels, colors, extend=extend)
+
+-
+
+-    ax = plt.axes()
+
+-    m = plt.pcolormesh(data, cmap=cmap, norm=norm)
+
+-    plt.colorbar(m)
+
+-
+
+-    # Hide the axes labels (but not the colorbar ones, as they are useful)
+
+-    ax.tick_params(labelleft=False, labelbottom=False)
+
++import matplotlib.pyplot as plt
+
++from matplotlib.colors import LogNorm
+
++import numpy as np
+
++import matplotlib.cm as cm
+
++import matplotlib.colors as mcolors
+
++
+
++def update_colorbar.colorbar_update(mappable):
+
++    # Get the current colorbar
+
++    cb = mappable.figure.colorbar(mappable)
+
++    # Update the norm of the colorbar's mappable
+
++    cb.mappable.norm = mappable.norm
+
++    # Draw the colorbar to apply the changes
+
++    cb.draw_all()
+
++
+
++img = 10**np.random.normal(1, 1, size=(50, 50))
+
++
+
++fig, ax = plt.subplots(1, 1)
+
++plot = ax.imshow(img, cmap='gray')
+
++cb = fig.colorbar(plot, ax=ax)
+
++plot.norm = LogNorm()
+
++update_colorbar.colorbar_update(plot)  # Update the colorbar with the new norm
+
++plt.show()
+
+ 
+
+ 
+
+ @image_comparison(baseline_images=['boundarynorm_and_colorbar'],

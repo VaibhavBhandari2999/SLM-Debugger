@@ -1,0 +1,34 @@
+--- a/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/access/access_member_before_definition.py
++++ b/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/access/access_member_before_definition.py
+@@ -32,11 +32,11 @@
+ 
+
+ 
+
+ class Mixin(object):
+
+-    def test_mixin(self):
+
+-        """Don't emit access-member-before-definition for mixin classes."""
+
+-        if self.already_defined:
+
+-            # pylint: disable=attribute-defined-outside-init
+
+-            self.already_defined = None
+
++def test_mixin(self):
+
++    """Don't emit access-member-before-definition for mixin classes."""
+
++    if self.already_defined:
+
++        # pylint: disable=attribute-defined-outside-init
+
++        self.already_defined = None
+
+ 
+
+ 
+
+ # Test for regression in bitbucket issue 164

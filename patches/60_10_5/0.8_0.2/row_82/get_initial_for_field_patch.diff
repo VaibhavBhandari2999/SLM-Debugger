@@ -1,0 +1,80 @@
+--- a/decoupled/60/0.8_0.2/82/django_django/django/forms/forms.py
++++ b/decoupled/60/0.8_0.2/82/django_django/django/forms/forms.py
+@@ -483,20 +483,25 @@
+         """
+
+         return [field for field in self if not field.is_hidden]
+
+ 
+
+-    def get_initial_for_field(self, field, field_name):
+
+-        """
+
+-        Return initial data for field on form. Use initial data from the form
+
+-        or the field, in that order. Evaluate callable values.
+
+-        """
+
+-        value = self.initial.get(field_name, field.initial)
+
+-        if callable(value):
+
+-            value = value()
+
+-        # If this is an auto-generated default date, nix the microseconds
+
+-        # for standardized handling. See #22502.
+
+-        if (isinstance(value, (datetime.datetime, datetime.time)) and
+
+-                not field.widget.supports_microseconds):
+
+-            value = value.replace(microsecond=0)
+
+-        return value
+
++def get_initial_for_field(self, field, field_name):
+
++    """
+
++    Return initial data for field on form. Use initial data from the form
+
++    or the field, in that order. Evaluate callable values.
+
++    """
+
++    value = self.initial.get(field_name, field.initial)
+
++    if callable(value):
+
++        value = value()
+
++    # If this is an auto-generated default date, nix the microseconds
+
++    # for standardized handling. See #22502.
+
++    if (isinstance(value, (datetime.datetime, datetime.time)) and
+
++            not field.widget.supports_microseconds):
+
++        value = value.replace(microsecond=0)
+
++    
+
++    # Ensure the value is hashable before using it as a key in a dictionary
+
++    if isinstance(value, ModelChoiceIteratorValue):
+
++        value = value.pk  # Use the primary key as a hashable value
+
++    
+
++    return value
+
+ 
+
+ 
+
+ class Form(BaseForm, metaclass=DeclarativeFieldsMetaclass):

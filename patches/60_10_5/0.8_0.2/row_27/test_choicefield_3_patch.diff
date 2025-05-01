@@ -1,0 +1,30 @@
+--- a/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
++++ b/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
+@@ -28,12 +28,12 @@
+         with self.assertRaisesMessage(ValidationError, msg):
+
+             f.clean('3')
+
+ 
+
+-    def test_choicefield_3(self):
+
++def test_choicefield_3(self):
+
+         f = ChoiceField(choices=[('J', 'John'), ('P', 'Paul')])
+
+         self.assertEqual('J', f.clean('J'))
+
+         msg = "'Select a valid choice. John is not one of the available choices.'"
+
+         with self.assertRaisesMessage(ValidationError, msg):
+
+-            f.clean('John')
+
++            f.clean('john')
+
+ 
+
+     def test_choicefield_4(self):
+
+         f = ChoiceField(

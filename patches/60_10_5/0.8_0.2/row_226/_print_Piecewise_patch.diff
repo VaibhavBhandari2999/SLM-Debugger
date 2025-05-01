@@ -1,0 +1,90 @@
+--- a/decoupled/60/0.8_0.2/226/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/226/sympy_sympy/sympy/printing/octave.py
+@@ -444,10 +444,11 @@
+         return "lambertw(" + args + ")"
+
+ 
+
+ 
+
++from sympy.printing.mathematica import MCodePrinter
+
++
+
++class MyMathematicaPrinter(MCodePrinter):
+
+     def _print_Piecewise(self, expr):
+
+         if expr.args[-1].cond != True:
+
+-            # We need the last conditional to be a True, otherwise the resulting
+
+-            # function may not return a result.
+
+             raise ValueError("All Piecewise expressions must contain an "
+
+                              "(expr, True) statement to be used as a default "
+
+                              "condition. Without one, the generated "
+
+@@ -455,16 +456,11 @@
+                              "some condition.")
+
+         lines = []
+
+         if self._settings["inline"]:
+
+-            # Express each (cond, expr) pair in a nested Horner form:
+
+-            #   (condition) .* (expr) + (not cond) .* (<others>)
+
+-            # Expressions that result in multiple statements won't work here.
+
+             ecpairs = ["({0}).*({1}) + (~({0})).*(".format
+
+                        (self._print(c), self._print(e))
+
+-                       for e, c in expr.args[:-1]]
+
++                       for e, c in expr.args[:-1])
+
+             elast = "%s" % self._print(expr.args[-1].expr)
+
+             pw = " ...\n".join(ecpairs) + elast + ")"*len(ecpairs)
+
+-            # Note: current need these outer brackets for 2*pw.  Would be
+
+-            # nicer to teach parenthesize() to do this for us when needed!
+
+             return "(" + pw + ")"
+
+         else:
+
+             for i, (e, c) in enumerate(expr.args):
+
+@@ -479,6 +475,13 @@
+                 if i == len(expr.args) - 1:
+
+                     lines.append("end")
+
+             return "\n".join(lines)
+
++
+
++    def _print_Derivative(self, expr):
+
++        return "D[%s, %s]" % (self._print(expr.args[0]), self._print(expr.args[1]))
+
++
+
++    def _print_Float(self, expr):
+
++        res = str(expr)
+
++        return res.replace('e', '*^')
+
+ 
+
+ 
+
+     def indent_code(self, code):

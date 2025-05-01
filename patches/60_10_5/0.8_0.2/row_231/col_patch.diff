@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/231/sympy_sympy/sympy/matrices/densetools.py
++++ b/decoupled/60/0.8_0.2/231/sympy_sympy/sympy/matrices/densetools.py
+@@ -190,7 +190,7 @@
+ 
+
+ def col(matlist, i):
+
+     """
+
+-    Returns the ith column of a matrix
+
++    Returns the ith column of a matrix, correctly handling the new behavior of Matrix.hstack in sympy 1.1.
+
+     Note: Currently very expensive
+
+ 
+
+     Examples
+
+@@ -205,6 +205,13 @@
+     >>> col(a, 1)
+
+     [[7], [4], [2]]
+
+     """
+
++    # Check if all matrices in matlist are empty
+
++    all_empty = all(not mat.rows for mat in matlist)
+
++    
+
++    if all_empty:
+
++        # If all matrices are empty, return an empty column matrix
+
++        return sy.Matrix(0, 1, [])
+
++    
+
+     matcol = [list(l) for l in zip(*matlist)]
+
+     return [[l] for l in matcol[i]]
+
+ 

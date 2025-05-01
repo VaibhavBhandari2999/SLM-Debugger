@@ -1,0 +1,30 @@
+--- a/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
+@@ -932,10 +932,10 @@
+         return mat.is_zero
+
+ 
+
+     def _eval_is_Identity(self):
+
+-        def dirac(i, j):
+
+-            if i == j:
+
+-                return 1
+
+-            return 0
+
++def dirac(i, j):
+
++    if i == j:
+
++        return 1
+
++    return 0
+
+ 
+
+         return all(self[i, j] == dirac(i, j) for i in range(self.rows) for j in
+
+                    range(self.cols))

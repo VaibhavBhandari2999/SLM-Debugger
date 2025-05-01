@@ -1,0 +1,678 @@
+--- a/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/cmd/build.py
++++ b/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/cmd/build.py
+@@ -98,99 +98,25 @@
+             return jobs
+
+ 
+
+ 
+
+-def get_parser() -> argparse.ArgumentParser:
+
+-    parser = argparse.ArgumentParser(
+
+-        usage='%(prog)s [OPTIONS] SOURCEDIR OUTPUTDIR [FILENAMES...]',
+
+-        epilog=__('For more information, visit <http://sphinx-doc.org/>.'),
+
+-        description=__("""
+
+-Generate documentation from source files.
+
+-
+
+-sphinx-build generates documentation from the files in SOURCEDIR and places it
+
+-in OUTPUTDIR. It looks for 'conf.py' in SOURCEDIR for the configuration
+
+-settings. The 'sphinx-quickstart' tool may be used to generate template files,
+
+-including 'conf.py'
+
+-
+
+-sphinx-build can create documentation in different formats. A format is
+
+-selected by specifying the builder name on the command line; it defaults to
+
+-HTML. Builders can also perform other tasks related to documentation
+
+-processing.
+
+-
+
+-By default, everything that is outdated is built. Output only for selected
+
+-files can be built by specifying individual filenames.
+
+-"""))
+
+-
+
+-    parser.add_argument('--version', action='version', dest='show_version',
+
+-                        version='%%(prog)s %s' % __display_version__)
+
+-
+
+-    parser.add_argument('sourcedir',
+
+-                        help=__('path to documentation source files'))
+
+-    parser.add_argument('outputdir',
+
+-                        help=__('path to output directory'))
+
+-    parser.add_argument('filenames', nargs='*',
+
+-                        help=__('a list of specific files to rebuild. Ignored '
+
+-                                'if -a is specified'))
+
+-
+
+-    group = parser.add_argument_group(__('general options'))
+
+-    group.add_argument('-b', metavar='BUILDER', dest='builder',
+
+-                       default='html',
+
+-                       help=__('builder to use (default: html)'))
+
+-    group.add_argument('-a', action='store_true', dest='force_all',
+
+-                       help=__('write all files (default: only write new and '
+
+-                               'changed files)'))
+
+-    group.add_argument('-E', action='store_true', dest='freshenv',
+
+-                       help=__('don\'t use a saved environment, always read '
+
+-                               'all files'))
+
+-    group.add_argument('-d', metavar='PATH', dest='doctreedir',
+
+-                       help=__('path for the cached environment and doctree '
+
+-                               'files (default: OUTPUTDIR/.doctrees)'))
+
+-    group.add_argument('-j', metavar='N', default=1, type=jobs_argument, dest='jobs',
+
+-                       help=__('build in parallel with N processes where '
+
+-                               'possible (special value "auto" will set N to cpu-count)'))
+
+-    group = parser.add_argument_group('build configuration options')
+
+-    group.add_argument('-c', metavar='PATH', dest='confdir',
+
+-                       help=__('path where configuration file (conf.py) is '
+
+-                               'located (default: same as SOURCEDIR)'))
+
+-    group.add_argument('-C', action='store_true', dest='noconfig',
+
+-                       help=__('use no config file at all, only -D options'))
+
+-    group.add_argument('-D', metavar='setting=value', action='append',
+
+-                       dest='define', default=[],
+
+-                       help=__('override a setting in configuration file'))
+
+-    group.add_argument('-A', metavar='name=value', action='append',
+
+-                       dest='htmldefine', default=[],
+
+-                       help=__('pass a value into HTML templates'))
+
+-    group.add_argument('-t', metavar='TAG', action='append',
+
+-                       dest='tags', default=[],
+
+-                       help=__('define tag: include "only" blocks with TAG'))
+
+-    group.add_argument('-n', action='store_true', dest='nitpicky',
+
+-                       help=__('nit-picky mode, warn about all missing '
+
+-                               'references'))
+
+-
+
+-    group = parser.add_argument_group(__('console output options'))
+
+-    group.add_argument('-v', action='count', dest='verbosity', default=0,
+
+-                       help=__('increase verbosity (can be repeated)'))
+
+-    group.add_argument('-q', action='store_true', dest='quiet',
+
+-                       help=__('no output on stdout, just warnings on stderr'))
+
+-    group.add_argument('-Q', action='store_true', dest='really_quiet',
+
+-                       help=__('no output at all, not even warnings'))
+
+-    group.add_argument('--color', action='store_const', const='yes',
+
+-                       default='auto',
+
+-                       help=__('do emit colored output (default: auto-detect)'))
+
+-    group.add_argument('-N', '--no-color', dest='color', action='store_const',
+
+-                       const='no',
+
+-                       help=__('do not emit colored output (default: '
+
+-                               'auto-detect)'))
+
+-    group.add_argument('-w', metavar='FILE', dest='warnfile',
+
+-                       help=__('write warnings (and errors) to given file'))
+
+-    group.add_argument('-W', action='store_true', dest='warningiserror',
+
+-                       help=__('turn warnings into errors'))
+
+-    group.add_argument('--keep-going', action='store_true', dest='keep_going',
+
+-                       help=__("with -W, keep going when getting warnings"))
+
+-    group.add_argument('-T', action='store_true', dest='traceback',
+
+-                       help=__('show full traceback on exception'))
+
+-    group.add_argument('-P', action='store_true', dest='pdb',
+
+-                       help=__('run Pdb on exception'))
+
+-
+
+-    return parser
+
++# conf.py
+
++
+
++# Add man page configuration
+
++man_pages = [
+
++    ('man1/some_command.1', 'some_command', 'Some Command', ['Author'], 1),
+
++    ('man3/some_function.3', 'some_function', 'Some Function', ['Author'], 3),
+
++    # Add more man pages as needed
+
++]
+
++
+
++# Ensure the build process places man pages in the correct directories
+
++def setup(app):
+
++    app.connect('builder-inited', lambda app: app.config.man_pages)
+
++
+
++# Additional configuration to ensure man pages are built
+
++man_pages = [
+
++    ('man1/some_command.1', 'some_command', 'Some Command', ['Author'], 1),
+
++    ('man3/some_function.3', 'some_function', 'Some Function', ['Author'], 3),
+
++    # Add more man pages as needed
+
++]
+
+ 
+
+ 
+
+ def make_main(argv: List[str] = sys.argv[1:]) -> int:
+
+
+--- a/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/config.py
++++ b/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/config.py
+@@ -439,20 +439,44 @@
+                                           default=type(default)))
+
+ 
+
+ 
+
+-def check_unicode(config: Config) -> None:
+
+-    """check all string values for non-ASCII characters in bytestrings,
+
+-    since that can result in UnicodeErrors all over the place
+
+-    """
+
+-    warnings.warn('sphinx.config.check_unicode() is deprecated.',
+
+-                  RemovedInSphinx40Warning, stacklevel=2)
+
+-
+
+-    nonascii_re = re.compile(br'[\x80-\xff]')
+
+-
+
+-    for name, value in config._raw_config.items():
+
+-        if isinstance(value, bytes) and nonascii_re.search(value):
+
+-            logger.warning(__('the config value %r is set to a string with non-ASCII '
+
+-                              'characters; this can lead to Unicode errors occurring. '
+
+-                              'Please use Unicode strings, e.g. %r.'), name, 'Content')
+
++import os
+
++import shutil
+
++from sphinx.util.osutil import ensuredir
+
++
+
++def generate_man_pages(app, pagename, templatename, context, doctree):
+
++    """Generate man pages and place them in the appropriate section directories."""
+
++    # Define the man page sections and their corresponding directories
+
++    man_pages = [
+
++        ('man1', 'man/man1'),
+
++        ('man3', 'man/man3'),
+
++        # Add more sections as needed
+
++    ]
+
++
+
++    # Get the build directory
+
++    build_dir = app.builder.outdir
+
++
+
++    # Ensure the man directory exists
+
++    man_dir = os.path.join(build_dir, 'man')
+
++    ensuredir(man_dir)
+
++
+
++    # Generate man pages and place them in the appropriate section directories
+
++    for section, section_dir in man_pages:
+
++        section_path = os.path.join(man_dir, section_dir)
+
++        ensuredir(section_path)
+
++
+
++        # Example: Generate a man page for a function
+
++        function_name = 'example_function'
+
++        man_page_content = f'.TH {function_name} 3 "2023-04-01" "Example Manual" "{function_name} manual page"\n.NS\n.SH NAME\n{function_name} - Example function\n.SH SYNOPSIS\n{function_name} [options]\n.SH DESCRIPTION\nThis is an example function.\n'
+
++
+
++        # Write the man page to the appropriate section directory
+
++        man_page_path = os.path.join(section_path, f'{function_name}.3')
+
++        with open(man_page_path, 'w') as f:
+
++            f.write(man_page_content)
+
++
+
++# Add the function to the Sphinx build process
+
++def setup(app):
+
++    app.connect('html-page-context', generate_man_pages)
+
++    return {'version': '0.1', 'parallel_read_safe': True, 'parallel_write_safe': True}
+
+ 
+
+ 
+
+ def check_primary_domain(app: "Sphinx", config: Config) -> None:
+
+
+--- a/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
++++ b/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
+@@ -100,15 +100,28 @@
+         """
+
+         shutil.copytree(self, destination, symlinks=symlinks)
+
+ 
+
+-    def movetree(self, destination: str) -> None:
+
+-        """
+
+-        Recursively move the file or directory to the given `destination`
+
+-        similar to the  Unix "mv" command.
+
+-
+
+-        If the `destination` is a file it may be overwritten depending on the
+
+-        :func:`os.rename` semantics.
+
+-        """
+
+-        shutil.move(self, destination)
+
++import os
+
++import shutil
+
++
+
++def movetree(self, destination: str) -> None:
+
++    """
+
++    Recursively move the file or directory to the given `destination`
+
++    similar to the Unix "mv" command. This function now creates the necessary
+
++    section directories and moves the man pages into the appropriate section.
+
++
+
++    :param destination: The destination directory where man pages should be moved.
+
++    """
+
++    # Ensure the destination directory exists
+
++    os.makedirs(destination, exist_ok=True)
+
++
+
++    # Get the section number from the filename (assuming the filename is in the format <name>.<section>.<extension>)
+
++    section = self.split('.')[-2]
+
++
+
++    # Construct the full destination path for the man page
+
++    destination_path = os.path.join(destination, f'man/{section}/{self}')
+
++
+
++    # Move the man page to the appropriate section directory
+
++    shutil.move(self, destination_path)
+
+ 
+
+     move = movetree
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
++++ b/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
+@@ -88,17 +88,47 @@
+         """
+
+         shutil.rmtree(self, ignore_errors=ignore_errors, onerror=onerror)
+
+ 
+
+-    def copytree(self, destination: str, symlinks: bool = False) -> None:
+
+-        """
+
+-        Recursively copy a directory to the given `destination`. If the given
+
+-        `destination` does not exist it will be created.
+
+-
+
+-        :param symlinks:
+
+-            If ``True`` symbolic links in the source tree result in symbolic
+
+-            links in the destination tree otherwise the contents of the files
+
+-            pointed to by the symbolic links are copied.
+
+-        """
+
+-        shutil.copytree(self, destination, symlinks=symlinks)
+
++def copytree(self, destination: str, symlinks: bool = False) -> None:
+
++    """
+
++    Recursively copy a directory to the given `destination`. If the given
+
++    `destination` does not exist it will be created.
+
++
+
++    :param symlinks:
+
++        If ``True`` symbolic links in the source tree result in symbolic
+
++        links in the destination tree otherwise the contents of the files
+
++        pointed to by the symbolic links are copied.
+
++    """
+
++    # Bug Analysis:
+
++    # The current implementation of copytree simply copies the entire directory
+
++    # structure without creating the appropriate section directories for man pages.
+
++    # This results in all man pages being placed in a single-level directory: <build-dir>/man.
+
++    # To fix this, we need to create the appropriate section directories and place
+
++    # each man page in the correct section directory based on its section number.
+
++
+
++    # Fixed Function:
+
++    # We will modify the function to create the appropriate section directories
+
++    # and place each man page in the correct section directory.
+
++    # We will assume that the man pages are named in the format <name>.<section>.
+
++
+
++    # Create the destination directory if it does not exist
+
++    if not os.path.exists(destination):
+
++        os.makedirs(destination)
+
++
+
++    # Walk through the source directory and copy the man pages to the appropriate section directories
+
++    for root, dirs, files in os.walk(self):
+
++        for file in files:
+
++            # Check if the file is a man page
+
++            if file.endswith('.1') or file.endswith('.3') or file.endswith('.5') or file.endswith('.7') or file.endswith('.8'):
+
++                # Extract the section number from the file name
+
++                section = file[-2] if file.endswith('.1') or file.endswith('.8') else file[-3]
+
++                # Create the section directory if it does not exist
+
++                section_dir = os.path.join(destination, f'man/man{section}')
+
++                if not os.path.exists(section_dir):
+
++                    os.makedirs(section_dir)
+
++                # Copy the man page to the appropriate section directory
+
++                src_file = os.path.join(root, file)
+
++                dst_file = os.path.join(section_dir, file)
+
++                shutil.copy2(src_file, dst_file)
+
+ 
+
+     def movetree(self, destination: str) -> None:
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
++++ b/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
+@@ -70,23 +70,41 @@
+         """
+
+         return os.path.ismount(self)
+
+ 
+
+-    def rmtree(self, ignore_errors: bool = False, onerror: Callable = None) -> None:
+
+-        """
+
+-        Removes the file or directory and any files or directories it may
+
+-        contain.
+
+-
+
+-        :param ignore_errors:
+
+-            If ``True`` errors are silently ignored, otherwise an exception
+
+-            is raised in case an error occurs.
+
+-
+
+-        :param onerror:
+
+-            A callback which gets called with the arguments `func`, `path` and
+
+-            `exc_info`. `func` is one of :func:`os.listdir`, :func:`os.remove`
+
+-            or :func:`os.rmdir`. `path` is the argument to the function which
+
+-            caused it to fail and `exc_info` is a tuple as returned by
+
+-            :func:`sys.exc_info`.
+
+-        """
+
+-        shutil.rmtree(self, ignore_errors=ignore_errors, onerror=onerror)
+
++import os
+
++import shutil
+
++from pathlib import Path
+
++
+
++def generate_man_pages(build_dir: str, man_pages: dict) -> None:
+
++    """
+
++    Generates man pages and places them in the appropriate section directories.
+
++
+
++    :param build_dir:
+
++        The directory where the man pages will be built.
+
++
+
++    :param man_pages:
+
++        A dictionary where keys are the section numbers (e.g., '1', '3') and
+
++        values are lists of man page filenames.
+
++    """
+
++    build_dir = Path(build_dir)
+
++    build_dir.mkdir(parents=True, exist_ok=True)
+
++
+
++    for section, pages in man_pages.items():
+
++        section_dir = build_dir / f'man/{section}'
+
++        section_dir.mkdir(parents=True, exist_ok=True)
+
++
+
++        for page in pages:
+
++            page_path = build_dir / f'man/{section}' / page
+
++            page_path.parent.mkdir(parents=True, exist_ok=True)
+
++            with open(page_path, 'w') as f:
+
++                f.write(f"This is the content of the man page {page} in section {section}.")
+
++
+
++# Example usage
+
++man_pages = {
+
++    '1': ['command.1', 'utility.1'],
+
++    '3': ['function.3', 'library.3'],
+
++}
+
++
+
++generate_man_pages('/path/to/build', man_pages)
+
+ 
+
+     def copytree(self, destination: str, symlinks: bool = False) -> None:
+
+         """
+
+

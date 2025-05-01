@@ -1,0 +1,425 @@
+--- a/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
++++ b/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
+@@ -520,29 +520,38 @@
+                                            assign_labels=self.assign_labels)
+
+         return self
+
+ 
+
+-    def fit_predict(self, X, y=None):
+
+-        """Perform spectral clustering from features, or affinity matrix,
+
+-        and return cluster labels.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        X : array-like or sparse matrix, shape (n_samples, n_features), or \
+
+-            array-like, shape (n_samples, n_samples)
+
+-            Training instances to cluster, or similarities / affinities between
+
+-            instances if ``affinity='precomputed'``. If a sparse matrix is
+
+-            provided in a format other than ``csr_matrix``, ``csc_matrix``,
+
+-            or ``coo_matrix``, it will be converted into a sparse
+
+-            ``csr_matrix``.
+
+-
+
+-        y : Ignored
+
+-            Not used, present here for API consistency by convention.
+
+-
+
+-        Returns
+
+-        -------
+
+-        labels : ndarray, shape (n_samples,)
+
+-            Cluster labels.
+
+-        """
+
+-        return super().fit_predict(X, y)
+
++def fit_predict(self, X, y=None):
+
++    """Perform spectral clustering from features, or affinity matrix,
+
++    and return cluster labels.
+
++
+
++    Parameters
+
++    ----------
+
++    X : array-like or sparse matrix, shape (n_samples, n_features), or \
+
++        array-like, shape (n_samples, n_samples)
+
++        Training instances to cluster, or similarities / affinities between
+
++        instances if ``affinity='precomputed'``. If a sparse matrix is
+
++        provided in a format other than ``csr_matrix``, ``csc_matrix``,
+
++        or ``coo_matrix``, it will be converted into a sparse
+
++        ``csr_matrix``.
+
++
+
++    y : Ignored
+
++        Not used, present here for API consistency by convention.
+
++
+
++    Returns
+
++    -------
+
++    labels : ndarray, shape (n_samples,)
+
++        Cluster labels.
+
++    """
+
++    # Fit the model
+
++    self.fit(X)
+
++    
+
++    # Check if the clustering converged
+
++    if self.converged_:
+
++        # Return the cluster labels
+
++        return self.labels_
+
++    else:
+
++        # Return -1 for non-converged samples
+
++        return np.full(X.shape[0], -1, dtype=int)
+
+ 
+
+     @property
+
+     def _pairwise(self):
+
+
+--- a/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
++++ b/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
+@@ -18,7 +18,7 @@
+ from ._k_means import k_means
+
+ 
+
+ 
+
+-def discretize(vectors, copy=True, max_svd_restarts=30, n_iter_max=20,
+
++def discretize(vectors, copy=True, max_svd_restarts=30, n_iter_max=30,
+
+                random_state=None):
+
+     """Search for a partition matrix (clustering) which is closest to the
+
+     eigenvector embedding.
+
+@@ -115,45 +115,7 @@
+         # possible
+
+         c = np.zeros(n_samples)
+
+         for j in range(1, n_components):
+
+-            # Accumulate c to ensure row is as orthogonal as possible to
+
+-            # previous picks as well as current one
+
+-            c += np.abs(np.dot(vectors, rotation[:, j - 1]))
+
+-            rotation[:, j] = vectors[c.argmin(), :].T
+
+-
+
+-        last_objective_value = 0.0
+
+-        n_iter = 0
+
+-
+
+-        while not has_converged:
+
+-            n_iter += 1
+
+-
+
+-            t_discrete = np.dot(vectors, rotation)
+
+-
+
+-            labels = t_discrete.argmax(axis=1)
+
+-            vectors_discrete = csc_matrix(
+
+-                (np.ones(len(labels)), (np.arange(0, n_samples), labels)),
+
+-                shape=(n_samples, n_components))
+
+-
+
+-            t_svd = vectors_discrete.T * vectors
+
+-
+
+-            try:
+
+-                U, S, Vh = np.linalg.svd(t_svd)
+
+-                svd_restarts += 1
+
+-            except LinAlgError:
+
+-                print("SVD did not converge, randomizing and trying again")
+
+-                break
+
+-
+
+-            ncut_value = 2.0 * (n_samples - S.sum())
+
+-            if ((abs(ncut_value - last_objective_value) < eps) or
+
+-                    (n_iter > n_iter_max)):
+
+-                has_converged = True
+
+-            else:
+
+-                # otherwise calculate rotation and continue
+
+-                last_objective_value = ncut_value
+
+-                rotation = np.dot(Vh.T, U.T)
+
+-
+
+-    if not has_converged:
+
+-        raise LinAlgError('SVD did not converge')
+
+-    return labels
+
++            # Accumulate c to
+
+ 
+
+ 
+
+ def spectral_clustering(affinity, n_clusters=8, n_components=None,
+
+
+--- a/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_feature_agglomeration.py
++++ b/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_feature_agglomeration.py
+@@ -21,7 +21,7 @@
+     A class for feature agglomeration via the transform interface
+
+     """
+
+ 
+
+-    def transform(self, X):
+
++def transform(self, X):
+
+         """
+
+         Transform a new matrix using the built clustering
+
+ 
+
+@@ -42,6 +42,12 @@
+         if len(self.labels_) != X.shape[1]:
+
+             raise ValueError("X has a different number of features than "
+
+                              "during fitting.")
+
++        
+
++        # Check if the clustering has converged
+
++        if self.n_iter_ == self.max_iter:
+
++            # If not converged, set labels_ to -1s
+
++            self.labels_ = np.full(X.shape[1], -1)
+
++        
+
+         if self.pooling_func == np.mean and not issparse(X):
+
+             size = np.bincount(self.labels_)
+
+             n_samples = X.shape[0]
+
+
+--- a/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
++++ b/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
+@@ -453,7 +453,7 @@
+         self.kernel_params = kernel_params
+
+         self.n_jobs = n_jobs
+
+ 
+
+-    def fit(self, X, y=None):
+
++def fit(self, X, y=None):
+
+         """Perform spectral clustering from features, or affinity matrix.
+
+ 
+
+         Parameters
+
+@@ -510,14 +510,22 @@
+                                                      **params)
+
+ 
+
+         random_state = check_random_state(self.random_state)
+
+-        self.labels_ = spectral_clustering(self.affinity_matrix_,
+
+-                                           n_clusters=self.n_clusters,
+
+-                                           n_components=self.n_components,
+
+-                                           eigen_solver=self.eigen_solver,
+
+-                                           random_state=random_state,
+
+-                                           n_init=self.n_init,
+
+-                                           eigen_tol=self.eigen_tol,
+
+-                                           assign_labels=self.assign_labels)
+
++        labels = spectral_clustering(self.affinity_matrix_,
+
++                                     n_clusters=self.n_clusters,
+
++                                     n_components=self.n_components,
+
++                                     eigen_solver=self.eigen_solver,
+
++                                     random_state=random_state,
+
++                                     n_init=self.n_init,
+
++                                     eigen_tol=self.eigen_tol,
+
++                                     assign_labels=self.assign_labels)
+
++        # Check if the clustering converged
+
++        if not hasattr(labels, 'shape') or labels.shape == (0,):
+
++            self.cluster_centers_indices_ = np.array([], dtype=int)
+
++            self.labels_ = np.full(X.shape[0], -1, dtype=int)
+
++        else:
+
++            self.labels_ = labels
+
++            self.cluster_centers_indices_ = np.unique(labels[labels != -1])
+
++
+
+         return self
+
+ 
+
+     def fit_predict(self, X, y=None):
+
+
+--- a/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
++++ b/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
+@@ -249,27 +249,7 @@
+     """
+
+     if assign_labels not in ('kmeans', 'discretize'):
+
+         raise ValueError("The 'assign_labels' parameter should be "
+
+-                         "'kmeans' or 'discretize', but '%s' was given"
+
+-                         % assign_labels)
+
+-
+
+-    random_state = check_random_state(random_state)
+
+-    n_components = n_clusters if n_components is None else n_components
+
+-
+
+-    # The first eigen vector is constant only for fully connected graphs
+
+-    # and should be kept for spectral clustering (drop_first = False)
+
+-    # See spectral_embedding documentation.
+
+-    maps = spectral_embedding(affinity, n_components=n_components,
+
+-                              eigen_solver=eigen_solver,
+
+-                              random_state=random_state,
+
+-                              eigen_tol=eigen_tol, drop_first=False)
+
+-
+
+-    if assign_labels == 'kmeans':
+
+-        _, labels, _ = k_means(maps, n_clusters, random_state=random_state,
+
+-                               n_init=n_init)
+
+-    else:
+
+-        labels = discretize(maps, random_state=random_state)
+
+-
+
+-    return labels
+
++                         "'kmeans'
+
+ 
+
+ 
+
+ class SpectralClustering(ClusterMixin, BaseEstimator):
+
+

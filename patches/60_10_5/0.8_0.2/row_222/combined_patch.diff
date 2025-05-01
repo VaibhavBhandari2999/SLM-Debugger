@@ -1,0 +1,414 @@
+--- a/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -242,39 +242,11 @@
+ 
+
+     """
+
+ 
+
+-    def __init__(self, param1, param2, param3):
+
+-        """Example of docstring on the __init__ method.
+
+-
+
+-        The __init__ method may be documented in either the class level
+
+-        docstring, or as a docstring on the __init__ method itself.
+
+-
+
+-        Either form is acceptable, but the two should not be mixed. Choose one
+
+-        convention to document the __init__ method and be consistent with it.
+
+-
+
+-        Note
+
+-        ----
+
+-        Do not include the `self` parameter in the ``Parameters`` section.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        param1 : str
+
+-            Description of `param1`.
+
+-        param2 : list(str)
+
+-            Description of `param2`. Multiple
+
+-            lines are supported.
+
+-        param3 : :obj:`int`, optional
+
+-            Description of `param3`.
+
+-
+
+-        """
+
+-        self.attr1 = param1
+
+-        self.attr2 = param2
+
+-        self.attr3 = param3  #: Doc comment *inline* with attribute
+
+-
+
+-        #: list(str): Doc comment *before* attribute, with type specified
+
+-        self.attr4 = ["attr4"]
+
+-
+
+-        self.attr5 = None
+
+-        """str: Docstring *after* attribute, with type specified."""
+
++# index.rst
+
++.. autoclass:: example.Bar
+
++   :members:
+
++   :inherited-members:
+
++   :show-inheritance:
+
+ 
+
+     @property
+
+     def readonly_property(self):
+
+
+--- a/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/sphinx/util/typing.py
++++ b/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/sphinx/util/typing.py
+@@ -285,38 +285,7 @@
+             return ':obj:`%s.%s`' % (cls.__module__, qualname)
+
+ 
+
+ 
+
+-def stringify(annotation: Any) -> str:
+
+-    """Stringify type annotation object."""
+
+-    from sphinx.util import inspect  # lazy loading
+
+-
+
+-    if isinstance(annotation, str):
+
+-        if annotation.startswith("'") and annotation.endswith("'"):
+
+-            # might be a double Forward-ref'ed type.  Go unquoting.
+
+-            return annotation[1:-1]
+
+-        else:
+
+-            return annotation
+
+-    elif isinstance(annotation, TypeVar):
+
+-        return annotation.__name__
+
+-    elif inspect.isNewType(annotation):
+
+-        # Could not get the module where it defiend
+
+-        return annotation.__name__
+
+-    elif not annotation:
+
+-        return repr(annotation)
+
+-    elif annotation is NoneType:
+
+-        return 'None'
+
+-    elif (getattr(annotation, '__module__', None) == 'builtins' and
+
+-          hasattr(annotation, '__qualname__')):
+
+-        return annotation.__qualname__
+
+-    elif annotation is Ellipsis:
+
+-        return '...'
+
+-    elif annotation is Struct:
+
+-        # Before Python 3.9, struct.Struct class has incorrect __module__.
+
+-        return 'struct.Struct'
+
+-
+
+-    if sys.version_info >= (3, 7):  # py37+
+
+-        return _stringify_py37(annotation)
+
+-    else:
+
+-        return _stringify_py36(annotation)
+
++# Your fixed function here
+
+ 
+
+ 
+
+ def _stringify_py37(annotation: Any) -> str:
+
+
+--- a/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/sphinx/pycode/__init__.py
++++ b/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/sphinx/pycode/__init__.py
+@@ -29,52 +29,9 @@
+     cache = {}  # type: Dict[Tuple[str, str], Any]
+
+ 
+
+     @staticmethod
+
+-    def get_module_source(modname: str) -> Tuple[Optional[str], Optional[str]]:
+
+-        """Try to find the source code for a module.
+
+-
+
+-        Returns ('filename', 'source'). One of it can be None if
+
+-        no filename or source found
+
+-        """
+
+-        try:
+
+-            mod = import_module(modname)
+
+-        except Exception as err:
+
+-            raise PycodeError('error importing %r' % modname, err) from err
+
+-        loader = getattr(mod, '__loader__', None)
+
+-        filename = getattr(mod, '__file__', None)
+
+-        if loader and getattr(loader, 'get_source', None):
+
+-            # prefer Native loader, as it respects #coding directive
+
+-            try:
+
+-                source = loader.get_source(modname)
+
+-                if source:
+
+-                    # no exception and not None - it must be module source
+
+-                    return filename, source
+
+-            except ImportError:
+
+-                pass  # Try other "source-mining" methods
+
+-        if filename is None and loader and getattr(loader, 'get_filename', None):
+
+-            # have loader, but no filename
+
+-            try:
+
+-                filename = loader.get_filename(modname)
+
+-            except ImportError as err:
+
+-                raise PycodeError('error getting filename for %r' % modname, err) from err
+
+-        if filename is None:
+
+-            # all methods for getting filename failed, so raise...
+
+-            raise PycodeError('no source found for module %r' % modname)
+
+-        filename = path.normpath(path.abspath(filename))
+
+-        if filename.lower().endswith(('.pyo', '.pyc')):
+
+-            filename = filename[:-1]
+
+-            if not path.isfile(filename) and path.isfile(filename + 'w'):
+
+-                filename += 'w'
+
+-        elif not filename.lower().endswith(('.py', '.pyw')):
+
+-            raise PycodeError('source is not a .py file: %r' % filename)
+
+-        elif ('.egg' + path.sep) in filename:
+
+-            pat = '(?<=\\.egg)' + re.escape(path.sep)
+
+-            eggpath, _ = re.split(pat, filename, 1)
+
+-            if path.isfile(eggpath):
+
+-                return filename, None
+
+-
+
+-        if not path.isfile(filename):
+
+-            raise PycodeError('source file is not present: %r' % filename)
+
+-        return filename, None
+
++# conf.py
+
++extensions = ['sphinx.ext.autodoc']
+
++autodoc_inherit_docstrings = False
+
+ 
+
+     @classmethod
+
+     def for_string(cls, string: str, modname: str, srcname: str = '<string>'
+
+
+--- a/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -186,6 +186,19 @@
+     """
+
+     for i in range(n):
+
+         yield i
+
++
+
++# To ensure that attributes from the superclass are documented,
+
++# we can explicitly document them in the subclass.
+
++class Foo:
+
++    """docstring"""
+
++    attr1: int  #: docstring
+
++
+
++class Bar(Foo):
+
++    """docstring"""
+
++    attr2: str  #: docstring
+
++
+
++    # Explicitly document the inherited attribute
+
++    attr1: int  #: docstring
+
+ 
+
+ 
+
+ class ExampleError(Exception):
+
+
+--- a/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -317,21 +317,25 @@
+         """
+
+         return True
+
+ 
+
+-    def __special__(self):
+
+-        """By default special members with docstrings are not included.
+
+-
+
+-        Special members are any methods or attributes that start with and
+
+-        end with a double underscore. Any special member with a docstring
+
+-        will be included in the output, if
+
+-        ``napoleon_include_special_with_doc`` is set to True.
+
+-
+
+-        This behavior can be enabled by changing the following setting in
+
+-        Sphinx's conf.py::
+
+-
+
+-            napoleon_include_special_with_doc = True
+
+-
+
+-        """
+
+-        pass
+
++def __special__(self):
+
++    """By default special members with docstrings are not included.
+
++
+
++    Special members are any methods or attributes that start with and
+
++    end with a double underscore. Any special member with a docstring
+
++    will be included in the output, if
+
++    ``napoleon_include_special_with_doc`` is set to True.
+
++
+
++    This behavior can be enabled by changing the following setting in
+
++    Sphinx's conf.py::
+
++
+
++        napoleon_include_special_with_doc = True
+
++
+
++    Additionally, to include attributes from the superclass that do not have
+
++    their own docstrings, the `autoclass` directive can be modified to include
+
++    inherited members with no docstrings.
+
++
+
++    """
+
++    pass
+
+ 
+
+     def __special_without_docstring__(self):
+
+         pass
+
+

@@ -1,0 +1,144 @@
+--- a/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/combinatorics/partitions.py
++++ b/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/combinatorics/partitions.py
+@@ -237,39 +237,38 @@
+             [i for p in partition for i in p], key=default_sort_key)])
+
+ 
+
+     @classmethod
+
+-    def from_rgs(self, rgs, elements):
+
+-        """
+
+-        Creates a set partition from a restricted growth string.
+
+-
+
+-        The indices given in rgs are assumed to be the index
+
+-        of the element as given in elements *as provided* (the
+
+-        elements are not sorted by this routine). Block numbering
+
+-        starts from 0. If any block was not referenced in ``rgs``
+
+-        an error will be raised.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.combinatorics.partitions import Partition
+
+-        >>> Partition.from_rgs([0, 1, 2, 0, 1], list('abcde'))
+
+-        {{c}, {a, d}, {b, e}}
+
+-        >>> Partition.from_rgs([0, 1, 2, 0, 1], list('cbead'))
+
+-        {{e}, {a, c}, {b, d}}
+
+-        >>> a = Partition([1, 4], [2], [3, 5])
+
+-        >>> Partition.from_rgs(a.RGS, a.members)
+
+-        {{2}, {1, 4}, {3, 5}}
+
+-        """
+
+-        if len(rgs) != len(elements):
+
+-            raise ValueError('mismatch in rgs and element lengths')
+
+-        max_elem = max(rgs) + 1
+
+-        partition = [[] for i in range(max_elem)]
+
+-        j = 0
+
+-        for i in rgs:
+
+-            partition[i].append(elements[j])
+
+-            j += 1
+
+-        if not all(p for p in partition):
+
+-            raise ValueError('some blocks of the partition were empty.')
+
+-        return Partition(*partition)
+
++from sympy.combinatorics.permutations import Permutation
+
++
+
++class CustomPermutation(Permutation):
+
++    def __new__(cls, cycles):
+
++        """
+
++        Create a permutation from a list of cycles.
+
++
+
++        If the cycles are non-disjoint, they are applied in left-to-right
+
++        order to construct the resulting permutation.
+
++        """
+
++        if not cycles:
+
++            return Permutation([0]*len(cycles[0]))
+
++
+
++        # Convert each cycle to a list of indices
+
++        cycle_list = [sorted(set([cls._index_of(i) for i in cycle])) for cycle in cycles]
+
++
+
++        # Apply cycles in left-to-right order
+
++        result = Permutation([0]*len(cycle_list[0]))
+
++        for cycle in cycle_list:
+
++            result = result * Permutation(cycle)
+
++
+
++        return result
+
++
+
++    @staticmethod
+
++    def _index_of(element):
+
++        # This is a placeholder for the actual implementation
+
++        # which would map elements to their corresponding indices
+
++        raise NotImplementedError("This method should be implemented in a subclass")
+
++
+
++# Example usage
+
++p = CustomPermutation([[0, 1], [0, 1]])
+
++print(p.array_form)  # Should print [0, 0, 1, 2, 3, ...]
+
+ 
+
+ 
+
+ class IntegerPartition(Basic):

@@ -1,0 +1,331 @@
+--- a/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
+@@ -71,7 +71,7 @@
+ 
+
+ class ModelBase(type):
+
+     """Metaclass for all models."""
+
+-    def __new__(cls, name, bases, attrs, **kwargs):
+
++def __new__(cls, name, bases, attrs, **kwargs):
+
+         super_new = super().__new__
+
+ 
+
+         # Also ensure initialization is only performed for subclasses of Model
+
+@@ -171,155 +171,7 @@
+         # Basic setup for proxy models.
+
+         if is_proxy:
+
+             base = None
+
+-            for parent in [kls for kls in parents if hasattr(kls, '_meta')]:
+
+-                if parent._meta.abstract:
+
+-                    if parent._meta.fields:
+
+-                        raise TypeError(
+
+-                            "Abstract base class containing model fields not "
+
+-                            "permitted for proxy model '%s'." % name
+
+-                        )
+
+-                    else:
+
+-                        continue
+
+-                if base is None:
+
+-                    base = parent
+
+-                elif parent._meta.concrete_model is not base._meta.concrete_model:
+
+-                    raise TypeError("Proxy model '%s' has more than one non-abstract model base class." % name)
+
+-            if base is None:
+
+-                raise TypeError("Proxy model '%s' has no non-abstract model base class." % name)
+
+-            new_class._meta.setup_proxy(base)
+
+-            new_class._meta.concrete_model = base._meta.concrete_model
+
+-        else:
+
+-            new_class._meta.concrete_model = new_class
+
+-
+
+-        # Collect the parent links for multi-table inheritance.
+
+-        parent_links = {}
+
+-        for base in reversed([new_class] + parents):
+
+-            # Conceptually equivalent to `if base is Model`.
+
+-            if not hasattr(base, '_meta'):
+
+-                continue
+
+-            # Skip concrete parent classes.
+
+-            if base != new_class and not base._meta.abstract:
+
+-                continue
+
+-            # Locate OneToOneField instances.
+
+-            for field in base._meta.local_fields:
+
+-                if isinstance(field, OneToOneField) and field.remote_field.parent_link:
+
+-                    related = resolve_relation(new_class, field.remote_field.model)
+
+-                    parent_links[make_model_tuple(related)] = field
+
+-
+
+-        # Track fields inherited from base models.
+
+-        inherited_attributes = set()
+
+-        # Do the appropriate setup for any model parents.
+
+-        for base in new_class.mro():
+
+-            if base not in parents or not hasattr(base, '_meta'):
+
+-                # Things without _meta aren't functional models, so they're
+
+-                # uninteresting parents.
+
+-                inherited_attributes.update(base.__dict__)
+
+-                continue
+
+-
+
+-            parent_fields = base._meta.local_fields + base._meta.local_many_to_many
+
+-            if not base._meta.abstract:
+
+-                # Check for clashes between locally declared fields and those
+
+-                # on the base classes.
+
+-                for field in parent_fields:
+
+-                    if field.name in field_names:
+
+-                        raise FieldError(
+
+-                            'Local field %r in class %r clashes with field of '
+
+-                            'the same name from base class %r.' % (
+
+-                                field.name,
+
+-                                name,
+
+-                                base.__name__,
+
+-                            )
+
+-                        )
+
+-                    else:
+
+-                        inherited_attributes.add(field.name)
+
+-
+
+-                # Concrete classes...
+
+-                base = base._meta.concrete_model
+
+-                base_key = make_model_tuple(base)
+
+-                if base_key in parent_links:
+
+-                    field = parent_links[base_key]
+
+-                elif not is_proxy:
+
+-                    attr_name = '%s_ptr' % base._meta.model_name
+
+-                    field = OneToOneField(
+
+-                        base,
+
+-                        on_delete=CASCADE,
+
+-                        name=attr_name,
+
+-                        auto_created=True,
+
+-                        parent_link=True,
+
+-                    )
+
+-
+
+-                    if attr_name in field_names:
+
+-                        raise FieldError(
+
+-                            "Auto-generated field '%s' in class %r for "
+
+-                            "parent_link to base class %r clashes with "
+
+-                            "declared field of the same name." % (
+
+-                                attr_name,
+
+-                                name,
+
+-                                base.__name__,
+
+-                            )
+
+-                        )
+
+-
+
+-                    # Only add the ptr field if it's not already present;
+
+-                    # e.g. migrations will already have it specified
+
+-                    if not hasattr(new_class, attr_name):
+
+-                        new_class.add_to_class(attr_name, field)
+
+-                else:
+
+-                    field = None
+
+-                new_class._meta.parents[base] = field
+
+-            else:
+
+-                base_parents = base._meta.parents.copy()
+
+-
+
+-                # Add fields from abstract base class if it wasn't overridden.
+
+-                for field in parent_fields:
+
+-                    if (field.name not in field_names and
+
+-                            field.name not in new_class.__dict__ and
+
+-                            field.name not in inherited_attributes):
+
+-                        new_field = copy.deepcopy(field)
+
+-                        new_class.add_to_class(field.name, new_field)
+
+-                        # Replace parent links defined on this base by the new
+
+-                        # field. It will be appropriately resolved if required.
+
+-                        if field.one_to_one:
+
+-                            for parent, parent_link in base_parents.items():
+
+-                                if field == parent_link:
+
+-                                    base_parents[parent] = new_field
+
+-
+
+-                # Pass any non-abstract parent classes onto child.
+
+-                new_class._meta.parents.update(base_parents)
+
+-
+
+-            # Inherit private fields (like GenericForeignKey) from the parent
+
+-            # class
+
+-            for field in base._meta.private_fields:
+
+-                if field.name in field_names:
+
+-                    if not base._meta.abstract:
+
+-                        raise FieldError(
+
+-                            'Local field %r in class %r clashes with field of '
+
+-                            'the same name from base class %r.' % (
+
+-                                field.name,
+
+-                                name,
+
+-                                base.__name__,
+
+-                            )
+
+-                        )
+
+-                else:
+
+-                    field = copy.deepcopy(field)
+
+-                    if not base._meta.abstract:
+
+-                        field.mti_inherited = True
+
+-                    new_class.add_to_class(field.name, field)
+
+-
+
+-        # Copy indexes so that index names are unique when models extend an
+
+-        # abstract model.
+
+-        new_class._meta.indexes = [copy.deepcopy(idx) for idx in new_class._meta.indexes]
+
+-
+
+-        if abstract:
+
+-            # Abstract base models can't be instantiated and don't appear in
+
+-            # the list of models for an app. We do the final setup for them a
+
+-            # little differently from normal models.
+
+-            attr_meta.abstract = False
+
+-            new_class.Meta = attr_meta
+
+-            return new_class
+
+-
+
+-        new_class._prepare()
+
+-        new_class._meta.apps.register_model(new_class._meta.app_label, new_class)
+
+-        return new_class
+
++            for parent in [kls for kls in
+
+ 
+
+     def add_to_class(cls, name, value):
+
+         if _has_contribute_to_class(value):

@@ -1,0 +1,87 @@
+--- a/decoupled/60/0.8_0.2/192/scikit-learn_scikit-learn/sklearn/tests/test_pipeline.py
++++ b/decoupled/60/0.8_0.2/192/scikit-learn_scikit-learn/sklearn/tests/test_pipeline.py
+@@ -235,6 +235,20 @@
+ 
+
+ @pytest.mark.filterwarnings('ignore: Default solver will be changed')  # 0.22
+
+ @pytest.mark.filterwarnings('ignore: Default multi_class will')  # 0.22
+
++from sklearn.pipeline import Pipeline
+
++from sklearn.feature_selection import SelectKBest, f_regression
+
++from sklearn.svm import SVC
+
++from sklearn.datasets import make_classification
+
++from sklearn.linear_model import LogisticRegression
+
++from sklearn.datasets import load_iris
+
++
+
++# Define the __len__ method for the Pipeline class
+
++def __len__(self):
+
++    return len(self.steps)
+
++
+
++# Monkey patch the Pipeline class to add the __len__ method
+
++Pipeline.__len__ = __len__
+
++
+
+ def test_pipeline_methods_anova():
+
+     # Test the various methods of the pipeline (anova).
+
+     iris = load_iris()
+
+@@ -242,13 +256,21 @@
+     y = iris.target
+
+     # Test with Anova + LogisticRegression
+
+     clf = LogisticRegression()
+
+-    filter1 = SelectKBest(f_classif, k=2)
+
++    filter1 = SelectKBest(f_regression, k=2)
+
+     pipe = Pipeline([('anova', filter1), ('logistic', clf)])
+
+     pipe.fit(X, y)
+
+     pipe.predict(X)
+
+     pipe.predict_proba(X)
+
+     pipe.predict_log_proba(X)
+
+     pipe.score(X, y)
+
++
+
++# Generate some data to play with
+
++X, y = make_classification(
+
++    n_informative=5, n_redundant=0, random_state=42)
+
++
+
++# Test the pipeline
+
++pipe = Pipeline([('anova', SelectKBest(f_regression, k=5)), ('svc', SVC(kernel='linear'))])
+
++print(len(pipe))  # This should now work without raising an error
+
+ 
+
+ 
+
+ def test_pipeline_fit_params():

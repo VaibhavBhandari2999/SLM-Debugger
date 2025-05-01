@@ -1,0 +1,28 @@
+--- a/decoupled/60/0.8_0.2/173/pytest-dev_pytest/testing/python/approx.py
++++ b/decoupled/60/0.8_0.2/173/pytest-dev_pytest/testing/python/approx.py
+@@ -310,6 +310,13 @@
+         assert (1, 2) != approx((1,))
+
+         assert (1, 2) != approx((1, 2, 3))
+
+ 
+
++import pytest
+
++
+
++def approx(expected, rel, abs):
+
++    """A helper function to compare floating-point numbers with relative and absolute tolerances."""
+
++    return pytest.approx(expected, rel=rel, abs=abs)
+
++
+
++class TestDictionaryEquality:
+
+     def test_dict(self):
+
+         actual = {"a": 1 + 1e-7, "b": 2 + 1e-8}
+
+         # Dictionaries became ordered in python3.6, so switch up the order here

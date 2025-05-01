@@ -1,0 +1,618 @@
+--- a/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
++++ b/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
+@@ -523,6 +523,17 @@
+                              cross_val_predict, estimator=clf, X=X, y=y, cv=cv)
+
+ 
+
+ 
+
++from sklearn.utils.validation import check_array, DataConversionWarning
+
++import pandas as pd
+
++
+
++def check_array_with_pandas_warning(X, warn_on_dtype=True, **kwargs):
+
++    if isinstance(X, pd.DataFrame):
+
++        # Check if the DataFrame contains non-numeric columns
+
++        if not X.dtypes.apply(lambda x: pd.api.types.is_numeric_dtype(x)).all():
+
++            warnings.warn("Data with input dtype object was converted to float64.",
+
++                          category=DataConversionWarning)
+
++    return check_array(X, warn_on_dtype=warn_on_dtype, **kwargs)
+
++
+
+ def test_cross_val_score_pandas():
+
+     # check cross_val_score doesn't destroy pandas dataframe
+
+     types = [(MockDataFrame, MockDataFrame)]
+
+@@ -538,7 +549,7 @@
+         check_df = lambda x: isinstance(x, InputFeatureType)
+
+         check_series = lambda x: isinstance(x, TargetType)
+
+         clf = CheckingClassifier(check_X=check_df, check_y=check_series)
+
+-        cross_val_score(clf, X_df, y_ser)
+
++        cross_val_score(clf, X_df, y_ser, check_array=check_array_with_pandas_warning)
+
+ 
+
+ 
+
+ def test_cross_val_score_mask():
+
+
+--- a/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -434,154 +434,7 @@
+ 
+
+     warn_on_dtype : boolean (default=False)
+
+         Raise DataConversionWarning if the dtype of the input data structure
+
+-        does not match the requested dtype, causing a memory copy.
+
+-
+
+-    estimator : str or estimator instance (default=None)
+
+-        If passed, include the name of the estimator in warning messages.
+
+-
+
+-    Returns
+
+-    -------
+
+-    X_converted : object
+
+-        The converted and validated X.
+
+-
+
+-    """
+
+-    # accept_sparse 'None' deprecation check
+
+-    if accept_sparse is None:
+
+-        warnings.warn(
+
+-            "Passing 'None' to parameter 'accept_sparse' in methods "
+
+-            "check_array and check_X_y is deprecated in version 0.19 "
+
+-            "and will be removed in 0.21. Use 'accept_sparse=False' "
+
+-            " instead.", DeprecationWarning)
+
+-        accept_sparse = False
+
+-
+
+-    # store reference to original array to check if copy is needed when
+
+-    # function returns
+
+-    array_orig = array
+
+-
+
+-    # store whether originally we wanted numeric dtype
+
+-    dtype_numeric = isinstance(dtype, six.string_types) and dtype == "numeric"
+
+-
+
+-    dtype_orig = getattr(array, "dtype", None)
+
+-    if not hasattr(dtype_orig, 'kind'):
+
+-        # not a data type (e.g. a column named dtype in a pandas DataFrame)
+
+-        dtype_orig = None
+
+-
+
+-    if dtype_numeric:
+
+-        if dtype_orig is not None and dtype_orig.kind == "O":
+
+-            # if input is object, convert to float.
+
+-            dtype = np.float64
+
+-        else:
+
+-            dtype = None
+
+-
+
+-    if isinstance(dtype, (list, tuple)):
+
+-        if dtype_orig is not None and dtype_orig in dtype:
+
+-            # no dtype conversion required
+
+-            dtype = None
+
+-        else:
+
+-            # dtype conversion required. Let's select the first element of the
+
+-            # list of accepted types.
+
+-            dtype = dtype[0]
+
+-
+
+-    if force_all_finite not in (True, False, 'allow-nan'):
+
+-        raise ValueError('force_all_finite should be a bool or "allow-nan"'
+
+-                         '. Got {!r} instead'.format(force_all_finite))
+
+-
+
+-    if estimator is not None:
+
+-        if isinstance(estimator, six.string_types):
+
+-            estimator_name = estimator
+
+-        else:
+
+-            estimator_name = estimator.__class__.__name__
+
+-    else:
+
+-        estimator_name = "Estimator"
+
+-    context = " by %s" % estimator_name if estimator is not None else ""
+
+-
+
+-    if sp.issparse(array):
+
+-        _ensure_no_complex_data(array)
+
+-        array = _ensure_sparse_format(array, accept_sparse=accept_sparse,
+
+-                                      dtype=dtype, copy=copy,
+
+-                                      force_all_finite=force_all_finite,
+
+-                                      accept_large_sparse=accept_large_sparse)
+
+-    else:
+
+-        # If np.array(..) gives ComplexWarning, then we convert the warning
+
+-        # to an error. This is needed because specifying a non complex
+
+-        # dtype to the function converts complex to real dtype,
+
+-        # thereby passing the test made in the lines following the scope
+
+-        # of warnings context manager.
+
+-        with warnings.catch_warnings():
+
+-            try:
+
+-                warnings.simplefilter('error', ComplexWarning)
+
+-                array = np.asarray(array, dtype=dtype, order=order)
+
+-            except ComplexWarning:
+
+-                raise ValueError("Complex data not supported\n"
+
+-                                 "{}\n".format(array))
+
+-
+
+-        # It is possible that the np.array(..) gave no warning. This happens
+
+-        # when no dtype conversion happened, for example dtype = None. The
+
+-        # result is that np.array(..) produces an array of complex dtype
+
+-        # and we need to catch and raise exception for such cases.
+
+-        _ensure_no_complex_data(array)
+
+-
+
+-        if ensure_2d:
+
+-            # If input is scalar raise error
+
+-            if array.ndim == 0:
+
+-                raise ValueError(
+
+-                    "Expected 2D array, got scalar array instead:\narray={}.\n"
+
+-                    "Reshape your data either using array.reshape(-1, 1) if "
+
+-                    "your data has a single feature or array.reshape(1, -1) "
+
+-                    "if it contains a single sample.".format(array))
+
+-            # If input is 1D raise error
+
+-            if array.ndim == 1:
+
+-                raise ValueError(
+
+-                    "Expected 2D array, got 1D array instead:\narray={}.\n"
+
+-                    "Reshape your data either using array.reshape(-1, 1) if "
+
+-                    "your data has a single feature or array.reshape(1, -1) "
+
+-                    "if it contains a single sample.".format(array))
+
+-
+
+-        # in the future np.flexible dtypes will be handled like object dtypes
+
+-        if dtype_numeric and np.issubdtype(array.dtype, np.flexible):
+
+-            warnings.warn(
+
+-                "Beginning in version 0.22, arrays of strings will be "
+
+-                "interpreted as decimal numbers if parameter 'dtype' is "
+
+-                "'numeric'. It is recommended that you convert the array to "
+
+-                "type np.float64 before passing it to check_array.",
+
+-                FutureWarning)
+
+-
+
+-        # make sure we actually converted to numeric:
+
+-        if dtype_numeric and array.dtype.kind == "O":
+
+-            array = array.astype(np.float64)
+
+-        if not allow_nd and array.ndim >= 3:
+
+-            raise ValueError("Found array with dim %d. %s expected <= 2."
+
+-                             % (array.ndim, estimator_name))
+
+-        if force_all_finite:
+
+-            _assert_all_finite(array,
+
+-                               allow_nan=force_all_finite == 'allow-nan')
+
+-
+
+-    shape_repr = _shape_repr(array.shape)
+
+-    if ensure_min_samples > 0:
+
+-        n_samples = _num_samples(array)
+
+-        if n_samples < ensure_min_samples:
+
+-            raise ValueError("Found array with %d sample(s) (shape=%s) while a"
+
+-                             " minimum of %d is required%s."
+
+-                             % (n_samples, shape_repr, ensure_min_samples,
+
+-                                context))
+
+-
+
+-    if ensure_min_features > 0 and array.ndim == 2:
+
+-        n_features = array.shape[1]
+
+-        if n_features < ensure_min_features:
+
+-            raise ValueError("Found array with %d feature(s) (shape=%s) while"
+
+-                             " a minimum of %d is required%s."
+
+-                             % (n_features, shape_repr, ensure_min_features,
+
+-                                context))
+
+-
+
+-    if warn_on_dtype and dtype_orig is not None and array.dtype != dtype_orig:
+
+-        msg = ("Data with input dtype %s was converted to %s%s."
+
+-               % (dtype_orig, array.dtype, context))
+
+-        warnings.warn(msg, DataConversionWarning)
+
+-
+
+-    if copy and np.may_share_memory(array, array_orig):
+
+-        array = np.array(array, dtype=dtype, order=order)
+
+-
+
+-    return array
+
++        does not match the requested dtype, causing a
+
+ 
+
+ 
+
+ def _check_large_sparse(X, accept_large_sparse=False):
+
+
+--- a/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
++++ b/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
+@@ -947,6 +947,18 @@
+     assert_array_equal(predictions.shape, (150,))
+
+ 
+
+ 
+
++from sklearn.utils.validation import check_array, DataConversionWarning
+
++import pandas as pd
+
++
+
++def check_array_with_pandas_support(X, warn_on_dtype=True, **kwargs):
+
++    if isinstance(X, pd.DataFrame):
+
++        # Convert DataFrame to numpy array and trigger warning if necessary
+
++        X = X.values
+
++        if warn_on_dtype and X.dtype != object:
+
++            message = "Data with input dtype {} was converted to float64.".format(X.dtype)
+
++            warnings.warn(message, DataConversionWarning)
+
++    return check_array(X, warn_on_dtype=warn_on_dtype, **kwargs)
+
++
+
+ def test_cross_val_predict_pandas():
+
+     # check cross_val_score doesn't destroy pandas dataframe
+
+     types = [(MockDataFrame, MockDataFrame)]
+
+@@ -961,7 +973,7 @@
+         check_df = lambda x: isinstance(x, InputFeatureType)
+
+         check_series = lambda x: isinstance(x, TargetType)
+
+         clf = CheckingClassifier(check_X=check_df, check_y=check_series)
+
+-        cross_val_predict(clf, X_df, y_ser)
+
++        cross_val_predict(clf, X_df, y_ser, check_array=check_array_with_pandas_support)
+
+ 
+
+ 
+
+ def test_cross_val_score_sparse_fit_params():
+
+
+--- a/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
++++ b/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
+@@ -1421,6 +1421,19 @@
+                 sleep(1.)
+
+ 
+
+ 
+
++from sklearn.utils.validation import check_array, DataConversionWarning
+
++import pandas as pd
+
++
+
++def check_array_with_pandas_support(X, warn_on_dtype=True, *args, **kwargs):
+
++    if isinstance(X, pd.DataFrame):
+
++        # Check if the DataFrame contains non-numeric columns
+
++        if not X.dtypes.apply(lambda x: np.issubdtype(x, np.number)).all():
+
++            warnings.warn("Data with input dtype object was converted to float64.",
+
++                          DataConversionWarning)
+
++        # Convert non-numeric columns to numeric if necessary
+
++        X = X.apply(pd.to_numeric, errors='coerce')
+
++    return check_array(X, warn_on_dtype=warn_on_dtype, *args, **kwargs)
+
++
+
+ def test_permutation_test_score_pandas():
+
+     # check permutation_test_score doesn't destroy pandas dataframe
+
+     types = [(MockDataFrame, MockDataFrame)]
+
+@@ -1438,6 +1451,10 @@
+         check_series = lambda x: isinstance(x, TargetType)
+
+         clf = CheckingClassifier(check_X=check_df, check_y=check_series)
+
+         permutation_test_score(clf, X_df, y_ser)
+
++
+
++# Example usage of the fixed check_array function
+
++df = pd.DataFrame([[1, 2, 3], [2, 3, 4]], dtype=object)
+
++checked = check_array_with_pandas_support(df, warn_on_dtype=True)
+
+ 
+
+ 
+
+ def test_fit_and_score():
+
+
+--- a/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -667,7 +667,7 @@
+ 
+
+         - True: Force all values of X to be finite.
+
+         - False: accept both np.inf and np.nan in X.
+
+-        - 'allow-nan':  accept  only  np.nan  values in  X.  Values  cannot  be
+
++        - 'allow-nan':  accept  only  np.nan  values  in  X.  Values  cannot  be
+
+           infinite.
+
+ 
+
+         .. versionadded:: 0.20
+
+@@ -689,53 +689,7 @@
+         axis (rows for a 2D array).
+
+ 
+
+     ensure_min_features : int (default=1)
+
+-        Make sure that the 2D array has some minimum number of features
+
+-        (columns). The default value of 1 rejects empty datasets.
+
+-        This check is only enforced when X has effectively 2 dimensions or
+
+-        is originally 1D and ``ensure_2d`` is True. Setting to 0 disables
+
+-        this check.
+
+-
+
+-    y_numeric : boolean (default=False)
+
+-        Whether to ensure that y has a numeric type. If dtype of y is object,
+
+-        it is converted to float64. Should only be used for regression
+
+-        algorithms.
+
+-
+
+-    warn_on_dtype : boolean (default=False)
+
+-        Raise DataConversionWarning if the dtype of the input data structure
+
+-        does not match the requested dtype, causing a memory copy.
+
+-
+
+-    estimator : str or estimator instance (default=None)
+
+-        If passed, include the name of the estimator in warning messages.
+
+-
+
+-    Returns
+
+-    -------
+
+-    X_converted : object
+
+-        The converted and validated X.
+
+-
+
+-    y_converted : object
+
+-        The converted and validated y.
+
+-    """
+
+-    X = check_array(X, accept_sparse=accept_sparse,
+
+-                    accept_large_sparse=accept_large_sparse,
+
+-                    dtype=dtype, order=order, copy=copy,
+
+-                    force_all_finite=force_all_finite,
+
+-                    ensure_2d=ensure_2d, allow_nd=allow_nd,
+
+-                    ensure_min_samples=ensure_min_samples,
+
+-                    ensure_min_features=ensure_min_features,
+
+-                    warn_on_dtype=warn_on_dtype,
+
+-                    estimator=estimator)
+
+-    if multi_output:
+
+-        y = check_array(y, 'csr', force_all_finite=True, ensure_2d=False,
+
+-                        dtype=None)
+
+-    else:
+
+-        y = column_or_1d(y, warn=True)
+
+-        _assert_all_finite(y)
+
+-    if y_numeric and y.dtype.kind == 'O':
+
+-        y = y.astype(np.float64)
+
+-
+
+-    check_consistent_length(X, y)
+
+-
+
+-    return X, y
+
++        Make sure that the 2D array
+
+ 
+
+ 
+
+ def column_or_1d(y, warn=False):
+
+

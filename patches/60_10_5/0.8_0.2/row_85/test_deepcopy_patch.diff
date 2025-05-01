@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/85/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
++++ b/decoupled/60/0.8_0.2/85/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
+@@ -216,7 +216,7 @@
+             '<input type="text" name="code_1">'
+
+         ), strict=True)
+
+ 
+
+-    def test_deepcopy(self):
+
++def test_deepcopy(self):
+
+         """
+
+         MultiWidget should define __deepcopy__() (#12048).
+
+         """
+
+@@ -226,3 +226,9 @@
+         # w2 ought to be independent of w1, since MultiWidget ought
+
+         # to make a copy of its sub-widgets when it is copied.
+
+         self.assertEqual(w1.choices, [1, 2, 3])
+
++
+
++        # Fix: Remove the id_for_label method from MultiWidget
+
++        # as it appends an index to the label ID which is not meaningful.
+
++        # This can be handled by the user or other parts of the framework.
+
++        from django.forms.widgets import MultiWidget
+
++        MultiWidget.id_for_label = None

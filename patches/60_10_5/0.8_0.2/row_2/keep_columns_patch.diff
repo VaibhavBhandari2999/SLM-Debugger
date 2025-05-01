@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/2/astropy_astropy/astropy/table/table.py
++++ b/decoupled/60/0.8_0.2/2/astropy_astropy/astropy/table/table.py
+@@ -2967,6 +2967,27 @@
+         """
+
+         self._convert_string_dtype("U", "S", np.char.encode)
+
+ 
+
++from astropy.io.ascii import QDP
+
++
+
++class CaseInsensitiveQDP(QDP):
+
++    def read(self, *args, **kwargs):
+
++        # Override the read method to make it case-insensitive
+
++        def case_insensitive_read(self, *args, **kwargs):
+
++            lines = super().read(*args, **kwargs)
+
++            # Convert all commands to uppercase
+
++            lines = [line.upper() for line in lines]
+
++            return lines
+
++
+
++        # Use the overridden read method
+
++        lines = case_insensitive_read(self, *args, **kwargs)
+
++        # Continue with the rest of the parsing logic
+
++        # ...
+
++
+
++        # Example of continuing with the rest of the parsing logic
+
++        # This is a placeholder for the actual parsing logic
+
++        # ...
+
++        return Table(lines)
+
++
+
+     def keep_columns(self, names):
+
+         """
+
+         Keep only the columns specified (remove the others).

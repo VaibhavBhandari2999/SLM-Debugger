@@ -1,0 +1,111 @@
+--- a/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/urllib3/filepost.py
++++ b/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/urllib3/filepost.py
+@@ -56,6 +56,10 @@
+     return ((k, v) for k, v in fields)
+
+ 
+
+ 
+
++import io
+
++import six
+
++import mimetools
+
++
+
+ def encode_multipart_formdata(fields, boundary=None):
+
+     """
+
+     Encode a dictionary of ``fields`` using the multipart/form-data MIME format.
+
+@@ -67,28 +71,33 @@
+         If not specified, then a random boundary will be generated using
+
+         :func:`mimetools.choose_boundary`.
+
+     """
+
+-    body = BytesIO()
+
++    body = io.BytesIO()
+
+     if boundary is None:
+
+-        boundary = choose_boundary()
+
++        boundary = mimetools.choose_boundary()
+
+ 
+
+     for field in iter_field_objects(fields):
+
+         body.write(b('--%s\r\n' % (boundary)))
+
+ 
+
+-        writer(body).write(field.render_headers())
+
++        writer = body.write
+
++        writer(b'Content-Disposition: form-data; name="%s"\r\n' % (field.disposition_params['name'].encode('utf-8')))
+
++        if 'filename' in field.disposition_params:
+
++            writer(b'Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (
+
++                field.disposition_params['name'].encode('utf-8'),
+
++                field.disposition_params['filename'].encode('utf-8')
+
++            ))
+
++        writer(b'Content-Type: %s\r\n' % (field.content_type.encode('utf-8')))
+
++        writer(b'\r\n')
+
++
+
+         data = field.data
+
+ 
+
+-        if isinstance(data, int):
+
+-            data = str(data)  # Backwards compatibility
+
++        if isinstance(data, six.text_type):
+
++            data = data.encode('utf-8')
+
+ 
+
+-        if isinstance(data, six.text_type):
+
+-            writer(body).write(data)
+
+-        else:
+
+-            body.write(data)
+
+-
+
++        body.write(data)
+
+         body.write(b'\r\n')
+
+ 
+
+     body.write(b('--%s--\r\n' % (boundary)))
+
+ 
+
+-    content_type = str('multipart/form-data; boundary=%s' % boundary)
+
++    content_type = 'multipart/form-data; boundary=%s' % boundary
+
+ 
+
+     return body.getvalue(), content_type

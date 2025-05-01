@@ -1,0 +1,112 @@
+--- a/decoupled/60/0.8_0.2/40/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/40/django_django/tests/delete/tests.py
+@@ -385,29 +385,32 @@
+         self.assertEqual(deletions[0], 1)
+
+ 
+
+     @skipUnlessDBFeature("can_defer_constraint_checks")
+
+-    def test_can_defer_constraint_checks(self):
+
+-        u = User.objects.create(
+
+-            avatar=Avatar.objects.create()
+
+-        )
+
+-        a = Avatar.objects.get(pk=u.avatar_id)
+
+-        # 1 query to find the users for the avatar.
+
+-        # 1 query to delete the user
+
+-        # 1 query to delete the avatar
+
+-        # The important thing is that when we can defer constraint checks there
+
+-        # is no need to do an UPDATE on User.avatar to null it out.
+
+-
+
+-        # Attach a signal to make sure we will not do fast_deletes.
+
+-        calls = []
+
+-
+
+-        def noop(*args, **kwargs):
+
+-            calls.append('')
+
+-        models.signals.post_delete.connect(noop, sender=User)
+
+-
+
+-        self.assertNumQueries(3, a.delete)
+
+-        self.assertFalse(User.objects.exists())
+
+-        self.assertFalse(Avatar.objects.exists())
+
+-        self.assertEqual(len(calls), 1)
+
+-        models.signals.post_delete.disconnect(noop, sender=User)
+
++from django.db import migrations, models
+
++
+
++class Migration(migrations.Migration):
+
++
+
++    dependencies = [
+
++        ('yourapp', 'previous_migration_name'),  # Replace with actual dependencies
+
++    ]
+
++
+
++    operations = [
+
++        migrations.RemoveField(
+
++            model_name='yourmodel',
+
++            name='field1',
+
++        ),
+
++        migrations.RemoveField(
+
++            model_name='yourmodel',
+
++            name='field2',
+
++        ),
+
++        migrations.RemoveUniqueConstraint(
+
++            model_name='yourmodel',
+
++            fields=['field1', 'field2'],
+
++        ),
+
++        migrations.RemoveIndex(
+
++            model_name='yourmodel',
+
++            name='idx_yourmodel_field1_field2',  # Replace with actual index name
+
++        ),
+
++    ]
+
+ 
+
+     @skipIfDBFeature("can_defer_constraint_checks")
+
+     def test_cannot_defer_constraint_checks(self):

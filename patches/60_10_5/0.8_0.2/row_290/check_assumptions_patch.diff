@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/core/assumptions.py
++++ b/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/core/assumptions.py
+@@ -423,7 +423,7 @@
+     failing_assumptions
+
+ 
+
+     """
+
+-    expr = sympify(expr)
+
++    expr = sympify(expr, evaluate=False)  # Disable evaluation during sympification
+
+     if against is not None:
+
+         if assume:
+
+             raise ValueError(

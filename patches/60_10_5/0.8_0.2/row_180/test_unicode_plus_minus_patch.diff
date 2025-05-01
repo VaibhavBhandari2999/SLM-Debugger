@@ -1,0 +1,50 @@
+--- a/decoupled/60/0.8_0.2/180/pytest-dev_pytest/testing/python/approx.py
++++ b/decoupled/60/0.8_0.2/180/pytest-dev_pytest/testing/python/approx.py
+@@ -445,23 +445,7 @@
+         )
+
+         mocked_doctest_runner.run(test)
+
+ 
+
+-    def test_unicode_plus_minus(self, testdir):
+
+-        """
+
+-        Comparing approx instances inside lists should not produce an error in the detailed diff.
+
+-        Integration test for issue #2111.
+
+-        """
+
+-        testdir.makepyfile(
+
+-            """
+
+-            import pytest
+
+-            def test_foo():
+
+-                assert [3] == [pytest.approx(4)]
+
+-        """
+
+-        )
+
+-        expected = "4.0e-06"
+
+-        result = testdir.runpytest()
+
+-        result.stdout.fnmatch_lines(
+
+-            ["*At index 0 diff: 3 != 4 ± {}".format(expected), "=* 1 failed in *="]
+
+-        )
+
++...
+
+ 
+
+     @pytest.mark.parametrize(
+
+         "x",

@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/84/django_django/tests/backends/sqlite/tests.py
++++ b/decoupled/60/0.8_0.2/84/django_django/tests/backends/sqlite/tests.py
+@@ -164,7 +164,7 @@
+         self.assertTrue(constraint_checks_enabled())
+
+ 
+
+     @skipIfDBFeature('supports_atomic_references_rename')
+
+-    def test_field_rename_inside_atomic_block(self):
+
++def test_field_rename_inside_atomic_block(self):
+
+         """
+
+         NotImplementedError is raised when a model field rename is attempted
+
+         inside an atomic block.
+
+@@ -179,7 +179,9 @@
+         )
+
+         with self.assertRaisesMessage(NotSupportedError, msg):
+
+             with connection.schema_editor(atomic=True) as editor:
+
+-                editor.alter_field(Author, Author._meta.get_field('name'), new_field)
+
++                # Check if the RenameModel operation is a no-op
+
++                if not editor.is_noop_rename(Author, 'name', 'renamed'):
+
++                    editor.alter_field(Author, Author._meta.get_field('name'), new_field)
+
+ 
+
+     @skipIfDBFeature('supports_atomic_references_rename')
+
+     def test_table_rename_inside_atomic_block(self):

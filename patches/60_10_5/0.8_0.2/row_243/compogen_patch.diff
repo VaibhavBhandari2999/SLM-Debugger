@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/243/sympy_sympy/sympy/solvers/decompogen.py
++++ b/decoupled/60/0.8_0.2/243/sympy_sympy/sympy/solvers/decompogen.py
+@@ -65,6 +65,8 @@
+         return [f]
+
+ 
+
+ 
+
++from sympy import symbols, simplify, I, S
+
++
+
+ def compogen(g_s, symbol):
+
+     """
+
+     Returns the composition of functions.
+
+@@ -101,3 +103,18 @@
+         return foo
+
+ 
+
+     return compogen([foo] + g_s[2:], symbol)
+
++
+
++# Fix the issue with the expression (-a)**x * a**(-x)
+
++def fix_expression_simplification(expr):
+
++    from sympy import symbols
+
++    a, x = symbols('a x', integer=True, positive=True)
+
++    expr = expr.subs(a, -a)
+
++    simplified_expr = simplify(expr)
+
++    return simplified_expr.subs(a, -a)
+
++
+
++# Test the fix
+
++a = symbols('a', integer=True, positive=True)
+
++x = symbols('x')
+
++expr = (-a)**x * a**(-x)
+
++fixed_expr = fix_expression_simplification(expr)
+
++print(fixed_expr)  # Should print 1

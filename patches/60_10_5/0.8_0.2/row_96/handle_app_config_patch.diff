@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
++++ b/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
+@@ -631,14 +631,14 @@
+                 output.append(app_output)
+
+         return "\n".join(output)
+
+ 
+
+-    def handle_app_config(self, app_config, **options):
+
+-        """
+
+-        Perform the command's actions for app_config, an AppConfig instance
+
+-        corresponding to an application label given on the command line.
+
+-        """
+
+-        raise NotImplementedError(
+
+-            "Subclasses of AppCommand must provide a handle_app_config() method."
+
+-        )
+
++from django.core.management.base import BaseCommand
+
++
+
++class Command(BaseCommand):
+
++    help = """
+
++    Import a contract from tzkt.
+
++    Example usage:
+
++        ./manage.py tzkt_import 'Tezos Mainnet' KT1HTDtMBRCKoNHjfWEEvXneGQpCfPAt6BRe
+
++    """
+
+ 
+
+ 
+
+ class LabelCommand(BaseCommand):

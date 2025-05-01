@@ -1,0 +1,122 @@
+--- a/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
+@@ -262,33 +262,33 @@
+         return "(1+sqrt(5))/2"
+
+ 
+
+ 
+
+-    def _print_Assignment(self, expr):
+
+-        from sympy.codegen.ast import Assignment
+
+-        from sympy.functions.elementary.piecewise import Piecewise
+
+-        from sympy.tensor.indexed import IndexedBase
+
+-        # Copied from codeprinter, but remove special MatrixSymbol treatment
+
+-        lhs = expr.lhs
+
+-        rhs = expr.rhs
+
+-        # We special case assignments that take multiple lines
+
+-        if not self._settings["inline"] and isinstance(expr.rhs, Piecewise):
+
+-            # Here we modify Piecewise so each expression is now
+
+-            # an Assignment, and then continue on the print.
+
+-            expressions = []
+
+-            conditions = []
+
+-            for (e, c) in rhs.args:
+
+-                expressions.append(Assignment(lhs, e))
+
+-                conditions.append(c)
+
+-            temp = Piecewise(*zip(expressions, conditions))
+
+-            return self._print(temp)
+
+-        if self._settings["contract"] and (lhs.has(IndexedBase) or
+
+-                rhs.has(IndexedBase)):
+
+-            # Here we check if there is looping to be done, and if so
+
+-            # print the required loops.
+
+-            return self._doprint_loops(rhs, lhs)
+
+-        else:
+
+-            lhs_code = self._print(lhs)
+
+-            rhs_code = self._print(rhs)
+
+-            return self._get_statement("%s = %s" % (lhs_code, rhs_code))
+
++def _print_Assignment(self, expr):
+
++    from sympy.codegen.ast import Assignment
+
++    from sympy.functions.elementary.piecewise import Piecewise
+
++    from sympy.tensor.indexed import IndexedBase
+
++    # Copied from codeprinter, but remove special MatrixSymbol treatment
+
++    lhs = expr.lhs
+
++    rhs = expr.rhs
+
++    # We special case assignments that take multiple lines
+
++    if not self._settings["inline"] and isinstance(expr.rhs, Piecewise):
+
++        # Here we modify Piecewise so each expression is now
+
++        # an Assignment, and then continue on the print.
+
++        expressions = []
+
++        conditions = []
+
++        for (e, c) in rhs.args:
+
++            expressions.append(Assignment(lhs, e))
+
++            conditions.append(c)
+
++        temp = Piecewise(*zip(expressions, conditions))
+
++        return self._print(temp)
+
++    if self._settings["contract"] and (lhs.has(IndexedBase) or
+
++            rhs.has(IndexedBase)):
+
++        # Here we check if there is looping to be done, and if so
+
++        # print the required loops.
+
++        return self._doprint_loops(rhs, lhs)
+
++    else:
+
++        lhs_code = self._print(lhs)
+
++        rhs_code = self._print(rhs)
+
++        return self._get_statement("%s = %s" % (lhs_code, rhs_code))
+
+ 
+
+ 
+
+     def _print_Infinity(self, expr):

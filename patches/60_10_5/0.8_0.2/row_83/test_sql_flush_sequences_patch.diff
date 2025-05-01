@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/83/django_django/tests/backends/sqlite/test_operations.py
++++ b/decoupled/60/0.8_0.2/83/django_django/tests/backends/sqlite/test_operations.py
+@@ -39,7 +39,7 @@
+             ],
+
+         )
+
+ 
+
+-    def test_sql_flush_sequences(self):
+
++def test_sql_flush_sequences(self):
+
+         self.assertEqual(
+
+             connection.ops.sql_flush(
+
+                 no_style(),

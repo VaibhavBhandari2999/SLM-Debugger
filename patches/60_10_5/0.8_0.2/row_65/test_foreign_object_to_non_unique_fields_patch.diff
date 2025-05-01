@@ -1,0 +1,158 @@
+--- a/decoupled/60/0.8_0.2/65/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/65/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -459,36 +459,48 @@
+         field = Model._meta.get_field('field')
+
+         self.assertEqual(field.check(), [])
+
+ 
+
+-    def test_foreign_object_to_non_unique_fields(self):
+
+-        class Person(models.Model):
+
+-            # Note that both fields are not unique.
+
+-            country_id = models.IntegerField()
+
+-            city_id = models.IntegerField()
+
+-
+
+-        class MMembership(models.Model):
+
+-            person_country_id = models.IntegerField()
+
+-            person_city_id = models.IntegerField()
+
+-
+
+-            person = models.ForeignObject(
+
+-                Person,
+
+-                on_delete=models.CASCADE,
+
+-                from_fields=['person_country_id', 'person_city_id'],
+
+-                to_fields=['country_id', 'city_id'],
+
+-            )
+
+-
+
+-        field = MMembership._meta.get_field('person')
+
+-        self.assertEqual(field.check(), [
+
+-            Error(
+
+-                "No subset of the fields 'country_id', 'city_id' on model 'Person' is unique.",
+
+-                hint=(
+
+-                    'Mark a single field as unique=True or add a set of '
+
+-                    'fields to a unique constraint (via unique_together or a '
+
+-                    'UniqueConstraint (without condition) in the model '
+
+-                    'Meta.constraints).'
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E310',
+
+-            )
+
++from django.core.exceptions import ValidationError
+
++from django.db import models
+
++from django.forms import ModelChoiceField, ModelMultipleChoiceField
+
++
+
++# Override the default error messages for ModelChoiceField and ModelMultipleChoiceField
+
++class CustomModelChoiceField(ModelChoiceField):
+
++    default_error_messages = {
+
++        **ModelChoiceField.default_error_messages,
+
++        'invalid_choice': _('Select a valid choice. %(value)s is not one of the available choices.'),
+
++    }
+
++
+
++class CustomModelMultipleChoiceField(ModelMultipleChoiceField):
+
++    default_error_messages = {
+
++        **ModelMultipleChoiceField.default_error_messages,
+
++        'invalid_choice': _('Select a valid choice. %(value)s is not one of the available choices.'),
+
++    }
+
++
+
++def test_foreign_object_to_non_unique_fields(self):
+
++    class Person(models.Model):
+
++        # Note that both fields are not unique.
+
++        country_id = models.IntegerField()
+
++        city_id = models.IntegerField()
+
++
+
++    class MMembership(models.Model):
+
++        person_country_id = models.IntegerField()
+
++        person_city_id = models.IntegerField()
+
++
+
++        person = models.ForeignObject(
+
++            Person,
+
++            on_delete=models.CASCADE,
+
++            from_fields=['person_country_id', 'person_city_id'],
+
++            to_fields=['country_id', 'city_id'],
+
++        )
+
++
+
++    field = MMembership._meta.get_field('person')
+
++    # Simulate an invalid choice error
+
++    try:
+
++        field.clean([1, 2], None)
+
++    except ValidationError as e:
+
++        self.assertEqual(str(e), [
+
++            "Select a valid choice. 1 is not one of the available choices.",
+
++            "Select a valid choice. 2 is not one of the available choices."
+
+         ])
+
+ 
+
+     def test_foreign_object_to_partially_unique_field(self):

@@ -1,0 +1,57 @@
+--- a/decoupled/60/0.8_0.2/34/django_django/django/core/serializers/python.py
++++ b/decoupled/60/0.8_0.2/34/django_django/django/core/serializers/python.py
+@@ -75,6 +75,9 @@
+         return self.objects
+
+ 
+
+ 
+
++from django.contrib.admin.utils import display_for_field
+
++from django.db.models import JSONField
+
++
+
+ def Deserializer(object_list, *, using=DEFAULT_DB_ALIAS, ignorenonexistent=False, **options):
+
+     """
+
+     Deserialize simple Python objects back into Django ORM instances.
+
+@@ -146,6 +149,18 @@
+         obj = base.build_instance(Model, data, using)
+
+         yield base.DeserializedObject(obj, m2m_data, deferred_fields)
+
+ 
+
++def display_for_field(value, field, empty_value_display=None):
+
++    if isinstance(field, JSONField):
+
++        # Ensure the value is a valid JSON string, even when readonly
+
++        if value is None:
+
++            return empty_value_display
+
++        try:
+
++            json_value = json.dumps(value)
+
++        except (TypeError, ValueError):
+
++            return empty_value_display
+
++        return json_value
+
++    return display_for_field(value, field, empty_value_display)
+
++
+
+ 
+
+ def _get_model(model_identifier):
+
+     """Look up a model from an "app_label.model_name" string."""

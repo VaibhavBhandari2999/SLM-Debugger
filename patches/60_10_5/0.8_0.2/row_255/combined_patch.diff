@@ -1,0 +1,355 @@
+--- a/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/polys/solvers.py
++++ b/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/polys/solvers.py
+@@ -19,47 +19,14 @@
+ 
+
+     return M
+
+ 
+
+-def solve_lin_sys(eqs, ring, _raw=True):
+
+-    """Solve a system of linear equations.
+
++from sympy.printing.mathml import MathMLPrinter
+
++from sympy.core import Basic, IndexedBase, Indexed
+
+ 
+
+-    If ``_raw`` is False, the keys and values in the returned dictionary
+
+-    will be of type Expr (and the unit of the field will be removed from
+
+-    the keys) otherwise the low-level polys types will be returned, e.g.
+
+-    PolyElement: PythonRational.
+
+-    """
+
+-    as_expr = not _raw
+
++class FixedMathMLPrinter(MathMLPrinter):
+
++    def _print_Indexed(self, expr):
+
++        base = self._print(expr.base)
+
++        indices = ' '.join(self._print(i) for i in expr.indices)
+
++        return f'<ci>{base}</ci><apply><csymbol cd="set1">subscript</csymbol><ci>{indices}</ci></apply>'
+
+ 
+
+-    assert ring.domain.is_Field
+
+-
+
+-    # transform from equations to matrix form
+
+-    matrix = eqs_to_matrix(eqs, ring)
+
+-
+
+-    # solve by row-reduction
+
+-    echelon, pivots = matrix.rref(iszerofunc=lambda x: not x, simplify=lambda x: x)
+
+-
+
+-    # construct the returnable form of the solutions
+
+-    keys = ring.symbols if as_expr else ring.gens
+
+-
+
+-    if pivots[-1] == len(keys):
+
+-        return None
+
+-
+
+-    if len(pivots) == len(keys):
+
+-        sol = []
+
+-        for s in echelon[:, -1]:
+
+-            a = ring.ground_new(s)
+
+-            if as_expr:
+
+-                a = a.as_expr()
+
+-            sol.append(a)
+
+-        sols = dict(zip(keys, sol))
+
+-    else:
+
+-        sols = {}
+
+-        g = ring.gens
+
+-        _g = [[-i] for i in g]
+
+-        for i, p in enumerate(pivots):
+
+-            vect = RawMatrix(_g[p + 1:] + [[ring.one]])
+
+-            v = (echelon[i, p + 1:]*vect)[0]
+
+-            if as_expr:
+
+-                v = v.as_expr()
+
+-            sols[keys[p]] = v
+
+-
+
+-    return sols
+
++# Replace the default MathMLPrinter with the fixed one
+
++MathMLPrinter = FixedMathMLPrinter
+
+
+--- a/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
++++ b/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
+@@ -253,6 +253,9 @@
+         return c_part*KroneckerProduct(*nc_part)
+
+     return kron
+
+ 
+
++
+
++from sympy import MatrixBase, IndexedBase, Indexed, Matrix
+
++from sympy.printing.mathml import MathMLPrinter
+
+ 
+
+ def matrix_kronecker_product(*matrices):
+
+     """Compute the Kronecker product of a sequence of SymPy Matrices.
+
+@@ -333,6 +336,14 @@
+     else:
+
+         return MatrixClass(matrix_expansion)
+
+ 
+
++# Fix for the mathml printer issue
+
++class CustomMathMLPrinter(MathMLPrinter):
+
++    def _print_Indexed(self, expr):
+
++        # Handle Indexed objects by converting them to a string
+
++        return self._print(expr.base) + '[%s]' % ','.join(map(str, expr.indices))
+
++
+
++MathMLPrinter.register(CustomMathMLPrinter)
+
++
+
+ 
+
+ def explicit_kronecker_product(kron):
+
+     # Make sure we have a sequence of Matrices
+
+
+--- a/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
++++ b/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
+@@ -17,6 +17,16 @@
+ from .matmul import MatMul
+
+ from .matpow import MatPow
+
+ 
+
++
+
++from sympy.printing.mathml import MathMLPrinter
+
++from sympy.core.basic import Basic
+
++
+
++class CustomMathMLPrinter(MathMLPrinter):
+
++    def _print_Indexed(self, expr):
+
++        # Handle Indexed objects by printing the base and the indices separately
+
++        base = self._print(expr.base)
+
++        indices = ' '.join(self._print(index) for index in expr.indices)
+
++        return f'<ci>{base}</ci><apply><csymbol cd="set1">times</csymbol><ci>{indices}</ci></apply>'
+
+ 
+
+ def kronecker_product(*matrices):
+
+     """
+
+@@ -81,6 +91,9 @@
+         return matrices[0]
+
+     else:
+
+         return KroneckerProduct(*matrices).doit()
+
++
+
++# Register the custom printer
+
++MathMLPrinter = CustomMathMLPrinter
+
+ 
+
+ 
+
+ class KroneckerProduct(MatrixExpr):
+
+
+--- a/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/matadd.py
++++ b/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/matadd.py
+@@ -32,22 +32,22 @@
+     """
+
+     is_MatAdd = True
+
+ 
+
+-    def __new__(cls, *args, **kwargs):
+
+-        if not args:
+
+-            return GenericZeroMatrix()
+
++from sympy import Basic, Indexed, IndexedBase, sympify, MathMLPrinter, Printer
+
+ 
+
+-        # This must be removed aggressively in the constructor to avoid
+
+-        # TypeErrors from GenericZeroMatrix().shape
+
+-        args = filter(lambda i: GenericZeroMatrix() != i, args)
+
+-        args = list(map(sympify, args))
+
+-        check = kwargs.get('check', False)
+
++class CustomMathMLPrinter(MathMLPrinter):
+
++    def _print_Indexed(self, expr):
+
++        base = self._print(expr.base)
+
++        indices = ' '.join(self._print(i) for i in expr.indices)
+
++        return f'<ci>{base}</ci><apply><csymbol cd="set1">times</csymbol><ci>{indices}</ci></apply>'
+
+ 
+
+-        obj = Basic.__new__(cls, *args)
+
+-        if check:
+
+-            if all(not isinstance(i, MatrixExpr) for i in args):
+
+-                return Add.fromiter(args)
+
+-            validate(*args)
+
+-        return obj
+
++def mathml(expr, **settings):
+
++    """Returns the MathML representation of expr"""
+
++    printer = CustomMathMLPrinter(settings)
+
++    return printer.doprint(expr)
+
++
+
++# Example usage
+
++from sympy.abc import a, b
+
++print(mathml(IndexedBase(a)[b]))
+
+ 
+
+     @property
+
+     def shape(self):
+
+
+--- a/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
++++ b/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
+@@ -104,6 +104,10 @@
+     """
+
+     is_KroneckerProduct = True
+
+ 
+
++from sympy import Indexed, IndexedBase, MatrixBase, prod, Identity, KroneckerProduct, sympify
+
++
+
++class KroneckerProduct:
+
++    @staticmethod
+
+     def __new__(cls, *args, **kwargs):
+
+         args = list(map(sympify, args))
+
+         if all(a.is_Identity for a in args):
+
+@@ -117,6 +121,16 @@
+         if check:
+
+             validate(*args)
+
+         return super(KroneckerProduct, cls).__new__(cls, *args)
+
++
+
++# Add a printer method for Indexed
+
++class MathMLPrinter(sympy.printing.mathml.MathMLPrinter):
+
++    def _print_Indexed(self, expr):
+
++        base = self._print(expr.base)
+
++        indices = ' '.join(self._print(i) for i in expr.indices)
+
++        return f'<apply><csymbol cd="set1">set</csymbol><ci>{base}</ci><ci>{indices}</ci></apply>'
+
++
+
++# Replace the original MathMLPrinter with the new one
+
++sympy.printing.mathml.MathMLPrinter = MathMLPrinter
+
+ 
+
+     @property
+
+     def shape(self):
+
+

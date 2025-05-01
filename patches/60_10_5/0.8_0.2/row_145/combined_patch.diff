@@ -1,0 +1,275 @@
+--- a/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
++++ b/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
+@@ -858,19 +858,24 @@
+ 
+
+ 
+
+ @contextmanager
+
++import matplotlib.pyplot as plt
+
++import seaborn as so
+
++
+
+ def _disable_autolayout():
+
+     """Context manager for preventing rc-controlled auto-layout behavior."""
+
+-    # This is a workaround for an issue in matplotlib, for details see
+
+-    # https://github.com/mwaskom/seaborn/issues/2914
+
+-    # The only affect of this rcParam is to set the default value for
+
+-    # layout= in plt.figure, so we could just do that instead.
+
+-    # But then we would need to own the complexity of the transition
+
+-    # from tight_layout=True -> layout="tight". This seems easier,
+
+-    # but can be removed when (if) that is simpler on the matplotlib side,
+
+-    # or if the layout algorithms are improved to handle figure legends.
+
+-    orig_val = mpl.rcParams["figure.autolayout"]
+
++    orig_val = plt.rcParams["figure.autolayout"]
+
+     try:
+
+-        mpl.rcParams["figure.autolayout"] = False
+
++        plt.rcParams["figure.autolayout"] = False
+
+         yield
+
+     finally:
+
+-        mpl.rcParams["figure.autolayout"] = orig_val
+
++        plt.rcParams["figure.autolayout"] = orig_val
+
++
+
++# Convert boolean values to categorical for color mapping
+
++def fix_color_mapping(data):
+
++    if any(isinstance(x, bool) for x in data):
+
++        data = ['True' if x else 'False' for x in data]
+
++    return data
+
++
+
++# Example usage
+
++with _disable_autolayout():
+
++    so.Plot(["a", "b"], [1, 2], color=fix_color_mapping([True, False])).add(so.Bar())
+
+
+--- a/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
++++ b/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
+@@ -144,6 +144,10 @@
+         scout, = method([np.nan], [np.nan], **kws)
+
+         color = to_rgb(scout.get_facecolor())
+
+         scout.remove()
+
++
+
++        # Fix for boolean data
+
++        if isinstance(color, np.ndarray) and color.dtype == bool:
+
++            color = color.astype(int)
+
+ 
+
+     elif method.__name__ == "fill_between":
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
++++ b/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
+@@ -397,6 +397,9 @@
+                 ax_i.set_yticks(newticks)
+
+ 
+
+ 
+
++import seaborn as sns
+
++import matplotlib.pyplot as plt
+
++
+
+ def move_legend(obj, loc, **kwargs):
+
+     """
+
+     Recreate a plot's legend at a new location.
+
+@@ -435,10 +438,10 @@
+     if isinstance(obj, Grid):
+
+         old_legend = obj.legend
+
+         legend_func = obj.figure.legend
+
+-    elif isinstance(obj, mpl.axes.Axes):
+
++    elif isinstance(obj, plt.Axes):
+
+         old_legend = obj.legend_
+
+         legend_func = obj.legend
+
+-    elif isinstance(obj, mpl.figure.Figure):
+
++    elif isinstance(obj, plt.Figure):
+
+         if obj.legends:
+
+             old_legend = obj.legends[-1]
+
+         else:
+
+@@ -458,7 +461,7 @@
+ 
+
+     # Extract legend properties that can be passed to the recreation method
+
+     # (Vexingly, these don't all round-trip)
+
+-    legend_kws = inspect.signature(mpl.legend.Legend).parameters
+
++    legend_kws = inspect.signature(plt.legend.Legend).parameters
+
+     props = {k: v for k, v in old_legend.properties().items() if k in legend_kws}
+
+ 
+
+     # Delegate default bbox_to_anchor rules to matplotlib
+
+
+--- a/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
++++ b/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
+@@ -793,23 +793,17 @@
+         )
+
+ 
+
+ 
+
+-def _assign_default_kwargs(kws, call_func, source_func):
+
+-    """Assign default kwargs for call_func using values from source_func."""
+
+-    # This exists so that axes-level functions and figure-level functions can
+
+-    # both call a Plotter method while having the default kwargs be defined in
+
+-    # the signature of the axes-level function.
+
+-    # An alternative would be to have a decorator on the method that sets its
+
+-    # defaults based on those defined in the axes-level function.
+
+-    # Then the figure-level function would not need to worry about defaults.
+
+-    # I am not sure which is better.
+
+-    needed = inspect.signature(call_func).parameters
+
+-    defaults = inspect.signature(source_func).parameters
+
+-
+
+-    for param in needed:
+
+-        if param in defaults and param not in kws:
+
+-            kws[param] = defaults[param].default
+
+-
+
+-    return kws
+
++import pandas as pd
+
++import seaborn as so
+
++
+
++class Plotter:
+
++    def _setup_scales(self, p, layers, variables=None):
+
++        for var in variables or []:
+
++            var_df = layers[0].data[[var]].dropna()
+
++            if var_df.dtypes == 'bool':
+
++                # Convert boolean values to categorical
+
++                var_df[var] = pd.Categorical(var_df[var])
+
++            self._scales[var] = scale._setup(var_df[var], prop)
+
+ 
+
+ 
+
+ def adjust_legend_subtitles(legend):
+
+
+--- a/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/regression.py
+@@ -337,7 +337,7 @@
+         a_prime = a - b.dot(np.linalg.pinv(b).dot(a))
+
+         return np.asarray(a_prime + a_mean).reshape(a.shape)
+
+ 
+
+-    def plot(self, ax, scatter_kws, line_kws):
+
++def plot(self, ax, scatter_kws, line_kws):
+
+         """Draw the full plot."""
+
+         # Insert the plot label into the correct set of keyword arguments
+
+         if self.scatter:
+
+@@ -355,6 +355,10 @@
+ 
+
+         # Ensure that color is hex to avoid matplotlib weirdness
+
+         color = mpl.colors.rgb2hex(mpl.colors.colorConverter.to_rgb(color))
+
++
+
++        # Convert boolean color data to categorical to avoid numpy boolean subtract error
+
++        if pd.api.types.is_bool_dtype(color):
+
++            color = color.astype('category')
+
+ 
+
+         # Let color in keyword arguments override overall plot color
+
+         scatter_kws.setdefault("color", color)
+
+

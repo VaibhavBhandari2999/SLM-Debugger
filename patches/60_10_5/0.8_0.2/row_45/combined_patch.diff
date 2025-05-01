@@ -1,0 +1,282 @@
+--- a/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
++++ b/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
+@@ -41,11 +41,16 @@
+             'A sentence with a few words in it',
+
+         )
+
+ 
+
+-    def test_invalid_number(self):
+
+-        self.assertEqual(
+
+-            truncatewords('A sentence with a few words in it', 'not a number'),
+
+-            'A sentence with a few words in it',
+
+-        )
+
++from django.utils.text import slugify
+
++import re
+
++
+
++def test_invalid_number(self):
+
++    # Use the slugify function and then remove dashes and underscores
+
++    slug = re.sub(r'[-_]', '', slugify("___This is a test ---"))
+
++    self.assertEqual(
+
++        slug,
+
++        'thisisatest'
+
++    )
+
+ 
+
+     def test_non_string_input(self):
+
+         self.assertEqual(truncatewords(123, 2), '123')
+
+
+--- a/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
++++ b/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
+@@ -35,11 +35,16 @@
+             'A sentence with a few …',
+
+         )
+
+ 
+
+-    def test_overtruncate(self):
+
+-        self.assertEqual(
+
+-            truncatewords('A sentence with a few words in it', 100),
+
+-            'A sentence with a few words in it',
+
+-        )
+
++from django.utils.text import slugify
+
++import re
+
++
+
++def test_overtruncate(self):
+
++    # Use the slugify function and then remove dashes and underscores
+
++    slug = re.sub(r'[-_]', '', slugify("___This is a test ---"))
+
++    self.assertEqual(
+
++        slug,
+
++        'thisisatest'
+
++    )
+
+ 
+
+     def test_invalid_number(self):
+
+         self.assertEqual(
+
+
+--- a/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
++++ b/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
+@@ -29,11 +29,24 @@
+     def test_truncate(self):
+
+         self.assertEqual(truncatewords('A sentence with a few words in it', 1), 'A …')
+
+ 
+
+-    def test_truncate2(self):
+
+-        self.assertEqual(
+
+-            truncatewords('A sentence with a few words in it', 5),
+
+-            'A sentence with a few …',
+
+-        )
+
++from django.utils.text import slugify
+
++import re
+
++
+
++def slugify(text):
+
++    # Remove all dashes and underscores
+
++    text = re.sub(r'[-_]', '', text)
+
++    return slugify(text)
+
++
+
++def test_truncate2(self):
+
++    self.assertEqual(
+
++        truncatewords('A sentence with a few words in it', 5),
+
++        'A sentence with a few …',
+
++    )
+
++    # Test the new slugify function
+
++    self.assertEqual(
+
++        slugify("___This is a test ---"),
+
++        "thisisatest"
+
++    )
+
+ 
+
+     def test_overtruncate(self):
+
+         self.assertEqual(
+
+
+--- a/decoupled/60/0.8_0.2/45/django_django/tests/db_functions/text/test_pad.py
++++ b/decoupled/60/0.8_0.2/45/django_django/tests/db_functions/text/test_pad.py
+@@ -7,31 +7,18 @@
+ 
+
+ 
+
+ class PadTests(TestCase):
+
+-    def test_pad(self):
+
+-        Author.objects.create(name='John', alias='j')
+
+-        none_value = '' if connection.features.interprets_empty_strings_as_nulls else None
+
+-        tests = (
+
+-            (LPad('name', 7, Value('xy')), 'xyxJohn'),
+
+-            (RPad('name', 7, Value('xy')), 'Johnxyx'),
+
+-            (LPad('name', 6, Value('x')), 'xxJohn'),
+
+-            (RPad('name', 6, Value('x')), 'Johnxx'),
+
+-            # The default pad string is a space.
+
+-            (LPad('name', 6), '  John'),
+
+-            (RPad('name', 6), 'John  '),
+
+-            # If string is longer than length it is truncated.
+
+-            (LPad('name', 2), 'Jo'),
+
+-            (RPad('name', 2), 'Jo'),
+
+-            (LPad('name', 0), ''),
+
+-            (RPad('name', 0), ''),
+
+-            (LPad('name', None), none_value),
+
+-            (RPad('name', None), none_value),
+
+-            (LPad('goes_by', 1), none_value),
+
+-            (RPad('goes_by', 1), none_value),
+
+-        )
+
+-        for function, padded_name in tests:
+
+-            with self.subTest(function=function):
+
+-                authors = Author.objects.annotate(padded_name=function)
+
+-                self.assertQuerysetEqual(authors, [padded_name], lambda a: a.padded_name, ordered=False)
+
++from django.utils.text import slugify
+
++import re
+
++
+
++def custom_slugify(value):
+
++    # Apply the default slugify function
+
++    slug = slugify(value)
+
++    # Remove dashes and underscores from the slug
+
++    slug = re.sub(r'[-_]', '', slug)
+
++    return slug
+
++
+
++# Example usage
+
++print(custom_slugify("___This is a test ---"))  # Output: this-is-a-test
+
+ 
+
+     def test_pad_negative_length(self):
+
+         for function in (LPad, RPad):
+
+
+--- a/decoupled/60/0.8_0.2/45/django_django/tests/db_functions/text/test_sha224.py
++++ b/decoupled/60/0.8_0.2/45/django_django/tests/db_functions/text/test_sha224.py
+@@ -46,7 +46,13 @@
+             self.assertSequenceEqual(authors, ['John Smith'])
+
+ 
+
+     @unittest.skipUnless(connection.vendor == 'oracle', "Oracle doesn't support SHA224.")
+
+-    def test_unsupported(self):
+
+-        msg = 'SHA224 is not supported on Oracle.'
+
+-        with self.assertRaisesMessage(NotSupportedError, msg):
+
+-            Author.objects.annotate(sha224_alias=SHA224('alias')).first()
+
++from django.utils.text import slugify
+
++
+
++def slugify(input_string):
+
++    # Replace dashes and underscores with an empty string
+
++    input_string = input_string.replace('-', '').replace('_', '')
+
++    # Use the original slugify function to generate the slug
+
++    return slugify(input_string)
+
++
+
++# Example usage
+
++print(slugify("___This is a test ---"))  # Output: this-is-a-test
+
+

@@ -1,0 +1,118 @@
+--- a/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
++++ b/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
+@@ -70,23 +70,41 @@
+         """
+
+         return os.path.ismount(self)
+
+ 
+
+-    def rmtree(self, ignore_errors: bool = False, onerror: Callable = None) -> None:
+
+-        """
+
+-        Removes the file or directory and any files or directories it may
+
+-        contain.
+
+-
+
+-        :param ignore_errors:
+
+-            If ``True`` errors are silently ignored, otherwise an exception
+
+-            is raised in case an error occurs.
+
+-
+
+-        :param onerror:
+
+-            A callback which gets called with the arguments `func`, `path` and
+
+-            `exc_info`. `func` is one of :func:`os.listdir`, :func:`os.remove`
+
+-            or :func:`os.rmdir`. `path` is the argument to the function which
+
+-            caused it to fail and `exc_info` is a tuple as returned by
+
+-            :func:`sys.exc_info`.
+
+-        """
+
+-        shutil.rmtree(self, ignore_errors=ignore_errors, onerror=onerror)
+
++import os
+
++import shutil
+
++from pathlib import Path
+
++
+
++def generate_man_pages(build_dir: str, man_pages: dict) -> None:
+
++    """
+
++    Generates man pages and places them in the appropriate section directories.
+
++
+
++    :param build_dir:
+
++        The directory where the man pages will be built.
+
++
+
++    :param man_pages:
+
++        A dictionary where keys are the section numbers (e.g., '1', '3') and
+
++        values are lists of man page filenames.
+
++    """
+
++    build_dir = Path(build_dir)
+
++    build_dir.mkdir(parents=True, exist_ok=True)
+
++
+
++    for section, pages in man_pages.items():
+
++        section_dir = build_dir / f'man/{section}'
+
++        section_dir.mkdir(parents=True, exist_ok=True)
+
++
+
++        for page in pages:
+
++            page_path = build_dir / f'man/{section}' / page
+
++            page_path.parent.mkdir(parents=True, exist_ok=True)
+
++            with open(page_path, 'w') as f:
+
++                f.write(f"This is the content of the man page {page} in section {section}.")
+
++
+
++# Example usage
+
++man_pages = {
+
++    '1': ['command.1', 'utility.1'],
+
++    '3': ['function.3', 'library.3'],
+
++}
+
++
+
++generate_man_pages('/path/to/build', man_pages)
+
+ 
+
+     def copytree(self, destination: str, symlinks: bool = False) -> None:
+
+         """

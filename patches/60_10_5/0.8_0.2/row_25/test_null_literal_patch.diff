@@ -1,0 +1,24 @@
+--- a/decoupled/60/0.8_0.2/25/django_django/tests/db_functions/comparison/test_nullif.py
++++ b/decoupled/60/0.8_0.2/25/django_django/tests/db_functions/comparison/test_nullif.py
+@@ -34,7 +34,7 @@
+             NullIf('name')
+
+ 
+
+     @skipUnless(connection.vendor == 'oracle', 'Oracle specific test for NULL-literal')
+
+-    def test_null_literal(self):
+
+-        msg = 'Oracle does not allow Value(None) for expression1.'
+
+-        with self.assertRaisesMessage(ValueError, msg):
+
+-            list(Author.objects.annotate(nullif=NullIf(Value(None), 'name')).values_list('nullif'))
+
++def test_null_literal(self):
+
++    msg = 'Oracle does not allow Value(None) for expression1.'
+
++    with self.assertRaisesMessage(ValueError, msg):
+
++        list(Author.objects.annotate(nullif=NullIf(Value(None), 'name')).values_list('nullif'))

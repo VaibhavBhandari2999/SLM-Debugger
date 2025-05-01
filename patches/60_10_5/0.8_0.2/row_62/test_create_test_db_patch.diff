@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/62/django_django/tests/backends/oracle/test_creation.py
++++ b/decoupled/60/0.8_0.2/62/django_django/tests/backends/oracle/test_creation.py
+@@ -36,7 +36,7 @@
+         return mock.patch.object(DatabaseCreation, '_execute_statements', execute_statements)
+
+ 
+
+     @mock.patch.object(DatabaseCreation, '_test_user_create', return_value=False)
+
+-    def test_create_test_db(self, *mocked_objects):
+
++def test_create_test_db(self, *mocked_objects):
+
+         creation = DatabaseCreation(connection)
+
+         # Simulate test database creation raising "tablespace already exists"
+
+         with self.patch_execute_statements(self._execute_raise_tablespace_already_exists):

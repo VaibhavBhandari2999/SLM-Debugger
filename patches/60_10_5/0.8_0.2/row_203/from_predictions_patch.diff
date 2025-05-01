@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
++++ b/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
+@@ -1313,7 +1313,7 @@
+         )
+
+ 
+
+     @classmethod
+
+-    def from_predictions(
+
++def from_predictions(
+
+         cls,
+
+         y_true,
+
+         y_prob,
+
+@@ -1330,8 +1330,7 @@
+ 
+
+         Calibration curve, also known as reliability diagram, uses inputs
+
+         from a binary classifier and plots the average predicted probability
+
+-        for each bin against the fraction of positive classes, on the
+
+-        y-axis.
+
++        for each bin against the fraction of positive classes, on the y-axis.
+
+ 
+
+         Extra keyword arguments will be passed to
+
+         :func:`matplotlib.pyplot.plot`.
+
+@@ -1412,6 +1411,9 @@
+         method_name = f"{cls.__name__}.from_estimator"
+
+         check_matplotlib_support(method_name)
+
+ 
+
++        # Ensure y_prob is a numpy array to avoid issues with pandas DataFrame
+
++        y_prob = np.array(y_prob)
+
++
+
+         prob_true, prob_pred = calibration_curve(
+
+             y_true, y_prob, n_bins=n_bins, strategy=strategy, pos_label=pos_label
+
+         )

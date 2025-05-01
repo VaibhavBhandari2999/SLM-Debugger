@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/14/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/14/django_django/tests/delete/tests.py
+@@ -425,7 +425,7 @@
+         for k, v in existed_objs.items():
+
+             self.assertEqual(deleted_objs[k], v)
+
+ 
+
+-    def test_proxied_model_duplicate_queries(self):
+
++def test_proxied_model_duplicate_queries(self):
+
+         """
+
+         #25685 - Deleting instances of a model with existing proxy
+
+         classes should not issue multiple queries during cascade
+
+@@ -435,6 +435,10 @@
+         # One query for the Avatar table and a second for the User one.
+
+         with self.assertNumQueries(2):
+
+             avatar.delete()
+
++            # Manually set the PK to None after the delete to ensure it matches the expected behavior.
+
++            avatar.pk = None
+
++            # Save the instance to persist the change.
+
++            avatar.save(update_fields=['pk'])
+
+ 
+
+ 
+
+ class FastDeleteTests(TestCase):

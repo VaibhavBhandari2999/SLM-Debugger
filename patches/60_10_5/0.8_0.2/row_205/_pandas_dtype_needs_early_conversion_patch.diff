@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -589,7 +589,6 @@
+ 
+
+ def _pandas_dtype_needs_early_conversion(pd_dtype):
+
+     """Return True if pandas extension pd_dtype need to be converted early."""
+
+-    # Check these early for pandas versions without extension dtypes
+
+     from pandas.api.types import (
+
+         is_bool_dtype,
+
+         is_sparse,
+
+@@ -597,8 +596,12 @@
+         is_integer_dtype,
+
+     )
+
+ 
+
++    # Check for nullable dtypes
+
++    if pd_dtype.name in ["Int64", "Float64", "boolean"]:
+
++        return True
+
++
+
+     if is_bool_dtype(pd_dtype):
+
+-        # bool and extension booleans need early converstion because __array__
+
++        # bool and extension booleans need early conversion because __array__
+
+         # converts mixed dtype dataframes into object dtypes
+
+         return True
+
+ 

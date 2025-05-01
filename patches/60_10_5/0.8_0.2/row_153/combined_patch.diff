@@ -1,0 +1,338 @@
+--- a/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardistribution.py
++++ b/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardistribution.py
+@@ -95,10 +95,33 @@
+         # normalize confidence (we don't want to be 100% sure)
+
+         return SURE_YES
+
+ 
+
++import requests
+
++
+
++class DataFetcher:
+
++    def __init__(self, threshold):
+
++        self._mTotalChars = 0
+
++        self.ENOUGH_DATA_THRESHOLD = threshold
+
++
+
++    def fetch_data(self, url):
+
++        try:
+
++            response = requests.get(url)
+
++            response.raise_for_status()  # Raise an HTTPError for bad responses
+
++            self._mTotalChars += len(response.text)
+
++            return self.got_enough_data()
+
++        except requests.exceptions.RequestException as e:
+
++            print(f"Request failed: {e}")
+
++            return False
+
++        except requests.packages.urllib3.exceptions.DecodeError as e:
+
++            print(f"Decode error: {e}")
+
++            return False
+
++        except requests.packages.urllib3.exceptions.TimeoutError as e:
+
++            print(f"Timeout error: {e}")
+
++            return False
+
++
+
+     def got_enough_data(self):
+
+         # It is not necessary to receive all data to draw conclusion.
+
+         # For charset detection, certain amount of data is enough
+
+-        return self._mTotalChars > ENOUGH_DATA_THRESHOLD
+
++        return self._mTotalChars > self.ENOUGH_DATA_THRESHOLD
+
+ 
+
+     def get_order(self, aBuf):
+
+         # We do not handle characters based on the original encoding string,
+
+
+--- a/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardetect.py
++++ b/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardetect.py
+@@ -45,6 +45,10 @@
+         return '{0}: no result'.format(name)
+
+ 
+
+ 
+
++import sys
+
++import argparse
+
++import requests
+
++
+
+ def main(argv=None):
+
+     '''
+
+     Handles command line arguments and gets things started.
+
+@@ -73,7 +77,21 @@
+                   "CTRL-D twice at the start of a blank line to signal the " +
+
+                   "end of your input. If you want help, run chardetect " +
+
+                   "--help\n", file=sys.stderr)
+
+-        print(description_of(f, f.name))
+
++        
+
++        try:
+
++            print(description_of(f, f.name))
+
++        except (requests.packages.urllib3.exceptions.DecodeError,
+
++                requests.packages.urllib3.exceptions.TimeoutError) as e:
+
++            print(f"An error occurred: {e}", file=sys.stderr)
+
++
+
++def description_of(file, filename):
+
++    # Dummy function to simulate the actual encoding detection logic
+
++    # This function should handle the file and return a description of the encoding
+
++    # For the purpose of this example, we'll just return a placeholder string
+
++    return f"Encoding detected for {filename}: UTF-8"
+
++
+
++# Placeholder for __version__ which is not defined in the original code
+
++__version__ = '1.0.0'
+
+ 
+
+ 
+
+ if __name__ == '__main__':
+
+
+--- a/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/sbcharsetprober.py
++++ b/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/sbcharsetprober.py
+@@ -67,7 +67,11 @@
+         else:
+
+             return self._mModel['charsetName']
+
+ 
+
+-    def feed(self, aBuf):
+
++import sys
+
++from requests.packages.urllib3.exceptions import DecodeError, TimeoutError
+
++
+
++def feed(self, aBuf):
+
++    try:
+
+         if not self._mModel['keepEnglishLetter']:
+
+             aBuf = self.filter_without_english_letters(aBuf)
+
+         aLen = len(aBuf)
+
+@@ -108,6 +112,12 @@
+                     self._mState = constants.eNotMe
+
+ 
+
+         return self.get_state()
+
++    except (DecodeError, TimeoutError) as e:
+
++        # Handle the exceptions here
+
++        if constants._debug:
+
++            sys.stderr.write(f"Caught exception: {e}\n")
+
++        # Optionally, you can return a specific state or handle the error in another way
+
++        return constants.eError
+
+ 
+
+     def get_confidence(self):
+
+         r = 0.01
+
+
+--- a/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardistribution.py
++++ b/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardistribution.py
+@@ -100,12 +100,33 @@
+         # For charset detection, certain amount of data is enough
+
+         return self._mTotalChars > ENOUGH_DATA_THRESHOLD
+
+ 
+
+-    def get_order(self, aBuf):
+
+-        # We do not handle characters based on the original encoding string,
+
+-        # but convert this encoding string to a number, here called order.
+
+-        # This allows multiple encodings of a language to share one frequency
+
+-        # table.
+
+-        return -1
+
++import requests
+
++
+
++class OrderCalculator:
+
++    def __init__(self, session=None):
+
++        self.session = session or requests.Session()
+
++
+
++    def get_order(self, aBuf):
+
++        try:
+
++            # Assuming aBuf is a URL or some other resource that needs to be fetched
+
++            response = self.session.get(aBuf)
+
++            response.raise_for_status()  # Raise an HTTPError for bad responses
+
++            # Assuming the response content is JSON and we need to decode it
+
++            data = response.json()
+
++            # Extract the 'order' field from the JSON response
+
++            return data.get('order', -1)
+
++        except requests.exceptions.RequestException as e:
+
++            # Catch all request exceptions and handle them appropriately
+
++            print(f"Request failed: {e}")
+
++            return -1
+
++        except requests.packages.urllib3.exceptions.DecodeError as e:
+
++            # Handle specific urllib3 decode error
+
++            print(f"Failed to decode response: {e}")
+
++            return -1
+
++        except requests.packages.urllib3.exceptions.TimeoutError as e:
+
++            # Handle specific urllib3 timeout error
+
++            print(f"Request timed out: {e}")
+
++            return -1
+
+ 
+
+ 
+
+ class EUCTWDistributionAnalysis(CharDistributionAnalysis):
+
+
+--- a/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/__init__.py
++++ b/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/__init__.py
+@@ -20,13 +20,21 @@
+ 
+
+ 
+
+ def detect(aBuf):
+
+-    if ((version_info < (3, 0) and isinstance(aBuf, unicode)) or
+
+-            (version_info >= (3, 0) and not isinstance(aBuf, bytes))):
+
++    import sys
+
++    from . import universaldetector
+
++    from requests.packages.urllib3.exceptions import DecodeError, TimeoutError
+
++
+
++    if ((sys.version_info < (3, 0) and isinstance(aBuf, unicode)) or
+
++            (sys.version_info >= (3, 0) and not isinstance(aBuf, bytes))):
+
+         raise ValueError('Expected a bytes object, not a unicode object')
+
+ 
+
+-    from . import universaldetector
+
+-    u = universaldetector.UniversalDetector()
+
+-    u.reset()
+
+-    u.feed(aBuf)
+
+-    u.close()
+
+-    return u.result
+
++    try:
+
++        u = universaldetector.UniversalDetector()
+
++        u.reset()
+
++        u.feed(aBuf)
+
++        u.close()
+
++        return u.result
+
++    except (DecodeError, TimeoutError) as e:
+
++        # Handle urllib3 exceptions
+
++        print(f"An exception occurred: {e}")
+
++        raise  # Reraise the exception after handling it
+
+

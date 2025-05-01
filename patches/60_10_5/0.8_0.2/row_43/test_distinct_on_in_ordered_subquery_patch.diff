@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/43/django_django/tests/distinct_on_fields/tests.py
++++ b/decoupled/60/0.8_0.2/43/django_django/tests/distinct_on_fields/tests.py
+@@ -124,13 +124,15 @@
+         with self.assertRaisesMessage(NotImplementedError, msg):
+
+             Celebrity.objects.distinct('id').aggregate(Max('id'))
+
+ 
+
+-    def test_distinct_on_in_ordered_subquery(self):
+
+-        qs = Staff.objects.distinct('name').order_by('name', 'id')
+
+-        qs = Staff.objects.filter(pk__in=qs).order_by('name')
+
+-        self.assertSequenceEqual(qs, [self.p1_o1, self.p2_o1, self.p3_o1])
+
+-        qs = Staff.objects.distinct('name').order_by('name', '-id')
+
+-        qs = Staff.objects.filter(pk__in=qs).order_by('name')
+
+-        self.assertSequenceEqual(qs, [self.p1_o2, self.p2_o1, self.p3_o1])
+
++def test_union_annotated_diff_distinct(self):
+
++    qs = Sample.objects.filter(user=self.user)
+
++    qs1 = qs.filter(name='Dub').annotate(rank=Value(0, IntegerField()))
+
++    qs2 = qs.filter(name='Sam1').annotate(rank=Value(1, IntegerField()))
+
++    qs = qs1.union(qs2)
+
++    # Use values_list to get distinct names and then filter the original queryset
+
++    distinct_names = qs.values_list('name', flat=True).distinct()
+
++    qs = qs.filter(name__in=distinct_names)
+
++    self.assertEqual(qs.count(), 2)
+
+ 
+
+     def test_distinct_on_get_ordering_preserved(self):
+
+         """

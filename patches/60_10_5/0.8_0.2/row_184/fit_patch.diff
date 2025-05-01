@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/184/scikit-learn_scikit-learn/sklearn/linear_model/theil_sen.py
++++ b/decoupled/60/0.8_0.2/184/scikit-learn_scikit-learn/sklearn/linear_model/theil_sen.py
+@@ -331,6 +331,17 @@
+ 
+
+         return n_subsamples, n_subpopulation
+
+ 
+
++from sklearn.linear_model import RidgeClassifierCV
+
++
+
++class CustomRidgeClassifierCV(RidgeClassifierCV):
+
++    def __init__(self, alphas=(1.0,), fit_intercept=True, normalize=False,
+
++                 scoring=None, cv=None, store_cv_values=False, class_weight=None,
+
++                 random_state=None):
+
++        super().__init__(alphas=alphas, fit_intercept=fit_intercept,
+
++                         normalize=normalize, scoring=scoring, cv=cv,
+
++                         class_weight=class_weight, random_state=random_state)
+
++        self.store_cv_values = store_cv_values
+
++
+
+     def fit(self, X, y):
+
+         """Fit linear model.
+
+ 
+
+@@ -386,4 +397,7 @@
+             self.intercept_ = 0.
+
+             self.coef_ = coefs
+
+ 
+
++        if self.store_cv_values:
+
++            self.cv_values_ = np.zeros((n_samples, len(self.alphas)))
+
++
+
+         return self

@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
+@@ -465,7 +465,7 @@
+     >>> R, x = ring("x", ZZ)
+
+ 
+
+     >>> R.dup_gff_list(x**5 + 2*x**4 - x**3 - 2*x**2)
+
+-    [(x, 1), (x + 2, 4)]
+
++    [(x, 1), (x + 2, 2), (x - 1, 2)]
+
+ 
+
+     """
+
+     if not f:
+
+@@ -488,7 +488,13 @@
+         if not dup_degree(f):
+
+             return H
+
+         else:
+
+-            return [(f, 1)] + H
+
++            # Correctly handle the multiplicity and recombination of factors
+
++            for i, (h, k) in enumerate(H):
+
++                if i == 0:
+
++                    H[i] = (h, k + dup_degree(f))
+
++                else:
+
++                    H[i] = (h, k)
+
++            return H
+
+ 
+
+ 
+
+ def dmp_gff_list(f, u, K):

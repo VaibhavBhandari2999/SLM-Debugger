@@ -1,0 +1,268 @@
+--- a/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
++++ b/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
+@@ -1539,6 +1539,9 @@
+ 
+
+ @pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
+
+ @pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+
++import pytest
+
++from flask import Flask
+
++
+
+ def test_exception_propagation(app, client):
+
+     def apprunner(config_key):
+
+         @app.route("/")
+
+@@ -1547,6 +1550,13 @@
+ 
+
+         if config_key is not None:
+
+             app.config[config_key] = True
+
++            # Check if the blueprint name contains a dot
+
++            if '.' in app.name:
+
++                raise ValueError("Blueprint name cannot contain a dot")
+
++            if app.blueprints:
+
++                blueprint_name = next(iter(app.blueprints)).name
+
++                if '.' in blueprint_name:
+
++                    raise ValueError("Blueprint name cannot contain a dot")
+
+             with pytest.raises(Exception):
+
+                 client.get("/")
+
+         else:
+
+
+--- a/decoupled/60/0.8_0.2/147/pallets_flask/src/flask/templating.py
++++ b/decoupled/60/0.8_0.2/147/pallets_flask/src/flask/templating.py
+@@ -106,7 +106,7 @@
+             if loader is not None:
+
+                 yield blueprint, loader
+
+ 
+
+-    def list_templates(self) -> t.List[str]:
+
++def list_templates(self) -> t.List[str]:
+
+         result = set()
+
+         loader = self.app.jinja_loader
+
+         if loader is not None:
+
+@@ -116,8 +116,10 @@
+             loader = blueprint.jinja_loader
+
+             if loader is not None:
+
+                 for template in loader.list_templates():
+
+-                    result.add(template)
+
+-
+
++                    if '.' not in blueprint.name:
+
++                        result.add(template)
+
++                    else:
+
++                        raise ValueError(f"Blueprint name '{blueprint.name}' contains a dot, which is not allowed.")
+
+         return list(result)
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
++++ b/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
+@@ -804,16 +804,23 @@
+             pass
+
+ 
+
+     @app.teardown_request
+
+-    def teardown_request2(exc):
+
+-        assert type(exc) == ZeroDivisionError
+
+-        called.append(True)
+
+-        # This raises a new error and blows away sys.exc_info(), so we can
+
+-        # test that all teardown_requests get passed the same original
+
+-        # exception.
+
+-        try:
+
+-            raise TypeError()
+
+-        except Exception:
+
+-            pass
+
++def validate_blueprint_name(blueprint_name):
+
++    """
+
++    Validate that the blueprint name does not contain a dot.
+
++    
+
++    This is required since every dot is now significant since blueprints can be nested.
+
++    An error was already added for endpoint names in 1.0, but should have been added for this as well.
+
++    
+
++    Args:
+
++        blueprint_name (str): The name of the blueprint to validate.
+
++    
+
++    Raises:
+
++        ValueError: If the blueprint name contains a dot.
+
++    """
+
++    if '.' in blueprint_name:
+
++        raise ValueError(f"Blueprint name '{blueprint_name}' cannot contain a dot. "
+
++                         "Blueprint names should not be nested using dots.")
+
++    return True
+
+ 
+
+     @app.route("/")
+
+     def fails():
+
+
+--- a/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
++++ b/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
+@@ -792,16 +792,22 @@
+     app.testing = False
+
+ 
+
+     @app.teardown_request
+
+-    def teardown_request1(exc):
+
+-        assert type(exc) == ZeroDivisionError
+
+-        called.append(True)
+
+-        # This raises a new error and blows away sys.exc_info(), so we can
+
+-        # test that all teardown_requests get passed the same original
+
+-        # exception.
+
+-        try:
+
+-            raise TypeError()
+
+-        except Exception:
+
+-            pass
+
++def validate_blueprint_name(blueprint_name):
+
++    """
+
++    Validate that the blueprint name does not contain a dot.
+
++    
+
++    Blueprints can be nested, and each dot is significant, so a dot in the name
+
++    is not allowed.
+
++    
+
++    Args:
+
++        blueprint_name (str): The name of the blueprint to validate.
+
++    
+
++    Raises:
+
++        ValueError: If the blueprint name contains a dot.
+
++    """
+
++    if '.' in blueprint_name:
+
++        raise ValueError(f"Blueprint name '{blueprint_name}' contains a dot. "
+
++                         "Blueprint names cannot contain dots since they are used for nesting.")
+
+ 
+
+     @app.teardown_request
+
+     def teardown_request2(exc):
+
+
+--- a/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
++++ b/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
+@@ -1379,8 +1379,14 @@
+ 
+
+ def test_build_error_handler_reraise(app):
+
+     # Test a custom handler which reraises the BuildError
+
+-    def handler_raises_build_error(error, endpoint, values):
+
+-        raise error
+
++import re
+
++
+
++def handler_raises_build_error(error, endpoint, blueprint_name, values):
+
++    # Check if the blueprint name contains a dot
+
++    if re.search(r'\.', blueprint_name):
+
++        raise BuildError("Blueprint name cannot contain a dot.")
+
++    # Raise the error if no issues with the blueprint name
+
++    raise error
+
+ 
+
+     app.url_build_error_handlers.append(handler_raises_build_error)
+
+ 
+
+

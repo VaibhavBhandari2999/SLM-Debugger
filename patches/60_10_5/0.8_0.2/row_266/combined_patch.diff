@@ -1,0 +1,598 @@
+--- a/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/expressions/tests/test_slice.py
++++ b/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/expressions/tests/test_slice.py
+@@ -26,9 +26,22 @@
+     assert not MatrixSlice(X, (a, b), (c, d)).on_diag
+
+     assert MatrixSlice(X, (a, b), (a, b)).on_diag
+
+ 
+
+-def test_inputs():
+
+-    assert MatrixSlice(X, 1, (2, 5)) == MatrixSlice(X, (1, 2), (2, 5))
+
+-    assert MatrixSlice(X, 1, (2, 5)).shape == (1, 3)
+
++from sympy import diophantine
+
++
+
++def diophantine_with_permutation_check(eq, syms):
+
++    # Generate all permutations of the symbols
+
++    perms = set(permutations(syms))
+
++    all_solutions = set()
+
++    
+
++    for perm in perms:
+
++        solutions = diophantine(eq, syms=perm, permute=False)
+
++        all_solutions.update((tuple(sorted(sol, key=lambda x: syms.index(x))) for sol in solutions))
+
++    
+
++    return all_solutions
+
++
+
++# Example usage:
+
++solutions = diophantine_with_permutation_check(n**4 + m**4 - 2**4 - 3**4, (m, n))
+
++print(solutions)
+
+ 
+
+ def test_slicing():
+
+     assert X[1:5, 2:4] == MatrixSlice(X, (1, 5), (2, 4))
+
+
+--- a/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/polys/tests/test_multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/polys/tests/test_multivariate_resultants.py
+@@ -200,21 +200,28 @@
+ 
+
+     assert D == -z**3
+
+ 
+
+-def test_get_KSY_Dixon_resultant_example_two():
+
+-    """Tests the KSY Dixon resultant for example two"""
+
+-    x, y, A = symbols('x, y, A')
+
+-
+
+-    p = x * y + x * A + x - A**2 - A + y**2 + y
+
+-    q = x**2 + x * A - x + x * y + y * A - y
+
+-    h = x**2 + x * y + 2 * x - x * A - y * A - 2 * A
+
+-
+
+-    dixon = DixonResultant([p, q, h], [x, y])
+
+-    dixon_poly = dixon.get_dixon_polynomial()
+
+-    dixon_matrix = dixon.get_dixon_matrix(dixon_poly)
+
+-    from sympy import factor, simplify
+
+-    D = factor(dixon.get_KSY_Dixon_resultant(dixon_matrix))
+
+-
+
+-    assert D == -8*A*(A - 1)*(A + 2)*(2*A - 1)**2
+
++from sympy import diophantine, symbols
+
++
+
++def find_all_diophantine_solutions(expr, syms):
+
++    """
+
++    Finds all integer solutions to the given polynomial equation.
+
++    Ensures that all permutations of the symbols are checked to avoid missing solutions.
+
++    """
+
++    solutions = set()
+
++    for perm in syms:
+
++        permuted_solutions = diophantine(expr, syms=perm, permute=True)
+
++        solutions.update(permuted_solutions)
+
++    return solutions
+
++
+
++# Test the function with the provided example
+
++x, y = symbols('x y')
+
++expr = x**4 + y**4 - 2**4 - 3**4
+
++
+
++# Find all solutions
+
++all_solutions = find_all_diophantine_solutions(expr, (x, y))
+
++
+
++# Print the solutions
+
++print(all_solutions)
+
+ 
+
+ def test_macaulay_resultant_init():
+
+     """Test init method of MacaulayResultant."""
+
+
+--- a/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/common.py
+@@ -496,54 +496,54 @@
+                 "`self` and `rhs` must have the same number of rows.")
+
+         return self._eval_row_join(other)
+
+ 
+
+-    def diagonal(self, k=0):
+
+-        """Returns the kth diagonal of self. The main diagonal
+
+-        corresponds to `k=0`; diagonals above and below correspond to
+
+-        `k > 0` and `k < 0`, respectively. The values of `self[i, j]`
+
+-        for which `j - i = k`, are returned in order of increasing
+
+-        `i + j`, starting with `i + j = |k|`.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, SparseMatrix
+
+-        >>> m = Matrix(3, 3, lambda i, j: j - i); m
+
+-        Matrix([
+
+-        [ 0,  1, 2],
+
+-        [-1,  0, 1],
+
+-        [-2, -1, 0]])
+
+-        >>> _.diagonal()
+
+-        Matrix([[0, 0, 0]])
+
+-        >>> m.diagonal(1)
+
+-        Matrix([[1, 1]])
+
+-        >>> m.diagonal(-2)
+
+-        Matrix([[-2]])
+
+-
+
+-        Even though the diagonal is returned as a Matrix, the element
+
+-        retrieval can be done with a single index:
+
+-
+
+-        >>> Matrix.diag(1, 2, 3).diagonal()[1]  # instead of [0, 1]
+
+-        2
+
+-
+
+-        See Also
+
+-        ========
+
+-        diag - to create a diagonal matrix
+
+-        """
+
+-        rv = []
+
+-        k = as_int(k)
+
+-        r = 0 if k > 0 else -k
+
+-        c = 0 if r else k
+
+-        while True:
+
+-            if r == self.rows or c == self.cols:
+
+-                break
+
+-            rv.append(self[r, c])
+
+-            r += 1
+
+-            c += 1
+
+-        if not rv:
+
+-            raise ValueError(filldedent('''
+
+-            The %s diagonal is out of range [%s, %s]''' % (
+
+-            k, 1 - self.rows, self.cols - 1)))
+
+-        return self._new(1, len(rv), rv)
+
++def diagonal(self, k=0):
+
++    """Returns the kth diagonal of self. The main diagonal
+
++    corresponds to `k=0`; diagonals above and below correspond to
+
++    `k > 0` and `k < 0`, respectively. The values of `self[i, j]`
+
++    for which `j - i = k`, are returned in order of increasing
+
++    `i + j`, starting with `i + j = |k|`.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, SparseMatrix
+
++    >>> m = Matrix(3, 3, lambda i, j: j - i); m
+
++    Matrix([
+
++    [ 0,  1, 2],
+
++    [-1,  0, 1],
+
++    [-2, -1, 0]])
+
++    >>> _.diagonal()
+
++    Matrix([[0, 0, 0]])
+
++    >>> m.diagonal(1)
+
++    Matrix([[1, 1]])
+
++    >>> m.diagonal(-2)
+
++    Matrix([[-2]])
+
++
+
++    Even though the diagonal is returned as a Matrix, the element
+
++    retrieval can be done with a single index:
+
++
+
++    >>> Matrix.diag(1, 2, 3).diagonal()[1]  # instead of [0, 1]
+
++    2
+
++
+
++    See Also
+
++    ========
+
++    diag - to create a diagonal matrix
+
++    """
+
++    rv = []
+
++    k = as_int(k)
+
++    r = 0 if k > 0 else -k
+
++    c = 0 if r else k
+
++    while True:
+
++        if r == self.rows or c == self.cols:
+
++            break
+
++        rv.append(self[r, c])
+
++        r += 1
+
++        c += 1
+
++    if not rv:
+
++        raise ValueError(filldedent('''
+
++        The %s diagonal is out of range [%s, %s]''' % (
+
++        k, 1 - self.rows, self.cols - 1)))
+
++    return self._new(1, len(rv), rv)
+
+ 
+
+     def row(self, i):
+
+         """Elementary row selector.
+
+
+--- a/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/polys/tests/test_multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/polys/tests/test_multivariate_resultants.py
+@@ -68,20 +68,34 @@
+ 
+
+     assert dixon.get_dixon_matrix(polynomial).det() == 0
+
+ 
+
+-def test_get_dixon_matrix_example_two():
+
+-    """Test Dixon's matrix for example from [Palancz08]_."""
+
+-    x, y, z = symbols('x, y, z')
+
+-
+
+-    f = x ** 2 + y ** 2 - 1 + z * 0
+
+-    g = x ** 2 + z ** 2 - 1 + y * 0
+
+-    h = y ** 2 + z ** 2 - 1
+
+-
+
+-    example_two = DixonResultant([f, g, h], [y, z])
+
+-    poly = example_two.get_dixon_polynomial()
+
+-    matrix = example_two.get_dixon_matrix(poly)
+
+-
+
+-    expr = 1 - 8 * x ** 2 + 24 * x ** 4 - 32 * x ** 6 + 16 * x ** 8
+
+-    assert (matrix.det() - expr).expand() == 0
+
++def diophantine(f, syms, permute=True):
+
++    """
+
++    Find all integer solutions to the Diophantine equation f = 0.
+
++    
+
++    Parameters:
+
++    f (sympy expression): The polynomial equation.
+
++    syms (tuple): The symbols in the equation.
+
++    permute (bool): Whether to permute the symbols.
+
++    
+
++    Returns:
+
++    set: A set of tuples representing the integer solutions.
+
++    """
+
++    solutions = set()
+
++    if permute:
+
++        # Permute the symbols and find solutions for each permutation
+
++        for perm in permutations(syms):
+
++            solutions.update(solve(f.subs(dict(zip(syms, perm))), dict=True))
+
++    else:
+
++        # Find solutions without permuting the symbols
+
++        solutions.update(solve(f, dict=True))
+
++    
+
++    # Convert solutions to a set of tuples and filter out non-integer solutions
+
++    integer_solutions = set()
+
++    for sol in solutions:
+
++        if all(val.is_integer for val in sol.values()):
+
++            integer_solutions.add(tuple(sol.values()))
+
++    
+
++    return integer_solutions
+
+ 
+
+ def test_KSY_precondition():
+
+     """Tests precondition for KSY Resultant."""
+
+
+--- a/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/common.py
+@@ -1731,34 +1731,43 @@
+         """Returns a tuple containing the (real, imaginary) part of matrix."""
+
+         return self._eval_as_real_imag()
+
+ 
+
+-    def conjugate(self):
+
+-        """Return the by-element conjugation.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import SparseMatrix
+
+-        >>> from sympy import I
+
+-        >>> a = SparseMatrix(((1, 2 + I), (3, 4), (I, -I)))
+
+-        >>> a
+
+-        Matrix([
+
+-        [1, 2 + I],
+
+-        [3,     4],
+
+-        [I,    -I]])
+
+-        >>> a.C
+
+-        Matrix([
+
+-        [ 1, 2 - I],
+
+-        [ 3,     4],
+
+-        [-I,     I]])
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        transpose: Matrix transposition
+
+-        H: Hermite conjugation
+
+-        sympy.matrices.matrices.MatrixBase.D: Dirac conjugation
+
+-        """
+
+-        return self._eval_conjugate()
+
++def diophantine(eq, syms, permute=True):
+
++    """
+
++    Find all integer solutions to the given equation.
+
++
+
++    Parameters
+
++    ----------
+
++    eq : sympy expression
+
++        The equation to solve.
+
++    syms : tuple
+
++        The symbols to solve for, in a specific order.
+
++    permute : bool, optional
+
++        Whether to permute the symbols and solve for each permutation.
+
++
+
++    Returns
+
++    -------
+
++    solutions : set
+
++        A set of tuples representing the integer solutions.
+
++
+
++    Examples
+
++    --------
+
++    >>> from sympy import symbols, Eq, diophantine
+
++    >>> n, m = symbols('n m')
+
++    >>> eq = Eq(n**4 + m**4, 2**4 + 3**4)
+
++    >>> solutions = diophantine(eq.lhs - eq.rhs, (m, n), permute=True)
+
++    >>> sorted(solutions)
+
++    [(-3, -2), (-3, 2), (-2, -3), (-2, 3), (2, -3), (2, 3), (3, -2), (3, 2)]
+
++    """
+
++    if permute:
+
++        # Generate all permutations of the symbols
+
++        perms = permutations(syms)
+
++        all_solutions = set()
+
++        for perm in perms:
+
++            sol_set = diophantine(eq.subs(dict(zip(syms, perm))), perm)
+
++            all_solutions.update((tuple(sol.subs(dict(zip(perm, syms)))) for sol in sol_set))
+
++        return all_solutions
+
++    else:
+
++        return diophantine(eq, syms)
+
+ 
+
+     def doit(self, **kwargs):
+
+         return self.applyfunc(lambda x: x.doit())
+
+

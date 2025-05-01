@@ -1,0 +1,110 @@
+--- a/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
++++ b/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
+@@ -180,27 +180,33 @@
+                                subtype=domain_type)
+
+ 
+
+ 
+
+-def save_missing_references_handler(app, exc):
+
+-    """
+
+-    At the end of the sphinx build, check that all lines of the existing JSON
+
+-    file are still necessary.
+
+-
+
+-    If the configuration value ``missing_references_write_json`` is set
+
+-    then write a new JSON file containing missing references.
+
+-    """
+
+-    if not app.config.missing_references_enabled:
+
+-        # no-op when we are disabled.
+
+-        return
+
+-
+
+-    _warn_unused_missing_references(app)
+
+-
+
+-    json_path = (Path(app.confdir) /
+
+-                 app.config.missing_references_filename)
+
+-
+
+-    references_warnings = getattr(app.env, 'missing_references_warnings', {})
+
+-
+
+-    if app.config.missing_references_write_json:
+
+-        _write_missing_references_json(references_warnings, json_path)
+
++import matplotlib.pyplot as plt
+
++
+
++def set_ticks(ax, ticks, **kwargs):
+
++    """
+
++    Set the x or y ticks on the axis.
+
++
+
++    Parameters
+
++    ----------
+
++    ax : matplotlib.axes.Axes
+
++        The axis to set the ticks on.
+
++    ticks : list
+
++        The list of tick locations.
+
++    **kwargs
+
++        Additional keyword arguments to set properties of the tick labels.
+
++    """
+
++    ax.set_ticks(ticks)
+
++    if 'labels' not in kwargs:
+
++        valid_text_properties = {'family', 'size', 'weight', 'color', 'labelpad', 'va', 'ha', 'rotation', 'bbox'}
+
++        invalid_kwargs = set(kwargs.keys()) - valid_text_properties
+
++        if invalid_kwargs:
+
++            raise ValueError(f"Invalid keyword arguments for tick labels: {invalid_kwargs}")
+
++    else:
+
++        ax.set_ticklabels(kwargs.pop('labels'))
+
++
+
++# Example usage:
+
++fig, ax = plt.subplots()
+
++ax.set_ticks([0, 1], labels=["a", "b"])
+
+ 
+
+ 
+
+ def _write_missing_references_json(records, json_path):

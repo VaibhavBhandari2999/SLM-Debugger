@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/25/django_django/tests/foreign_object/test_empty_join.py
++++ b/decoupled/60/0.8_0.2/25/django_django/tests/foreign_object/test_empty_join.py
+@@ -16,7 +16,7 @@
+         ]
+
+         SlugPage.objects.bulk_create([SlugPage(slug=slug) for slug in slugs])
+
+ 
+
+-    def test_restrictions_with_no_joining_columns(self):
+
++def test_restrictions_with_no_joining_columns(self):
+
+         """
+
+         It's possible to create a working related field that doesn't
+
+         use any joining columns, as long as an extra restriction is supplied.

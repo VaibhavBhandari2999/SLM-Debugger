@@ -1,0 +1,83 @@
+--- a/decoupled/60/0.8_0.2/48/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/48/django_django/django/db/models/fields/related_descriptors.py
+@@ -572,7 +572,7 @@
+             return manager_class(self.instance)
+
+         do_not_call_in_templates = True
+
+ 
+
+-        def _apply_rel_filters(self, queryset):
+
++def _apply_rel_filters(self, queryset):
+
+             """
+
+             Filter the queryset for the instance this manager is bound to.
+
+             """
+
+@@ -605,6 +605,32 @@
+                 queryset._known_related_objects = {self.field: {rel_obj_id: self.instance}}
+
+             return queryset
+
+ 
+
++# To fix the form issue, we need to modify the queryset in the form to handle the empty case correctly.
+
++# Here is the modified form code:
+
++
+
++class ArticleForm(forms.ModelForm):
+
++    publications = forms.ModelMultipleChoiceField(
+
++        Publication.objects.filter(id__lt=2).union(
+
++            Publication.objects.filter(id__gt=5)
+
++        ),
+
++        required=False,
+
++    )
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        # Ensure that when the form is submitted with no selections, only the objects matching the empty queryset are added.
+
++        if not self.data:
+
++            self.initial['publications'] = []
+
++
+
++    def save(self, commit=True):
+
++        instance = super().save(commit=False)
+
++        if not self.cleaned_data['publications']:
+
++            instance.publications.clear()
+
++        else:
+
++            instance.publications.set(self.cleaned_data['publications'])
+
++        if commit:
+
++            instance.save()
+
++        return instance
+
++
+
+         def _remove_prefetched_objects(self):
+
+             try:
+
+                 self.instance._prefetched_objects_cache.pop(self.field.remote_field.get_cache_name())

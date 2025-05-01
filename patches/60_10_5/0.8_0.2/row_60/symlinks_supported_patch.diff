@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/60/django_django/django/utils/_os.py
++++ b/decoupled/60/0.8_0.2/60/django_django/django/utils/_os.py
+@@ -32,6 +32,9 @@
+     return final_path
+
+ 
+
+ 
+
++import os
+
++import tempfile
+
++
+
+ def symlinks_supported():
+
+     """
+
+     Return whether or not creating symlinks are supported in the host platform

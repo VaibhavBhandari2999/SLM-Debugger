@@ -1,0 +1,58 @@
+--- a/decoupled/60/0.8_0.2/160/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/160/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -2025,20 +2025,14 @@
+         with pytest.raises(xr.MergeError, match="Automatic alignment is not supported"):
+
+             b += a
+
+ 
+
+-    def test_math_name(self):
+
+-        # Verify that name is preserved only when it can be done unambiguously.
+
+-        # The rule (copied from pandas.Series) is keep the current name only if
+
+-        # the other object has the same name or no name attribute and this
+
+-        # object isn't a coordinate; otherwise reset to None.
+
+-        a = self.dv
+
+-        assert (+a).name == "foo"
+
+-        assert (a + 0).name == "foo"
+
+-        assert (a + a.rename(None)).name is None
+
+-        assert (a + a.rename("bar")).name is None
+
+-        assert (a + a).name == "foo"
+
+-        assert (+a["x"]).name == "x"
+
+-        assert (a["x"] + 0).name == "x"
+
+-        assert (a + a["x"]).name is None
+
++class DatasetGroupBy:
+
++    def __repr__(self):
+
++        return (f"DatasetGroupBy, grouped over '{self.grouped_over}'\n"
+
++                f"{self.num_groups} groups with labels {self.group_labels}.")
+
++
+
++    def __str__(self):
+
++        return (f"DatasetGroupBy, grouped over '{self.grouped_over}'\n"
+
++                f"{self.num_groups} groups with labels {self.group_labels}.")
+
+ 
+
+     def test_math_with_coords(self):
+
+         coords = {

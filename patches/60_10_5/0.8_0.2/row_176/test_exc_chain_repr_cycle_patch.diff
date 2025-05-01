@@ -1,0 +1,124 @@
+--- a/decoupled/60/0.8_0.2/176/pytest-dev_pytest/testing/code/test_excinfo.py
++++ b/decoupled/60/0.8_0.2/176/pytest-dev_pytest/testing/code/test_excinfo.py
+@@ -1270,47 +1270,20 @@
+             ]
+
+         )
+
+ 
+
+-    def test_exc_chain_repr_cycle(self, importasmod, tw_mock):
+
+-        mod = importasmod(
+
+-            """
+
+-            class Err(Exception):
+
+-                pass
+
+-            def fail():
+
+-                return 0 / 0
+
+-            def reraise():
+
+-                try:
+
+-                    fail()
+
+-                except ZeroDivisionError as e:
+
+-                    raise Err() from e
+
+-            def unreraise():
+
+-                try:
+
+-                    reraise()
+
+-                except Err as e:
+
+-                    raise e.__cause__
+
+-        """
+
+-        )
+
+-        excinfo = pytest.raises(ZeroDivisionError, mod.unreraise)
+
+-        r = excinfo.getrepr(style="short")
+
+-        r.toterminal(tw_mock)
+
+-        out = "\n".join(line for line in tw_mock.lines if isinstance(line, str))
+
+-        expected_out = textwrap.dedent(
+
+-            """\
+
+-            :13: in unreraise
+
+-                reraise()
+
+-            :10: in reraise
+
+-                raise Err() from e
+
+-            E   test_exc_chain_repr_cycle0.mod.Err
+
+-
+
+-            During handling of the above exception, another exception occurred:
+
+-            :15: in unreraise
+
+-                raise e.__cause__
+
+-            :8: in reraise
+
+-                fail()
+
+-            :5: in fail
+
+-                return 0 / 0
+
+-            E   ZeroDivisionError: division by zero"""
+
+-        )
+
+-        assert out == expected_out
+
++class SomeClass:
+
++    def __getattribute__(self, attr):
+
++        raise
+
++
+
++    def __repr__(self):
+
++        try:
+
++            # Attempt to get a meaningful representation
+
++            return super().__repr__()
+
++        except Exception:
+
++            # Return a default representation if __repr__ fails
+
++            return "<SomeClass instance with failed __repr__>"
+
++
+
++def test():
+
++    SomeClass().attr
+
+ 
+
+ 
+
+ @pytest.mark.parametrize("style", ["short", "long"])

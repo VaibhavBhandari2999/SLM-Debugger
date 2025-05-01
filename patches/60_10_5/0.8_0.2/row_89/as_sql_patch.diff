@@ -1,0 +1,64 @@
+--- a/decoupled/60/0.8_0.2/89/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/89/django_django/django/db/models/sql/query.py
+@@ -1076,18 +1076,19 @@
+             return [self]
+
+         return external_cols
+
+ 
+
+-    def as_sql(self, compiler, connection):
+
+-        # Some backends (e.g. Oracle) raise an error when a subquery contains
+
+-        # unnecessary ORDER BY clause.
+
+-        if (
+
+-            self.subquery and
+
+-            not connection.features.ignores_unnecessary_order_by_in_subqueries
+
+-        ):
+
+-            self.clear_ordering(force=False)
+
+-        sql, params = self.get_compiler(connection=connection).as_sql()
+
+-        if self.subquery:
+
+-            sql = '(%s)' % sql
+
+-        return sql, params
+
++def as_sql(self, compiler, connection):
+
++    # Some backends (e.g. Oracle) raise an error when a subquery contains
+
++    # unnecessary ORDER BY clause.
+
++    if (
+
++        self.subquery and
+
++        not connection.features.ignores_unnecessary_order_by_in_subqueries
+
++    ):
+
++        self.clear_ordering(force=False)
+
++    sql, params = self.get_compiler(connection=connection).as_sql()
+
++    # Conditionally add parentheses around the SQL query if self.subquery is True
+
++    if self.subquery:
+
++        sql = '(%s)' % sql
+
++    return sql, params
+
+ 
+
+     def resolve_lookup_value(self, value, can_reuse, allow_joins):
+
+         if hasattr(value, 'resolve_expression'):

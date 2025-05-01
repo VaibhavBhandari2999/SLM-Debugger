@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -75,6 +75,9 @@
+         https://www.python.org/dev/peps/pep-0484/
+
+ 
+
+     """
+
++    # Example of using the attribute with a trailing underscore
+
++    attribute_with_underscore = 42
+
++    print(f"Attribute with underscore: {attribute_with_underscore}")
+
+ 
+
+ 
+
+ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:

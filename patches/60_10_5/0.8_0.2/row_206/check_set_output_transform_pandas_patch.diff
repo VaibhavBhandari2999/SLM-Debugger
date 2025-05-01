@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -4358,6 +4358,18 @@
+             name, case, outputs_default[case], outputs_pandas[case]
+
+         )
+
+ 
+
++# Fix for the MyTransformer class
+
++class MyTransformer(BaseEstimator, TransformerMixin):
+
++    def fit(self, X: pd.DataFrame, y: pd.Series | None = None, **kwargs):
+
++        return self
+
++
+
++    def transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+
++        # Ensure the output DataFrame has the same number of rows as the input DataFrame
+
++        result = X["value"].groupby(X["date"]).sum()
+
++        # Reindex the result to match the input DataFrame's index
+
++        result = result.reindex(X["date"].unique())
+
++        return result
+
++
+
+ 
+
+ def check_global_ouptut_transform_pandas(name, transformer_orig):
+
+     """Check that setting globally the output of a transformer to pandas lead to the

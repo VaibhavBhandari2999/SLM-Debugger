@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/36/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/36/django_django/django/db/models/fields/related_descriptors.py
+@@ -904,6 +904,10 @@
+                 queryset = super().get_queryset()
+
+                 return self._apply_rel_filters(queryset)
+
+ 
+
++class Child(Parent):
+
++    class Meta:
+
++        ordering = ["-pk"]
+
++
+
+         def get_prefetch_queryset(self, instances, queryset=None):
+
+             if queryset is None:
+
+                 queryset = super().get_queryset()

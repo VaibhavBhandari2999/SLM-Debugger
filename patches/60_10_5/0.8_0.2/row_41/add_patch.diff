@@ -1,0 +1,35 @@
+--- a/decoupled/60/0.8_0.2/41/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/41/django_django/django/db/models/deletion.py
+@@ -96,7 +96,7 @@
+         # parent.
+
+         self.dependencies = defaultdict(set)  # {model: {models}}
+
+ 
+
+-    def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
++def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+         """
+
+         Add 'objs' to the collection of objects to be deleted.  If the call is
+
+         the result of a cascade, 'source' should be the model that caused it,
+
+@@ -105,7 +105,7 @@
+         Return a list of all objects that were not already collected.
+
+         """
+
+         if not objs:
+
+-            return []
+
++            return (0, {})
+
+         new_objs = []
+
+         model = objs[0].__class__
+
+         instances = self.data[model]

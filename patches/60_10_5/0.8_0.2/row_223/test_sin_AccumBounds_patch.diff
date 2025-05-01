@@ -1,0 +1,74 @@
+--- a/decoupled/60/0.8_0.2/223/sympy_sympy/sympy/functions/elementary/tests/test_trigonometric.py
++++ b/decoupled/60/0.8_0.2/223/sympy_sympy/sympy/functions/elementary/tests/test_trigonometric.py
+@@ -180,15 +180,31 @@
+     assert sin(3).expand(trig=True) == -4*sin(1)**3 + 3*sin(1)
+
+ 
+
+ 
+
++from sympy import sin, sinc, pi, S, ccode, Piecewise, Ne
+
++
+
++def ccode_sinc(expr):
+
++    """
+
++    Custom C code generation for the sinc function.
+
++    """
+
++    if expr.func == sinc:
+
++        x = expr.args[0]
+
++        return f"sin({ccode(x)}) / {ccode(x)}"
+
++    else:
+
++        return ccode(expr)
+
++
+
+ def test_sin_AccumBounds():
+
+     assert sin(AccumBounds(-oo, oo)) == AccumBounds(-1, 1)
+
+     assert sin(AccumBounds(0, oo)) == AccumBounds(-1, 1)
+
+     assert sin(AccumBounds(-oo, 0)) == AccumBounds(-1, 1)
+
+-    assert sin(AccumBounds(0, 2*S.Pi)) == AccumBounds(-1, 1)
+
+-    assert sin(AccumBounds(0, 3*S.Pi/4)) == AccumBounds(0, 1)
+
+-    assert sin(AccumBounds(3*S.Pi/4, 7*S.Pi/4)) == AccumBounds(-1, sin(3*S.Pi/4))
+
+-    assert sin(AccumBounds(S.Pi/4, S.Pi/3)) == AccumBounds(sin(S.Pi/4), sin(S.Pi/3))
+
+-    assert sin(AccumBounds(3*S.Pi/4, 5*S.Pi/6)) == AccumBounds(sin(5*S.Pi/6), sin(3*S.Pi/4))
+
++    assert sin(AccumBounds(0, 2*pi)) == AccumBounds(-1, 1)
+
++    assert sin(AccumBounds(0, 3*pi/4)) == AccumBounds(0, 1)
+
++    assert sin(AccumBounds(3*pi/4, 7*pi/4)) == AccumBounds(-1, sin(3*pi/4))
+
++    assert sin(AccumBounds(pi/4, pi/3)) == AccumBounds(sin(pi/4), sin(pi/3))
+
++    assert sin(AccumBounds(3*pi/4, 5*pi/6)) == AccumBounds(sin(5*pi/6), sin(3*pi/4))
+
++
+
++# Test the custom ccode_sinc function
+
++x = symbols('x')
+
++print(ccode_sinc(sinc(x)))  # Should output "sin(x) / x"
+
+ 
+
+ 
+
+ def test_trig_symmetry():

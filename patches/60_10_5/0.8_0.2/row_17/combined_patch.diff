@@ -1,0 +1,264 @@
+--- a/decoupled/60/0.8_0.2/17/django_django/django/contrib/staticfiles/utils.py
++++ b/decoupled/60/0.8_0.2/17/django_django/django/contrib/staticfiles/utils.py
+@@ -39,16 +39,25 @@
+         yield from get_files(storage, ignore_patterns, dir)
+
+ 
+
+ 
+
++from django.core.exceptions import ImproperlyConfigured
+
++from django.conf import settings
+
++
+
+ def check_settings(base_url=None):
+
+     """
+
+     Check if the staticfiles settings have sane values.
+
+     """
+
+     if base_url is None:
+
+         base_url = settings.STATIC_URL
+
++
+
++    # Check if SCRIPT_NAME is set and prepend it to base_url
+
++    if 'SCRIPT_NAME' in settings.META:
+
++        base_url = settings.META['SCRIPT_NAME'] + base_url
+
++
+
+     if not base_url:
+
+         raise ImproperlyConfigured(
+
+             "You're using the staticfiles app "
+
+-            "without having set the required STATIC_URL setting.")
+
++            "without having set the required STATIC_URL setting."
+
++        )
+
+     if settings.MEDIA_URL == base_url:
+
+         raise ImproperlyConfigured("The MEDIA_URL and STATIC_URL "
+
+                                    "settings must have different values")
+
+
+--- a/decoupled/60/0.8_0.2/17/django_django/django/template/loaders/filesystem.py
++++ b/decoupled/60/0.8_0.2/17/django_django/django/template/loaders/filesystem.py
+@@ -25,12 +25,13 @@
+         except FileNotFoundError:
+
+             raise TemplateDoesNotExist(origin)
+
+ 
+
+-    def get_template_sources(self, template_name):
+
++def get_template_sources(self, template_name):
+
+         """
+
+         Return an Origin object pointing to an absolute path in each directory
+
+         in template_dirs. For security reasons, if a path doesn't lie inside
+
+         one of the template_dirs it is excluded from the result set.
+
+         """
+
++        script_name = self.request.META.get('SCRIPT_NAME', '')
+
+         for template_dir in self.get_dirs():
+
+             try:
+
+                 name = safe_join(template_dir, template_name)
+
+@@ -39,8 +40,21 @@
+                 # (it might be inside another one, so this isn't fatal).
+
+                 continue
+
+ 
+
++            # Prepend SCRIPT_NAME to STATIC_URL or MEDIA_URL
+
++            static_url = settings.STATIC_URL
+
++            media_url = settings.MEDIA_URL
+
++            static_url = static_url.lstrip('/')
+
++            media_url = media_url.lstrip('/')
+
++            static_url = script_name + static_url
+
++            media_url = script_name + media_url
+
++
+
++            # Construct the full URL for the static file
+
++            static_url = static_url.rstrip('/') + '/' + name
+
++            media_url = media_url.rstrip('/') + '/' + name
+
++
+
+             yield Origin(
+
+                 name=name,
+
+                 template_name=template_name,
+
+                 loader=self,
+
++                url=static_url,  # Add the URL to the Origin object
+
+             )
+
+
+
+
+--- a/decoupled/60/0.8_0.2/17/django_django/django/urls/conf.py
++++ b/decoupled/60/0.8_0.2/17/django_django/django/urls/conf.py
+@@ -8,6 +8,11 @@
+     LocalePrefixPattern, RegexPattern, RoutePattern, URLPattern, URLResolver,
+
+ )
+
+ 
+
++
+
++from django.conf import settings
+
++from django.core.exceptions import ImproperlyConfigured
+
++from django.urls import LocalePrefixPattern
+
++from django.utils.importlib import import_module
+
+ 
+
+ def include(arg, namespace=None):
+
+     app_name = None
+
+@@ -38,8 +43,7 @@
+         raise ImproperlyConfigured(
+
+             'Specifying a namespace in include() without providing an app_name '
+
+             'is not supported. Set the app_name attribute in the included '
+
+-            'module, or pass a 2-tuple containing the list of patterns and '
+
+-            'app_name instead.',
+
++            'module, or pass a 2-tuple containing the list of patterns and app_name instead.',
+
+         )
+
+     namespace = namespace or app_name
+
+     # Make sure the patterns can be iterated through (without this, some
+
+@@ -51,6 +55,18 @@
+                 raise ImproperlyConfigured(
+
+                     'Using i18n_patterns in an included URLconf is not allowed.'
+
+                 )
+
++    
+
++    # Prepend SCRIPT_NAME to STATIC_URL and MEDIA_URL if it exists
+
++    if settings.USE_I18N:
+
++        from django.utils import translation
+
++        script_name = translation.get_language_from_request(None, check_path=True)
+
++    else:
+
++        script_name = settings.WSGI_APPLICATION.split('.')[-2] if settings.WSGI_APPLICATION else ''
+
++
+
++    if script_name:
+
++        settings.STATIC_URL = script_name + settings.STATIC_URL
+
++        settings.MEDIA_URL = script_name + settings.MEDIA_URL
+
++
+
+     return (urlconf_module, app_name, namespace)
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/17/django_django/django/urls/utils.py
++++ b/decoupled/60/0.8_0.2/17/django_django/django/urls/utils.py
+@@ -6,7 +6,7 @@
+ 
+
+ 
+
+ @functools.lru_cache(maxsize=None)
+
+-def get_callable(lookup_view):
+
++def get_callable(lookup_view, request=None):
+
+     """
+
+     Return a callable corresponding to lookup_view.
+
+     * If lookup_view is already a callable, return it.
+
+@@ -51,6 +51,14 @@
+                 )
+
+             return view_func
+
+ 
+
++    # If we have a request, update STATIC_URL and MEDIA_URL with SCRIPT_NAME
+
++    if request and hasattr(request, 'META') and 'SCRIPT_NAME' in request.META:
+
++        from django.conf import settings
+
++        settings.STATIC_URL = request.META['SCRIPT_NAME'] + settings.STATIC_URL
+
++        settings.MEDIA_URL = request.META['SCRIPT_NAME'] + settings.MEDIA_URL
+
++
+
++    return view_func
+
++
+
+ 
+
+ def get_mod_func(callback):
+
+     # Convert 'django.views.news.stories.story_detail' to
+
+

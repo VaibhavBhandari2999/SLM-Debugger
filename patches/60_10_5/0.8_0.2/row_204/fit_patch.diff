@@ -1,0 +1,81 @@
+--- a/decoupled/60/0.8_0.2/204/scikit-learn_scikit-learn/sklearn/gaussian_process/_gpr.py
++++ b/decoupled/60/0.8_0.2/204/scikit-learn_scikit-learn/sklearn/gaussian_process/_gpr.py
+@@ -203,7 +203,7 @@
+         self.copy_X_train = copy_X_train
+
+         self.random_state = random_state
+
+ 
+
+-    def fit(self, X, y):
+
++def fit(self, X, y):
+
+         """Fit Gaussian process regression model.
+
+ 
+
+         Parameters
+
+@@ -312,30 +312,7 @@
+             self.log_marginal_likelihood_value_ = -np.min(lml_values)
+
+         else:
+
+             self.log_marginal_likelihood_value_ = self.log_marginal_likelihood(
+
+-                self.kernel_.theta, clone_kernel=False
+
+-            )
+
+-
+
+-        # Precompute quantities required for predictions which are independent
+
+-        # of actual query points
+
+-        # Alg. 2.1, page 19, line 2 -> L = cholesky(K + sigma^2 I)
+
+-        K = self.kernel_(self.X_train_)
+
+-        K[np.diag_indices_from(K)] += self.alpha
+
+-        try:
+
+-            self.L_ = cholesky(K, lower=GPR_CHOLESKY_LOWER, check_finite=False)
+
+-        except np.linalg.LinAlgError as exc:
+
+-            exc.args = (
+
+-                f"The kernel, {self.kernel_}, is not returning a positive "
+
+-                "definite matrix. Try gradually increasing the 'alpha' "
+
+-                "parameter of your GaussianProcessRegressor estimator.",
+
+-            ) + exc.args
+
+-            raise
+
+-        # Alg 2.1, page 19, line 3 -> alpha = L^T \ (L \ y)
+
+-        self.alpha_ = cho_solve(
+
+-            (self.L_, GPR_CHOLESKY_LOWER),
+
+-            self.y_train_,
+
+-            check_finite=False,
+
+-        )
+
+-        return self
+
++                self.kernel_.theta, clone_kernel
+
+ 
+
+     def predict(self, X, return_std=False, return_cov=False):
+
+         """Predict using the Gaussian process regression model.

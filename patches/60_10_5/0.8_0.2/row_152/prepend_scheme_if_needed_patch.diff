@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
+@@ -628,6 +628,10 @@
+ def prepend_scheme_if_needed(url, new_scheme):
+
+     '''Given a URL that may or may not have a scheme, prepend the given scheme.
+
+     Does not replace a present scheme with the one provided as an argument.'''
+
++    # Ensure the method is a string, not a binary string
+
++    if isinstance(new_scheme, bytes):
+
++        new_scheme = new_scheme.decode('utf-8')
+
++
+
+     scheme, netloc, path, params, query, fragment = urlparse(url, new_scheme)
+
+ 
+
+     # urlparse is a finicky beast, and sometimes decides that there isn't a

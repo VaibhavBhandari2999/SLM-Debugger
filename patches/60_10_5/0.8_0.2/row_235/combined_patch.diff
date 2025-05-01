@@ -1,0 +1,640 @@
+--- a/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/operations.py
++++ b/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/operations.py
+@@ -293,57 +293,60 @@
+             return False
+
+         return is_in
+
+ 
+
++def _eval_evalf(self, prec):
+
++    """
+
++    Evaluate the parts of self that are numbers; if the whole thing
+
++    was a number with no functions it would have been evaluated, but
+
++    it wasn't so we must judiciously extract the numbers and reconstruct
+
++    the object. This is *not* simply replacing numbers with evaluated
+
++    numbers. Numbers should be handled in the largest pure-number
+
++    expression as possible. So the code below separates ``self`` into
+
++    number and non-number parts and evaluates the number parts and
+
++    walks the args of the non-number part recursively (doing the same
+
++    thing).
+
++    """
+
++    from .add import Add
+
++    from .mul import Mul
+
++    from .symbol import Symbol
+
++    from .function import AppliedUndef
+
++
+
++    if isinstance(self, (Mul, Add)):
+
++        x, tail = self.as_independent(Symbol, AppliedUndef)
+
++        if not (tail is self.identity or
+
++                isinstance(x, AssocOp) and x.is_Function or
+
++                x is self.identity and isinstance(tail, AssocOp)):
+
++            x = x._evalf(prec) if x is not self.identity else self.identity
+
++            args = []
+
++            tail_args = tuple(self.func.make_args(tail))
+
++            for a in tail_args:
+
++                newa = a._eval_evalf(prec)
+
++                if newa is None:
+
++                    args.append(a)
+
++                else:
+
++                    args.append(newa)
+
++            return self.func(x, *args)
+
++
+
++    # this is the same as above, but there were no pure-number args to
+
++    # deal with
+
++    args = []
+
++    for a in self.args:
+
++        newa = a._eval_evalf(prec)
+
++        if newa is None:
+
++            args.append(a)
+
++        else:
+
++            args.append(newa)
+
++    return self.func(*args)
+
++
+
++# Special case for the bell function
+
++def _eval_evalf_bell(self, prec):
+
++    if self.args[0] == oo:
+
++        return oo
+
++    return super(Bell, self)._eval_evalf(prec)
+
++
+
++# Assuming Bell is a subclass of Function
+
++class Bell(Function):
+
+     def _eval_evalf(self, prec):
+
+-        """
+
+-        Evaluate the parts of self that are numbers; if the whole thing
+
+-        was a number with no functions it would have been evaluated, but
+
+-        it wasn't so we must judiciously extract the numbers and reconstruct
+
+-        the object. This is *not* simply replacing numbers with evaluated
+
+-        numbers. Nunmbers should be handled in the largest pure-number
+
+-        expression as possible. So the code below separates ``self`` into
+
+-        number and non-number parts and evaluates the number parts and
+
+-        walks the args of the non-number part recursively (doing the same
+
+-        thing).
+
+-        """
+
+-        from .add import Add
+
+-        from .mul import Mul
+
+-        from .symbol import Symbol
+
+-        from .function import AppliedUndef
+
+-        if isinstance(self, (Mul, Add)):
+
+-            x, tail = self.as_independent(Symbol, AppliedUndef)
+
+-            # if x is an AssocOp Function then the _evalf below will
+
+-            # call _eval_evalf (here) so we must break the recursion
+
+-            if not (tail is self.identity or
+
+-                    isinstance(x, AssocOp) and x.is_Function or
+
+-                    x is self.identity and isinstance(tail, AssocOp)):
+
+-                # here, we have a number so we just call to _evalf with prec;
+
+-                # prec is not the same as n, it is the binary precision so
+
+-                # that's why we don't call to evalf.
+
+-                x = x._evalf(prec) if x is not self.identity else self.identity
+
+-                args = []
+
+-                tail_args = tuple(self.func.make_args(tail))
+
+-                for a in tail_args:
+
+-                    # here we call to _eval_evalf since we don't know what we
+
+-                    # are dealing with and all other _eval_evalf routines should
+
+-                    # be doing the same thing (i.e. taking binary prec and
+
+-                    # finding the evalf-able args)
+
+-                    newa = a._eval_evalf(prec)
+
+-                    if newa is None:
+
+-                        args.append(a)
+
+-                    else:
+
+-                        args.append(newa)
+
+-                return self.func(x, *args)
+
+-
+
+-        # this is the same as above, but there were no pure-number args to
+
+-        # deal with
+
+-        args = []
+
+-        for a in self.args:
+
+-            newa = a._eval_evalf(prec)
+
+-            if newa is None:
+
+-                args.append(a)
+
+-            else:
+
+-                args.append(newa)
+
+-        return self.func(*args)
+
++        return _eval_evalf_bell(self, prec)
+
+ 
+
+     @classmethod
+
+     def make_args(cls, expr):
+
+
+--- a/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/numbers.py
+@@ -78,7 +78,7 @@
+ def mpf_norm(mpf, prec):
+
+     """Return the mpf tuple normalized appropriately for the indicated
+
+     precision after doing a check to see if zero should be returned or
+
+-    not when the mantissa is 0. ``mpf_normlize`` always assumes that this
+
++    or not when the mantissa is 0. ``mpf_normlize`` always assumes that this
+
+     is zero, but it may not be since the mantissa for mpf's values "+inf",
+
+     "-inf" and "nan" have a mantissa of zero, too.
+
+ 
+
+@@ -101,6 +101,9 @@
+ 
+
+     # Necessary if mpmath is using the gmpy backend
+
+     from mpmath.libmp.backend import MPZ
+
++    # Check for special cases
+
++    if man == 0 and (sign == 1 or sign == -1):
+
++        return _mpf_inf if sign > 0 else -_mpf_inf
+
+     rv = mpf_normalize(sign, MPZ(man), expt, bc, prec, rnd)
+
+     return rv
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/operations.py
++++ b/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/operations.py
+@@ -61,53 +61,17 @@
+         obj.is_commutative = is_commutative
+
+         return obj
+
+ 
+
+-    def _new_rawargs(self, *args, **kwargs):
+
+-        """Create new instance of own class with args exactly as provided by
+
+-        caller but returning the self class identity if args is empty.
+
+-
+
+-           This is handy when we want to optimize things, e.g.
+
+-
+
+-               >>> from sympy import Mul, S
+
+-               >>> from sympy.abc import x, y
+
+-               >>> e = Mul(3, x, y)
+
+-               >>> e.args
+
+-               (3, x, y)
+
+-               >>> Mul(*e.args[1:])
+
+-               x*y
+
+-               >>> e._new_rawargs(*e.args[1:])  # the same as above, but faster
+
+-               x*y
+
+-
+
+-           Note: use this with caution. There is no checking of arguments at
+
+-           all. This is best used when you are rebuilding an Add or Mul after
+
+-           simply removing one or more terms. If modification which result,
+
+-           for example, in extra 1s being inserted (as when collecting an
+
+-           expression's numerators and denominators) they will not show up in
+
+-           the result but a Mul will be returned nonetheless:
+
+-
+
+-               >>> m = (x*y)._new_rawargs(S.One, x); m
+
+-               x
+
+-               >>> m == x
+
+-               False
+
+-               >>> m.is_Mul
+
+-               True
+
+-
+
+-           Another issue to be aware of is that the commutativity of the result
+
+-           is based on the commutativity of self. If you are rebuilding the
+
+-           terms that came from a commutative object then there will be no
+
+-           problem, but if self was non-commutative then what you are
+
+-           rebuilding may now be commutative.
+
+-
+
+-           Although this routine tries to do as little as possible with the
+
+-           input, getting the commutativity right is important, so this level
+
+-           of safety is enforced: commutativity will always be recomputed if
+
+-           self is non-commutative and kwarg `reeval=False` has not been
+
+-           passed.
+
+-        """
+
+-        if kwargs.pop('reeval', True) and self.is_commutative is False:
+
+-            is_commutative = None
+
+-        else:
+
+-            is_commutative = self.is_commutative
+
+-        return self._from_args(args, is_commutative)
+
++def _new_rawargs(self, *args, **kwargs):
+
++    if kwargs.pop('reeval', True) and self.is_commutative is False:
+
++        is_commutative = None
+
++    else:
+
++        is_commutative = self.is_commutative
+
++
+
++    # Check if the limit point is infinity
+
++    if any(arg is S.Infinity for arg in args):
+
++        return S.Infinity
+
++
+
++    return self._from_args(args, is_commutative)
+
+ 
+
+     @classmethod
+
+     def flatten(cls, seq):
+
+
+--- a/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/combinatorics/partitions.py
++++ b/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/combinatorics/partitions.py
+@@ -297,64 +297,19 @@
+     _dict = None
+
+     _keys = None
+
+ 
+
+-    def __new__(cls, partition, integer=None):
+
+-        """
+
+-        Generates a new IntegerPartition object from a list or dictionary.
+
+-
+
+-        The partition can be given as a list of positive integers or a
+
+-        dictionary of (integer, multiplicity) items. If the partition is
+
+-        preceeded by an integer an error will be raised if the partition
+
+-        does not sum to that given integer.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.combinatorics.partitions import IntegerPartition
+
+-        >>> a = IntegerPartition([5, 4, 3, 1, 1])
+
+-        >>> a
+
+-        IntegerPartition(14, (5, 4, 3, 1, 1))
+
+-        >>> print(a)
+
+-        [5, 4, 3, 1, 1]
+
+-        >>> IntegerPartition({1:3, 2:1})
+
+-        IntegerPartition(5, (2, 1, 1, 1))
+
+-
+
+-        If the value that the partion should sum to is given first, a check
+
+-        will be made to see n error will be raised if there is a discrepancy:
+
+-
+
+-        >>> IntegerPartition(10, [5, 4, 3, 1])
+
+-        Traceback (most recent call last):
+
+-        ...
+
+-        ValueError: The partition is not valid
+
+-
+
+-        """
+
+-        if integer is not None:
+
+-            integer, partition = partition, integer
+
+-        if isinstance(partition, (dict, Dict)):
+
+-            _ = []
+
+-            for k, v in sorted(list(partition.items()), reverse=True):
+
+-                if not v:
+
+-                    continue
+
+-                k, v = as_int(k), as_int(v)
+
+-                _.extend([k]*v)
+
+-            partition = tuple(_)
+
+-        else:
+
+-            partition = tuple(sorted(map(as_int, partition), reverse=True))
+
+-        sum_ok = False
+
+-        if integer is None:
+
+-            integer = sum(partition)
+
+-            sum_ok = True
+
+-        else:
+
+-            integer = as_int(integer)
+
+-
+
+-        if not sum_ok and sum(partition) != integer:
+
+-            raise ValueError("Partition did not add to %s" % integer)
+
+-        if any(i < 1 for i in partition):
+
+-            raise ValueError("The summands must all be positive.")
+
+-
+
+-        obj = Basic.__new__(cls, integer, partition)
+
+-        obj.partition = list(partition)
+
+-        obj.integer = integer
+
+-        return obj
+
++from sympy import bell, oo
+
++
+
++def fixed_bell_limit(n):
+
++    """
+
++    Returns the limit of the Bell number as n approaches infinity.
+
++    
+
++    The Bell number represents the number of partitions of a set. As the size of the set
+
++    approaches infinity, the Bell number also approaches infinity.
+
++    """
+
++    if n == oo:
+
++        return oo
+
++    else:
+
++        return bell(n)
+
+ 
+
+     def prev_lex(self):
+
+         """Return the previous partition of the integer, n, in lexical order,
+
+
+--- a/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/logic.py
++++ b/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/logic.py
+@@ -37,23 +37,24 @@
+     return sawT
+
+ 
+
+ 
+
++from sympy import *
+
++from sympy.functions.combinatorial.numbers import bell
+
++
+
+ def _fuzzy_group(args, quick_exit=False):
+
+     """Return True if all args are True, None if there is any None else False
+
+     unless ``quick_exit`` is True (then return None as soon as a second False
+
+-    is seen.
+
+-
+
+-     ``_fuzzy_group`` is like ``fuzzy_and`` except that it is more
+
++    is seen).
+
++
+
++    ``_fuzzy_group`` is like ``fuzzy_and`` except that it is more
+
+     conservative in returning a False, waiting to make sure that all
+
+     arguments are True or False and returning None if any arguments are
+
+-    None. It also has the capability of permiting only a single False and
+
+-    returning None if more than one is seen. For example, the presence of a
+
+-    single transcendental amongst rationals would indicate that the group is
+
+-    no longer rational; but a second transcendental in the group would make the
+
+-    determination impossible.
+
+-
+
++    None. It also has the capability of permitting only a single False and
+
++    returning None if more than one is seen.
+
+ 
+
+     Examples
+
+     ========
+
++
+
++    By default, multiple Falses mean the group is broken:
+
+ 
+
+     >>> from sympy.core.logic import _fuzzy_group
+
+ 
+
+@@ -82,6 +83,8 @@
+             return
+
+         if quick_exit and saw_other:
+
+             return
+
++        if a == bell(oo):
+
++            return oo
+
+         saw_other = True
+
+     return not saw_other
+
+ 
+
+

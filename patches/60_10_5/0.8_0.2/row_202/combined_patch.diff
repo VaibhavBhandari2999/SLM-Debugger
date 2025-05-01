@@ -1,0 +1,371 @@
+--- a/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/metrics/tests/test_pairwise.py
++++ b/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/metrics/tests/test_pairwise.py
+@@ -158,6 +158,10 @@
+ 
+
+ 
+
+ @pytest.mark.parametrize('metric', PAIRWISE_BOOLEAN_FUNCTIONS)
+
++import numpy as np
+
++from sklearn.metrics.cluster import mutual_info_score
+
++import pytest
+
++
+
+ def test_pairwise_boolean_distance(metric):
+
+     # test that we convert to boolean arrays for boolean distances
+
+     rng = np.random.RandomState(0)
+
+@@ -186,6 +190,16 @@
+     with pytest.warns(None) as records:
+
+         pairwise_distances(X.astype(bool), metric=metric)
+
+     assert len(records) == 0
+
++
+
++# Fix the issue described in the issue description
+
++def fix_mutual_info_score():
+
++    # Convert the input data to a numeric data type before passing it to mutual_info_score
+
++    x = np.random.choice(['a', 'b'], size=20).astype(np.int8)
+
++    mutual_info_score(x, x)
+
++
+
++    # The following code should work without any issues
+
++    x = np.random.choice(['a', 'b'], size=20)
+
++    mutual_info_score(x, x)
+
+ 
+
+ 
+
+ def test_no_data_conversion_warning():
+
+
+--- a/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -429,6 +429,12 @@
+             # the only SkipTest thrown currently results from not
+
+             # being able to import pandas.
+
+             warnings.warn(str(exception), SkipTestWarning)
+
++
+
++    # Fix for the bug in input validation for clustering metrics
+
++    if 'mutual_info_score' in str(checks_generator):
+
++        # Convert the input to a format that can be used by the clustering metric
+
++        x = np.random.choice(['a', 'b'], size=20).astype(str)
+
++        mutual_info_score(x, x)
+
+ 
+
+ 
+
+ def _boston_subset(n_samples=200):
+
+
+--- a/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -620,7 +620,7 @@
+               dtype="numeric", order=None, copy=False, force_all_finite=True,
+
+               ensure_2d=True, allow_nd=False, multi_output=False,
+
+               ensure_min_samples=1, ensure_min_features=1, y_numeric=False,
+
+-              warn_on_dtype=None, estimator=None):
+
++              warn_on_dtype=None, estimator=None, allow_non_numeric=False):
+
+     """Input validation for standard estimators.
+
+ 
+
+     Checks X and y for consistent length, enforces X to be 2D and y 1D. By
+
+@@ -667,7 +667,7 @@
+ 
+
+     force_all_finite : boolean or 'allow-nan', (default=True)
+
+         Whether to raise an error on np.inf and np.nan in X. This parameter
+
+-        does not influence whether y can have np.inf or np.nan values.
+
++        does not influence whether y can have np.nan or np.inf values.
+
+         The possibilities are:
+
+ 
+
+         - True: Force all values of X to be finite.
+
+@@ -697,57 +697,7 @@
+         Make sure that the 2D array has some minimum number of features
+
+         (columns). The default value of 1 rejects empty datasets.
+
+         This check is only enforced when X has effectively 2 dimensions or
+
+-        is originally 1D and ``ensure_2d`` is True. Setting to 0 disables
+
+-        this check.
+
+-
+
+-    y_numeric : boolean (default=False)
+
+-        Whether to ensure that y has a numeric type. If dtype of y is object,
+
+-        it is converted to float64. Should only be used for regression
+
+-        algorithms.
+
+-
+
+-    warn_on_dtype : boolean or None, optional (default=None)
+
+-        Raise DataConversionWarning if the dtype of the input data structure
+
+-        does not match the requested dtype, causing a memory copy.
+
+-
+
+-        .. deprecated:: 0.21
+
+-            ``warn_on_dtype`` is deprecated in version 0.21 and will be
+
+-             removed in 0.23.
+
+-
+
+-    estimator : str or estimator instance (default=None)
+
+-        If passed, include the name of the estimator in warning messages.
+
+-
+
+-    Returns
+
+-    -------
+
+-    X_converted : object
+
+-        The converted and validated X.
+
+-
+
+-    y_converted : object
+
+-        The converted and validated y.
+
+-    """
+
+-    if y is None:
+
+-        raise ValueError("y cannot be None")
+
+-
+
+-    X = check_array(X, accept_sparse=accept_sparse,
+
+-                    accept_large_sparse=accept_large_sparse,
+
+-                    dtype=dtype, order=order, copy=copy,
+
+-                    force_all_finite=force_all_finite,
+
+-                    ensure_2d=ensure_2d, allow_nd=allow_nd,
+
+-                    ensure_min_samples=ensure_min_samples,
+
+-                    ensure_min_features=ensure_min_features,
+
+-                    warn_on_dtype=warn_on_dtype,
+
+-                    estimator=estimator)
+
+-    if multi_output:
+
+-        y = check_array(y, 'csr', force_all_finite=True, ensure_2d=False,
+
+-                        dtype=None)
+
+-    else:
+
+-        y = column_or_1d(y, warn=True)
+
+-        _assert_all_finite(y)
+
+-    if y_numeric and y.dtype.kind == 'O':
+
+-        y = y.astype(np.float64)
+
+-
+
+-    check_consistent_length(X, y)
+
+-
+
+-    return X, y
+
++        is originally
+
+ 
+
+ 
+
+ def column_or_1d(y, warn=False):
+
+
+--- a/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/cluster/_feature_agglomeration.py
++++ b/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/cluster/_feature_agglomeration.py
+@@ -21,7 +21,7 @@
+     A class for feature agglomeration via the transform interface
+
+     """
+
+ 
+
+-    def transform(self, X):
+
++def transform(self, X):
+
+         """
+
+         Transform a new matrix using the built clustering
+
+ 
+
+@@ -37,6 +37,10 @@
+             The pooled values for each feature cluster.
+
+         """
+
+         check_is_fitted(self)
+
++
+
++        # Convert X to a numeric data type if it contains non-numeric data
+
++        if not np.issubdtype(X.dtype, np.number):
+
++            X = X.astype(float)
+
+ 
+
+         X = check_array(X)
+
+         if len(self.labels_) != X.shape[1]:
+
+
+--- a/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/metrics/cluster/_supervised.py
++++ b/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/metrics/cluster/_supervised.py
+@@ -833,18 +833,19 @@
+       >>> normalized_mutual_info_score([0, 0, 1, 1], [0, 0, 1, 1])
+
+       ... # doctest: +SKIP
+
+       1.0
+
+-      >>> normalized_mutual_info_score([0, 0, 1, 1], [1, 1, 0, 0])
+
+-      ... # doctest: +SKIP
+
+-      1.0
+
+-
+
+-    If classes members are completely split across different clusters,
+
+-    the assignment is totally in-complete, hence the NMI is null::
+
+-
+
+       >>> normalized_mutual_info_score([0, 0, 0, 0], [0, 1, 2, 3])
+
+       ... # doctest: +SKIP
+
+       0.0
+
+ 
+
+     """
+
++    # Convert labels to numeric format if they are not already numeric
+
++    if not np.issubdtype(labels_true.dtype, np.number):
+
++        le = LabelEncoder()
+
++        labels_true = le.fit_transform(labels_true)
+
++    if not np.issubdtype(labels_pred.dtype, np.number):
+
++        le = LabelEncoder()
+
++        labels_pred = le.fit_transform(labels_pred)
+
++
+
+     labels_true, labels_pred = check_clusterings(labels_true, labels_pred)
+
+     classes = np.unique(labels_true)
+
+     clusters = np.unique(labels_pred)
+
+@@ -856,17 +857,6 @@
+     contingency = contingency_matrix(labels_true, labels_pred, sparse=True)
+
+     contingency = contingency.astype(np.float64,
+
+                                      **_astype_copy_false(contingency))
+
+-    # Calculate the MI for the two clusterings
+
+-    mi = mutual_info_score(labels_true, labels_pred,
+
+-                           contingency=contingency)
+
+-    # Calculate the expected value for the mutual information
+
+-    # Calculate entropy for each labeling
+
+-    h_true, h_pred = entropy(labels_true), entropy(labels_pred)
+
+-    normalizer = _generalized_average(h_true, h_pred, average_method)
+
+-    # Avoid 0.0 / 0.0 when either entropy is zero.
+
+-    normalizer = max(normalizer, np.finfo('float64').eps)
+
+-    nmi = mi / normalizer
+
+-    return nmi
+
+ 
+
+ 
+
+ def fowlkes_mallows_score(labels_true, labels_pred, sparse=False):
+
+

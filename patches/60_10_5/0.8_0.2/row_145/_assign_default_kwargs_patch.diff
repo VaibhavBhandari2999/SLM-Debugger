@@ -1,0 +1,70 @@
+--- a/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
++++ b/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
+@@ -793,23 +793,17 @@
+         )
+
+ 
+
+ 
+
+-def _assign_default_kwargs(kws, call_func, source_func):
+
+-    """Assign default kwargs for call_func using values from source_func."""
+
+-    # This exists so that axes-level functions and figure-level functions can
+
+-    # both call a Plotter method while having the default kwargs be defined in
+
+-    # the signature of the axes-level function.
+
+-    # An alternative would be to have a decorator on the method that sets its
+
+-    # defaults based on those defined in the axes-level function.
+
+-    # Then the figure-level function would not need to worry about defaults.
+
+-    # I am not sure which is better.
+
+-    needed = inspect.signature(call_func).parameters
+
+-    defaults = inspect.signature(source_func).parameters
+
+-
+
+-    for param in needed:
+
+-        if param in defaults and param not in kws:
+
+-            kws[param] = defaults[param].default
+
+-
+
+-    return kws
+
++import pandas as pd
+
++import seaborn as so
+
++
+
++class Plotter:
+
++    def _setup_scales(self, p, layers, variables=None):
+
++        for var in variables or []:
+
++            var_df = layers[0].data[[var]].dropna()
+
++            if var_df.dtypes == 'bool':
+
++                # Convert boolean values to categorical
+
++                var_df[var] = pd.Categorical(var_df[var])
+
++            self._scales[var] = scale._setup(var_df[var], prop)
+
+ 
+
+ 
+
+ def adjust_legend_subtitles(legend):

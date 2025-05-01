@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/221/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/221/sphinx-doc_sphinx/sphinx/extension.py
+@@ -46,6 +46,10 @@
+         return
+
+ 
+
+     for extname, reqversion in config.needs_extensions.items():
+
++        # Check if viewcode extension is enabled for epub
+
++        if extname == 'viewcode' and not config.viewcode_enable_epub:
+
++            continue
+
++
+
+         extension = app.extensions.get(extname)
+
+         if extension is None:
+
+             logger.warning(__('The %s extension is required by needs_extensions settings, '

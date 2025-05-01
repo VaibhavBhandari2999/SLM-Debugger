@@ -1,0 +1,524 @@
+--- a/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
+@@ -932,10 +932,10 @@
+         return mat.is_zero
+
+ 
+
+     def _eval_is_Identity(self):
+
+-        def dirac(i, j):
+
+-            if i == j:
+
+-                return 1
+
+-            return 0
+
++def dirac(i, j):
+
++    if i == j:
+
++        return 1
+
++    return 0
+
+ 
+
+         return all(self[i, j] == dirac(i, j) for i in range(self.rows) for j in
+
+                    range(self.cols))
+
+
+--- a/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
+@@ -931,14 +931,27 @@
+         mat = self._new(self.rows, self.cols, lambda i, j: simpfunc(self[i, j] - self[j, i].conjugate()))
+
+         return mat.is_zero
+
+ 
+
+-    def _eval_is_Identity(self):
+
+-        def dirac(i, j):
+
+-            if i == j:
+
+-                return 1
+
+-            return 0
+
+-
+
+-        return all(self[i, j] == dirac(i, j) for i in range(self.rows) for j in
+
+-                   range(self.cols))
+
++def col_insert(self, index, vector):
+
++    """
+
++    Insert a column vector at the specified index in the matrix.
+
++    
+
++    :param index: The index at which the column should be inserted.
+
++    :param vector: The column vector to insert.
+
++    """
+
++    if not vector.is_Matrix or vector.cols != 1:
+
++        raise ValueError("The argument must be a column vector.")
+
++    if index < 0 or index > self.cols:
+
++        raise ValueError("Index out of bounds.")
+
++    
+
++    # Convert the matrix to a list of rows for easier manipulation
+
++    rows = [list(row) for row in self.rows]
+
++    
+
++    # Insert the column vector into each row at the specified index
+
++    for row in rows:
+
++        row.insert(index, vector[row.index(0)])
+
++    
+
++    # Convert the list of rows back to a Matrix
+
++    return type(self)(rows)
+
+ 
+
+     def _eval_is_lower_hessenberg(self):
+
+         return all(self[i, j].is_zero
+
+
+--- a/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
+@@ -179,43 +179,41 @@
+             raise ValueError("Column {} out of range.".format(col))
+
+         return self._eval_col_del(col)
+
+ 
+
+-    def col_insert(self, pos, other):
+
+-        """Insert one or more columns at the given column position.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import zeros, ones
+
+-        >>> M = zeros(3)
+
+-        >>> V = ones(3, 1)
+
+-        >>> M.col_insert(1, V)
+
+-        Matrix([
+
+-        [0, 1, 0, 0],
+
+-        [0, 1, 0, 0],
+
+-        [0, 1, 0, 0]])
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        col
+
+-        row_insert
+
+-        """
+
+-        # Allows you to build a matrix even if it is null matrix
+
+-        if not self:
+
+-            return type(self)(other)
+
+-
+
+-        if pos < 0:
+
+-            pos = self.cols + pos
+
+-        if pos < 0:
+
+-            pos = 0
+
+-        elif pos > self.cols:
+
+-            pos = self.cols
+
+-
+
+-        if self.rows != other.rows:
+
+-            raise ShapeError(
+
+-                "self and other must have the same number of rows.")
+
+-
+
+-        return self._eval_col_insert(pos, other)
+
++def col_insert(self, pos, other):
+
++    """Insert one or more columns at the given column position.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import zeros, ones
+
++    >>> M = zeros(3)
+
++    >>> V = ones(3, 1)
+
++    >>> M.col_insert(1, V)
+
++    Matrix([
+
++    [0, 1, 0, 0],
+
++    [0, 1, 0, 0],
+
++    [0, 1, 0, 0]])
+
++
+
++    See Also
+
++    ========
+
++
+
++    col
+
++    row_insert
+
++    """
+
++    # Allows you to build a matrix even if it is null matrix
+
++    if not self:
+
++        return type(self)(other)
+
++
+
++    if pos < 0:
+
++        pos = max(0, self.cols + pos)
+
++    if pos > self.cols:
+
++        pos = self.cols
+
++
+
++    if self.rows != other.rows:
+
++        raise ShapeError(
+
++            "self and other must have the same number of rows.")
+
++
+
++    return self._eval_col_insert(pos, other)
+
+ 
+
+     def col_join(self, other):
+
+         """Concatenates two matrices along self's last and other's first row.
+
+
+--- a/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
+@@ -414,45 +414,59 @@
+ 
+
+         return self._eval_row_del(row)
+
+ 
+
+-    def row_insert(self, pos, other):
+
+-        """Insert one or more rows at the given row position.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import zeros, ones
+
+-        >>> M = zeros(3)
+
+-        >>> V = ones(1, 3)
+
+-        >>> M.row_insert(1, V)
+
+-        Matrix([
+
+-        [0, 0, 0],
+
+-        [1, 1, 1],
+
+-        [0, 0, 0],
+
+-        [0, 0, 0]])
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        row
+
+-        col_insert
+
+-        """
+
+-        from sympy.matrices import MutableMatrix
+
+-        # Allows you to build a matrix even if it is null matrix
+
+-        if not self:
+
+-            return self._new(other)
+
+-
+
+-        if pos < 0:
+
+-            pos = self.rows + pos
+
+-        if pos < 0:
+
+-            pos = 0
+
+-        elif pos > self.rows:
+
+-            pos = self.rows
+
+-
+
+-        if self.cols != other.cols:
+
+-            raise ShapeError(
+
+-                "`self` and `other` must have the same number of columns.")
+
+-
+
+-        return self._eval_row_insert(pos, other)
+
++def col_insert(self, pos, other):
+
++    """Insert one or more columns at the given column position.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import zeros, ones
+
++    >>> M = zeros(3)
+
++    >>> V = ones(3, 1)
+
++    >>> M.col_insert(1, V)
+
++    Matrix([
+
++    [0, 1, 0, 0],
+
++    [0, 1, 0, 0],
+
++    [0, 1, 0, 0]])
+
++
+
++    See Also
+
++    ========
+
++
+
++    col
+
++    row_insert
+
++    """
+
++    from sympy.matrices import MutableMatrix
+
++    # Allows you to build a matrix even if it is null matrix
+
++    if not self:
+
++        return self._new(other)
+
++
+
++    if pos < 0:
+
++        pos = self.cols + pos
+
++    if pos < 0:
+
++        pos = 0
+
++    elif pos > self.cols:
+
++        pos = self.cols
+
++
+
++    if self.rows != other.rows:
+
++        raise ShapeError(
+
++            "`self` and `other` must have the same number of rows.")
+
++
+
++    # Create a new matrix with the correct dimensions
+
++    new_matrix = self._new([self.rows, self.cols + other.cols])
+
++
+
++    # Copy elements from the original matrix
+
++    for i in range(self.rows):
+
++        for j in range(self.cols):
+
++            if j < pos:
+
++                new_matrix[i, j] = self[i, j]
+
++            elif j >= pos:
+
++                new_matrix[i, j + other.cols] = self[i, j]
+
++
+
++    # Insert the column vector
+
++    for i in range(other.rows):
+
++        new_matrix[i, pos + other.cols - other.cols] = other[i, 0]
+
++
+
++    return new_matrix
+
+ 
+
+     def row_join(self, other):
+
+         """Concatenates two matrices along self's last and rhs's first column
+
+
+--- a/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
+@@ -171,13 +171,20 @@
+ 
+
+         return self._new(len(self), 1, entry)
+
+ 
+
+-    def col_del(self, col):
+
+-        """Delete the specified column."""
+
+-        if col < 0:
+
+-            col += self.cols
+
+-        if not 0 <= col < self.cols:
+
+-            raise ValueError("Column {} out of range.".format(col))
+
+-        return self._eval_col_del(col)
+
++def col_insert(self, pos, c):
+
++        """
+
++        Insert column `c` at the position `pos`.
+
++
+
++        Explanation:
+
++        - The function first checks if the position `pos` is negative, adjusting it by adding the number of columns.
+
++        - It then checks if the position is within the valid range. If not, it raises a ValueError.
+
++        - The column insertion is performed using the `_eval_col_insert` method, which is assumed to be correctly implemented in the rest of the class.
+
++        """
+
++        if pos < 0:
+
++            pos += self.cols
+
++        if not 0 <= pos < self.cols:
+
++            raise ValueError(f"Column position {pos} out of range.")
+
++        return self._eval_col_insert(pos, c)
+
+ 
+
+     def col_insert(self, pos, other):
+
+         """Insert one or more columns at the given column position.
+
+

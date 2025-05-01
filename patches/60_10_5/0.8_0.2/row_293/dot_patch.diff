@@ -1,0 +1,158 @@
+--- a/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/dyadic.py
++++ b/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/dyadic.py
+@@ -42,53 +42,31 @@
+         # subclass of Dyadic the instance belongs to.
+
+         return self._components
+
+ 
+
+-    def dot(self, other):
+
+-        """
+
+-        Returns the dot product(also called inner product) of this
+
+-        Dyadic, with another Dyadic or Vector.
+
+-        If 'other' is a Dyadic, this returns a Dyadic. Else, it returns
+
+-        a Vector (unless an error is encountered).
+
+-
+
+-        Parameters
+
+-        ==========
+
+-
+
+-        other : Dyadic/Vector
+
+-            The other Dyadic or Vector to take the inner product with
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.vector import CoordSys3D
+
+-        >>> N = CoordSys3D('N')
+
+-        >>> D1 = N.i.outer(N.j)
+
+-        >>> D2 = N.j.outer(N.j)
+
+-        >>> D1.dot(D2)
+
+-        (N.i|N.j)
+
+-        >>> D1.dot(N.j)
+
+-        N.i
+
+-
+
+-        """
+
+-
+
+-        Vector = sympy.vector.Vector
+
+-        if isinstance(other, BasisDependentZero):
+
+-            return Vector.zero
+
+-        elif isinstance(other, Vector):
+
+-            outvec = Vector.zero
+
+-            for k, v in self.components.items():
+
+-                vect_dot = k.args[1].dot(other)
+
+-                outvec += vect_dot * v * k.args[0]
+
+-            return outvec
+
+-        elif isinstance(other, Dyadic):
+
+-            outdyad = Dyadic.zero
+
+-            for k1, v1 in self.components.items():
+
+-                for k2, v2 in other.components.items():
+
+-                    vect_dot = k1.args[1].dot(k2.args[0])
+
+-                    outer_product = k1.args[0].outer(k2.args[1])
+
+-                    outdyad += vect_dot * v1 * v2 * outer_product
+
+-            return outdyad
+
+-        else:
+
+-            raise TypeError("Inner product is not defined for " +
+
+-                            str(type(other)) + " and Dyadics.")
+
++from sympy import *
+
++from sympy.vector import CoordSys3D, Del, Integral
+
++from sympy.abc import t
+
++
+
++init_printing(use_unicode=True)
+
++
+
++CC_ = CoordSys3D("C")
+
++x, y, z = CC_.x, CC_.y, CC_.z
+
++xhat, yhat, zhat = CC_.i, CC_.j, CC_.k
+
++
+
++ten = 10
+
++eps, mu = 4*pi*ten**(-11), ten**(-5)
+
++
+
++Bx = 2 * ten**(-4) * cos(ten**5 * t) * sin(ten**(-3) * y)
+
++vecB = Bx * xhat
+
++vecE = (1/eps) * Integral(delop.cross(vecB/mu).doit(), t)
+
++
+
++# Simplify the expression before printing
+
++vecE_simplified = vecE.doit().simplify()
+
++
+
++pprint(vecB)
+
++print()
+
++pprint(vecE_simplified)
+
++print()
+
++pprint(vecE_simplified.doit())
+
+ 
+
+     def __and__(self, other):
+
+         return self.dot(other)

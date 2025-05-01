@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/292/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/292/sympy_sympy/sympy/matrices/dense.py
+@@ -424,6 +424,8 @@
+     return Matrix.eye(*args, **kwargs)
+
+ 
+
+ 
+
++from sympy import Matrix, Array
+
++
+
+ def diag(*values, strict=True, unpack=False, **kwargs):
+
+     """Returns a matrix with the provided values placed on the
+
+     diagonal. If non-square matrices are included, they will
+
+@@ -458,6 +460,9 @@
+     .common.MatrixCommon.diag
+
+     .expressions.blockmatrix.BlockMatrix
+
+     """
+
++    if not values:
+
++        return Array([])  # Return an empty Array if no values are provided
+
++
+
+     return Matrix.diag(*values, strict=strict, unpack=unpack, **kwargs)
+
+ 
+
+ 

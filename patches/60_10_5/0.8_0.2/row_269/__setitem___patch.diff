@@ -1,0 +1,196 @@
+--- a/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/dense.py
+@@ -313,49 +313,54 @@
+         self._mat = flat_list
+
+         return self
+
+ 
+
+-    def __setitem__(self, key, value):
+
+-        """
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, I, zeros, ones
+
+-        >>> m = Matrix(((1, 2+I), (3, 4)))
+
+-        >>> m
+
+-        Matrix([
+
+-        [1, 2 + I],
+
+-        [3,     4]])
+
+-        >>> m[1, 0] = 9
+
+-        >>> m
+
+-        Matrix([
+
+-        [1, 2 + I],
+
+-        [9,     4]])
+
+-        >>> m[1, 0] = [[0, 1]]
+
+-
+
+-        To replace row r you assign to position r*m where m
+
+-        is the number of columns:
+
+-
+
+-        >>> M = zeros(4)
+
+-        >>> m = M.cols
+
+-        >>> M[3*m] = ones(1, m)*2; M
+
+-        Matrix([
+
+-        [0, 0, 0, 0],
+
+-        [0, 0, 0, 0],
+
+-        [0, 0, 0, 0],
+
+-        [2, 2, 2, 2]])
+
+-
+
+-        And to replace column c you can assign to position c:
+
+-
+
+-        >>> M[2] = ones(m, 1)*4; M
+
+-        Matrix([
+
+-        [0, 0, 4, 0],
+
+-        [0, 0, 4, 0],
+
+-        [0, 0, 4, 0],
+
+-        [2, 2, 4, 2]])
+
+-        """
+
+-        rv = self._setitem(key, value)
+
+-        if rv is not None:
+
+-            i, j, value = rv
+
++def __setitem__(self, key, value):
+
++    """
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, I, zeros, ones
+
++    >>> m = Matrix(((1, 2+I), (3, 4)))
+
++    >>> m
+
++    Matrix([
+
++    [1, 2 + I],
+
++    [3,     4]])
+
++    >>> m[1, 0] = 9
+
++    >>> m
+
++    Matrix([
+
++    [1, 2 + I],
+
++    [9,     4]])
+
++    >>> m[1, 0] = [[0, 1]]
+
++
+
++    To replace row r you assign to position r*m where m
+
++    is the number of columns:
+
++
+
++    >>> M = zeros(4)
+
++    >>> m = M.cols
+
++    >>> M[3*m] = ones(1, m)*2; M
+
++    Matrix([
+
++    [0, 0, 0, 0],
+
++    [0, 0, 0, 0],
+
++    [0, 0, 0, 0],
+
++    [2, 2, 2, 2]])
+
++
+
++    And to replace column c you can assign to position c:
+
++
+
++    >>> M[2] = ones(m, 1)*4; M
+
++    Matrix([
+
++    [0, 0, 4, 0],
+
++    [0, 0, 4, 0],
+
++    [0, 0, 4, 0],
+
++    [2, 2, 4, 2]])
+
++    """
+
++    rv = self._setitem(key, value)
+
++    if rv is not None:
+
++        i, j, value = rv
+
++        # Check if the BlockDiagMatrix contains only one block
+
++        if len(self.blocks) == 1:
+
++            # Convert the single block to a regular matrix
+
++            self._mat = self.blocks[0]
+
++        else:
+
+             self._mat[i*self.cols + j] = value
+
+ 
+
+     def as_mutable(self):

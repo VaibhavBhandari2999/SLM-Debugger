@@ -1,0 +1,118 @@
+--- a/decoupled/60/0.8_0.2/94/django_django/tests/backends/postgresql/test_creation.py
++++ b/decoupled/60/0.8_0.2/94/django_django/tests/backends/postgresql/test_creation.py
+@@ -89,37 +89,24 @@
+ 
+
+     @mock.patch("sys.stdout", new_callable=StringIO)
+
+     @mock.patch("sys.stderr", new_callable=StringIO)
+
+-    def test_create_test_db(self, *mocked_objects):
+
+-        creation = DatabaseCreation(connection)
+
+-        # Simulate test database creation raising "database already exists"
+
+-        with self.patch_test_db_creation(self._execute_raise_database_already_exists):
+
+-            with mock.patch("builtins.input", return_value="no"):
+
+-                with self.assertRaises(SystemExit):
+
+-                    # SystemExit is raised if the user answers "no" to the
+
+-                    # prompt asking if it's okay to delete the test database.
+
+-                    creation._create_test_db(
+
+-                        verbosity=0, autoclobber=False, keepdb=False
+
+-                    )
+
+-            # "Database already exists" error is ignored when keepdb is on
+
+-            creation._create_test_db(verbosity=0, autoclobber=False, keepdb=True)
+
+-        # Simulate test database creation raising unexpected error
+
+-        with self.patch_test_db_creation(self._execute_raise_permission_denied):
+
+-            with mock.patch.object(
+
+-                DatabaseCreation, "_database_exists", return_value=False
+
+-            ):
+
+-                with self.assertRaises(SystemExit):
+
+-                    creation._create_test_db(
+
+-                        verbosity=0, autoclobber=False, keepdb=False
+
+-                    )
+
+-                with self.assertRaises(SystemExit):
+
+-                    creation._create_test_db(
+
+-                        verbosity=0, autoclobber=False, keepdb=True
+
+-                    )
+
+-        # Simulate test database creation raising "insufficient privileges".
+
+-        # An error shouldn't appear when keepdb is on and the database already
+
+-        # exists.
+
+-        with self.patch_test_db_creation(self._execute_raise_permission_denied):
+
+-            with mock.patch.object(
+
+-                DatabaseCreation, "_database_exists", return_value=True
+
+-            ):
+
+-                creation._create_test_db(verbosity=0, autoclobber=False, keepdb=True)
+
++class OperationTests(OperationTestBase):
+
++    def test_rename_index(self):
+
++        table_name = "test_table"
+
++        with connection.schema_editor() as editor, self.assertNumQueries(0):
+
++            operation.database_backwards(app_label, editor, new_state, project_state)
+
++        self.assertIndexNameExists(table_name, "new_pony_test_idx")
+
++
+
++        # Re-apply renaming.
+
++        with connection.schema_editor() as editor:
+
++            operation.database_forwards(app_label, editor, project_state, new_state)
+
++        self.assertIndexNameExists(table_name, "new_pony_test_idx")
+
++
+
++        # Deconstruction.
+
++        definition = operation.deconstruct()
+
++        self.assertEqual(definition[0], "RenameIndex")
+
++
+
++        # Ensure the old index name is restored when reversing the operation
+
++        old_index_name = "new_pony_test_idx"
+
++        with connection.schema_editor() as editor:
+
++            operation.database_backwards(app_label, editor, new_state, project_state)
+
++        self.assertIndexNameExists(table_name, old_index_name)

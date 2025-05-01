@@ -1,0 +1,94 @@
+--- a/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -903,6 +903,9 @@
+ 
+
+ 
+
+ @ignore_warnings(category=FutureWarning)
+
++import pandas as pd
+
++from sklearn.utils.multiclass import unique_labels
+
++
+
+ def check_sample_weights_pandas_series(name, estimator_orig):
+
+     # check that estimators will accept a 'sample_weight' parameter of
+
+     # type pandas.Series in the 'fit' function.
+
+@@ -927,7 +930,7 @@
+             ]
+
+         )
+
+         X = pd.DataFrame(_enforce_estimator_tags_X(estimator_orig, X))
+
+-        y = pd.Series([1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 2, 2])
+
++        y = pd.Series([1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 2, 2], dtype="Int64")
+
+         weights = pd.Series([1] * 12)
+
+         if _safe_tags(estimator, key="multioutput_only"):
+
+             y = pd.DataFrame(y)
+
+@@ -939,6 +942,28 @@
+                 "'sample_weight' parameter is of "
+
+                 "type pandas.Series".format(name)
+
+             )
+
++
+
++        # Fix for unique_labels function to handle nullable dtypes
+
++        def unique_labels(y_true, y_pred):
+
++            # Ensure y_true and y_pred are pandas Series with the same dtype
+
++            if not isinstance(y_true, pd.Series) or not isinstance(y_pred, pd.Series):
+
++                raise ValueError("Both y_true and y_pred must be pandas Series.")
+
++            if y_true.dtype.name == "Int64" or y_pred.dtype.name == "Int64":
+
++                y_true = y_true.astype("int64")
+
++                y_pred = y_pred.astype("int64")
+
++            elif y_true.dtype.name == "Float64" or y_pred.dtype.name == "Float64":
+
++                y_true = y_true.astype("float64")
+
++                y_pred = y_pred.astype("float64")
+
++            elif y_true.dtype.name == "boolean" or y_pred.dtype.name == "boolean":
+
++                y_true = y_true.astype("bool")
+
++                y_pred = y_pred.astype("bool")
+
++            return np.unique(np.concatenate((y_true, y_pred)))
+
++
+
++        # Test the fix
+
++        for dtype in ["Int64", "Float64", "boolean"]:
+
++            y_true = pd.Series([1, 0, 0, 1, 0, 1, 1, 0, 1], dtype=dtype)
+
++            y_predicted = pd.Series([0, 0, 1, 1, 0, 1, 1, 1, 1], dtype="int64")
+
++            unique_labels(y_true, y_predicted)
+
+     except ImportError:
+
+         raise SkipTest(
+
+             "pandas is not installed: not testing for "

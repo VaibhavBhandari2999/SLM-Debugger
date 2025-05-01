@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/sbcharsetprober.py
++++ b/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/sbcharsetprober.py
+@@ -67,7 +67,11 @@
+         else:
+
+             return self._mModel['charsetName']
+
+ 
+
+-    def feed(self, aBuf):
+
++import sys
+
++from requests.packages.urllib3.exceptions import DecodeError, TimeoutError
+
++
+
++def feed(self, aBuf):
+
++    try:
+
+         if not self._mModel['keepEnglishLetter']:
+
+             aBuf = self.filter_without_english_letters(aBuf)
+
+         aLen = len(aBuf)
+
+@@ -108,6 +112,12 @@
+                     self._mState = constants.eNotMe
+
+ 
+
+         return self.get_state()
+
++    except (DecodeError, TimeoutError) as e:
+
++        # Handle the exceptions here
+
++        if constants._debug:
+
++            sys.stderr.write(f"Caught exception: {e}\n")
+
++        # Optionally, you can return a specific state or handle the error in another way
+
++        return constants.eError
+
+ 
+
+     def get_confidence(self):
+
+         r = 0.01

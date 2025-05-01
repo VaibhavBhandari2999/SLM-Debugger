@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/69/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/69/django_django/django/utils/decorators.py
+@@ -32,6 +32,17 @@
+     else:
+
+         decorators = [decorators]
+
+ 
+
++from functools import partial
+
++
+
++class ResolverMatch:
+
++    def __init__(self, view, args=None, kwargs=None):
+
++        # Unwrap any functools.partial objects in the view
+
++        if isinstance(view, partial):
+
++            view = view.func
+
++        self.view = view
+
++        self.args = args or []
+
++        self.kwargs = kwargs or {}
+
++
+
+     def _wrapper(self, *args, **kwargs):
+
+         # bound_method has the signature that 'decorator' expects i.e. no
+
+         # 'self' argument, but it's a closure over self so it can call
+
+@@ -41,6 +52,9 @@
+         for dec in decorators:
+
+             bound_method = dec(bound_method)
+
+         return bound_method(*args, **kwargs)
+
++
+
++    def __repr__(self):
+
++        return f"<ResolverMatch view={self.view} args={self.args} kwargs={self.kwargs}>"
+
+ 
+
+     # Copy any attributes that a decorator adds to the function it decorates.
+
+     for dec in decorators:

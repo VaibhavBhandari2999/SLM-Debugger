@@ -1,0 +1,565 @@
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -398,36 +398,36 @@
+         macaulay_matrix = Matrix(rows)
+
+         return macaulay_matrix
+
+ 
+
+-    def get_reduced_nonreduced(self):
+
+-        r"""
+
+-        Returns
+
+-        =======
+
+-
+
+-        reduced: list
+
+-            A list of the reduced monomials
+
+-        non_reduced: list
+
+-            A list of the monomials that are not reduced
+
+-
+
+-        Definition
+
+-        ==========
+
+-
+
+-        A polynomial is said to be reduced in x_i, if its degree (the
+
+-        maximum degree of its monomials) in x_i is less than d_i. A
+
+-        polynomial that is reduced in all variables but one is said
+
+-        simply to be reduced.
+
+-        """
+
+-        divisible = []
+
+-        for m in self.monomial_set:
+
+-            temp = []
+
+-            for i, v in enumerate(self.variables):
+
+-                temp.append(bool(total_degree(m, v) >= self.degrees[i]))
+
+-            divisible.append(temp)
+
+-        reduced = [i for i, r in enumerate(divisible)
+
+-                   if sum(r) < self.n - 1]
+
+-        non_reduced = [i for i, r in enumerate(divisible)
+
+-                       if sum(r) >= self.n -1]
+
+-
+
+-        return reduced, non_reduced
+
++import sympy as sp
+
++
+
++def get_reduced_nonreduced(self):
+
++    r"""
+
++    Returns
+
++    =======
+
++
+
++    reduced: list
+
++        A list of the reduced monomials
+
++    non_reduced: list
+
++        A list of the monomials that are not reduced
+
++
+
++    Definition
+
++    ==========
+
++
+
++    A polynomial is said to be reduced in x_i, if its degree (the
+
++    maximum degree of its monomials) in x_i is less than d_i. A
+
++    polynomial that is reduced in all variables but one is said
+
++    simply to be reduced.
+
++    """
+
++    divisible = []
+
++    for m in sp.itermonomials(self.variables, self.max_degrees, min_degrees=self.min_degrees):
+
++        temp = []
+
++        for i, v in enumerate(self.variables):
+
++            temp.append(bool(total_degree(m, v) >= self.degrees[i]))
+
++        divisible.append(temp)
+
++    reduced = [i for i, r in enumerate(divisible) if sum(r) < self.n - 1]
+
++    non_reduced = [i for i, r in enumerate(divisible) if sum(r) >= self.n - 1]
+
++
+
++    return reduced, non_reduced
+
+ 
+
+     def get_submatrix(self, matrix):
+
+         r"""
+
+
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -332,6 +332,13 @@
+         """
+
+         return binomial(self.degree_m + self.n - 1, self.n - 1)
+
+ 
+
++import itertools
+
++from sympy import Mul
+
++
+
++class MonomialGenerator:
+
++    def __init__(self, variables):
+
++        self.variables = variables
+
++
+
+     def get_monomials_of_certain_degree(self, degree):
+
+         """
+
+         Returns
+
+@@ -340,12 +347,17 @@
+         monomials: list
+
+             A list of monomials of a certain degree.
+
+         """
+
+-        monomials = [Mul(*monomial) for monomial
+
+-                     in combinations_with_replacement(self.variables,
+
+-                                                      degree)]
+
+-
+
+-        return sorted(monomials, reverse=True,
+
+-                      key=monomial_key('lex', self.variables))
+
++        # Generate all combinations with repetition of variables for the given degree
+
++        monomials_combinations = itertools.product(self.variables, repeat=degree)
+
++        # Create the monomials from the combinations
+
++        monomials = [Mul(*monomial) for monomial in monomials_combinations]
+
++        # Sort the monomials based on the grlex ordering
+
++        return sorted(monomials, key=lambda m: m.as_poly().total_degree())
+
++
+
++# Example usage:
+
++gen = MonomialGenerator([x1, x2, x3])
+
++monomials = gen.get_monomials_of_certain_degree(3)
+
++print(monomials)
+
+ 
+
+     def get_row_coefficients(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -285,29 +285,45 @@
+     .. [2] [Stiller96]_
+
+ 
+
+     """
+
+-    def __init__(self, polynomials, variables):
+
+-        """
+
+-        Parameters
+
+-        ==========
+
+-
+
+-        variables: list
+
+-            A list of all n variables
+
+-        polynomials : list of sympy polynomials
+
+-            A  list of m n-degree polynomials
+
+-        """
+
+-        self.polynomials = polynomials
+
+-        self.variables = variables
+
+-        self.n = len(variables)
+
+-
+
+-        # A list of the d_max of each polynomial.
+
+-        self.degrees = [total_degree(poly, *self.variables) for poly
+
+-                        in self.polynomials]
+
+-
+
+-        self.degree_m = self._get_degree_m()
+
+-        self.monomials_size = self.get_size()
+
+-
+
+-        # The set T of all possible monomials of degree degree_m
+
+-        self.monomial_set = self.get_monomials_of_certain_degree(self.degree_m)
+
++def get_monomials(self, min_degrees, max_degrees):
+
++    """
+
++    Generate all monomials within the specified degree range.
+
++
+
++    Parameters:
+
++    min_degrees (int): The minimum degree of the monomials.
+
++    max_degrees (int): The maximum degree of the monomials.
+
++
+
++    Returns:
+
++    list: A list of all monomials of degrees between min_degrees and max_degrees.
+
++    """
+
++    monomials = []
+
++    for degree in range(min_degrees, max_degrees + 1):
+
++        monomials.extend(sp.itermonomials(self.variables, degree))
+
++    return sorted(monomials, key=monomial_key('grlex', self.variables))
+
++
+
++def itermonomials(self, states, max_degree, min_degree=0):
+
++    """
+
++    Generate all monomials of degrees from min_degree to max_degree.
+
++
+
++    Parameters:
+
++    states (list): A list of symbolic variables.
+
++    max_degree (int): The maximum degree of the monomials.
+
++    min_degree (int, optional): The minimum degree of the monomials. Defaults to 0.
+
++
+
++    Yields:
+
++    tuple: A monomial of a given degree.
+
++    """
+
++    for degree in range(min_degree, max_degree + 1):
+
++        for monomial in sp.itermonomials(states, degree):
+
++            yield monomial
+
++
+
++# Example usage:
+
++x1, x2, x3 = sp.symbols('x1, x2, x3')
+
++states = [x1, x2, x3]
+
++max_degrees = 3
+
++min_degrees = 3
+
++monomials = list(self.itermonomials(states, max_degrees, min_degrees))
+
++print(monomials)
+
+ 
+
+     def _get_degree_m(self):
+
+         r"""
+
+
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -320,17 +320,30 @@
+         """
+
+         return 1 + sum(d - 1 for d in self.degrees)
+
+ 
+
+-    def get_size(self):
+
+-        r"""
+
+-        Returns
+
+-        =======
+
+-
+
+-        size: int
+
+-            The size of set T. Set T is the set of all possible
+
+-            monomials of the n variables for degree equal to the
+
+-            degree_m
+
+-        """
+
+-        return binomial(self.degree_m + self.n - 1, self.n - 1)
+
++import sympy as sp
+
++from sympy.polys.orderings import monomial_key
+
++
+
++def itermonomials(variables, max_degree, min_degree=0):
+
++    """
+
++    Generate all monomials of total degree up to max_degree, starting from min_degree.
+
++    """
+
++    if min_degree < 0 or max_degree < 0 or min_degree > max_degree:
+
++        raise ValueError("Invalid degree values")
+
++    
+
++    monomials = set()
+
++    for degree in range(min_degree, max_degree + 1):
+
++        for monom in sp.itermonomials(variables, degree):
+
++            monomials.add(monom)
+
++    
+
++    return sorted(monomials, key=monomial_key('grlex', variables))
+
++
+
++# Example usage
+
++x1, x2, x3 = sp.symbols('x1, x2, x3')
+
++states = [x1, x2, x3]
+
++max_degrees = 3
+
++min_degrees = 3
+
++monomials = itermonomials(states, max_degrees, min_degrees)
+
++print(monomials)
+
+ 
+
+     def get_monomials_of_certain_degree(self, degree):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -156,33 +156,36 @@
+ 
+
+         return max_degrees
+
+ 
+
+-    def get_dixon_matrix(self, polynomial):
+
+-        r"""
+
+-        Construct the Dixon matrix from the coefficients of polynomial
+
+-        \alpha. Each coefficient is viewed as a polynomial of x_1, ...,
+
+-        x_n.
+
+-        """
+
+-
+
+-        max_degrees = self.get_max_degrees(polynomial)
+
+-
+
+-        # list of column headers of the Dixon matrix.
+
+-        monomials = itermonomials(self.variables, max_degrees)
+
+-        monomials = sorted(monomials, reverse=True,
+
+-                           key=monomial_key('lex', self.variables))
+
+-
+
+-        dixon_matrix = Matrix([[Poly(c, *self.variables).coeff_monomial(m)
+
+-                                for m in monomials]
+
+-                                for c in polynomial.coeffs()])
+
+-
+
+-        # remove columns if needed
+
+-        if dixon_matrix.shape[0] != dixon_matrix.shape[1]:
+
+-            keep = [column for column in range(dixon_matrix.shape[-1])
+
+-                    if any([element != 0 for element
+
++from sympy import Poly, Matrix, symbols, monomial_key, itermonomials, sorted
+
++
+
++def get_dixon_matrix(self, polynomial):
+
++    r"""
+
++    Construct the Dixon matrix from the coefficients of polynomial
+
++    \alpha. Each coefficient is viewed as a polynomial of x_1, ...,
+
++    x_n.
+
++    """
+
++
+
++    max_degrees = self.get_max_degrees(polynomial)
+
++
+
++    # list of column headers of the Dixon matrix.
+
++    # Include min_degrees explicitly in the iteration
+
++    min_degrees = 3  # Example minimum degree
+
++    monomials = sorted(itermonomials(self.variables, max_degrees, min_degrees=min_degrees),
+
++                       key=monomial_key('lex', self.variables), reverse=True)
+
++
+
++    dixon_matrix = Matrix([[Poly(c, *self.variables).coeff_monomial(m)
+
++                            for m in monomials]
+
++                            for c in polynomial.coeffs()])
+
++
+
++    # remove columns if needed
+
++    if dixon_matrix.shape[0] != dixon_matrix.shape[1]:
+
++        keep = [column for column in range(dixon_matrix.shape[-1])
+
++                if any([element != 0 for element
+
+                         in dixon_matrix[:, column]])]
+
+ 
+
+-            dixon_matrix = dixon_matrix[:, keep]
+
+-
+
+-        return dixon_matrix
+
++        dixon_matrix = dixon_matrix[:, keep]
+
++
+
++    return dixon_matrix
+
+ 
+
+     def KSY_precondition(self, matrix):
+
+         """
+
+

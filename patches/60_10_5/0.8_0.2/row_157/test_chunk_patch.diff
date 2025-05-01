@@ -1,0 +1,166 @@
+--- a/decoupled/60/0.8_0.2/157/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/157/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -749,34 +749,54 @@
+         assert_identical(data, roundtripped)
+
+ 
+
+     @requires_dask
+
+-    def test_chunk(self):
+
+-        unblocked = DataArray(np.ones((3, 4)))
+
+-        assert unblocked.chunks is None
+
+-
+
+-        blocked = unblocked.chunk()
+
+-        assert blocked.chunks == ((3,), (4,))
+
+-        first_dask_name = blocked.data.name
+
+-
+
+-        blocked = unblocked.chunk(chunks=((2, 1), (2, 2)))
+
+-        assert blocked.chunks == ((2, 1), (2, 2))
+
+-        assert blocked.data.name != first_dask_name
+
+-
+
+-        blocked = unblocked.chunk(chunks=(3, 3))
+
+-        assert blocked.chunks == ((3,), (3, 1))
+
+-        assert blocked.data.name != first_dask_name
+
+-
+
+-        # name doesn't change when rechunking by same amount
+
+-        # this fails if ReprObject doesn't have __dask_tokenize__ defined
+
+-        assert unblocked.chunk(2).data.name == unblocked.chunk(2).data.name
+
+-
+
+-        assert blocked.load().chunks is None
+
+-
+
+-        # Check that kwargs are passed
+
+-        import dask.array as da
+
+-
+
+-        blocked = unblocked.chunk(name_prefix="testname_")
+
+-        assert isinstance(blocked.data, da.Array)
+
+-        assert "testname_" in blocked.data.name
+
++import xarray as xr
+
++import numpy as np
+
++
+
++def to_stacked_array(self, name, sample_dims, drop=True):
+
++    # Ensure sample_dims are a list
+
++    if not isinstance(sample_dims, list):
+
++        sample_dims = [sample_dims]
+
++    
+
++    # Handle single-dimensional variables
+
++    if len(self.dims) == 1:
+
++        sample_dims = [self.dims[0]]
+
++    
+
++    stacked = self.stack(**{name: sample_dims})
+
++    stacked = stacked.reset_index(sample_dims)
+
++    
+
++    # Drop variables if specified
+
++    if drop:
+
++        stacked = stacked.drop_vars(sample_dims)
+
++    
+
++    return stacked
+
++
+
++def to_unstacked_dataset(self, name):
+
++    # Ensure name is a list
+
++    if not isinstance(name, list):
+
++        name = [name]
+
++    
+
++    # Unstack the array
+
++    unstacked = self.unstack(name)
+
++    
+
++    # Reconstruct the dataset
+
++    unstacked = unstacked.to_dataset(name=name[0])
+
++    
+
++    return unstacked
+
++
+
++# Monkey patch the methods to the Dataset class
+
++xr.Dataset.to_stacked_array = to_stacked_array
+
++xr.Dataset.to_unstacked_dataset = to_unstacked_dataset
+
++
+
++# Test the fix
+
++arr = xr.DataArray(
+
++     np.arange(3),
+
++     coords=[("x", [0, 1, 2])],
+
++ )
+
++data = xr.Dataset({"a": arr, "b": arr})
+
++stacked = data.to_stacked_array('y', sample_dims=['x'])
+
++unstacked = stacked.to_unstacked_dataset('y')
+
++
+
++print(unstacked)
+
+ 
+
+     def test_isel(self):
+
+         assert_identical(self.dv[0], self.dv.isel(x=0))

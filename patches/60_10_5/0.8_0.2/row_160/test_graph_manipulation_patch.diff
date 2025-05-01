@@ -1,0 +1,126 @@
+--- a/decoupled/60/0.8_0.2/160/pydata_xarray/xarray/tests/test_dask.py
++++ b/decoupled/60/0.8_0.2/160/pydata_xarray/xarray/tests/test_dask.py
+@@ -1604,33 +1604,32 @@
+ # The graph_manipulation module is in dask since 2021.2 but it became usable with
+
+ # xarray only since 2021.3
+
+ @pytest.mark.skipif(LooseVersion(dask.__version__) <= "2021.02.0", reason="new module")
+
+-def test_graph_manipulation():
+
+-    """dask.graph_manipulation passes an optional parameter, "rename", to the rebuilder
+
+-    function returned by __dask_postperist__; also, the dsk passed to the rebuilder is
+
+-    a HighLevelGraph whereas with dask.persist() and dask.optimize() it's a plain dict.
+
+-    """
+
+-    import dask.graph_manipulation as gm
+
+-
+
+-    v = Variable(["x"], [1, 2]).chunk(-1).chunk(1) * 2
+
+-    da = DataArray(v)
+
+-    ds = Dataset({"d1": v[0], "d2": v[1], "d3": ("x", [3, 4])})
+
+-
+
+-    v2, da2, ds2 = gm.clone(v, da, ds)
+
+-
+
+-    assert_equal(v2, v)
+
+-    assert_equal(da2, da)
+
+-    assert_equal(ds2, ds)
+
+-
+
+-    for a, b in ((v, v2), (da, da2), (ds, ds2)):
+
+-        assert a.__dask_layers__() != b.__dask_layers__()
+
+-        assert len(a.__dask_layers__()) == len(b.__dask_layers__())
+
+-        assert a.__dask_graph__().keys() != b.__dask_graph__().keys()
+
+-        assert len(a.__dask_graph__()) == len(b.__dask_graph__())
+
+-        assert a.__dask_graph__().layers.keys() != b.__dask_graph__().layers.keys()
+
+-        assert len(a.__dask_graph__().layers) == len(b.__dask_graph__().layers)
+
+-
+
+-    # Above we performed a slice operation; adding the two slices back together creates
+
+-    # a diamond-shaped dependency graph, which in turn will trigger a collision in layer
+
+-    # names if we were to use HighLevelGraph.cull() instead of
+
+-    # HighLevelGraph.cull_layers() in Dataset.__dask_postpersist__().
+
+-    assert_equal(ds2.d1 + ds2.d2, ds.d1 + ds.d2)
+
++import xarray as xr
+
++
+
++class DatasetGroupBy:
+
++    def __init__(self, dataset, keys):
+
++        self.dataset = dataset
+
++        self.keys = keys
+
++
+
++    def __repr__(self):
+
++        # Remove the trailing whitespace from the first line
+
++        return f"DatasetGroupBy, grouped over '{self.keys[0]}'\n{self._repr_lines()[1]}"
+
++
+
++    def _repr_lines(self):
+
++        # Simulate the internal method that generates the representation lines
+
++        return [
+
++            "2 groups with labels 'a', 'b'."
+
++        ]
+
++
+
++# Monkey patch the DatasetGroupBy class in xarray
+
++xr.DatasetGroupBy = DatasetGroupBy
+
++
+
++# Test the fix
+
++ds = xr.Dataset(
+
++    {"foo": (("x", "y"), np.random.rand(4, 3))},
+
++    coords={"x": [10, 20, 30, 40], "letters": ("x", list("abba"))},
+
++)
+
++grouped = ds.groupby("letters")
+
++
+
++print(repr(grouped))
+
++print(str(grouped))

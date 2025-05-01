@@ -1,0 +1,330 @@
+--- a/decoupled/60/0.8_0.2/187/scikit-learn_scikit-learn/sklearn/neighbors/base.py
++++ b/decoupled/60/0.8_0.2/187/scikit-learn_scikit-learn/sklearn/neighbors/base.py
+@@ -420,83 +420,87 @@
+                 return dist, neigh_ind
+
+             return neigh_ind
+
+ 
+
+-    def kneighbors_graph(self, X=None, n_neighbors=None,
+
+-                         mode='connectivity'):
+
+-        """Computes the (weighted) graph of k-Neighbors for points in X
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        X : array-like, shape (n_query, n_features), \
+
+-                or (n_query, n_indexed) if metric == 'precomputed'
+
+-            The query point or points.
+
+-            If not provided, neighbors of each indexed point are returned.
+
+-            In this case, the query point is not considered its own neighbor.
+
+-
+
+-        n_neighbors : int
+
+-            Number of neighbors for each sample.
+
+-            (default is value passed to the constructor).
+
+-
+
+-        mode : {'connectivity', 'distance'}, optional
+
+-            Type of returned matrix: 'connectivity' will return the
+
+-            connectivity matrix with ones and zeros, in 'distance' the
+
+-            edges are Euclidean distance between points.
+
+-
+
+-        Returns
+
+-        -------
+
+-        A : sparse matrix in CSR format, shape = [n_samples, n_samples_fit]
+
+-            n_samples_fit is the number of samples in the fitted data
+
+-            A[i, j] is assigned the weight of edge that connects i to j.
+
+-
+
+-        Examples
+
+-        --------
+
+-        >>> X = [[0], [3], [1]]
+
+-        >>> from sklearn.neighbors import NearestNeighbors
+
+-        >>> neigh = NearestNeighbors(n_neighbors=2)
+
+-        >>> neigh.fit(X) # doctest: +ELLIPSIS
+
+-        NearestNeighbors(algorithm='auto', leaf_size=30, ...)
+
+-        >>> A = neigh.kneighbors_graph(X)
+
+-        >>> A.toarray()
+
+-        array([[1., 0., 1.],
+
+-               [0., 1., 1.],
+
+-               [1., 0., 1.]])
+
+-
+
+-        See also
+
+-        --------
+
+-        NearestNeighbors.radius_neighbors_graph
+
+-        """
+
+-        if n_neighbors is None:
+
+-            n_neighbors = self.n_neighbors
+
+-
+
+-        # kneighbors does the None handling.
+
+-        if X is not None:
+
+-            X = check_array(X, accept_sparse='csr')
+
+-            n_samples1 = X.shape[0]
+
+-        else:
+
+-            n_samples1 = self._fit_X.shape[0]
+
+-
+
+-        n_samples2 = self._fit_X.shape[0]
+
+-        n_nonzero = n_samples1 * n_neighbors
+
+-        A_indptr = np.arange(0, n_nonzero + 1, n_neighbors)
+
+-
+
+-        # construct CSR matrix representation of the k-NN graph
+
+-        if mode == 'connectivity':
+
+-            A_data = np.ones(n_samples1 * n_neighbors)
+
+-            A_ind = self.kneighbors(X, n_neighbors, return_distance=False)
+
+-
+
+-        elif mode == 'distance':
+
+-            A_data, A_ind = self.kneighbors(
+
+-                X, n_neighbors, return_distance=True)
+
+-            A_data = np.ravel(A_data)
+
+-
+
+-        else:
+
+-            raise ValueError(
+
+-                'Unsupported mode, must be one of "connectivity" '
+
+-                'or "distance" but got "%s" instead' % mode)
+
+-
+
+-        kneighbors_graph = csr_matrix((A_data, A_ind.ravel(), A_indptr),
+
+-                                      shape=(n_samples1, n_samples2))
+
+-
+
+-        return kneighbors_graph
+
++def kneighbors_graph(self, X=None, n_neighbors=None, mode='connectivity'):
+
++    """Computes the (weighted) graph of k-Neighbors for points in X
+
++
+
++    Parameters
+
++    ----------
+
++    X : array-like, shape (n_query, n_features), \
+
++            or (n_query, n_indexed) if metric == 'precomputed'
+
++        The query point or points.
+
++        If not provided, neighbors of each indexed point are returned.
+
++        In this case, the query point is not considered its own neighbor.
+
++
+
++    n_neighbors : int
+
++        Number of neighbors for each sample.
+
++        (default is value passed to the constructor).
+
++
+
++    mode : {'connectivity', 'distance'}, optional
+
++        Type of returned matrix: 'connectivity' will return the
+
++        connectivity matrix with ones and zeros, in 'distance' the
+
++        edges are Euclidean distance between points.
+
++
+
++    Returns
+
++    -------
+
++    A : sparse matrix in CSR format, shape = [n_samples, n_samples_fit]
+
++        n_samples_fit is the number of samples in the fitted data
+
++        A[i, j] is assigned the weight of edge that connects i to j.
+
++
+
++    Examples
+
++    --------
+
++    >>> X = [[0], [3], [1]]
+
++    >>> from sklearn.neighbors import NearestNeighbors
+
++    >>> neigh = NearestNeighbors(n_neighbors=2)
+
++    >>> neigh.fit(X) # doctest: +ELLIPSIS
+
++    NearestNeighbors(algorithm='auto', leaf_size=30, ...)
+
++    >>> A = neigh.kneighbors_graph(X)
+
++    >>> A.toarray()
+
++    array([[1., 0., 1.],
+
++           [0., 1., 1.],
+
++           [1., 0., 1.]])
+
++
+
++    See also
+
++    --------
+
++    NearestNeighbors.radius_neighbors_graph
+
++    """
+
++    if n_neighbors is None:
+
++        n_neighbors = self.n_neighbors
+
++
+
++    # Validate that n_neighbors is an integer
+
++    if not isinstance(n_neighbors, int) or n_neighbors < 1:
+
++        raise ValueError("n_neighbors must be a positive integer, "
+
++                         "got {}".format(n_neighbors))
+
++
+
++    # kneighbors does the None handling.
+
++    if X is not None:
+
++        X = check_array(X, accept_sparse='csr')
+
++        n_samples1 = X.shape[0]
+
++    else:
+
++        n_samples1 = self._fit_X.shape[0]
+
++
+
++    n_samples2 = self._fit_X.shape[0]
+
++    n_nonzero = n_samples1 * n_neighbors
+
++    A_indptr = np.arange(0, n_nonzero + 1, n_neighbors)
+
++
+
++    # construct CSR matrix representation of the k-NN graph
+
++    if mode == 'connectivity':
+
++        A_data = np.ones(n_samples1 * n_neighbors)
+
++        A_ind = self.kneighbors(X, n_neighbors, return_distance=False)
+
++
+
++    elif mode == 'distance':
+
++        A_data, A_ind = self.kneighbors(
+
++            X, n_neighbors, return_distance=True)
+
++        A_data = np.ravel(A_data)
+
++
+
++    else:
+
++        raise ValueError(
+
++            'Unsupported mode, must be one of "connectivity" '
+
++            'or "distance" but got "%s" instead' % mode)
+
++
+
++    kneighbors_graph = csr_matrix((A_data, A_ind.ravel(), A_indptr),
+
++                                  shape=(n_samples1, n_samples2))
+
++
+
++    return kneighbors_graph
+
+ 
+
+ 
+
+ class RadiusNeighborsMixin(object):

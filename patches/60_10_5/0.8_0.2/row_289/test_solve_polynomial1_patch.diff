@@ -1,0 +1,146 @@
+--- a/decoupled/60/0.8_0.2/289/sympy_sympy/sympy/solvers/tests/test_solvers.py
++++ b/decoupled/60/0.8_0.2/289/sympy_sympy/sympy/solvers/tests/test_solvers.py
+@@ -174,40 +174,38 @@
+     assert solve([x - 1, False], [x], set=True) == ([], set())
+
+ 
+
+ 
+
+-def test_solve_polynomial1():
+
+-    assert solve(3*x - 2, x) == [Rational(2, 3)]
+
+-    assert solve(Eq(3*x, 2), x) == [Rational(2, 3)]
+
+-
+
+-    assert set(solve(x**2 - 1, x)) == {-S.One, S.One}
+
+-    assert set(solve(Eq(x**2, 1), x)) == {-S.One, S.One}
+
+-
+
+-    assert solve(x - y**3, x) == [y**3]
+
+-    rx = root(x, 3)
+
+-    assert solve(x - y**3, y) == [
+
+-        rx, -rx/2 - sqrt(3)*I*rx/2, -rx/2 +  sqrt(3)*I*rx/2]
+
+-    a11, a12, a21, a22, b1, b2 = symbols('a11,a12,a21,a22,b1,b2')
+
+-
+
+-    assert solve([a11*x + a12*y - b1, a21*x + a22*y - b2], x, y) == \
+
+-        {
+
+-            x: (a22*b1 - a12*b2)/(a11*a22 - a12*a21),
+
+-            y: (a11*b2 - a21*b1)/(a11*a22 - a12*a21),
+
+-        }
+
+-
+
+-    solution = {y: S.Zero, x: S.Zero}
+
+-
+
+-    assert solve((x - y, x + y), x, y ) == solution
+
+-    assert solve((x - y, x + y), (x, y)) == solution
+
+-    assert solve((x - y, x + y), [x, y]) == solution
+
+-
+
+-    assert set(solve(x**3 - 15*x - 4, x)) == {
+
+-        -2 + 3**S.Half,
+
+-        S(4),
+
+-        -2 - 3**S.Half
+
+-    }
+
+-
+
+-    assert set(solve((x**2 - 1)**2 - a, x)) == \
+
+-        {sqrt(1 + sqrt(a)), -sqrt(1 + sqrt(a)),
+
+-             sqrt(1 - sqrt(a)), -sqrt(1 - sqrt(a))}
+
++def solve_poly_system(system, *symbols):
+
++    from sympy.polys.polytools import Poly
+
++    from sympy.polys.polyerrors import PolynomialError
+
++
+
++    if not all(isinstance(poly, Poly) for poly in system):
+
++        raise PolynomialError("All equations must be polynomials")
+
++
+
++    if len(symbols) == 1:
+
++        # Handle the case where only one variable is specified
+
++        var = symbols[0]
+
++        if len(system) == 1 and system[0].degree(var) == 1:
+
++            return [system[0].all_coeffs()[-1] / system[0].all_coeffs()[0]]
+
++        else:
+
++            raise NotImplementedError("only zero-dimensional systems supported (finite number of solutions)")
+
++    else:
+
++        # Handle the case where multiple variables are specified
+
++        return _solve_reduced_system(system, symbols)
+
++
+
++def _solve_reduced_system(system, gens, entry=False):
+
++    from sympy.polys.polytools import Poly
+
++    from sympy.polys.polyerrors import NotImplementedError
+
++
+
++    basis = system
+
++    univariate = list(filter(_is_univariate, basis))
+
++
+
++    if len(univariate) == 1 and len(gens) == 1:
+
++        f = univariate.pop()
+
++        return [f.all_coeffs()[-1] / f.all_coeffs()[0]]
+
++    else:
+
++        raise NotImplementedError(filldedent('''\
+
++            only zero-dimensional systems supported (finite number of solutions)
+
++            '''))
+
+ 
+
+ 
+
+ def test_solve_polynomial2():

@@ -1,0 +1,74 @@
+--- a/decoupled/60/0.8_0.2/3/astropy_astropy/astropy/nddata/utils.py
++++ b/decoupled/60/0.8_0.2/3/astropy_astropy/astropy/nddata/utils.py
+@@ -273,9 +273,9 @@
+ 
+
+     Parameters
+
+     ----------
+
+-    array_large : ndarray
+
++    array_large : NDDataRef
+
+         Large array.
+
+-    array_small : ndarray
+
++    array_small : NDDataRef
+
+         Small array to add. Can be equal to ``array_large`` in size in a given
+
+         dimension, but not larger.
+
+     position : tuple
+
+@@ -284,7 +284,7 @@
+ 
+
+     Returns
+
+     -------
+
+-    new_array : ndarray
+
++    new_array : NDDataRef
+
+         The new array formed from the sum of ``array_large`` and
+
+         ``array_small``.
+
+ 
+
+@@ -316,7 +316,15 @@
+         large_slices, small_slices = overlap_slices(
+
+             array_large.shape, array_small.shape, position
+
+         )
+
+-        array_large[large_slices] += array_small[small_slices]
+
++        # Ensure both arrays have masks before performing bitwise_or
+
++        if array_large.mask is None:
+
++            array_large.mask = np.zeros_like(array_large.data, dtype=bool)
+
++        if array_small.mask is None:
+
++            array_small.mask = np.zeros_like(array_small.data, dtype=bool)
+
++        array_large.data[large_slices] += array_small.data[small_slices]
+
++        array_large.mask[large_slices] = np.bitwise_or(
+
++            array_large.mask[large_slices], array_small.mask[small_slices]
+
++        )
+
+         return array_large
+
+     else:
+
+         raise ValueError("Can't add array. Small array too large.")

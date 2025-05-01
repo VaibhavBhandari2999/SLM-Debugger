@@ -1,0 +1,92 @@
+--- a/decoupled/60/0.8_0.2/178/pytest-dev_pytest/testing/test_warnings.py
++++ b/decoupled/60/0.8_0.2/178/pytest-dev_pytest/testing/test_warnings.py
+@@ -772,24 +772,24 @@
+         assert "resultlog.py" in file
+
+         assert func == "pytest_configure"
+
+ 
+
+-    def test_issue4445_issue5928_mark_generator(self, testdir):
+
+-        """#4445 and #5928: Make sure the warning from an unknown mark points to
+
+-        the test file where this mark is used.
+
+-        """
+
+-        testfile = testdir.makepyfile(
+
+-            """
+
+-            import pytest
+
+-
+
+-            @pytest.mark.unknown
+
+-            def test_it():
+
+-                pass
+
+-            """
+
+-        )
+
+-        result = testdir.runpytest_subprocess()
+
+-        # with stacklevel=2 the warning should originate from the above created test file
+
+-        result.stdout.fnmatch_lines_random(
+
+-            [
+
+-                "*{testfile}:3*".format(testfile=str(testfile)),
+
+-                "*Unknown pytest.mark.unknown*",
+
+-            ]
+
+-        )
+
++def test_issue4445_issue5928_mark_generator(self, testdir):
+
++    """#4445 and #5928: Make sure the warning from an unknown mark points to
+
++    the test file where this mark is used.
+
++    """
+
++    testfile = testdir.makepyfile(
+
++        """
+
++        import pytest
+
++
+
++        @pytest.mark.unknown
+
++        def test_it():
+
++            pass
+
++        """
+
++    )
+
++    result = testdir.runpytest_subprocess()
+
++    # with stacklevel=2 the warning should originate from the above created test file
+
++    result.stdout.fnmatch_lines_random(
+
++        [
+
++            "*{testfile}:3*".format(testfile=str(testfile)),
+
++            "*Unknown pytest.mark.unknown*",
+
++        ]
+
++    )

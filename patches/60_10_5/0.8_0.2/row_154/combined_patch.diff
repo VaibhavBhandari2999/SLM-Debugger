@@ -1,0 +1,381 @@
+--- a/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/urllib3/filepost.py
++++ b/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/urllib3/filepost.py
+@@ -18,24 +18,24 @@
+     return uuid4().hex
+
+ 
+
+ 
+
+-def iter_field_objects(fields):
+
+-    """
+
+-    Iterate over fields.
+
++import requests
+
++import six
+
+ 
+
+-    Supports list of (k, v) tuples and dicts, and lists of
+
+-    :class:`~urllib3.fields.RequestField`.
+
++# Example function to demonstrate the difference between iter_content and text
+
++def demonstrate_content_types(url):
+
++    response = requests.get(url, stream=True)
+
++    response.raise_for_status()
+
+ 
+
+-    """
+
+-    if isinstance(fields, dict):
+
+-        i = six.iteritems(fields)
+
+-    else:
+
+-        i = iter(fields)
+
++    # Using iter_content with decode_unicode=True
+
++    for chunk in response.iter_content(chunk_size=16*1024, decode_unicode=True):
+
++        print(type(chunk))  # This will print <class 'str'>, a unicode string
+
+ 
+
+-    for field in i:
+
+-        if isinstance(field, RequestField):
+
+-            yield field
+
+-        else:
+
+-            yield RequestField.from_tuples(*field)
+
++    # Using .text
+
++    print(type(response.text))  # This will print <class 'str'>, a unicode string
+
++
+
++# Example usage
+
++url = 'https://jsonplaceholder.typicode.com/todos/1'
+
++demonstrate_content_types(url)
+
+ 
+
+ 
+
+ def iter_fields(fields):
+
+
+--- a/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/chardet/__init__.py
++++ b/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/chardet/__init__.py
+@@ -19,14 +19,32 @@
+ from sys import version_info
+
+ 
+
+ 
+
++import sys
+
++from . import universaldetector
+
++
+
+ def detect(aBuf):
+
+-    if ((version_info < (3, 0) and isinstance(aBuf, unicode)) or
+
+-            (version_info >= (3, 0) and not isinstance(aBuf, bytes))):
+
+-        raise ValueError('Expected a bytes object, not a unicode object')
+
++    from requests import get
+
++    import io
+
+ 
+
+-    from . import universaldetector
+
++    # Ensure we're working with a bytes object if using Python 3
+
++    if sys.version_info[0] >= 3:
+
++        if not isinstance(aBuf, bytes):
+
++            raise ValueError('Expected a bytes object, not a unicode object')
+
++    else:
+
++        # In Python 2, aBuf can be either str or unicode
+
++        if not isinstance(aBuf, (str, unicode)):
+
++            raise ValueError('Expected a str or unicode object, not another type')
+
++
+
++    # Create a StringIO object to treat the buffer as text
+
++    stream = io.TextIOWrapper(io.BytesIO(aBuf), encoding='utf-8')
+
++
+
++    # Initialize the UniversalDetector
+
+     u = universaldetector.UniversalDetector()
+
+     u.reset()
+
+-    u.feed(aBuf)
+
++
+
++    # Read the buffer in chunks and feed into the detector
+
++    for line in stream:
+
++        u.feed(line)
+
++
+
+     u.close()
+
+     return u.result
+
+
+--- a/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/chardet/codingstatemachine.py
++++ b/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/chardet/codingstatemachine.py
+@@ -39,20 +39,20 @@
+     def reset(self):
+
+         self._mCurrentState = eStart
+
+ 
+
+-    def next_state(self, c):
+
+-        # for each byte we get its class
+
+-        # if it is first byte, we also get byte length
+
+-        # PY3K: aBuf is a byte stream, so c is an int, not a byte
+
+-        byteCls = self._mModel['classTable'][wrap_ord(c)]
+
+-        if self._mCurrentState == eStart:
+
+-            self._mCurrentBytePos = 0
+
+-            self._mCurrentCharLen = self._mModel['charLenTable'][byteCls]
+
+-        # from byte's class and stateTable, we get its next state
+
+-        curr_state = (self._mCurrentState * self._mModel['classFactor']
+
+-                      + byteCls)
+
+-        self._mCurrentState = self._mModel['stateTable'][curr_state]
+
+-        self._mCurrentBytePos += 1
+
+-        return self._mCurrentState
+
++def next_state(self, c):
+
++    # for each byte we get its class
+
++    # if it is first byte, we also get byte length
+
++    # PY3K: aBuf is a byte stream, so c is an int, not a byte
+
++    byteCls = self._mModel['classTable'][wrap_ord(c)]
+
++    if self._mCurrentState == eStart:
+
++        self._mCurrentBytePos = 0
+
++        self._mCurrentCharLen = self._mModel['charLenTable'][byteCls]
+
++    # from byte's class and stateTable, we get its next state
+
++    curr_state = (self._mCurrentState * self._mModel['classFactor']
+
++                  + byteCls)
+
++    self._mCurrentState = self._mModel['stateTable'][curr_state]
+
++    self._mCurrentBytePos += 1
+
++    return self._mCurrentState
+
+ 
+
+     def get_current_charlen(self):
+
+         return self._mCurrentCharLen
+
+
+--- a/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/urllib3/filepost.py
++++ b/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/urllib3/filepost.py
+@@ -56,6 +56,10 @@
+     return ((k, v) for k, v in fields)
+
+ 
+
+ 
+
++import io
+
++import six
+
++import mimetools
+
++
+
+ def encode_multipart_formdata(fields, boundary=None):
+
+     """
+
+     Encode a dictionary of ``fields`` using the multipart/form-data MIME format.
+
+@@ -67,28 +71,33 @@
+         If not specified, then a random boundary will be generated using
+
+         :func:`mimetools.choose_boundary`.
+
+     """
+
+-    body = BytesIO()
+
++    body = io.BytesIO()
+
+     if boundary is None:
+
+-        boundary = choose_boundary()
+
++        boundary = mimetools.choose_boundary()
+
+ 
+
+     for field in iter_field_objects(fields):
+
+         body.write(b('--%s\r\n' % (boundary)))
+
+ 
+
+-        writer(body).write(field.render_headers())
+
++        writer = body.write
+
++        writer(b'Content-Disposition: form-data; name="%s"\r\n' % (field.disposition_params['name'].encode('utf-8')))
+
++        if 'filename' in field.disposition_params:
+
++            writer(b'Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (
+
++                field.disposition_params['name'].encode('utf-8'),
+
++                field.disposition_params['filename'].encode('utf-8')
+
++            ))
+
++        writer(b'Content-Type: %s\r\n' % (field.content_type.encode('utf-8')))
+
++        writer(b'\r\n')
+
++
+
+         data = field.data
+
+ 
+
+-        if isinstance(data, int):
+
+-            data = str(data)  # Backwards compatibility
+
++        if isinstance(data, six.text_type):
+
++            data = data.encode('utf-8')
+
+ 
+
+-        if isinstance(data, six.text_type):
+
+-            writer(body).write(data)
+
+-        else:
+
+-            body.write(data)
+
+-
+
++        body.write(data)
+
+         body.write(b'\r\n')
+
+ 
+
+     body.write(b('--%s--\r\n' % (boundary)))
+
+ 
+
+-    content_type = str('multipart/form-data; boundary=%s' % boundary)
+
++    content_type = 'multipart/form-data; boundary=%s' % boundary
+
+ 
+
+     return body.getvalue(), content_type
+
+
+--- a/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/chardet/chardetect.py
++++ b/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/chardet/chardetect.py
+@@ -29,13 +29,13 @@
+     list of strings.
+
+ 
+
+     :param lines: The lines to get the encoding of.
+
+-    :type lines: Iterable of bytes
+
++    :type lines: Iterable of unicode strings
+
+     :param name: Name of file or collection of lines
+
+     :type name: str
+
+     """
+
+     u = UniversalDetector()
+
+-    for line in lines:
+
+-        u.feed(line)
+
++    # Assuming r.text is a unicode string containing the JSON response
+
++    u.feed(r.text)  # Directly feed the unicode string to the detector
+
+     u.close()
+
+     result = u.result
+
+     if result['encoding']:
+
+

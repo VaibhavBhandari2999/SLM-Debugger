@@ -1,0 +1,16 @@
+--- a/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/parsing/sympy_parser.py
++++ b/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/parsing/sympy_parser.py
+@@ -361,7 +361,6 @@
+     For instance, to retain the default behavior but avoid splitting certain
+
+     symbol names, a predicate like this would work:
+
+ 
+
+-
+
+     >>> from sympy.parsing.sympy_parser import (parse_expr, _token_splittable,
+
+     ... standard_transformations, implicit_multiplication,
+
+     ... split_symbols_custom)

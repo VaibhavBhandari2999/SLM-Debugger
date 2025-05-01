@@ -1,0 +1,62 @@
+--- a/decoupled/60/0.8_0.2/232/sympy_sympy/sympy/core/multidimensional.py
++++ b/decoupled/60/0.8_0.2/232/sympy_sympy/sympy/core/multidimensional.py
+@@ -86,17 +86,19 @@
+     >>> vdiff([f(x, y, z), g(x, y, z), h(x, y, z)], [x, y, z])
+
+     [[Derivative(f(x, y, z), x), Derivative(f(x, y, z), y), Derivative(f(x, y, z), z)], [Derivative(g(x, y, z), x), Derivative(g(x, y, z), y), Derivative(g(x, y, z), z)], [Derivative(h(x, y, z), x), Derivative(h(x, y, z), y), Derivative(h(x, y, z), z)]]
+
+     """
+
+-    def __init__(self, *mdargs):
+
+-        """
+
+-        The given numbers and strings characterize the arguments that will be
+
+-        treated as data structures, where the decorated function will be applied
+
+-        to every single element.
+
+-        If no argument is given, everything is treated multidimensional.
+
+-        """
+
+-        for a in mdargs:
+
+-            if not isinstance(a, (int, str)):
+
+-                raise TypeError("a is of invalid type")
+
+-        self.mdargs = mdargs
+
++def decompose(self, separate=True):
+
++    """
+
++    Decomposes the polynomial into a list of terms.
+
++    If separate is True, returns a list of the terms in a sorted order.
+
++    """
+
++    poly_dict = self.get_poly_dict()  # Assuming this method exists and returns the dictionary of polynomials
+
++    if separate:
+
++        # Sort the keys of poly_dict before returning the values
+
++        sorted_keys = sorted(poly_dict.keys())
+
++        return [poly_dict[k] for k in sorted_keys]
+
++    else:
+
++        # Return the values without sorting if separate is False
+
++        return list(poly_dict.values())
+
+ 
+
+     def __call__(self, f):
+
+         """

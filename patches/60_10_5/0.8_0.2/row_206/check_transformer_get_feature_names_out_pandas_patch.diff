@@ -1,0 +1,186 @@
+--- a/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -4064,61 +4064,37 @@
+     ), f"Expected {n_features_out} feature names, got {len(feature_names_out)}"
+
+ 
+
+ 
+
+-def check_transformer_get_feature_names_out_pandas(name, transformer_orig):
+
+-    try:
+
+-        import pandas as pd
+
+-    except ImportError:
+
+-        raise SkipTest(
+
+-            "pandas is not installed: not checking column name consistency for pandas"
+
+-        )
+
+-
+
+-    tags = transformer_orig._get_tags()
+
+-    if "2darray" not in tags["X_types"] or tags["no_validation"]:
+
+-        return
+
+-
+
+-    X, y = make_blobs(
+
+-        n_samples=30,
+
+-        centers=[[0, 0, 0], [1, 1, 1]],
+
+-        random_state=0,
+
+-        n_features=2,
+
+-        cluster_std=0.1,
+
+-    )
+
+-    X = StandardScaler().fit_transform(X)
+
+-
+
+-    transformer = clone(transformer_orig)
+
+-    X = _enforce_estimator_tags_X(transformer, X)
+
+-
+
+-    n_features = X.shape[1]
+
+-    set_random_state(transformer)
+
+-
+
+-    y_ = y
+
+-    if name in CROSS_DECOMPOSITION:
+
+-        y_ = np.c_[np.asarray(y), np.asarray(y)]
+
+-        y_[::2, 1] *= 2
+
+-
+
+-    feature_names_in = [f"col{i}" for i in range(n_features)]
+
+-    df = pd.DataFrame(X, columns=feature_names_in)
+
+-    X_transform = transformer.fit_transform(df, y=y_)
+
+-
+
+-    # error is raised when `input_features` do not match feature_names_in
+
+-    invalid_feature_names = [f"bad{i}" for i in range(n_features)]
+
+-    with raises(ValueError, match="input_features is not equal to feature_names_in_"):
+
+-        transformer.get_feature_names_out(invalid_feature_names)
+
+-
+
+-    feature_names_out_default = transformer.get_feature_names_out()
+
+-    feature_names_in_explicit_names = transformer.get_feature_names_out(
+
+-        feature_names_in
+
+-    )
+
+-    assert_array_equal(feature_names_out_default, feature_names_in_explicit_names)
+
+-
+
+-    if isinstance(X_transform, tuple):
+
+-        n_features_out = X_transform[0].shape[1]
+
+-    else:
+
+-        n_features_out = X_transform.shape[1]
+
+-
+
+-    assert (
+
+-        len(feature_names_out_default) == n_features_out
+
+-    ), f"Expected {n_features_out} feature names, got {len(feature_names_out_default)}"
+
++import pandas as pd
+
++from sklearn.base import BaseEstimator, TransformerMixin
+
++from sklearn import set_config
+
++from sklearn.pipeline import make_union
+
++
+
++index = pd.date_range(start="2020-01-01", end="2020-05-01", inclusive="left", freq="H")
+
++data = pd.DataFrame(index=index, data=[10] * len(index), columns=["value"])
+
++data["date"] = index.date
+
++
+
++
+
++class MyTransformer(BaseEstimator, TransformerMixin):
+
++    def fit(self, X: pd.DataFrame, y: pd.Series | None = None, **kwargs):
+
++        return self
+
++
+
++    def transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+
++        # Aggregate the data and return a DataFrame with the same number of rows
+
++        aggregated_data = X["value"].groupby(X["date"]).sum()
+
++        # Create a DataFrame with the same index as the input
+
++        result = pd.DataFrame(index=X.index)
+
++        # Assign the aggregated values to a new column
+
++        result["aggregated_value"] = aggregated_data
+
++        return result
+
++
+
++
+
++# This works.
+
++set_config(transform_output="default")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
++
+
++# This works.
+
++set_config(transform_output="pandas")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
+ 
+
+ 
+
+ def check_param_validation(name, estimator_orig):

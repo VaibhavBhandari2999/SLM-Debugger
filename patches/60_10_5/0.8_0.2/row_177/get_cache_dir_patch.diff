@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -1052,6 +1052,10 @@
+     return True
+
+ 
+
+ 
+
++import os
+
++import sys
+
++from pathlib import Path
+
++
+
+ def get_cache_dir(file_path: Path) -> Path:
+
+     """Returns the cache directory to write .pyc files for the given .py file path"""
+
+     if sys.version_info >= (3, 8) and sys.pycache_prefix:

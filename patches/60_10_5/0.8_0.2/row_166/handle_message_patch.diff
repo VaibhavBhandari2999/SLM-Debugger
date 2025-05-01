@@ -1,0 +1,28 @@
+--- a/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/interfaces.py
++++ b/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/interfaces.py
+@@ -124,8 +124,12 @@
+ class IReporter(Interface):
+
+     """Reporter collect messages and display results encapsulated in a layout."""
+
+ 
+
+-    def handle_message(self, msg: Message) -> None:
+
++def handle_message(self, msg: Message) -> None:
+
+         """Handle the given message object."""
+
++        # Ensure the message template is correctly formatted
+
++        message_template = '{ "Category": "{category}" }'
+
++        # Print the message using the template
+
++        print(message_template.format(category=msg.category))
+
+ 
+
+     def display_reports(self, layout: Section) -> None:
+
+         """Display results encapsulated in the layout tree."""

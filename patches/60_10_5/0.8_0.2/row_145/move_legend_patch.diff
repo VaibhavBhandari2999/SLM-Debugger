@@ -1,0 +1,62 @@
+--- a/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
++++ b/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
+@@ -397,6 +397,9 @@
+                 ax_i.set_yticks(newticks)
+
+ 
+
+ 
+
++import seaborn as sns
+
++import matplotlib.pyplot as plt
+
++
+
+ def move_legend(obj, loc, **kwargs):
+
+     """
+
+     Recreate a plot's legend at a new location.
+
+@@ -435,10 +438,10 @@
+     if isinstance(obj, Grid):
+
+         old_legend = obj.legend
+
+         legend_func = obj.figure.legend
+
+-    elif isinstance(obj, mpl.axes.Axes):
+
++    elif isinstance(obj, plt.Axes):
+
+         old_legend = obj.legend_
+
+         legend_func = obj.legend
+
+-    elif isinstance(obj, mpl.figure.Figure):
+
++    elif isinstance(obj, plt.Figure):
+
+         if obj.legends:
+
+             old_legend = obj.legends[-1]
+
+         else:
+
+@@ -458,7 +461,7 @@
+ 
+
+     # Extract legend properties that can be passed to the recreation method
+
+     # (Vexingly, these don't all round-trip)
+
+-    legend_kws = inspect.signature(mpl.legend.Legend).parameters
+
++    legend_kws = inspect.signature(plt.legend.Legend).parameters
+
+     props = {k: v for k, v in old_legend.properties().items() if k in legend_kws}
+
+ 
+
+     # Delegate default bbox_to_anchor rules to matplotlib

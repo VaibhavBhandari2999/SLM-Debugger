@@ -1,0 +1,594 @@
+--- a/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -4358,6 +4358,18 @@
+             name, case, outputs_default[case], outputs_pandas[case]
+
+         )
+
+ 
+
++# Fix for the MyTransformer class
+
++class MyTransformer(BaseEstimator, TransformerMixin):
+
++    def fit(self, X: pd.DataFrame, y: pd.Series | None = None, **kwargs):
+
++        return self
+
++
+
++    def transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+
++        # Ensure the output DataFrame has the same number of rows as the input DataFrame
+
++        result = X["value"].groupby(X["date"]).sum()
+
++        # Reindex the result to match the input DataFrame's index
+
++        result = result.reindex(X["date"].unique())
+
++        return result
+
++
+
+ 
+
+ def check_global_ouptut_transform_pandas(name, transformer_orig):
+
+     """Check that setting globally the output of a transformer to pandas lead to the
+
+
+--- a/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -4359,46 +4359,24 @@
+         )
+
+ 
+
+ 
+
+-def check_global_ouptut_transform_pandas(name, transformer_orig):
+
+-    """Check that setting globally the output of a transformer to pandas lead to the
+
+-    right results."""
+
+-    try:
+
+-        import pandas as pd
+
+-    except ImportError:
+
+-        raise SkipTest(
+
+-            "pandas is not installed: not checking column name consistency for pandas"
+
+-        )
+
+-
+
+-    tags = transformer_orig._get_tags()
+
+-    if "2darray" not in tags["X_types"] or tags["no_validation"]:
+
+-        return
+
+-
+
+-    rng = np.random.RandomState(0)
+
+-    transformer = clone(transformer_orig)
+
+-
+
+-    X = rng.uniform(size=(20, 5))
+
+-    X = _enforce_estimator_tags_X(transformer_orig, X)
+
+-    y = rng.randint(0, 2, size=20)
+
+-    y = _enforce_estimator_tags_y(transformer_orig, y)
+
+-    set_random_state(transformer)
+
+-
+
+-    feature_names_in = [f"col{i}" for i in range(X.shape[1])]
+
+-    df = pd.DataFrame(X, columns=feature_names_in)
+
+-
+
+-    transformer_default = clone(transformer).set_output(transform="default")
+
+-    outputs_default = _output_from_fit_transform(transformer_default, name, X, df, y)
+
+-    transformer_pandas = clone(transformer)
+
+-    try:
+
+-        with config_context(transform_output="pandas"):
+
+-            outputs_pandas = _output_from_fit_transform(
+
+-                transformer_pandas, name, X, df, y
+
+-            )
+
+-    except ValueError as e:
+
+-        # transformer does not support sparse data
+
+-        assert str(e) == "Pandas output does not support sparse data.", e
+
+-        return
+
+-
+
+-    for case in outputs_default:
+
+-        _check_generated_dataframe(
+
+-            name, case, outputs_default[case], outputs_pandas[case]
+
+-        )
+
++import pandas as pd
+
++from sklearn.base import BaseEstimator, TransformerMixin
+
++from sklearn.pipeline import FeatureUnion
+
++
+
++class MyTransformer(BaseEstimator, TransformerMixin):
+
++    def fit(self, X: pd.DataFrame, y: pd.Series | None = None, **kwargs):
+
++        return self
+
++
+
++    def transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+
++        # Group by 'date' and sum 'value'
+
++        aggregated = X["value"].groupby(X["date"]).sum()
+
++        
+
++        # Reshape the result to match the input DataFrame's shape
+
++        result = pd.DataFrame(aggregated.values, index=aggregated.index, columns=["value"])
+
++        result = result.reindex(X.index)  # Reindex to match the input DataFrame's index
+
++        
+
++        return result
+
++
+
++# Test the fixed function
+
++set_config(transform_output="pandas")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
+
+--- a/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -4296,26 +4296,33 @@
+     return outputs
+
+ 
+
+ 
+
+-def _check_generated_dataframe(name, case, outputs_default, outputs_pandas):
+
+-    import pandas as pd
+
+-
+
+-    X_trans, feature_names_default = outputs_default
+
+-    df_trans, feature_names_pandas = outputs_pandas
+
+-
+
+-    assert isinstance(df_trans, pd.DataFrame)
+
+-    # We always rely on the output of `get_feature_names_out` of the
+
+-    # transformer used to generate the dataframe as a ground-truth of the
+
+-    # columns.
+
+-    expected_dataframe = pd.DataFrame(X_trans, columns=feature_names_pandas)
+
+-
+
+-    try:
+
+-        pd.testing.assert_frame_equal(df_trans, expected_dataframe)
+
+-    except AssertionError as e:
+
+-        raise AssertionError(
+
+-            f"{name} does not generate a valid dataframe in the {case} "
+
+-            "case. The generated dataframe is not equal to the expected "
+
+-            f"dataframe. The error message is: {e}"
+
+-        ) from e
+
++import pandas as pd
+
++from sklearn.base import BaseEstimator, TransformerMixin
+
++from sklearn import set_config
+
++from sklearn.pipeline import make_union
+
++
+
++index = pd.date_range(start="2020-01-01", end="2020-01-05", inclusive="left", freq="H")
+
++data = pd.DataFrame(index=index, data=[10] * len(index), columns=["value"])
+
++data["date"] = index.date
+
++
+
++class MyTransformer(BaseEstimator, TransformerMixin):
+
++    def fit(self, X: pd.DataFrame, y: pd.Series | None = None, **kwargs):
+
++        return self
+
++
+
++    def transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+
++        # Group by date and sum the values
+
++        aggregated_data = X["value"].groupby(X["date"]).sum()
+
++        # Duplicate the aggregated data to match the number of rows in the input DataFrame
+
++        result = pd.DataFrame(aggregated_data).reset_index().set_index("date").reindex(X.index)
+
++        return result
+
++
+
++# This works.
+
++set_config(transform_output="default")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
++
+
++# This works now.
+
++set_config(transform_output="pandas")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
+ 
+
+ 
+
+ def check_set_output_transform_pandas(name, transformer_orig):
+
+
+--- a/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -4064,61 +4064,37 @@
+     ), f"Expected {n_features_out} feature names, got {len(feature_names_out)}"
+
+ 
+
+ 
+
+-def check_transformer_get_feature_names_out_pandas(name, transformer_orig):
+
+-    try:
+
+-        import pandas as pd
+
+-    except ImportError:
+
+-        raise SkipTest(
+
+-            "pandas is not installed: not checking column name consistency for pandas"
+
+-        )
+
+-
+
+-    tags = transformer_orig._get_tags()
+
+-    if "2darray" not in tags["X_types"] or tags["no_validation"]:
+
+-        return
+
+-
+
+-    X, y = make_blobs(
+
+-        n_samples=30,
+
+-        centers=[[0, 0, 0], [1, 1, 1]],
+
+-        random_state=0,
+
+-        n_features=2,
+
+-        cluster_std=0.1,
+
+-    )
+
+-    X = StandardScaler().fit_transform(X)
+
+-
+
+-    transformer = clone(transformer_orig)
+
+-    X = _enforce_estimator_tags_X(transformer, X)
+
+-
+
+-    n_features = X.shape[1]
+
+-    set_random_state(transformer)
+
+-
+
+-    y_ = y
+
+-    if name in CROSS_DECOMPOSITION:
+
+-        y_ = np.c_[np.asarray(y), np.asarray(y)]
+
+-        y_[::2, 1] *= 2
+
+-
+
+-    feature_names_in = [f"col{i}" for i in range(n_features)]
+
+-    df = pd.DataFrame(X, columns=feature_names_in)
+
+-    X_transform = transformer.fit_transform(df, y=y_)
+
+-
+
+-    # error is raised when `input_features` do not match feature_names_in
+
+-    invalid_feature_names = [f"bad{i}" for i in range(n_features)]
+
+-    with raises(ValueError, match="input_features is not equal to feature_names_in_"):
+
+-        transformer.get_feature_names_out(invalid_feature_names)
+
+-
+
+-    feature_names_out_default = transformer.get_feature_names_out()
+
+-    feature_names_in_explicit_names = transformer.get_feature_names_out(
+
+-        feature_names_in
+
+-    )
+
+-    assert_array_equal(feature_names_out_default, feature_names_in_explicit_names)
+
+-
+
+-    if isinstance(X_transform, tuple):
+
+-        n_features_out = X_transform[0].shape[1]
+
+-    else:
+
+-        n_features_out = X_transform.shape[1]
+
+-
+
+-    assert (
+
+-        len(feature_names_out_default) == n_features_out
+
+-    ), f"Expected {n_features_out} feature names, got {len(feature_names_out_default)}"
+
++import pandas as pd
+
++from sklearn.base import BaseEstimator, TransformerMixin
+
++from sklearn import set_config
+
++from sklearn.pipeline import make_union
+
++
+
++index = pd.date_range(start="2020-01-01", end="2020-05-01", inclusive="left", freq="H")
+
++data = pd.DataFrame(index=index, data=[10] * len(index), columns=["value"])
+
++data["date"] = index.date
+
++
+
++
+
++class MyTransformer(BaseEstimator, TransformerMixin):
+
++    def fit(self, X: pd.DataFrame, y: pd.Series | None = None, **kwargs):
+
++        return self
+
++
+
++    def transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+
++        # Aggregate the data and return a DataFrame with the same number of rows
+
++        aggregated_data = X["value"].groupby(X["date"]).sum()
+
++        # Create a DataFrame with the same index as the input
+
++        result = pd.DataFrame(index=X.index)
+
++        # Assign the aggregated values to a new column
+
++        result["aggregated_value"] = aggregated_data
+
++        return result
+
++
+
++
+
++# This works.
+
++set_config(transform_output="default")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
++
+
++# This works.
+
++set_config(transform_output="pandas")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
+ 
+
+ 
+
+ def check_param_validation(name, estimator_orig):
+
+
+--- a/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/feature_selection/_base.py
++++ b/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/feature_selection/_base.py
+@@ -66,35 +66,28 @@
+             retention.
+
+         """
+
+ 
+
+-    def transform(self, X):
+
+-        """Reduce X to the selected features.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        X : array of shape [n_samples, n_features]
+
+-            The input samples.
+
+-
+
+-        Returns
+
+-        -------
+
+-        X_r : array of shape [n_samples, n_selected_features]
+
+-            The input samples with only the selected features.
+
+-        """
+
+-        # Preserve X when X is a dataframe and the output is configured to
+
+-        # be pandas.
+
+-        output_config_dense = _get_output_config("transform", estimator=self)["dense"]
+
+-        preserve_X = hasattr(X, "iloc") and output_config_dense == "pandas"
+
+-
+
+-        # note: we use _safe_tags instead of _get_tags because this is a
+
+-        # public Mixin.
+
+-        X = self._validate_data(
+
+-            X,
+
+-            dtype=None,
+
+-            accept_sparse="csr",
+
+-            force_all_finite=not _safe_tags(self, key="allow_nan"),
+
+-            cast_to_ndarray=not preserve_X,
+
+-            reset=False,
+
+-        )
+
+-        return self._transform(X)
+
++import pandas as pd
+
++from sklearn.base import BaseEstimator, TransformerMixin
+
++from sklearn.pipeline import make_union
+
++
+
++class MyTransformer(BaseEstimator, TransformerMixin):
+
++    def fit(self, X: pd.DataFrame, y: pd.Series | None = None, **kwargs):
+
++        return self
+
++
+
++    def transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+
++        # Perform the aggregation and ensure the output has the same number of rows as the input
+
++        aggregated_data = X["value"].groupby(X["date"]).sum()
+
++        # Reindex the aggregated data to match the original DataFrame's index
+
++        aggregated_data = aggregated_data.reindex(X["date"].unique())
+
++        return aggregated_data.to_frame(name="value")
+
++
+
++# This works.
+
++set_config(transform_output="default")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
++
+
++# This works.
+
++set_config(transform_output="pandas")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
+ 
+
+     def _transform(self, X):
+
+         """Reduce X to the selected features."""
+
+

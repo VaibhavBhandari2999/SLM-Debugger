@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -317,7 +317,7 @@
+         """
+
+         return True
+
+ 
+
+-    def __special__(self):
+
++def __special__(self):
+
+         """By default special members with docstrings are not included.
+
+ 
+
+         Special members are any methods or attributes that start with and
+
+@@ -330,6 +330,10 @@
+ 
+
+             napoleon_include_special_with_doc = True
+
+ 
+
++        Attributes
+
++        ----------
+
++        hello_: int
+
++            hi
+
+         """
+
+         pass
+
+ 

@@ -1,0 +1,83 @@
+--- a/decoupled/60/0.8_0.2/226/sympy_sympy/sympy/functions/special/singularity_functions.py
++++ b/decoupled/60/0.8_0.2/226/sympy_sympy/sympy/functions/special/singularity_functions.py
+@@ -82,6 +82,12 @@
+ 
+
+     is_real = True
+
+ 
+
++from sympy.printing.mathematica import MCodePrinter
+
++
+
++class DiracDeltaFunction:
+
++    def __init__(self, x, a, n):
+
++        self.args = (x, a, n)
+
++
+
+     def fdiff(self, argindex=1):
+
+         '''
+
+         Returns the first derivative of a DiracDelta Function.
+
+@@ -101,9 +107,27 @@
+             if n == 0 or n == -1:
+
+                 return self.func(x, a, n-1)
+
+             elif n.is_positive:
+
+-                return n*self.func(x, a, n-1)
+
++                return n * self.func(x, a, n-1)
+
+         else:
+
+             raise ArgumentIndexError(self, argindex)
+
++
+
++    def func(self, x, a, n):
+
++        # Placeholder for the actual DiracDelta function
+
++        return sympify('DiracDelta(x - a)**%s' % n)
+
++
+
++# Custom printer methods
+
++class CustomMCodePrinter(MCodePrinter):
+
++    def _print_Derivative(self, expr):
+
++        return "D[%s]" % (self.stringify(expr.args, ", "))
+
++
+
++    def _print_Float(self, expr):
+
++        res = str(expr)
+
++        return res.replace('e', '*^')
+
++
+
++# Example usage
+
++dd = DiracDeltaFunction('x', 'a', 1)
+
++printer = CustomMCodePrinter()
+
++print(printer.doprint(dd.fdiff().fdiff()))  # Example of using the printer
+
+ 
+
+     @classmethod
+
+     def eval(cls, variable, offset, exponent):

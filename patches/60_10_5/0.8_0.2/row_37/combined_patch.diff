@@ -1,0 +1,449 @@
+--- a/decoupled/60/0.8_0.2/37/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/37/django_django/django/db/models/base.py
+@@ -663,91 +663,10 @@
+             return getattr(self, field_name)
+
+         return getattr(self, field.attname)
+
+ 
+
+-    def save(self, force_insert=False, force_update=False, using=None,
+
+-             update_fields=None):
+
+-        """
+
+-        Save the current instance. Override this in a subclass if you want to
+
+-        control the saving process.
+
+-
+
+-        The 'force_insert' and 'force_update' parameters can be used to insist
+
+-        that the "save" must be an SQL insert or update (or equivalent for
+
+-        non-SQL backends), respectively. Normally, they should not be set.
+
+-        """
+
+-        # Ensure that a model instance without a PK hasn't been assigned to
+
+-        # a ForeignKey or OneToOneField on this model. If the field is
+
+-        # nullable, allowing the save() would result in silent data loss.
+
+-        for field in self._meta.concrete_fields:
+
+-            # If the related field isn't cached, then an instance hasn't
+
+-            # been assigned and there's no need to worry about this check.
+
+-            if field.is_relation and field.is_cached(self):
+
+-                obj = getattr(self, field.name, None)
+
+-                if not obj:
+
+-                    continue
+
+-                # A pk may have been assigned manually to a model instance not
+
+-                # saved to the database (or auto-generated in a case like
+
+-                # UUIDField), but we allow the save to proceed and rely on the
+
+-                # database to raise an IntegrityError if applicable. If
+
+-                # constraints aren't supported by the database, there's the
+
+-                # unavoidable risk of data corruption.
+
+-                if obj.pk is None:
+
+-                    # Remove the object from a related instance cache.
+
+-                    if not field.remote_field.multiple:
+
+-                        field.remote_field.delete_cached_value(obj)
+
+-                    raise ValueError(
+
+-                        "save() prohibited to prevent data loss due to "
+
+-                        "unsaved related object '%s'." % field.name
+
+-                    )
+
+-                elif getattr(self, field.attname) is None:
+
+-                    # Use pk from related object if it has been saved after
+
+-                    # an assignment.
+
+-                    setattr(self, field.attname, obj.pk)
+
+-                # If the relationship's pk/to_field was changed, clear the
+
+-                # cached relationship.
+
+-                if getattr(obj, field.target_field.attname) != getattr(self, field.attname):
+
+-                    field.delete_cached_value(self)
+
+-
+
+-        using = using or router.db_for_write(self.__class__, instance=self)
+
+-        if force_insert and (force_update or update_fields):
+
+-            raise ValueError("Cannot force both insert and updating in model saving.")
+
+-
+
+-        deferred_fields = self.get_deferred_fields()
+
+-        if update_fields is not None:
+
+-            # If update_fields is empty, skip the save. We do also check for
+
+-            # no-op saves later on for inheritance cases. This bailout is
+
+-            # still needed for skipping signal sending.
+
+-            if not update_fields:
+
+-                return
+
+-
+
+-            update_fields = frozenset(update_fields)
+
+-            field_names = set()
+
+-
+
+-            for field in self._meta.fields:
+
+-                if not field.primary_key:
+
+-                    field_names.add(field.name)
+
+-
+
+-                    if field.name != field.attname:
+
+-                        field_names.add(field.attname)
+
+-
+
+-            non_model_fields = update_fields.difference(field_names)
+
+-
+
+-            if non_model_fields:
+
+-                raise ValueError("The following fields do not exist in this "
+
+-                                 "model or are m2m fields: %s"
+
+-                                 % ', '.join(non_model_fields))
+
+-
+
+-        # If saving to the same database, and this model is deferred, then
+
+-        # automatically do an "update_fields" save on the loaded fields.
+
+-        elif not force_insert and deferred_fields and using == self._state.db:
+
+-            field_names = set()
+
+-            for field in self._meta.concrete_fields:
+
+-                if not field.primary_key and not hasattr(field, 'through'):
+
+-                    field_names.add(field.attname)
+
+-            loaded_fields = field_names.difference(deferred_fields)
+
+-            if loaded_fields:
+
+-                update_fields = frozenset(loaded_fields)
+
+-
+
+-        self.save_base(using=using, force_insert=force_insert,
+
+-                       force_update=force_update, update_fields=update_fields)
+
++raise ValueError(
+
++    "save() prohibited to prevent data loss due to "
+
++    "unsaved related object '%s'." % field.name
+
++)
+
+     save.alters_data = True
+
+ 
+
+     def save_base(self, raw=False, force_insert=False,
+
+
+--- a/decoupled/60/0.8_0.2/37/django_django/django/core/checks/model_checks.py
++++ b/decoupled/60/0.8_0.2/37/django_django/django/core/checks/model_checks.py
+@@ -182,27 +182,7 @@
+             'model': '.'.join(model_key),
+
+             'model_error': app_model_error(model_key),
+
+         }
+
+-        return Error(error_msg % params, obj=func, id='models.E022')
+
+-
+
+-    # Maps common uses of lazy operations to corresponding error functions
+
+-    # defined above. If a key maps to None, no error will be produced.
+
+-    # default_error() will be used for usages that don't appear in this dict.
+
+-    known_lazy = {
+
+-        ('django.db.models.fields.related', 'resolve_related_class'): field_error,
+
+-        ('django.db.models.fields.related', 'set_managed'): None,
+
+-        ('django.dispatch.dispatcher', 'connect'): signal_connect_error,
+
+-    }
+
+-
+
+-    def build_error(model_key, func, args, keywords):
+
+-        key = (func.__module__, func.__name__)
+
+-        error_fn = known_lazy.get(key, default_error)
+
+-        return error_fn(model_key, func, args, keywords) if error_fn else None
+
+-
+
+-    return sorted(filter(None, (
+
+-        build_error(model_key, *extract_operation(func))
+
+-        for model_key in pending_models
+
+-        for func in apps._pending_operations[model_key]
+
+-    )), key=lambda error: error.msg)
+
++        return Error(error_msg % params, obj=func, id='
+
+ 
+
+ 
+
+ @register(Tags.models)
+
+
+--- a/decoupled/60/0.8_0.2/37/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/37/django_django/django/db/models/deletion.py
+@@ -211,7 +211,7 @@
+         else:
+
+             return [objs]
+
+ 
+
+-    def collect(self, objs, source=None, nullable=False, collect_related=True,
+
++def collect(self, objs, source=None, nullable=False, collect_related=True,
+
+                 source_attr=None, reverse_dependency=False, keep_parents=False,
+
+                 fail_on_restricted=True):
+
+         """
+
+@@ -305,43 +305,7 @@
+                     model.__name__,
+
+                     ', '.join(protected_objects),
+
+                 ),
+
+-                chain.from_iterable(protected_objects.values()),
+
+-            )
+
+-        for related_model, related_fields in model_fast_deletes.items():
+
+-            batches = self.get_del_batches(new_objs, related_fields)
+
+-            for batch in batches:
+
+-                sub_objs = self.related_objects(related_model, related_fields, batch)
+
+-                self.fast_deletes.append(sub_objs)
+
+-        for field in model._meta.private_fields:
+
+-            if hasattr(field, 'bulk_related_objects'):
+
+-                # It's something like generic foreign key.
+
+-                sub_objs = field.bulk_related_objects(new_objs, self.using)
+
+-                self.collect(sub_objs, source=model, nullable=True, fail_on_restricted=False)
+
+-
+
+-        if fail_on_restricted:
+
+-            # Raise an error if collected restricted objects (RESTRICT) aren't
+
+-            # candidates for deletion also collected via CASCADE.
+
+-            for related_model, instances in self.data.items():
+
+-                self.clear_restricted_objects_from_set(related_model, instances)
+
+-            for qs in self.fast_deletes:
+
+-                self.clear_restricted_objects_from_queryset(qs.model, qs)
+
+-            if self.restricted_objects.values():
+
+-                restricted_objects = defaultdict(list)
+
+-                for related_model, fields in self.restricted_objects.items():
+
+-                    for field, objs in fields.items():
+
+-                        if objs:
+
+-                            key = "'%s.%s'" % (related_model.__name__, field.name)
+
+-                            restricted_objects[key] += objs
+
+-                if restricted_objects:
+
+-                    raise RestrictedError(
+
+-                        'Cannot delete some instances of model %r because '
+
+-                        'they are referenced through restricted foreign keys: '
+
+-                        '%s.' % (
+
+-                            model.__name__,
+
+-                            ', '.join(restricted_objects),
+
+-                        ),
+
+-                        chain.from_iterable(restricted_objects.values()),
+
+-                    )
+
++                chain.from_iter
+
+ 
+
+     def related_objects(self, related_model, related_fields, objs):
+
+         """
+
+
+
+
+--- a/decoupled/60/0.8_0.2/37/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/37/django_django/django/db/models/fields/related_descriptors.py
+@@ -943,23 +943,23 @@
+                 False,
+
+             )
+
+ 
+
+-        def add(self, *objs, through_defaults=None):
+
+-            self._remove_prefetched_objects()
+
+-            db = router.db_for_write(self.through, instance=self.instance)
+
+-            with transaction.atomic(using=db, savepoint=False):
+
+-                self._add_items(
+
+-                    self.source_field_name, self.target_field_name, *objs,
+
+-                    through_defaults=through_defaults,
+
+-                )
+
+-                # If this is a symmetrical m2m relation to self, add the mirror
+
+-                # entry in the m2m table.
+
+-                if self.symmetrical:
+
+-                    self._add_items(
+
+-                        self.target_field_name,
+
+-                        self.source_field_name,
+
+-                        *objs,
+
+-                        through_defaults=through_defaults,
+
+-                    )
+
++def add(self, *objs, through_defaults=None):
+
++    self._remove_prefetched_objects()
+
++    db = router.db_for_write(self.through, instance=self.instance)
+
++    with transaction.atomic(using=db, savepoint=False):
+
++        self._add_items(
+
++            self.source_field_name, self.target_field_name, *objs,
+
++            through_defaults=through_defaults,
+
++        )
+
++        # If this is a recursive relationship with an intermediary model, add the mirror
+
++        # entry in the m2m table.
+
++        if self.through._meta.auto_created and self.through._meta.proxy:
+
++            self._add_items(
+
++                self.target_field_name,
+
++                self.source_field_name,
+
++                *objs,
+
++                through_defaults=through_defaults,
+
++            )
+
+         add.alters_data = True
+
+ 
+
+         def remove(self, *objs):
+
+

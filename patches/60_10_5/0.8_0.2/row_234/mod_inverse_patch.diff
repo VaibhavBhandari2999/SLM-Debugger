@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/234/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/234/sympy_sympy/sympy/core/numbers.py
+@@ -446,9 +446,6 @@
+     Examples
+
+     ========
+
+ 
+
+-    >>> from sympy import S
+
+-    >>> from sympy.core.numbers import mod_inverse
+
+-
+
+     Suppose we wish to find multiplicative inverse x of
+
+     3 modulo 11. This is the same as finding x such
+
+     that 3 * x = 1 (mod 11). One value of x that satisfies
+
+@@ -485,6 +482,8 @@
+                 c = x % m
+
+             if a < 0:
+
+                 c -= m
+
++        elif not a.is_integer:
+
++            return S.Zero
+
+     except ValueError:
+
+         a, m = sympify(a), sympify(m)
+
+         if not (a.is_number and m.is_number):

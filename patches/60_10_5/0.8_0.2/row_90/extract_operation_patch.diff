@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/90/django_django/django/core/checks/model_checks.py
++++ b/decoupled/60/0.8_0.2/90/django_django/django/core/checks/model_checks.py
+@@ -109,7 +109,7 @@
+         if isinstance(signal, signals.ModelSignal)
+
+     }
+
+ 
+
+-    def extract_operation(obj):
+
++def extract_operation(obj):
+
+         """
+
+         Take a callable found in Apps._pending_operations and identify the
+
+         original callable passed to Apps.lazy_model_operation(). If that
+
+@@ -121,9 +121,13 @@
+         """
+
+         operation, args, keywords = obj, [], {}
+
+         while hasattr(operation, 'func'):
+
+-            args.extend(getattr(operation, 'args', []))
+
+-            keywords.update(getattr(operation, 'keywords', {}))
+
+-            operation = operation.func
+
++            # Check if the operation is a string and if it is, ensure it remains an empty string
+
++            if isinstance(operation, str) and operation == "":
+
++                operation = ""
+
++            else:
+
++                args.extend(getattr(operation, 'args', []))
+
++                keywords.update(getattr(operation, 'keywords', {}))
+
++                operation = operation.func
+
+         return operation, args, keywords
+
+ 
+
+     def app_model_error(model_key):

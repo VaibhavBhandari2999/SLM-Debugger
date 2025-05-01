@@ -1,0 +1,42 @@
+--- a/decoupled/60/0.8_0.2/29/django_django/tests/admin_views/test_multidb.py
++++ b/decoupled/60/0.8_0.2/29/django_django/tests/admin_views/test_multidb.py
+@@ -31,16 +31,19 @@
+     databases = {'default', 'other'}
+
+ 
+
+     @classmethod
+
++@classmethod
+
+     def setUpTestData(cls):
+
+         cls.superusers = {}
+
+         cls.test_book_ids = {}
+
+         for db in connections:
+
++            # Use a separate database name for each test case to avoid locking issues
+
+             Router.target_db = db
+
+             cls.superusers[db] = User.objects.create_superuser(
+
+                 username='admin', password='something', email='test@test.org',
+
++                using=f'{db}_test'  # Use a separate test database name
+
+             )
+
+             b = Book(name='Test Book')
+
+-            b.save(using=db)
+
++            b.save(using=f'{db}_test')  # Use the separate test database name
+
+             cls.test_book_ids[db] = b.id
+
+ 
+
+     @mock.patch('django.contrib.admin.options.transaction')

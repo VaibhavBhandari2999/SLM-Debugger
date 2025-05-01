@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/265/sympy_sympy/sympy/simplify/tests/test_hyperexpand.py
++++ b/decoupled/60/0.8_0.2/265/sympy_sympy/sympy/simplify/tests/test_hyperexpand.py
+@@ -845,6 +845,8 @@
+                     if ci <= bi:
+
+                         assert can_do([ai, bi], [ci, di])
+
+ 
+
++
+
++from sympy import S
+
+ 
+
+ def test_prudnikov_9():
+
+     # 7.13.1 [we have a general formula ... so this is a bit pointless]

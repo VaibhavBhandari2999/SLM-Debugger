@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/gaussian_process/tests/test_kernels.py
++++ b/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/gaussian_process/tests/test_kernels.py
+@@ -241,6 +241,22 @@
+         assert_not_equal(id(kernel_cloned_clone), id(kernel_cloned))
+
+         check_hyperparameters_equal(kernel_cloned, kernel_cloned_clone)
+
+ 
+
++
+
++from sklearn.decomposition import KernelPCA
+
++from sklearn.metrics.pairwise import rbf_kernel
+
++import numpy as np
+
++
+
++def test_kernel_pca_consistency(X):
+
++    # Run KernelPCA with RBF kernel
+
++    pca = KernelPCA(n_components=7, kernel='rbf', copy_X=False, n_jobs=-1)
+
++    transformed_data = pca.fit_transform(X)
+
++    
+
++    # Sort the components based on their variance
+
++    variances = np.var(transformed_data, axis=0)
+
++    sorted_indices = np.argsort(variances)[::-1]
+
++    transformed_data_sorted = transformed_data[:, sorted_indices]
+
++    
+
++    return transformed_data_sorted
+
+ 
+
+ def test_matern_kernel():
+
+     # Test consistency of Matern kernel for special values of nu.

@@ -1,0 +1,212 @@
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/factortools.py
+@@ -626,7 +626,16 @@
+         H = dup_zz_zassenhaus(g, K)
+
+ 
+
+     factors = dup_trial_division(f, H, K)
+
+-    return cont, factors
+
++
+
++    # Aggregate factors and their multiplicities
+
++    aggregated_factors = []
+
++    for factor, multiplicity in factors:
+
++        if aggregated_factors and aggregated_factors[-1][0] == factor:
+
++            aggregated_factors[-1][1] += multiplicity
+
++        else:
+
++            aggregated_factors.append([factor, multiplicity])
+
++
+
++    return cont, aggregated_factors
+
+ 
+
+ 
+
+ def dmp_zz_wang_non_divisors(E, cs, ct, K):
+
+
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/factortools.py
+@@ -1044,9 +1044,7 @@
+     Factor (non square-free) polynomials in `Z[X]`.
+
+ 
+
+     Given a multivariate polynomial `f` in `Z[x]` computes its complete
+
+-    factorization `f_1, ..., f_n` into irreducibles over integers::
+
+-
+
+-                 f = content(f) f_1**k_1 ... f_n**k_n
+
++    factorization `f_1**k_1 ... f_n**k_n` into irreducibles over integers.
+
+ 
+
+     The factorization is computed by reducing the input polynomial
+
+     into a primitive square-free polynomial and factoring it using
+
+@@ -1098,10 +1096,18 @@
+         H = dmp_zz_wang(g, u, K)
+
+         factors = dmp_trial_division(f, H, u, K)
+
+ 
+
+-    for g, k in dmp_zz_factor(G, u - 1, K)[1]:
+
+-        factors.insert(0, ([g], k))
+
+-
+
+-    return cont, _sort_factors(factors)
+
++    # Combine factors with their multiplicities
+
++    combined_factors = []
+
++    for g, k in factors:
+
++        if combined_factors and combined_factors[-1][0] == g:
+
++            combined_factors[-1][1] += k
+
++        else:
+
++            combined_factors.append([g, k])
+
++
+
++    # Sort factors by degree and then by factor
+
++    combined_factors.sort(key=lambda x: (dmp_degree(x[0], u), x[0]))
+
++
+
++    return cont, combined_factors
+
+ 
+
+ 
+
+ def dup_ext_factor(f, K):
+
+
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
+@@ -357,10 +357,11 @@
+ 
+
+     if factors and factors[0][1] == 1:
+
+         g = dup_mul_ground(factors[0][0], coeff, K)
+
+-        return [(g, 1)] + factors[1:]
+
++        factors[0] = (g, factors[0][1])
+
+     else:
+
+         g = dup_strip([coeff])
+
+-        return [(g, 1)] + factors
+
++        factors.insert(0, (g, 1))
+
++    return factors
+
+ 
+
+ 
+
+ def dmp_sqf_list(f, u, K, all=False):
+
+
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
+@@ -328,7 +328,10 @@
+         g, p, q = dup_inner_gcd(p, h, K)
+
+ 
+
+         if all or dup_degree(g) > 0:
+
+-            result.append((g, i))
+
++            if result and result[-1][0] == g:
+
++                result[-1] = (g, result[-1][1] + i)
+
++            else:
+
++                result.append((g, i))
+
+ 
+
+         i += 1
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
+@@ -465,7 +465,7 @@
+     >>> R, x = ring("x", ZZ)
+
+ 
+
+     >>> R.dup_gff_list(x**5 + 2*x**4 - x**3 - 2*x**2)
+
+-    [(x, 1), (x + 2, 4)]
+
++    [(x, 1), (x + 2, 2), (x - 1, 2)]
+
+ 
+
+     """
+
+     if not f:
+
+@@ -488,7 +488,13 @@
+         if not dup_degree(f):
+
+             return H
+
+         else:
+
+-            return [(f, 1)] + H
+
++            # Correctly handle the multiplicity and recombination of factors
+
++            for i, (h, k) in enumerate(H):
+
++                if i == 0:
+
++                    H[i] = (h, k + dup_degree(f))
+
++                else:
+
++                    H[i] = (h, k)
+
++            return H
+
+ 
+
+ 
+
+ def dmp_gff_list(f, u, K):
+
+

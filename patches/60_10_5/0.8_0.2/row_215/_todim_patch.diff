@@ -1,0 +1,78 @@
+--- a/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/sphinx/jinja2glue.py
++++ b/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/sphinx/jinja2glue.py
+@@ -40,22 +40,22 @@
+         return 0
+
+ 
+
+ 
+
+-def _todim(val: Union[int, str]) -> str:
+
+-    """
+
+-    Make val a css dimension. In particular the following transformations
+
+-    are performed:
+
+-
+
+-    - None -> 'initial' (default CSS value)
+
+-    - 0 -> '0'
+
+-    - ints and string representations of ints are interpreted as pixels.
+
+-
+
+-    Everything else is returned unchanged.
+
+-    """
+
+-    if val is None:
+
+-        return 'initial'
+
+-    elif str(val).isdigit():
+
+-        return '0' if int(val) == 0 else '%spx' % val
+
+-    return val  # type: ignore
+
++# example.py
+
++from __future__ import annotations
+
++
+
++from typing import TYPE_CHECKING
+
++
+
++if TYPE_CHECKING:
+
++    from example import MyString
+
++
+
++#: blah blah blah
+
++var: MyString
+
++
+
++class MyString:
+
++    "mystring"
+
++
+
++    #: blah blah blah
+
++    var: MyString
+
+ 
+
+ 
+
+ def _slice_index(values: List, slices: int) -> Iterator[List]:

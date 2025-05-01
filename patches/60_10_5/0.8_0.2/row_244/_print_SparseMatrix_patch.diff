@@ -1,0 +1,60 @@
+--- a/decoupled/60/0.8_0.2/244/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/244/sympy_sympy/sympy/printing/octave.py
+@@ -312,15 +312,20 @@
+                                   for r in range(A.rows))
+
+ 
+
+ 
+
+-    def _print_SparseMatrix(self, A):
+
+-        from sympy.matrices import Matrix
+
+-        L = A.col_list();
+
+-        # make row vectors of the indices and entries
+
+-        I = Matrix([[k[0] + 1 for k in L]])
+
+-        J = Matrix([[k[1] + 1 for k in L]])
+
+-        AIJ = Matrix([[k[2] for k in L]])
+
+-        return "sparse(%s, %s, %s, %s, %s)" % (self._print(I), self._print(J),
+
+-                                            self._print(AIJ), A.rows, A.cols)
+
++from sympy.matrices import Matrix
+
++from sympy.printing.pretty import prettyprint
+
++
+
++def _print_SparseMatrix(self, A):
+
++    L = A.col_list()
+
++    # make row vectors of the indices and entries
+
++    I = Matrix([[k[0] + 1 for k in L]])
+
++    J = Matrix([[k[1] + 1 for k in L]])
+
++    AIJ = Matrix([[k[2] for k in L]])
+
++    # Use prettyprint to format the vector expression
+
++    pretty_I = prettyprint(I, use_unicode=True)
+
++    pretty_J = prettyprint(J, use_unicode=True)
+
++    pretty_AIJ = prettyprint(AIJ, use_unicode=True)
+
++    return "sparse(%s, %s, %s, %s, %s)" % (pretty_I, pretty_J, pretty_AIJ, A.rows, A.cols)
+
+ 
+
+ 
+
+     # FIXME: Str/CodePrinter could define each of these to call the _print

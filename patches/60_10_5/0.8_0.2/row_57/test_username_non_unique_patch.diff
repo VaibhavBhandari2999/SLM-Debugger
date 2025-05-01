@@ -1,0 +1,136 @@
+--- a/decoupled/60/0.8_0.2/57/django_django/tests/auth_tests/test_checks.py
++++ b/decoupled/60/0.8_0.2/57/django_django/tests/auth_tests/test_checks.py
+@@ -60,31 +60,45 @@
+         ])
+
+ 
+
+     @override_settings(AUTH_USER_MODEL='auth_tests.CustomUserNonUniqueUsername')
+
+-    def test_username_non_unique(self):
+
+-        """
+
+-        A non-unique USERNAME_FIELD raises an error only if the default
+
+-        authentication backend is used. Otherwise, a warning is raised.
+
+-        """
+
++from django.contrib.auth.tokens import PasswordResetTokenGenerator
+
++from django.utils import six
+
++
+
++class CustomPasswordResetTokenGenerator(PasswordResetTokenGenerator):
+
++    def _make_hash_value(self, user, timestamp):
+
++        # Include the user's email address in the hash value
+
++        return (
+
++            six.text_type(user.pk) + six.text_type(timestamp) +
+
++            six.text_type(user.email)
+
++        )
+
++
+
++# Replace the default PasswordResetTokenGenerator with the custom one
+
++PasswordResetTokenGenerator = CustomPasswordResetTokenGenerator()
+
++
+
++def test_username_non_unique(self):
+
++    """
+
++    A non-unique USERNAME_FIELD raises an error only if the default
+
++    authentication backend is used. Otherwise, a warning is raised.
+
++    """
+
++    errors = checks.run_checks()
+
++    self.assertEqual(errors, [
+
++        checks.Error(
+
++            "'CustomUserNonUniqueUsername.username' must be "
+
++            "unique because it is named as the 'USERNAME_FIELD'.",
+
++            obj=CustomUserNonUniqueUsername,
+
++            id='auth.E003',
+
++        ),
+
++    ])
+
++    with self.settings(AUTHENTICATION_BACKENDS=['my.custom.backend']):
+
+         errors = checks.run_checks()
+
+         self.assertEqual(errors, [
+
+-            checks.Error(
+
+-                "'CustomUserNonUniqueUsername.username' must be "
+
+-                "unique because it is named as the 'USERNAME_FIELD'.",
+
++            checks.Warning(
+
++                "'CustomUserNonUniqueUsername.username' is named as "
+
++                "the 'USERNAME_FIELD', but it is not unique.",
+
++                hint='Ensure that your authentication backend(s) can handle non-unique usernames.',
+
+                 obj=CustomUserNonUniqueUsername,
+
+-                id='auth.E003',
+
+-            ),
+
+-        ])
+
+-        with self.settings(AUTHENTICATION_BACKENDS=['my.custom.backend']):
+
+-            errors = checks.run_checks()
+
+-            self.assertEqual(errors, [
+
+-                checks.Warning(
+
+-                    "'CustomUserNonUniqueUsername.username' is named as "
+
+-                    "the 'USERNAME_FIELD', but it is not unique.",
+
+-                    hint='Ensure that your authentication backend(s) can handle non-unique usernames.',
+
+-                    obj=CustomUserNonUniqueUsername,
+
+-                    id='auth.W004',
+
+-                ),
+
+-            ])
+
++                id='auth.W004',
+
++            ),
+
++        ])
+
+ 
+
+     @override_settings(AUTH_USER_MODEL='auth_tests.CustomUserPartiallyUnique')
+
+     def test_username_partially_unique(self):

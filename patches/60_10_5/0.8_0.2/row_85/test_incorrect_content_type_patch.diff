@@ -1,0 +1,50 @@
+--- a/decoupled/60/0.8_0.2/85/django_django/tests/generic_relations/test_forms.py
++++ b/decoupled/60/0.8_0.2/85/django_django/tests/generic_relations/test_forms.py
+@@ -146,13 +146,17 @@
+         self.assertIsInstance(form['tag'].field.widget, CustomWidget)
+
+ 
+
+     @isolate_apps('generic_relations')
+
+-    def test_incorrect_content_type(self):
+
+-        class BadModel(models.Model):
+
+-            content_type = models.PositiveIntegerField()
+
+-
+
+-        msg = "fk_name 'generic_relations.BadModel.content_type' is not a ForeignKey to ContentType"
+
+-        with self.assertRaisesMessage(Exception, msg):
+
+-            generic_inlineformset_factory(BadModel, TaggedItemForm)
+
++def test_incorrect_content_type(self):
+
++    # Define a model with a PositiveIntegerField for content_type
+
++    class BadModel(models.Model):
+
++        content_type = models.PositiveIntegerField()
+
++
+
++    # Expected error message
+
++    msg = "fk_name 'generic_relations.BadModel.content_type' is not a ForeignKey to ContentType"
+
++
+
++    # Assert that an exception is raised with the expected message
+
++    with self.assertRaisesMessage(Exception, msg):
+
++        generic_inlineformset_factory(BadModel, TaggedItemForm)
+
+ 
+
+     def test_save_new_uses_form_save(self):
+
+         class SaveTestForm(forms.ModelForm):

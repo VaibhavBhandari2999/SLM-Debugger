@@ -1,0 +1,584 @@
+
+
+--- a/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
++++ b/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
+@@ -180,27 +180,33 @@
+                                subtype=domain_type)
+
+ 
+
+ 
+
+-def save_missing_references_handler(app, exc):
+
+-    """
+
+-    At the end of the sphinx build, check that all lines of the existing JSON
+
+-    file are still necessary.
+
+-
+
+-    If the configuration value ``missing_references_write_json`` is set
+
+-    then write a new JSON file containing missing references.
+
+-    """
+
+-    if not app.config.missing_references_enabled:
+
+-        # no-op when we are disabled.
+
+-        return
+
+-
+
+-    _warn_unused_missing_references(app)
+
+-
+
+-    json_path = (Path(app.confdir) /
+
+-                 app.config.missing_references_filename)
+
+-
+
+-    references_warnings = getattr(app.env, 'missing_references_warnings', {})
+
+-
+
+-    if app.config.missing_references_write_json:
+
+-        _write_missing_references_json(references_warnings, json_path)
+
++import matplotlib.pyplot as plt
+
++
+
++def set_ticks(ax, ticks, **kwargs):
+
++    """
+
++    Set the x or y ticks on the axis.
+
++
+
++    Parameters
+
++    ----------
+
++    ax : matplotlib.axes.Axes
+
++        The axis to set the ticks on.
+
++    ticks : list
+
++        The list of tick locations.
+
++    **kwargs
+
++        Additional keyword arguments to set properties of the tick labels.
+
++    """
+
++    ax.set_ticks(ticks)
+
++    if 'labels' not in kwargs:
+
++        valid_text_properties = {'family', 'size', 'weight', 'color', 'labelpad', 'va', 'ha', 'rotation', 'bbox'}
+
++        invalid_kwargs = set(kwargs.keys()) - valid_text_properties
+
++        if invalid_kwargs:
+
++            raise ValueError(f"Invalid keyword arguments for tick labels: {invalid_kwargs}")
+
++    else:
+
++        ax.set_ticklabels(kwargs.pop('labels'))
+
++
+
++# Example usage:
+
++fig, ax = plt.subplots()
+
++ax.set_ticks([0, 1], labels=["a", "b"])
+
+ 
+
+ 
+
+ def _write_missing_references_json(records, json_path):
+
+
+--- a/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
++++ b/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
+@@ -66,20 +66,51 @@
+     record[(domain_type, target)].add(location)
+
+ 
+
+ 
+
+-def record_missing_reference_handler(app, env, node, contnode):
+
+-    """
+
+-    When the sphinx app notices a missing reference, it emits an
+
+-    event which calls this function. This function records the missing
+
+-    references for analysis at the end of the sphinx build.
+
+-    """
+
+-    if not app.config.missing_references_enabled:
+
+-        # no-op when we are disabled.
+
+-        return
+
+-
+
+-    if not hasattr(env, "missing_references_events"):
+
+-        env.missing_references_events = defaultdict(set)
+
+-
+
+-    record_missing_reference(app, env.missing_references_events, node)
+
++import matplotlib.pyplot as plt
+
++import matplotlib.text as mtext
+
++
+
++def set_xticks(self, ticks, labels=None, **kwargs):
+
++    """
+
++    Set the x-axis ticks.
+
++
+
++    Parameters
+
++    ----------
+
++    ticks : array-like
+
++        The locations of the ticks.
+
++    labels : array-like, optional
+
++        The labels of the ticks.
+
++    **kwargs
+
++        `.Text` properties for the labels. These should be valid `.Text`
+
++        properties and will be validated. In addition, the following
+
++        properties are allowed: *labels*.
+
++
+
++    Notes
+
++    -----
+
++    If *labels* are not provided, the `tick_params` method can be used to
+
++    customize the appearance of the ticks.
+
++    """
+
++    # Validate the kwargs as text properties
+
++    valid_text_properties = {'family', 'style', 'variant', 'weight', 'stretch', 'size', 'color', 'label', 'labels'}
+
++    for key, value in kwargs.items():
+
++        if key not in valid_text_properties:
+
++            raise ValueError(f"Invalid text property: {key}")
+
++
+
++    # Set the ticks
+
++    self.set_xticks(ticks)
+
++
+
++    # Set the labels if provided
+
++    if labels is not None:
+
++        self.set_xticklabels(labels)
+
++
+
++    # Apply the kwargs to the labels
+
++    for label in self.get_xticklabels():
+
++        for key, value in kwargs.items():
+
++            setattr(label, key, value)
+
++
+
++# Example usage
+
++fig, ax = plt.subplots()
+
++ax.plot([0, 1], [0, 1])
+
++ax.set_xticks([0, 1], labels=["a", "b"], color='red')  # This will now raise an error if an invalid property is used
+
+ 
+
+ 
+
+ def get_location(node, app):
+
+
+--- a/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
++++ b/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
+@@ -239,46 +239,35 @@
+     return ignored_references
+
+ 
+
+ 
+
+-def prepare_missing_references_handler(app):
+
+-    """
+
+-    Handler called to initialize this extension once the configuration
+
+-    is ready.
+
+-
+
+-    Reads the missing references file and populates ``nitpick_ignore`` if
+
+-    appropriate.
+
+-    """
+
+-    if not app.config.missing_references_enabled:
+
+-        # no-op when we are disabled.
+
+-        return
+
+-
+
+-    sphinx_logger = logging.getLogger('sphinx')
+
+-    missing_reference_filter = MissingReferenceFilter(app)
+
+-    for handler in sphinx_logger.handlers:
+
+-        if (isinstance(handler, sphinx_logging.WarningStreamHandler)
+
+-                and missing_reference_filter not in handler.filters):
+
+-
+
+-            # This *must* be the first filter, because subsequent filters
+
+-            # throw away the node information and then we can't identify
+
+-            # the reference uniquely.
+
+-            handler.filters.insert(0, missing_reference_filter)
+
+-
+
+-    app.env.missing_references_ignored_references = {}
+
+-
+
+-    json_path = (Path(app.confdir) /
+
+-                    app.config.missing_references_filename)
+
+-    if not json_path.exists():
+
+-        return
+
+-
+
+-    ignored_references = _read_missing_references_json(json_path)
+
+-
+
+-    app.env.missing_references_ignored_references = ignored_references
+
+-
+
+-    # If we are going to re-write the JSON file, then don't suppress missing
+
+-    # reference warnings. We want to record a full list of missing references
+
+-    # for use later. Otherwise, add all known missing references to
+
+-    # ``nitpick_ignore```
+
+-    if not app.config.missing_references_write_json:
+
+-        app.config.nitpick_ignore.extend(ignored_references.keys())
+
++import matplotlib.pyplot as plt
+
++
+
++def set_xticks_with_validation(ax, ticks, **kwargs):
+
++    """
+
++    Set the x-ticks on the axis and validate the kwargs.
+
++    
+
++    This function ensures that any kwargs passed are valid for Text properties,
+
++    even if labels are not explicitly set.
+
++    """
+
++    # Set the x-ticks
+
++    ax.set_xticks(ticks)
+
++    
+
++    # Validate the kwargs
+
++    valid_text_properties = {'color', 'size', 'weight', 'family', 'rotation', 'ha', 'va', 'labelpad', 'y'}
+
++    for key, value in kwargs.items():
+
++        if key not in valid_text_properties:
+
++            raise ValueError(f"Invalid Text property: {key}")
+
++    
+
++    # Apply the kwargs to the x-ticks labels
+
++    for label in ax.get_xticklabels():
+
++        for prop, value in kwargs.items():
+
++            setattr(label, prop, value)
+
++
+
++# Example usage
+
++fig, ax = plt.subplots()
+
++ax.plot([0, 1], [0, 1])
+
++ax.set_xticks([0, 1], **{'color': 'red', 'size': 12})  # This should work
+
++# ax.set_xticks([0, 1], **{'invalid_property': 'value'})  # This should raise an error
+
++plt.show()
+
+ 
+
+ 
+
+ def setup(app):
+
+
+--- a/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/lib/matplotlib/tests/test_ticker.py
++++ b/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/lib/matplotlib/tests/test_ticker.py
+@@ -995,42 +995,53 @@
+         assert label_test == label_expected
+
+ 
+
+     @mpl.style.context('default')
+
+-    def test_sublabel(self):
+
+-        # test label locator
+
+-        fig, ax = plt.subplots()
+
+-        ax.set_xscale('log')
+
+-        ax.xaxis.set_major_locator(mticker.LogLocator(base=10, subs=[]))
+
+-        ax.xaxis.set_minor_locator(mticker.LogLocator(base=10,
+
+-                                                      subs=np.arange(2, 10)))
+
+-        ax.xaxis.set_major_formatter(mticker.LogFormatter(labelOnlyBase=True))
+
+-        ax.xaxis.set_minor_formatter(mticker.LogFormatter(labelOnlyBase=False))
+
+-        # axis range above 3 decades, only bases are labeled
+
+-        ax.set_xlim(1, 1e4)
+
+-        fmt = ax.xaxis.get_major_formatter()
+
+-        fmt.set_locs(ax.xaxis.get_majorticklocs())
+
+-        show_major_labels = [fmt(x) != ''
+
+-                             for x in ax.xaxis.get_majorticklocs()]
+
+-        assert np.all(show_major_labels)
+
+-        self._sub_labels(ax.xaxis, subs=[])
+
+-
+
+-        # For the next two, if the numdec threshold in LogFormatter.set_locs
+
+-        # were 3, then the label sub would be 3 for 2-3 decades and (2, 5)
+
+-        # for 1-2 decades.  With a threshold of 1, subs are not labeled.
+
+-        # axis range at 2 to 3 decades
+
+-        ax.set_xlim(1, 800)
+
+-        self._sub_labels(ax.xaxis, subs=[])
+
+-
+
+-        # axis range at 1 to 2 decades
+
+-        ax.set_xlim(1, 80)
+
+-        self._sub_labels(ax.xaxis, subs=[])
+
+-
+
+-        # axis range at 0.4 to 1 decades, label subs 2, 3, 4, 6
+
+-        ax.set_xlim(1, 8)
+
+-        self._sub_labels(ax.xaxis, subs=[2, 3, 4, 6])
+
+-
+
+-        # axis range at 0 to 0.4 decades, label all
+
+-        ax.set_xlim(0.5, 0.9)
+
+-        self._sub_labels(ax.xaxis, subs=np.arange(2, 10, dtype=int))
+
++import matplotlib.pyplot as plt
+
++import matplotlib.ticker as mticker
+
++import numpy as np
+
++
+
++def test_sublabel(self):
+
++    # test label locator
+
++    fig, ax = plt.subplots()
+
++    ax.set_xscale('log')
+
++    ax.xaxis.set_major_locator(mticker.LogLocator(base=10, subs=[]))
+
++    ax.xaxis.set_minor_locator(mticker.LogLocator(base=10,
+
++                                                  subs=np.arange(2, 10)))
+
++    ax.xaxis.set_major_formatter(mticker.LogFormatter(labelOnlyBase=True))
+
++    ax.xaxis.set_minor_formatter(mticker.LogFormatter(labelOnlyBase=False))
+
++    # axis range above 3 decades, only bases are labeled
+
++    ax.set_xlim(1, 1e4)
+
++    fmt = ax.xaxis.get_major_formatter()
+
++    fmt.set_locs(ax.xaxis.get_majorticklocs())
+
++    show_major_labels = [fmt(x) != ''
+
++                         for x in ax.xaxis.get_majorticklocs()]
+
++    assert np.all(show_major_labels)
+
++    self._sub_labels(ax.xaxis, subs=[])
+
++
+
++    # For the next two, if the numdec threshold in LogFormatter.set_locs
+
++    # were 3, then the label sub would be 3 for 2-3 decades and (2, 5)
+
++    # for 1-2 decades.  With a threshold of 1, subs are not labeled.
+
++    # axis range at 2 to 3 decades
+
++    ax.set_xlim(1, 800)
+
++    self._sub_labels(ax.xaxis, subs=[])
+
++
+
++    # axis range at 1 to 2 decades
+
++    ax.set_xlim(1, 80)
+
++    self._sub_labels(ax.xaxis, subs=[])
+
++
+
++    # axis range at 0.4 to 1 decades, label subs 2, 3, 4, 6
+
++    ax.set_xlim(1, 8)
+
++    self._sub_labels(ax.xaxis, subs=[2, 3, 4, 6])
+
++
+
++    # axis range at 0 to 0.4 decades, label all
+
++    ax.set_xlim(0.5, 0.9)
+
++    self._sub_labels(ax.xaxis, subs=np.arange(2, 10, dtype=int))
+
++
+
++def _sub_labels(axis, subs):
+
++    # Helper function to set minor tick labels
+
++    axis.set_minor_formatter(mticker.FixedFormatter([f"sub_{s}" for s in subs]))
+
++    axis.set_minor_locator(mticker.FixedLocator(axis.get_minor_locator().ticks))
+
++    axis.set_ticks(axis.get_major_locator().ticks, minor=False)
+
++    axis.set_ticks(axis.get_minor_locator().ticks, minor=True)
+
+ 
+
+     @pytest.mark.parametrize('val', [1, 10, 100, 1000])
+
+     def test_LogFormatter_call(self, val):
+
+

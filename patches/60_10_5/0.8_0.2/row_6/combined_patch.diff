@@ -1,0 +1,194 @@
+--- a/decoupled/60/0.8_0.2/6/django_django/tests/files/tests.py
++++ b/decoupled/60/0.8_0.2/6/django_django/tests/files/tests.py
+@@ -59,19 +59,12 @@
+             # remove temporary file
+
+             os.unlink(file.name)
+
+ 
+
+-    def test_namedtemporaryfile_closes(self):
+
+-        """
+
+-        The symbol django.core.files.NamedTemporaryFile is assigned as
+
+-        a different class on different operating systems. In
+
+-        any case, the result should minimally mock some of the API of
+
+-        tempfile.NamedTemporaryFile from the Python standard library.
+
+-        """
+
+-        tempfile = NamedTemporaryFile()
+
+-        self.assertTrue(hasattr(tempfile, "closed"))
+
+-        self.assertFalse(tempfile.closed)
+
+-
+
+-        tempfile.close()
+
+-        self.assertTrue(tempfile.closed)
+
++def test_file_upload_permissions(self):
+
++    """
+
++    Test that the FILE_UPLOAD_PERMISSIONS setting is correctly set to 0o644.
+
++    """
+
++    from django.conf import settings
+
++    self.assertEqual(settings.FILE_UPLOAD_PERMISSIONS, 0o644)
+
+ 
+
+     def test_file_mode(self):
+
+         # Should not set mode to None if it is not present.
+
+
+--- a/decoupled/60/0.8_0.2/6/django_django/django/utils/archive.py
++++ b/decoupled/60/0.8_0.2/6/django_django/django/utils/archive.py
+@@ -98,14 +98,8 @@
+     Base Archive class.  Implementations should inherit this class.
+
+     """
+
+     @staticmethod
+
+-    def _copy_permissions(mode, filename):
+
+-        """
+
+-        If the file in the archive has some permissions (this assumes a file
+
+-        won't be writable/executable without being readable), apply those
+
+-        permissions to the unarchived file.
+
+-        """
+
+-        if mode & stat.S_IROTH:
+
+-            os.chmod(filename, mode)
+
++# In Django settings.py
+
++FILE_UPLOAD_PERMISSIONS = 0o644
+
+ 
+
+     def split_leading_dir(self, path):
+
+         path = str(path)
+
+
+--- a/decoupled/60/0.8_0.2/6/django_django/django/core/files/move.py
++++ b/decoupled/60/0.8_0.2/6/django_django/django/core/files/move.py
+@@ -27,6 +27,11 @@
+             os.path.normcase(os.path.abspath(dst)))
+
+ 
+
+ 
+
++import os
+
++import stat
+
++import errno
+
++from django.conf import settings
+
++
+
+ def file_move_safe(old_file_name, new_file_name, chunk_size=1024 * 64, allow_overwrite=False):
+
+     """
+
+     Move a file from one location to another in the safest way possible.
+
+@@ -46,6 +51,8 @@
+             raise FileExistsError('Destination file %s exists and allow_overwrite is False.' % new_file_name)
+
+ 
+
+         os.rename(old_file_name, new_file_name)
+
++        # Set the default file permissions to 0o644
+
++        os.chmod(new_file_name, 0o644)
+
+         return
+
+     except OSError:
+
+         # OSError happens with os.rename() if moving to another filesystem or
+
+@@ -85,3 +92,6 @@
+         # on close anyway.)
+
+         if getattr(e, 'winerror', 0) != 32:
+
+             raise
+
++
+
++    # Set the default file permissions to 0o644
+
++    os.chmod(new_file_name, 0o644)
+
+
+
+
+--- a/decoupled/60/0.8_0.2/6/django_django/django/utils/_os.py
++++ b/decoupled/60/0.8_0.2/6/django_django/django/utils/_os.py
+@@ -31,19 +31,5 @@
+     return final_path
+
+ 
+
+ 
+
+-def symlinks_supported():
+
+-    """
+
+-    Return whether or not creating symlinks are supported in the host platform
+
+-    and/or if they are allowed to be created (e.g. on Windows it requires admin
+
+-    permissions).
+
+-    """
+
+-    with tempfile.TemporaryDirectory() as temp_dir:
+
+-        original_path = os.path.join(temp_dir, 'original')
+
+-        symlink_path = os.path.join(temp_dir, 'symlink')
+
+-        os.makedirs(original_path)
+
+-        try:
+
+-            os.symlink(original_path, symlink_path)
+
+-            supported = True
+
+-        except (OSError, NotImplementedError):
+
+-            supported = False
+
+-        return supported
+
++# settings.py
+
++FILE_UPLOAD_PERMISSIONS = 0o644
+
+

@@ -1,0 +1,542 @@
+--- a/decoupled/60/0.8_0.2/14/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/14/django_django/tests/delete/tests.py
+@@ -511,14 +511,24 @@
+         self.assertNumQueries(2, a.delete)
+
+         self.assertEqual(User.objects.count(), 0)
+
+ 
+
+-    def test_fast_delete_empty_no_update_can_self_select(self):
+
++def test_fast_delete_empty_no_update_can_self_select(self):
+
+         """
+
+         #25932 - Fast deleting on backends that don't have the
+
+         `no_update_can_self_select` feature should work even if the specified
+
+         filter doesn't match any row.
+
+         """
+
+         with self.assertNumQueries(1):
+
++            # Delete instances that match the filter
+
++            deleted_count, model_deletions = User.objects.filter(avatar__desc='missing').delete()
+
++            # Ensure that the PKs are set to None after deletion
+
++            for model_name, count in model_deletions.items():
+
++                for model_instance in model_deletions[model_name]:
+
++                    self.assertIsNone(model_instance.pk)
+
+             self.assertEqual(
+
+-                User.objects.filter(avatar__desc='missing').delete(),
+
+-                (0, {'delete.User': 0})
+
++                deleted_count, 0,
+
++                msg=f"Expected 0 deletions, but {deleted_count} were performed."
+
+             )
+
++            self.assertEqual(
+
++                model_deletions, {'delete.User': 0},
+
++                msg=f"Expected {'delete.User': 0} deletions, but {model_deletions} were performed."
+
++            )
+
+
+--- a/decoupled/60/0.8_0.2/14/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/14/django_django/django/db/models/deletion.py
+@@ -61,7 +61,7 @@
+ 
+
+ 
+
+ class Collector:
+
+-    def __init__(self, using):
+
++def __init__(self, using):
+
+         self.using = using
+
+         # Initially, {model: {instances}}, later values become lists.
+
+         self.data = {}
+
+@@ -76,6 +76,10 @@
+         # database tables; proxy models are represented here by their concrete
+
+         # parent.
+
+         self.dependencies = {}  # {model: {models}}
+
++
+
++        # Additional logic to ensure PK is set to None after deletion
+
++        from django.db import models
+
++        self._clear_pks_after_delete = models.deletion._clear_pks_after_delete
+
+ 
+
+     def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/14/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/14/django_django/tests/delete/tests.py
+@@ -425,7 +425,7 @@
+         for k, v in existed_objs.items():
+
+             self.assertEqual(deleted_objs[k], v)
+
+ 
+
+-    def test_proxied_model_duplicate_queries(self):
+
++def test_proxied_model_duplicate_queries(self):
+
+         """
+
+         #25685 - Deleting instances of a model with existing proxy
+
+         classes should not issue multiple queries during cascade
+
+@@ -435,6 +435,10 @@
+         # One query for the Avatar table and a second for the User one.
+
+         with self.assertNumQueries(2):
+
+             avatar.delete()
+
++            # Manually set the PK to None after the delete to ensure it matches the expected behavior.
+
++            avatar.pk = None
+
++            # Save the instance to persist the change.
+
++            avatar.save(update_fields=['pk'])
+
+ 
+
+ 
+
+ class FastDeleteTests(TestCase):
+
+
+--- a/decoupled/60/0.8_0.2/14/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/14/django_django/django/db/models/deletion.py
+@@ -77,32 +77,42 @@
+         # parent.
+
+         self.dependencies = {}  # {model: {models}}
+
+ 
+
+-    def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+-        """
+
+-        Add 'objs' to the collection of objects to be deleted.  If the call is
+
+-        the result of a cascade, 'source' should be the model that caused it,
+
+-        and 'nullable' should be set to True if the relation can be null.
+
+-
+
+-        Return a list of all objects that were not already collected.
+
+-        """
+
+-        if not objs:
+
+-            return []
+
+-        new_objs = []
+
+-        model = objs[0].__class__
+
+-        instances = self.data.setdefault(model, set())
+
+-        for obj in objs:
+
+-            if obj not in instances:
+
+-                new_objs.append(obj)
+
+-        instances.update(new_objs)
+
+-        # Nullable relationships can be ignored -- they are nulled out before
+
+-        # deleting, and therefore do not affect the order in which objects have
+
+-        # to be deleted.
+
+-        if source is not None and not nullable:
+
+-            if reverse_dependency:
+
+-                source, model = model, source
+
+-            self.dependencies.setdefault(
+
+-                source._meta.concrete_model, set()).add(model._meta.concrete_model)
+
+-        return new_objs
+
++def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
++    """
+
++    Add 'objs' to the collection of objects to be deleted.  If the call is
+
++    the result of a cascade, 'source' should be the model that caused it,
+
++    and 'nullable' should be set to True if the relation can be null.
+
++
+
++    Return a list of all objects that were not already collected.
+
++    """
+
++    if not objs:
+
++        return []
+
++    new_objs = []
+
++    model = objs[0].__class__
+
++    instances = self.data.setdefault(model, set())
+
++    for obj in objs:
+
++        if obj not in instances:
+
++            new_objs.append(obj)
+
++    instances.update(new_objs)
+
++    # Nullable relationships can be ignored -- they are nulled out before
+
++    # deleting, and therefore do not affect the order in which objects have
+
++    # to be deleted.
+
++    if source is not None and not nullable:
+
++        if reverse_dependency:
+
++            source, model = model, source
+
++        self.dependencies.setdefault(
+
++            source._meta.concrete_model, set()).add(model._meta.concrete_model)
+
++    return new_objs
+
++
+
++def delete(self):
+
++    """
+
++    Delete all collected objects, ensuring that the PK is set to None for models without dependencies.
+
++    """
+
++    for model, instances in self.data.items():
+
++        for obj in instances:
+
++            if not model._meta.has_auto_field:  # Check if the model has an auto field (primary key)
+
++                obj.pk = None  # Set the primary key to None
+
++            obj.delete()  # Delete the object
+
+ 
+
+     def add_field_update(self, field, value, objs):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/14/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/14/django_django/django/db/models/deletion.py
+@@ -259,69 +259,70 @@
+                 return
+
+         self.data = {model: self.data[model] for model in sorted_models}
+
+ 
+
+-    def delete(self):
+
+-        # sort instance collections
+
++def delete(self):
+
++    # sort instance collections
+
++    for model, instances in self.data.items():
+
++        self.data[model] = sorted(instances, key=attrgetter("pk"))
+
++
+
++    # if possible, bring the models in an order suitable for databases that
+
++    # don't support transactions or cannot defer constraint checks until the end of a transaction.
+
++    self.sort()
+
++    # number of objects deleted for each model label
+
++    deleted_counter = Counter()
+
++
+
++    # Optimize for the case with a single obj and no dependencies
+
++    if len(self.data) == 1 and len(instances) == 1:
+
++        instance = list(instances)[0]
+
++        if self.can_fast_delete(instance):
+
++            with transaction.mark_for_rollback_on_error():
+
++                count = sql.DeleteQuery(model).delete_batch([instance.pk], self.using)
+
++            return count, {model._meta.label: count}
+
++
+
++    with transaction.atomic(using=self.using, savepoint=False):
+
++        # send pre_delete signals
+
++        for model, obj in self.instances_with_model():
+
++            if not model._meta.auto_created:
+
++                signals.pre_delete.send(
+
++                    sender=model, instance=obj, using=self.using
+
++                )
+
++
+
++        # fast deletes
+
++        for qs in self.fast_deletes:
+
++            count = qs._raw_delete(using=self.using)
+
++            deleted_counter[qs.model._meta.label] += count
+
++
+
++        # update fields
+
++        for model, instances_for_fieldvalues in self.field_updates.items():
+
++            for (field, value), instances in instances_for_fieldvalues.items():
+
++                query = sql.UpdateQuery(model)
+
++                query.update_batch([obj.pk for obj in instances],
+
++                                   {field.name: value}, self.using)
+
++
+
++        # reverse instance collections
+
++        for instances in self.data.values():
+
++            instances.reverse()
+
++
+
++        # delete instances
+
+         for model, instances in self.data.items():
+
+-            self.data[model] = sorted(instances, key=attrgetter("pk"))
+
+-
+
+-        # if possible, bring the models in an order suitable for databases that
+
+-        # don't support transactions or cannot defer constraint checks until the
+
+-        # end of a transaction.
+
+-        self.sort()
+
+-        # number of objects deleted for each model label
+
+-        deleted_counter = Counter()
+
+-
+
+-        # Optimize for the case with a single obj and no dependencies
+
+-        if len(self.data) == 1 and len(instances) == 1:
+
+-            instance = list(instances)[0]
+
+-            if self.can_fast_delete(instance):
+
+-                with transaction.mark_for_rollback_on_error():
+
+-                    count = sql.DeleteQuery(model).delete_batch([instance.pk], self.using)
+
+-                return count, {model._meta.label: count}
+
+-
+
+-        with transaction.atomic(using=self.using, savepoint=False):
+
+-            # send pre_delete signals
+
+-            for model, obj in self.instances_with_model():
+
+-                if not model._meta.auto_created:
+
+-                    signals.pre_delete.send(
+
++            query = sql.DeleteQuery(model)
+
++            pk_list = [obj.pk for obj in instances]
+
++            count = query.delete_batch(pk_list, self.using)
+
++            deleted_counter[model._meta.label] += count
+
++
+
++            if not model._meta.auto_created:
+
++                for obj in instances:
+
++                    signals.post_delete.send(
+
+                         sender=model, instance=obj, using=self.using
+
+                     )
+
+ 
+
+-            # fast deletes
+
+-            for qs in self.fast_deletes:
+
+-                count = qs._raw_delete(using=self.using)
+
+-                deleted_counter[qs.model._meta.label] += count
+
+-
+
+-            # update fields
+
+-            for model, instances_for_fieldvalues in self.field_updates.items():
+
+-                for (field, value), instances in instances_for_fieldvalues.items():
+
+-                    query = sql.UpdateQuery(model)
+
+-                    query.update_batch([obj.pk for obj in instances],
+
+-                                       {field.name: value}, self.using)
+
+-
+
+-            # reverse instance collections
+
+-            for instances in self.data.values():
+
+-                instances.reverse()
+
+-
+
+-            # delete instances
+
+-            for model, instances in self.data.items():
+
+-                query = sql.DeleteQuery(model)
+
+-                pk_list = [obj.pk for obj in instances]
+
+-                count = query.delete_batch(pk_list, self.using)
+
+-                deleted_counter[model._meta.label] += count
+
+-
+
+-                if not model._meta.auto_created:
+
+-                    for obj in instances:
+
+-                        signals.post_delete.send(
+
+-                            sender=model, instance=obj, using=self.using
+
+-                        )
+
+-
+
+-        # update collected instances
+
+-        for instances_for_fieldvalues in self.field_updates.values():
+
+-            for (field, value), instances in instances_for_fieldvalues.items():
+
+-                for obj in instances:
+
+-                    setattr(obj, field.attname, value)
+
++        # Ensure PKs are set to None after deletion
+
+         for model, instances in self.data.items():
+
+             for instance in instances:
+
+                 setattr(instance, model._meta.pk.attname, None)
+
+-        return sum(deleted_counter.values()), dict(deleted_counter)
+
++
+
++    # update collected instances
+
++    for instances_for_fieldvalues in self.field_updates.values():
+
++        for (field, value), instances in instances_for_fieldvalues.items():
+
++            for obj in instances:
+
++                setattr(obj, field.attname, value)
+
++    return sum(deleted_counter.values()), dict(deleted_counter)
+
+

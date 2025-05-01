@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/sphinx/extension.py
+@@ -35,6 +35,14 @@
+         self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
+ 
+
+ 
+
++from packaging.version import Version, InvalidVersion
+
++from sphinx.application import Sphinx
+
++from sphinx.config import Config
+
++from sphinx.errors import VersionRequirementError
+
++import logging
+
++
+
++logger = logging.getLogger(__name__)
+
++
+
+ def verify_needs_extensions(app: Sphinx, config: Config) -> None:
+
+     """Check that extensions mentioned in :confval:`needs_extensions` satisfy the version
+
+     requirement, and warn if an extension is not loaded.
+
+@@ -62,7 +70,8 @@
+                 if Version(reqversion) > Version(extension.version):
+
+                     fulfilled = False
+
+             except InvalidVersion:
+
+-                if reqversion > extension.version:
+
++                if reqversion != 'unknown version':  # Skip if reqversion is 'unknown version'
+
++                    logger.warning(__('Invalid version string: %s'), reqversion)
+
+                     fulfilled = False
+
+ 
+
+         if not fulfilled:

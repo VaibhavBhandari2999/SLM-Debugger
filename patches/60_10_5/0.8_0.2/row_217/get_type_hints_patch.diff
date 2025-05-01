@@ -1,0 +1,54 @@
+--- a/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/util/typing.py
++++ b/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/util/typing.py
+@@ -64,19 +64,17 @@
+     runtime.
+
+     """
+
+     from sphinx.util.inspect import safe_getattr  # lazy loading
+
++    from typing import Dict, Any, Union, Optional
+
+ 
+
+     try:
+
+         return typing.get_type_hints(obj, globalns, localns)
+
+-    except NameError:
+
+-        # Failed to evaluate ForwardRef (maybe TYPE_CHECKING)
+
++    except (NameError, TypeError, KeyError, AttributeError):
+
++        # Handle the specific exceptions that can occur
+
+         return safe_getattr(obj, '__annotations__', {})
+
+-    except TypeError:
+
+-        return {}
+
+-    except KeyError:
+
+-        # a broken class found (refs: https://github.com/sphinx-doc/sphinx/issues/8084)
+
+-        return {}
+
+-    except AttributeError:
+
+-        # AttributeError is raised on 3.5.2 (fixed by 3.5.3)
+
++    except Exception as e:
+
++        # Catch all other exceptions and log them
+
++        import logging
+
++        logging.error(f"An unexpected error occurred: {e}")
+
+         return {}
+
+ 
+
+ 

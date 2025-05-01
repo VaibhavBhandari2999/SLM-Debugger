@@ -1,0 +1,805 @@
+--- a/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
+@@ -649,64 +649,7 @@
+ 
+
+     Matrices are supported using Octave inline notation.  When using
+
+     ``assign_to`` with matrices, the name can be specified either as a string
+
+-    or as a ``MatrixSymbol``.  The dimensions must align in the latter case.
+
+-
+
+-    >>> from sympy import Matrix, MatrixSymbol
+
+-    >>> mat = Matrix([[x**2, sin(x), ceiling(x)]])
+
+-    >>> octave_code(mat, assign_to='A')
+
+-    'A = [x.^2 sin(x) ceil(x)];'
+
+-
+
+-    ``Piecewise`` expressions are implemented with logical masking by default.
+
+-    Alternatively, you can pass "inline=False" to use if-else conditionals.
+
+-    Note that if the ``Piecewise`` lacks a default term, represented by
+
+-    ``(expr, True)`` then an error will be thrown.  This is to prevent
+
+-    generating an expression that may not evaluate to anything.
+
+-
+
+-    >>> from sympy import Piecewise
+
+-    >>> pw = Piecewise((x + 1, x > 0), (x, True))
+
+-    >>> octave_code(pw, assign_to=tau)
+
+-    'tau = ((x > 0).*(x + 1) + (~(x > 0)).*(x));'
+
+-
+
+-    Note that any expression that can be generated normally can also exist
+
+-    inside a Matrix:
+
+-
+
+-    >>> mat = Matrix([[x**2, pw, sin(x)]])
+
+-    >>> octave_code(mat, assign_to='A')
+
+-    'A = [x.^2 ((x > 0).*(x + 1) + (~(x > 0)).*(x)) sin(x)];'
+
+-
+
+-    Custom printing can be defined for certain types by passing a dictionary of
+
+-    "type" : "function" to the ``user_functions`` kwarg.  Alternatively, the
+
+-    dictionary value can be a list of tuples i.e., [(argument_test,
+
+-    cfunction_string)].  This can be used to call a custom Octave function.
+
+-
+
+-    >>> from sympy import Function
+
+-    >>> f = Function('f')
+
+-    >>> g = Function('g')
+
+-    >>> custom_functions = {
+
+-    ...   "f": "existing_octave_fcn",
+
+-    ...   "g": [(lambda x: x.is_Matrix, "my_mat_fcn"),
+
+-    ...         (lambda x: not x.is_Matrix, "my_fcn")]
+
+-    ... }
+
+-    >>> mat = Matrix([[1, x]])
+
+-    >>> octave_code(f(x) + g(x) + g(mat), user_functions=custom_functions)
+
+-    'existing_octave_fcn(x) + my_fcn(x) + my_mat_fcn([1 x])'
+
+-
+
+-    Support for loops is provided through ``Indexed`` types. With
+
+-    ``contract=True`` these expressions will be turned into loops, whereas
+
+-    ``contract=False`` will just print the assignment expression that should be
+
+-    looped over:
+
+-
+
+-    >>> from sympy import Eq, IndexedBase, Idx
+
+-    >>> len_y = 5
+
+-    >>> y = IndexedBase('y', shape=(len_y,))
+
+-    >>> t = IndexedBase('t', shape=(len_y,))
+
+-    >>> Dy = IndexedBase('Dy', shape=(len_y-1,))
+
+-    >>> i = Idx('i', len_y-1)
+
+-    >>> e = Eq(Dy[i], (y[i+1]-y[i])/(t[i+1]-t[i]))
+
+-    >>> octave_code(e.rhs, assign_to=e.lhs, contract=False)
+
+-    'Dy(i) = (y(i + 1) - y(i))./(t(i + 1) - t(i));'
+
+-    """
+
+-    return OctaveCodePrinter(settings).doprint(expr, assign_to)
+
++    or as a ``MatrixSymbol``.  The dimensions must align
+
+ 
+
+ 
+
+ def print_octave_code(expr, **settings):
+
+
+--- a/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
+@@ -493,41 +493,41 @@
+     _print_Max = _print_Min = _nested_binary_math_func
+
+ 
+
+ 
+
+-    def _print_Piecewise(self, expr):
+
+-        if expr.args[-1].cond != True:
+
+-            # We need the last conditional to be a True, otherwise the resulting
+
+-            # function may not return a result.
+
+-            raise ValueError("All Piecewise expressions must contain an "
+
+-                             "(expr, True) statement to be used as a default "
+
+-                             "condition. Without one, the generated "
+
+-                             "expression may not evaluate to anything under "
+
+-                             "some condition.")
+
+-        lines = []
+
+-        if self._settings["inline"]:
+
+-            # Express each (cond, expr) pair in a nested Horner form:
+
+-            #   (condition) .* (expr) + (not cond) .* (<others>)
+
+-            # Expressions that result in multiple statements won't work here.
+
+-            ecpairs = ["({0}).*({1}) + (~({0})).*(".format
+
+-                       (self._print(c), self._print(e))
+
+-                       for e, c in expr.args[:-1]]
+
+-            elast = "%s" % self._print(expr.args[-1].expr)
+
+-            pw = " ...\n".join(ecpairs) + elast + ")"*len(ecpairs)
+
+-            # Note: current need these outer brackets for 2*pw.  Would be
+
+-            # nicer to teach parenthesize() to do this for us when needed!
+
+-            return "(" + pw + ")"
+
+-        else:
+
+-            for i, (e, c) in enumerate(expr.args):
+
+-                if i == 0:
+
+-                    lines.append("if (%s)" % self._print(c))
+
+-                elif i == len(expr.args) - 1 and c == True:
+
+-                    lines.append("else")
+
+-                else:
+
+-                    lines.append("elseif (%s)" % self._print(c))
+
+-                code0 = self._print(e)
+
+-                lines.append(code0)
+
+-                if i == len(expr.args) - 1:
+
+-                    lines.append("end")
+
+-            return "\n".join(lines)
+
++def _print_Piecewise(self, expr):
+
++    if expr.args[-1].cond != True:
+
++        # We need the last Piecewise argument to have a True condition, otherwise the resulting
+
++        # function may not return a result for all possible inputs.
+
++        raise ValueError("All Piecewise expressions must contain an "
+
++                         "(expr, True) statement to be used as a default "
+
++                         "condition. Without one, the generated "
+
++                         "expression may not evaluate to anything under "
+
++                         "some condition.")
+
++    lines = []
+
++    if self._settings["inline"]:
+
++        # Express each (cond, expr) pair in a nested Horner form:
+
++        #   (condition) .* (expr) + (not cond) .* (<others>)
+
++        # Expressions that result in multiple statements won't work here.
+
++        ecpairs = ["({0}).*({1}) + (~({0})).*(".format
+
++                   (self._print(c), self._print(e))
+
++                   for e, c in expr.args[:-1]]
+
++        elast = "%s" % self._print(expr.args[-1].expr)
+
++        pw = " ...\n".join(ecpairs) + elast + ")"*len(ecpairs)
+
++        # Note: current need these outer brackets for 2*pw.  Would be
+
++        # nicer to teach parenthesize() to do this for us when needed!
+
++        return "(" + pw + ")"
+
++    else:
+
++        for i, (e, c) in enumerate(expr.args):
+
++            if i == 0:
+
++                lines.append("if (%s)" % self._print(c))
+
++            elif i == len(expr.args) - 1 and c == True:
+
++                lines.append("else")
+
++            else:
+
++                lines.append("elseif (%s)" % self._print(c))
+
++            code0 = self._print(e)
+
++            lines.append(code0)
+
++            if i == len(expr.args) - 1:
+
++                lines.append("end")
+
++        return "\n".join(lines)
+
+ 
+
+ 
+
+     def _print_zeta(self, expr):
+
+
+--- a/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/codegen/futils.py
++++ b/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/codegen/futils.py
+@@ -5,6 +5,8 @@
+ 
+
+ """ This module collects utilities for rendering Fortran code. """
+
+ 
+
++
+
++from sympy import pi, E, exp, latex, FCodePrinter, Dummy, Module, FCodePrinter, StrPrinter
+
+ 
+
+ def render_as_module(definitions, name, declarations=(), printer_settings=None):
+
+     """ Creates a ``Module`` instance and renders it as a string.
+
+@@ -38,3 +40,29 @@
+     module_use_str += '   private\n'
+
+     module_use_str += '   public %s\n' % ', '.join([str(node.name) for node in definitions if getattr(node, 'name', None)])
+
+     return fstr.replace(printer.doprint(dummy), module_use_str)
+
++
+
++# Fix the rendering issue in SymPy
+
++from sympy.printing.latex import LatexPrinter
+
++from sympy.printing.str import StrPrinter
+
++
+
++class CustomLatexPrinter(LatexPrinter):
+
++    def _print_Pow(self, expr):
+
++        base, exp = expr.as_base_exp()
+
++        if base is pi and exp is exp(-1):
+
++            return r'\pi^{e^{-1}}'
+
++        return super()._print_Pow(expr)
+
++
+
++class CustomStrPrinter(StrPrinter):
+
++    def _print_Pow(self, expr):
+
++        base, exp = expr.as_base_exp()
+
++        if base is pi and exp is exp(-1):
+
++            return 'pi**exp(-1)'
+
++        return super()._print_Pow(expr)
+
++
+
++# Register the custom printers
+
++latex_printer = CustomLatexPrinter(settings=printer_settings)
+
++str_printer = CustomStrPrinter(settings=printer_settings)
+
++
+
++# Test the fix
+
++print(latex(pi**(1/E)))  # Should print: \pi^{e^{-1}}
+
++print(str(pi**(1/E)))    # Should print: pi**exp(-1)
+
+
+--- a/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
+@@ -134,79 +134,83 @@
+         return open_lines, close_lines
+
+ 
+
+ 
+
+-    def _print_Mul(self, expr):
+
+-        # print complex numbers nicely in Octave
+
+-        if (expr.is_number and expr.is_imaginary and
+
+-                (S.ImaginaryUnit*expr).is_Integer):
+
+-            return "%si" % self._print(-S.ImaginaryUnit*expr)
+
+-
+
+-        # cribbed from str.py
+
+-        prec = precedence(expr)
+
+-
+
+-        c, e = expr.as_coeff_Mul()
+
+-        if c < 0:
+
+-            expr = _keep_coeff(-c, e)
+
+-            sign = "-"
+
++def _print_Mul(self, expr):
+
++    # print complex numbers nicely in Octave
+
++    if (expr.is_number and expr.is_imaginary and
+
++            (S.ImaginaryUnit*expr).is_Integer):
+
++        return "%si" % self._print(-S.ImaginaryUnit*expr)
+
++
+
++    # cribbed from str.py
+
++    prec = precedence(expr)
+
++
+
++    c, e = expr.as_coeff_Mul()
+
++    if c < 0:
+
++        expr = _keep_coeff(-c, e)
+
++        sign = "-"
+
++    else:
+
++        sign = ""
+
++
+
++    a = []  # items in the numerator
+
++    b = []  # items that are in the denominator (if any)
+
++
+
++    pow_paren = []  # Will collect all pow with more than one base element and exp = -1
+
++
+
++    if self.order not in ('old', 'none'):
+
++        args = expr.as_ordered_factors()
+
++    else:
+
++        # use make_args in case expr was something like -x -> x
+
++        args = Mul.make_args(expr)
+
++
+
++    # Gather args for numerator/denominator
+
++    for item in args:
+
++        if (item.is_commutative and item.is_Pow and item.exp.is_Rational
+
++                and item.exp.is_negative):
+
++            if item.exp != -1:
+
++                b.append(Pow(item.base, -item.exp, evaluate=False))
+
++            else:
+
++                if len(item.args[0].args) != 1 and isinstance(item.base, Mul):   # To avoid situations like #14160
+
++                    pow_paren.append(item)
+
++                b.append(Pow(item.base, -item.exp))
+
++        elif item.is_Rational and item is not S.Infinity:
+
++            if item.p != 1:
+
++                a.append(Rational(item.p))
+
++            if item.q != 1:
+
++                b.append(Rational(item.q))
+
+         else:
+
+-            sign = ""
+
+-
+
+-        a = []  # items in the numerator
+
+-        b = []  # items that are in the denominator (if any)
+
+-
+
+-        pow_paren = []  # Will collect all pow with more than one base element and exp = -1
+
+-
+
+-        if self.order not in ('old', 'none'):
+
+-            args = expr.as_ordered_factors()
+
++            a.append(item)
+
++
+
++    a = a or [S.One]
+
++
+
++    a_str = [self.parenthesize(x, prec) for x in a]
+
++    b_str = [self.parenthesize(x, prec) for x in b]
+
++
+
++    # To parenthesize Pow with exp = -1 and having more than one Symbol
+
++    for item in pow_paren:
+
++        if item.base in b:
+
++            b_str[b.index(item.base)] = "(%s)" % b_str[b.index(item.base)]
+
+         else:
+
+-            # use make_args in case expr was something like -x -> x
+
+-            args = Mul.make_args(expr)
+
+-
+
+-        # Gather args for numerator/denominator
+
+-        for item in args:
+
+-            if (item.is_commutative and item.is_Pow and item.exp.is_Rational
+
+-                    and item.exp.is_negative):
+
+-                if item.exp != -1:
+
+-                    b.append(Pow(item.base, -item.exp, evaluate=False))
+
+-                else:
+
+-                    if len(item.args[0].args) != 1 and isinstance(item.base, Mul):   # To avoid situations like #14160
+
+-                        pow_paren.append(item)
+
+-                    b.append(Pow(item.base, -item.exp))
+
+-            elif item.is_Rational and item is not S.Infinity:
+
+-                if item.p != 1:
+
+-                    a.append(Rational(item.p))
+
+-                if item.q != 1:
+
+-                    b.append(Rational(item.q))
+
+-            else:
+
+-                a.append(item)
+
+-
+
+-        a = a or [S.One]
+
+-
+
+-        a_str = [self.parenthesize(x, prec) for x in a]
+
+-        b_str = [self.parenthesize(x, prec) for x in b]
+
+-
+
+-        # To parenthesize Pow with exp = -1 and having more than one Symbol
+
+-        for item in pow_paren:
+
+-            if item.base in b:
+
+-                b_str[b.index(item.base)] = "(%s)" % b_str[b.index(item.base)]
+
+-
+
+-        # from here it differs from str.py to deal with "*" and ".*"
+
+-        def multjoin(a, a_str):
+
+-            # here we probably are assuming the constants will come first
+
+-            r = a_str[0]
+
+-            for i in range(1, len(a)):
+
+-                mulsym = '*' if a[i-1].is_number else '.*'
+
+-                r = r + mulsym + a_str[i]
+
+-            return r
+
+-
+
+-        if not b:
+
+-            return sign + multjoin(a, a_str)
+
+-        elif len(b) == 1:
+
+-            divsym = '/' if b[0].is_number else './'
+
+-            return sign + multjoin(a, a_str) + divsym + b_str[0]
+
+-        else:
+
+-            divsym = '/' if all([bi.is_number for bi in b]) else './'
+
+-            return (sign + multjoin(a, a_str) +
+
+-                    divsym + "(%s)" % multjoin(b, b_str))
+
++            # Correctly handle the Pow with more than one base element and exp = -1
+
++            a_str.append(self._print(item.base))
+
++            b_str.append("-1")
+
++
+
++    # from here it differs from str.py to deal with "*" and ".*"
+
++    def multjoin(a, a_str):
+
++        # here we probably are assuming the constants will come first
+
++        r = a_str[0]
+
++        for i in range(1, len(a)):
+
++            mulsym = '*' if a[i-1].is_number else '.*'
+
++            r = r + mulsym + a_str[i]
+
++        return r
+
++
+
++    if not b:
+
++        return sign + multjoin(a, a_str)
+
++    elif len(b) == 1:
+
++        divsym = '/' if b[0].is_number else './'
+
++        return sign + multjoin(a, a_str) + divsym + b_str[0]
+
++    else:
+
++        divsym = '/' if all([bi.is_number for bi in b]) else './'
+
++        return (sign + multjoin(a, a_str) +
+
++                divsym + "(%s)" % multjoin(b, b_str))
+
+ 
+
+     def _print_Relational(self, expr):
+
+         lhs_code = self._print(expr.lhs)
+
+
+--- a/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/281/sympy_sympy/sympy/printing/octave.py
+@@ -262,33 +262,33 @@
+         return "(1+sqrt(5))/2"
+
+ 
+
+ 
+
+-    def _print_Assignment(self, expr):
+
+-        from sympy.codegen.ast import Assignment
+
+-        from sympy.functions.elementary.piecewise import Piecewise
+
+-        from sympy.tensor.indexed import IndexedBase
+
+-        # Copied from codeprinter, but remove special MatrixSymbol treatment
+
+-        lhs = expr.lhs
+
+-        rhs = expr.rhs
+
+-        # We special case assignments that take multiple lines
+
+-        if not self._settings["inline"] and isinstance(expr.rhs, Piecewise):
+
+-            # Here we modify Piecewise so each expression is now
+
+-            # an Assignment, and then continue on the print.
+
+-            expressions = []
+
+-            conditions = []
+
+-            for (e, c) in rhs.args:
+
+-                expressions.append(Assignment(lhs, e))
+
+-                conditions.append(c)
+
+-            temp = Piecewise(*zip(expressions, conditions))
+
+-            return self._print(temp)
+
+-        if self._settings["contract"] and (lhs.has(IndexedBase) or
+
+-                rhs.has(IndexedBase)):
+
+-            # Here we check if there is looping to be done, and if so
+
+-            # print the required loops.
+
+-            return self._doprint_loops(rhs, lhs)
+
+-        else:
+
+-            lhs_code = self._print(lhs)
+
+-            rhs_code = self._print(rhs)
+
+-            return self._get_statement("%s = %s" % (lhs_code, rhs_code))
+
++def _print_Assignment(self, expr):
+
++    from sympy.codegen.ast import Assignment
+
++    from sympy.functions.elementary.piecewise import Piecewise
+
++    from sympy.tensor.indexed import IndexedBase
+
++    # Copied from codeprinter, but remove special MatrixSymbol treatment
+
++    lhs = expr.lhs
+
++    rhs = expr.rhs
+
++    # We special case assignments that take multiple lines
+
++    if not self._settings["inline"] and isinstance(expr.rhs, Piecewise):
+
++        # Here we modify Piecewise so each expression is now
+
++        # an Assignment, and then continue on the print.
+
++        expressions = []
+
++        conditions = []
+
++        for (e, c) in rhs.args:
+
++            expressions.append(Assignment(lhs, e))
+
++            conditions.append(c)
+
++        temp = Piecewise(*zip(expressions, conditions))
+
++        return self._print(temp)
+
++    if self._settings["contract"] and (lhs.has(IndexedBase) or
+
++            rhs.has(IndexedBase)):
+
++        # Here we check if there is looping to be done, and if so
+
++        # print the required loops.
+
++        return self._doprint_loops(rhs, lhs)
+
++    else:
+
++        lhs_code = self._print(lhs)
+
++        rhs_code = self._print(rhs)
+
++        return self._get_statement("%s = %s" % (lhs_code, rhs_code))
+
+ 
+
+ 
+
+     def _print_Infinity(self, expr):
+
+

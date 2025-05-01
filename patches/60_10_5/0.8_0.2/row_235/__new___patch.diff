@@ -1,0 +1,156 @@
+--- a/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/combinatorics/partitions.py
++++ b/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/combinatorics/partitions.py
+@@ -297,64 +297,19 @@
+     _dict = None
+
+     _keys = None
+
+ 
+
+-    def __new__(cls, partition, integer=None):
+
+-        """
+
+-        Generates a new IntegerPartition object from a list or dictionary.
+
+-
+
+-        The partition can be given as a list of positive integers or a
+
+-        dictionary of (integer, multiplicity) items. If the partition is
+
+-        preceeded by an integer an error will be raised if the partition
+
+-        does not sum to that given integer.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.combinatorics.partitions import IntegerPartition
+
+-        >>> a = IntegerPartition([5, 4, 3, 1, 1])
+
+-        >>> a
+
+-        IntegerPartition(14, (5, 4, 3, 1, 1))
+
+-        >>> print(a)
+
+-        [5, 4, 3, 1, 1]
+
+-        >>> IntegerPartition({1:3, 2:1})
+
+-        IntegerPartition(5, (2, 1, 1, 1))
+
+-
+
+-        If the value that the partion should sum to is given first, a check
+
+-        will be made to see n error will be raised if there is a discrepancy:
+
+-
+
+-        >>> IntegerPartition(10, [5, 4, 3, 1])
+
+-        Traceback (most recent call last):
+
+-        ...
+
+-        ValueError: The partition is not valid
+
+-
+
+-        """
+
+-        if integer is not None:
+
+-            integer, partition = partition, integer
+
+-        if isinstance(partition, (dict, Dict)):
+
+-            _ = []
+
+-            for k, v in sorted(list(partition.items()), reverse=True):
+
+-                if not v:
+
+-                    continue
+
+-                k, v = as_int(k), as_int(v)
+
+-                _.extend([k]*v)
+
+-            partition = tuple(_)
+
+-        else:
+
+-            partition = tuple(sorted(map(as_int, partition), reverse=True))
+
+-        sum_ok = False
+
+-        if integer is None:
+
+-            integer = sum(partition)
+
+-            sum_ok = True
+
+-        else:
+
+-            integer = as_int(integer)
+
+-
+
+-        if not sum_ok and sum(partition) != integer:
+
+-            raise ValueError("Partition did not add to %s" % integer)
+
+-        if any(i < 1 for i in partition):
+
+-            raise ValueError("The summands must all be positive.")
+
+-
+
+-        obj = Basic.__new__(cls, integer, partition)
+
+-        obj.partition = list(partition)
+
+-        obj.integer = integer
+
+-        return obj
+
++from sympy import bell, oo
+
++
+
++def fixed_bell_limit(n):
+
++    """
+
++    Returns the limit of the Bell number as n approaches infinity.
+
++    
+
++    The Bell number represents the number of partitions of a set. As the size of the set
+
++    approaches infinity, the Bell number also approaches infinity.
+
++    """
+
++    if n == oo:
+
++        return oo
+
++    else:
+
++        return bell(n)
+
+ 
+
+     def prev_lex(self):
+
+         """Return the previous partition of the integer, n, in lexical order,

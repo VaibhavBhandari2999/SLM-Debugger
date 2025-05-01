@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
++++ b/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
+@@ -82,7 +82,7 @@
+         self.ignore_patterns = list(set(os.path.normpath(p) for p in ignore_patterns))
+
+         self.post_process = options['post_process']
+
+ 
+
+-    def collect(self):
+
++def collect(self):
+
+         """
+
+         Perform the bulk of the work of collectstatic.
+
+ 

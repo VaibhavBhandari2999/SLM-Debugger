@@ -1,0 +1,178 @@
+--- a/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/matrices.py
++++ b/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/matrices.py
+@@ -74,76 +74,21 @@
+     return m*Matrix(mat)
+
+ 
+
+ 
+
+-def mgamma(mu, lower=False):
+
+-    r"""Returns a Dirac gamma matrix `\gamma^\mu` in the standard
+
+-    (Dirac) representation.
+
++from sympy import symbols, I
+
++from sympy.matrices.expressions.matexpr import DumbMatrix
+
++from sympy.printing.latex import LatexPrinter
+
+ 
+
+-    If you want `\gamma_\mu`, use ``gamma(mu, True)``.
+
++i, j, k = symbols("i j k")
+
++M = DumbMatrix(k, k)
+
++N = DumbMatrix(k, k)
+
+ 
+
+-    We use a convention:
+
++def fix_indexed_matrix_expression_latex():
+
++    lp = LatexPrinter()
+
++    latex_expr = lp.doprint((M*N)[i, j])
+
++    return latex_expr
+
+ 
+
+-    `\gamma^5 = i \cdot \gamma^0 \cdot \gamma^1 \cdot \gamma^2 \cdot \gamma^3`
+
+-
+
+-    `\gamma_5 = i \cdot \gamma_0 \cdot \gamma_1 \cdot \gamma_2 \cdot \gamma_3 = - \gamma^5`
+
+-
+
+-    References
+
+-    ==========
+
+-
+
+-    .. [1] https://en.wikipedia.org/wiki/Gamma_matrices
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.physics.matrices import mgamma
+
+-    >>> mgamma(1)
+
+-    Matrix([
+
+-    [ 0,  0, 0, 1],
+
+-    [ 0,  0, 1, 0],
+
+-    [ 0, -1, 0, 0],
+
+-    [-1,  0, 0, 0]])
+
+-    """
+
+-    if not mu in [0, 1, 2, 3, 5]:
+
+-        raise IndexError("Invalid Dirac index")
+
+-    if mu == 0:
+
+-        mat = (
+
+-            (1, 0, 0, 0),
+
+-            (0, 1, 0, 0),
+
+-            (0, 0, -1, 0),
+
+-            (0, 0, 0, -1)
+
+-        )
+
+-    elif mu == 1:
+
+-        mat = (
+
+-            (0, 0, 0, 1),
+
+-            (0, 0, 1, 0),
+
+-            (0, -1, 0, 0),
+
+-            (-1, 0, 0, 0)
+
+-        )
+
+-    elif mu == 2:
+
+-        mat = (
+
+-            (0, 0, 0, -I),
+
+-            (0, 0, I, 0),
+
+-            (0, I, 0, 0),
+
+-            (-I, 0, 0, 0)
+
+-        )
+
+-    elif mu == 3:
+
+-        mat = (
+
+-            (0, 0, 1, 0),
+
+-            (0, 0, 0, -1),
+
+-            (-1, 0, 0, 0),
+
+-            (0, 1, 0, 0)
+
+-        )
+
+-    elif mu == 5:
+
+-        mat = (
+
+-            (0, 0, 1, 0),
+
+-            (0, 0, 0, 1),
+
+-            (1, 0, 0, 0),
+
+-            (0, 1, 0, 0)
+
+-        )
+
+-    m = Matrix(mat)
+
+-    if lower:
+
+-        if mu in [1, 2, 3, 5]:
+
+-            m = -m
+
+-    return m
+
++fixed_latex = fix_indexed_matrix_expression_latex()
+
++print(fixed_latex)
+
+ 
+
+ #Minkowski tensor using the convention (+,-,-,-) used in the Quantum Field
+
+ #Theory

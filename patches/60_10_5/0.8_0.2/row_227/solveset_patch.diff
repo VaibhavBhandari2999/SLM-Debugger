@@ -1,0 +1,146 @@
+--- a/decoupled/60/0.8_0.2/227/sympy_sympy/sympy/solvers/solveset.py
++++ b/decoupled/60/0.8_0.2/227/sympy_sympy/sympy/solvers/solveset.py
+@@ -819,71 +819,7 @@
+     but there may be some slight difference:
+
+ 
+
+     >>> pprint(solveset(sin(x)/x,x), use_unicode=False)
+
+-    ({2*n*pi | n in Integers()} \ {0}) U ({2*n*pi + pi | n in Integers()} \ {0})
+
+-
+
+-    >>> p = Symbol('p', positive=True)
+
+-    >>> pprint(solveset(sin(p)/p, p), use_unicode=False)
+
+-    {2*n*pi | n in Integers()} U {2*n*pi + pi | n in Integers()}
+
+-
+
+-    * Inequalities can be solved over the real domain only. Use of a complex
+
+-      domain leads to a NotImplementedError.
+
+-
+
+-    >>> solveset(exp(x) > 1, x, R)
+
+-    (0, oo)
+
+-
+
+-    """
+
+-    f = sympify(f)
+
+-
+
+-    if f is S.true:
+
+-        return domain
+
+-
+
+-    if f is S.false:
+
+-        return S.EmptySet
+
+-
+
+-    if not isinstance(f, (Expr, Number)):
+
+-        raise ValueError("%s is not a valid SymPy expression" % (f))
+
+-
+
+-    free_symbols = f.free_symbols
+
+-
+
+-    if not free_symbols:
+
+-        b = Eq(f, 0)
+
+-        if b is S.true:
+
+-            return domain
+
+-        elif b is S.false:
+
+-            return S.EmptySet
+
+-        else:
+
+-            raise NotImplementedError(filldedent('''
+
+-                relationship between value and 0 is unknown: %s''' % b))
+
+-
+
+-    if symbol is None:
+
+-        if len(free_symbols) == 1:
+
+-            symbol = free_symbols.pop()
+
+-        else:
+
+-            raise ValueError(filldedent('''
+
+-                The independent variable must be specified for a
+
+-                multivariate equation.'''))
+
+-    elif not getattr(symbol, 'is_Symbol', False):
+
+-        raise ValueError('A Symbol must be given, not type %s: %s' %
+
+-            (type(symbol), symbol))
+
+-
+
+-    if isinstance(f, Eq):
+
+-        from sympy.core import Add
+
+-        f = Add(f.lhs, - f.rhs, evaluate=False)
+
+-    elif f.is_Relational:
+
+-        if not domain.is_subset(S.Reals):
+
+-            raise NotImplementedError(filldedent('''
+
+-                Inequalities in the complex domain are
+
+-                not supported. Try the real domain by
+
+-                setting domain=S.Reals'''))
+
+-        try:
+
+-            result = solve_univariate_inequality(
+
+-            f, symbol, relational=False) - _invalid_solutions(
+
+-            f, symbol, domain)
+
+-        except NotImplementedError:
+
+-            result = ConditionSet(symbol, f, domain)
+
+-        return result
+
+-
+
+-    return _solveset(f, symbol, domain, _check=True)
+
++    ({2*n*pi | n in Integers()} \ {0}) U ({2*n*pi + pi |
+
+ 
+
+ 
+
+ def _invalid_solutions(f, symbol, domain):

@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/146/mwaskom_seaborn/seaborn/_core/groupby.py
++++ b/decoupled/60/0.8_0.2/146/mwaskom_seaborn/seaborn/_core/groupby.py
+@@ -46,7 +46,7 @@
+             order = {k: None for k in order}
+
+         self.order = order
+
+ 
+
+-    def _get_groups(
+
++def _get_groups(
+
+         self, data: DataFrame
+
+     ) -> tuple[str | list[str], Index | MultiIndex]:
+
+         """Return index with Cartesian product of ordered grouping variable levels."""
+
+@@ -56,6 +56,12 @@
+                 if order is None:
+
+                     order = categorical_order(data[var])
+
+                 levels[var] = order
+
++
+
++        # Check if the DataFrame columns are a MultiIndex
+
++        if isinstance(data.columns, MultiIndex):
+
++            # Flatten the MultiIndex columns
+
++            flat_columns = ["".join(column) for column in data.columns]
+
++            data.columns = flat_columns
+
+ 
+
+         grouper: str | list[str]
+
+         groups: Index | MultiIndex

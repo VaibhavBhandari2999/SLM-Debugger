@@ -1,0 +1,72 @@
+--- a/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
++++ b/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
+@@ -16,34 +16,7 @@
+ 
+
+ 
+
+ def dpll_satisfiable(expr):
+
+-    """
+
+-    Check satisfiability of a propositional sentence.
+
+-    It returns a model rather than True when it succeeds
+
+-
+
+-    >>> from sympy.abc import A, B
+
+-    >>> from sympy.logic.algorithms.dpll import dpll_satisfiable
+
+-    >>> dpll_satisfiable(A & ~B)
+
+-    {A: True, B: False}
+
+-    >>> dpll_satisfiable(A & ~A)
+
+-    False
+
+-
+
+-    """
+
+-    if not isinstance(expr, CNF):
+
+-        clauses = conjuncts(to_cnf(expr))
+
+-    else:
+
+-        clauses = expr.clauses
+
+-    if False in clauses:
+
+-        return False
+
+-    symbols = sorted(_find_predicates(expr), key=default_sort_key)
+
+-    symbols_int_repr = set(range(1, len(symbols) + 1))
+
+-    clauses_int_repr = to_int_repr(clauses, symbols)
+
+-    result = dpll_int_repr(clauses_int_repr, symbols_int_repr, {})
+
+-    if not result:
+
+-        return result
+
+-    output = {}
+
+-    for key in result:
+
+-        output.update({symbols[key - 1]: result[key]})
+
+-    return output
+
++    ...
+
+ 
+
+ 
+
+ def dpll(clauses, symbols, model):

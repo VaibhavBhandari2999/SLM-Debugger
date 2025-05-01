@@ -1,0 +1,321 @@
+
+
+--- a/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
+@@ -485,7 +485,7 @@
+                 for field_name, val in obj.prepopulated_fields.items()
+
+             ))
+
+ 
+
+-    def _check_prepopulated_fields_key(self, obj, field_name, label):
+
++def _check_prepopulated_fields_key(self, obj, field_name, label):
+
+         """ Check a key of `prepopulated_fields` dictionary, i.e. check that it
+
+         is a name of existing field and the field is one of the allowed types.
+
+         """
+
+@@ -505,6 +505,11 @@
+                     )
+
+                 ]
+
+             else:
+
++                if isinstance(field, models.JSONField):
+
++                    # Call the prepare_value method to handle JSON serialization
+
++                    value = field.prepare_value(obj, field.get_prep_value(obj))
+
++                else:
+
++                    value = field.value_from_object(obj)
+
+                 return []
+
+ 
+
+     def _check_prepopulated_fields_value(self, obj, val, label):
+
+
+--- a/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
+@@ -878,7 +878,7 @@
+                 for index, item in enumerate(obj.list_editable)
+
+             ))
+
+ 
+
+-    def _check_list_editable_item(self, obj, field_name, label):
+
++def _check_list_editable_item(self, obj, field_name, label):
+
+         try:
+
+             field = obj.model._meta.get_field(field_name)
+
+         except FieldDoesNotExist:
+
+@@ -916,15 +916,21 @@
+                     )
+
+                 ]
+
+             elif not field.editable:
+
+-                return [
+
+-                    checks.Error(
+
+-                        "The value of '%s' refers to '%s', which is not editable through the admin." % (
+
+-                            label, field_name
+
+-                        ),
+
+-                        obj=obj.__class__,
+
+-                        id='admin.E125',
+
+-                    )
+
+-                ]
+
++                # Ensure JSONField values are properly formatted as JSON strings
+
++                if isinstance(field, JSONField):
+
++                    value = getattr(obj, field_name)
+
++                    if value is not None:
+
++                        value = field.prepare_value(value)
+
++                else:
+
++                    return [
+
++                        checks.Error(
+
++                            "The value of '%s' refers to '%s', which is not editable through the admin." % (
+
++                                label, field_name
+
++                            ),
+
++                            obj=obj.__class__,
+
++                            id='admin.E125',
+
++                        )
+
++                    ]
+
+             else:
+
+                 return []
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
+@@ -323,33 +323,42 @@
+         else:
+
+             return self._check_field_spec_item(obj, fields, label)
+
+ 
+
+-    def _check_field_spec_item(self, obj, field_name, label):
+
+-        if field_name in obj.readonly_fields:
+
++from django.contrib.admin.utils import display_for_field
+
++from django.db.models import JSONField
+
++
+
++def _check_field_spec_item(self, obj, field_name, label):
+
++    if field_name in obj.readonly_fields:
+
++        # Special case for JSONField to ensure it's displayed as valid JSON
+
++        if isinstance(obj.model._meta.get_field(field_name), JSONField):
+
++            # Ensure the value is prepared as JSON
+
++            value = display_for_field(obj, field_name, obj.model._meta.get_field(field_name))
+
++        else:
+
+             # Stuff can be put in fields that isn't actually a model field if
+
+             # it's in readonly_fields, readonly_fields will handle the
+
+             # validation of such things.
+
+-            return []
+
+-        else:
+
+-            try:
+
+-                field = obj.model._meta.get_field(field_name)
+
+-            except FieldDoesNotExist:
+
+-                # If we can't find a field on the model that matches, it could
+
+-                # be an extra field on the form.
+
+-                return []
+
+-            else:
+
+-                if (isinstance(field, models.ManyToManyField) and
+
+-                        not field.remote_field.through._meta.auto_created):
+
+-                    return [
+
+-                        checks.Error(
+
+-                            "The value of '%s' cannot include the ManyToManyField '%s', "
+
+-                            "because that field manually specifies a relationship model."
+
+-                            % (label, field_name),
+
+-                            obj=obj.__class__,
+
+-                            id='admin.E013',
+
+-                        )
+
+-                    ]
+
+-                else:
+
+-                    return []
+
++            value = []
+
++    else:
+
++        try:
+
++            field = obj.model._meta.get_field(field_name)
+
++        except FieldDoesNotExist:
+
++            # If we can't find a field on the model that matches, it could
+
++            # be an extra field on the form.
+
++            value = []
+
++        else:
+
++            if (isinstance(field, models.ManyToManyField) and
+
++                    not field.remote_field.through._meta.auto_created):
+
++                value = [
+
++                    checks.Error(
+
++                        "The value of '%s' cannot include the ManyToManyField '%s', "
+
++                        "because that field manually specifies a relationship model."
+
++                        % (label, field_name),
+
++                        obj=obj.__class__,
+
++                        id='admin.E013',
+
++                    )
+
++                ]
+
++            else:
+
++                value = []
+
++    return value
+
+ 
+
+     def _check_exclude(self, obj):
+
+         """ Check that exclude is a sequence without duplicates. """
+
+
+--- a/decoupled/60/0.8_0.2/34/django_django/django/core/serializers/python.py
++++ b/decoupled/60/0.8_0.2/34/django_django/django/core/serializers/python.py
+@@ -75,6 +75,9 @@
+         return self.objects
+
+ 
+
+ 
+
++from django.contrib.admin.utils import display_for_field
+
++from django.db.models import JSONField
+
++
+
+ def Deserializer(object_list, *, using=DEFAULT_DB_ALIAS, ignorenonexistent=False, **options):
+
+     """
+
+     Deserialize simple Python objects back into Django ORM instances.
+
+@@ -146,6 +149,18 @@
+         obj = base.build_instance(Model, data, using)
+
+         yield base.DeserializedObject(obj, m2m_data, deferred_fields)
+
+ 
+
++def display_for_field(value, field, empty_value_display=None):
+
++    if isinstance(field, JSONField):
+
++        # Ensure the value is a valid JSON string, even when readonly
+
++        if value is None:
+
++            return empty_value_display
+
++        try:
+
++            json_value = json.dumps(value)
+
++        except (TypeError, ValueError):
+
++            return empty_value_display
+
++        return json_value
+
++    return display_for_field(value, field, empty_value_display)
+
++
+
+ 
+
+ def _get_model(model_identifier):
+
+     """Look up a model from an "app_label.model_name" string."""
+
+

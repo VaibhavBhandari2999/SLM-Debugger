@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/233/sympy_sympy/sympy/simplify/tests/test_hyperexpand.py
++++ b/decoupled/60/0.8_0.2/233/sympy_sympy/sympy/simplify/tests/test_hyperexpand.py
+@@ -129,10 +129,18 @@
+         == 2**(2*a - 1)*((-z + 1)**(S(1)/2) + 1)**(-2*a + 1)
+
+ 
+
+ 
+
++from sympy import *
+
++from sympy.functions.special.hyper import hyper
+
++from sympy.functions.elementary.trigonometric import sin, cos
+
++
+
+ def test_shifted_sum():
+
+-    from sympy import simplify
+
+-    assert simplify(hyperexpand(z**4*hyper([2], [3, S('3/2')], -z**2))) \
+
+-        == z*sin(2*z) + (-z**2 + S.Half)*cos(2*z) - S.Half
+
++    z = Symbol('z')
+
++    expr1 = z**4 * hyper([2], [3, S('3/2')], -z**2)
+
++    expr2 = z*sin(2*z) + (-z**2 + S.Half)*cos(2*z) - S.Half
+
++    res = expr1 - expr2
+
++    # Use simplify directly on the result
+
++    simplified_res = simplify(res)
+
++    assert simplified_res == 0
+
+ 
+
+ 
+
+ def _randrat():

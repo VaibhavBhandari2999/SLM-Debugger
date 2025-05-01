@@ -1,0 +1,53 @@
+--- a/decoupled/60/0.8_0.2/161/pylint-dev_pylint/pylint/checkers/non_ascii_names.py
++++ b/decoupled/60/0.8_0.2/161/pylint-dev_pylint/pylint/checkers/non_ascii_names.py
+@@ -87,8 +87,14 @@
+ 
+
+     name = "NonASCII-Checker"
+
+ 
+
++import re
+
++
+
++class PylintChecker:
+
++    def __init__(self):
+
++        self.note_pattern = re.compile(r'(\w+|\W+)')  # Match any sequence of alphanumeric characters or punctuation
+
++
+
+     def _check_name(
+
+-        self, node_type: str, name: Optional[str], node: nodes.NodeNG
+
++        self, self, node_type: str, name: Optional[str], node: nodes.NodeNG
+
+     ) -> None:
+
+         """Check whether a name is using non-ASCII characters."""
+
+ 
+
+@@ -109,6 +115,10 @@
+                 msg = "non-ascii-module-import"
+
+ 
+
+             self.add_message(msg, node=node, args=args, confidence=interfaces.HIGH)
+
++
+
++    def process_notes(self, notes: str) -> List[str]:
+
++        """Process the notes to extract individual note tags."""
+
++        return self.note_pattern.findall(notes)
+
+ 
+
+     @utils.check_messages("non-ascii-name")
+
+     def visit_module(self, node: nodes.Module) -> None:

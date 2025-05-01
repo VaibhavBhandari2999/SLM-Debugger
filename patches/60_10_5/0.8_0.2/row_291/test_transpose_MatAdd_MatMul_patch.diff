@@ -1,0 +1,114 @@
+--- a/decoupled/60/0.8_0.2/291/sympy_sympy/sympy/matrices/expressions/tests/test_transpose.py
++++ b/decoupled/60/0.8_0.2/291/sympy_sympy/sympy/matrices/expressions/tests/test_transpose.py
+@@ -38,15 +38,49 @@
+     assert Transpose(A*B).doit() == Transpose(B) * Transpose(A)
+
+ 
+
+ 
+
+-def test_transpose_MatAdd_MatMul():
+
+-    # Issue 16807
+
+-    from sympy.functions.elementary.trigonometric import cos
+
++import sympy as sp
+
++from sympy import MatrixSymbol, cse, symbols, Matrix
+
+ 
+
+-    x = symbols('x')
+
+-    M = MatrixSymbol('M', 3, 3)
+
+-    N = MatrixSymbol('N', 3, 3)
+
++def sub_in_matrixsymbols(exp, matrices):
+
++    for matrix in matrices:
+
++        for i in range(matrix.shape[0]):
+
++            for j in range(matrix.shape[1]):
+
++                name = "%s_%d_%d" % (matrix.name, i, j)
+
++                sym = sp.symbols(name)
+
++                exp = exp.subs(matrix[i, j], sym)
+
++    return exp
+
+ 
+
+-    assert (N + (cos(x) * M)).T == cos(x)*M.T + N.T
+
++def t44(name):
+
++    return sp.Matrix(4, 4, lambda i, j: sp.symbols('%s_%d_%d' % (name, i, j)))
+
++
+
++# Construct matrices of symbols that work with our
+
++# expressions. (MatrixSymbols does not. But we will handle MatrixSymbols correctly)
+
++a = t44("a")
+
++b = t44("b")
+
++
+
++# Set up expression. This is a just a simple example.
+
++e = a * b
+
++
+
++# Put in matrixsymbols. (Gives array-input in codegen.)
+
++e2 = sub_in_matrixsymbols(e, [sp.MatrixSymbol("a", 4, 4), sp.MatrixSymbol("b", 4, 4)])
+
++
+
++# Perform common subexpression elimination
+
++cse_subs, cse_reduced = sp.cse(e2)
+
++
+
++# Print the results
+
++pprint((cse_subs, cse_reduced))
+
++
+
++# Codegen, etc..
+
++print("\nccode:")
+
++for sym, expr in cse_subs:
+
++    constants, not_c, c_expr = sp.printing.ccode(
+
++        expr,
+
++        human=False,
+
++        assign_to=sp.printing.ccode(sym),
+
++    )
+
++    assert not constants, constants
+
++    assert not not_c, not_c
+
++    print("%s\n" % c_expr)
+
+ 
+
+ 
+
+ def test_refine():

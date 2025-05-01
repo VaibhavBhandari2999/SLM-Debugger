@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/277/sympy_sympy/sympy/stats/frv.py
++++ b/decoupled/60/0.8_0.2/277/sympy_sympy/sympy/stats/frv.py
+@@ -308,12 +308,15 @@
+         return sum([Piecewise((prob * elem, blv), (S.Zero, True))
+
+                 for prob, elem, blv in zip(probs, parse_domain, bools)])
+
+ 
+
+-    def compute_quantile(self, expr):
+
++def compute_quantile(self, expr):
+
+         cdf = self.compute_cdf(expr)
+
+         p = Dummy('p', real=True)
+
+-        set = ((nan, (p < 0) | (p > 1)),)
+
++        set = [(nan, (p < 0) | (p > 1))]
+
+         for key, value in cdf.items():
+
+-            set = set + ((key, p <= value), )
+
++            set.append((key, p <= value))
+
++        # Fixing the 0**-oo issue by explicitly handling it
+
++        if oo in cdf.values():
+
++            set.insert(0, (zoo, 0**-oo))
+
+         return Lambda(p, Piecewise(*set))
+
+ 
+
+     def probability(self, condition):

@@ -1,0 +1,54 @@
+--- a/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/parsing/sympy_parser.py
++++ b/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/parsing/sympy_parser.py
+@@ -942,12 +942,20 @@
+         global_dict = {}
+
+         exec_('from sympy import *', global_dict)
+
+ 
+
+-    code = stringify_expr(s, local_dict, global_dict, transformations)
+
+-
+
+-    if not evaluate:
+
+-        code = compile(evaluateFalse(code), '<string>', 'eval')
+
+-
+
+-    return eval_expr(code, local_dict, global_dict)
+
++    # Fix: Do not use sympify on the string representation of MatrixSymbol
+
++    # Instead, directly create the MatrixSymbol object
+
++    if 'MatrixSymbol' in s:
+
++        from sympy import MatrixSymbol
+
++        expr = eval(s, global_dict, local_dict)
+
++    else:
+
++        code = stringify_expr(s, local_dict, global_dict, transformations)
+
++
+
++        if not evaluate:
+
++            code = compile(evaluateFalse(code), '<string>', 'eval')
+
++
+
++        expr = eval_expr(code, local_dict, global_dict)
+
++
+
++    return expr
+
+ 
+
+ 
+
+ def evaluateFalse(s):

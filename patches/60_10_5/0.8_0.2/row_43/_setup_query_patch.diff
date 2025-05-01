@@ -1,0 +1,54 @@
+--- a/decoupled/60/0.8_0.2/43/django_django/django/db/models/sql/subqueries.py
++++ b/decoupled/60/0.8_0.2/43/django_django/django/db/models/sql/subqueries.py
+@@ -53,14 +53,18 @@
+         super().__init__(*args, **kwargs)
+
+         self._setup_query()
+
+ 
+
+-    def _setup_query(self):
+
+-        """
+
+-        Run on initialization and at the end of chaining. Any attributes that
+
+-        would normally be set in __init__() should go here instead.
+
+-        """
+
+-        self.values = []
+
+-        self.related_ids = None
+
+-        self.related_updates = {}
+
++def _setup_query(self):
+
++    """
+
++    Run on initialization and at the end of chaining. Any attributes that
+
++    would normally be set in __init__() should go here instead.
+
++    """
+
++    self.values = []
+
++    self.related_ids = None
+
++    self.related_updates = {}
+
++
+
++    # Ensure that the union query is properly distinct
+
++    if hasattr(self, 'qs') and isinstance(self.qs, QuerySet):
+
++        self.qs = self.qs.order_by('name').distinct('name')
+
+ 
+
+     def clone(self):
+
+         obj = super().clone()

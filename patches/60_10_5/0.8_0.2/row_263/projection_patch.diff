@@ -1,0 +1,362 @@
+--- a/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/line.py
++++ b/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/line.py
+@@ -893,93 +893,93 @@
+         """
+
+         return (self.p1, self.p2)
+
+ 
+
+-    def projection(self, other):
+
+-        """Project a point, line, ray, or segment onto this linear entity.
+
+-
+
+-        Parameters
+
+-        ==========
+
+-
+
+-        other : Point or LinearEntity (Line, Ray, Segment)
+
+-
+
+-        Returns
+
+-        =======
+
+-
+
+-        projection : Point or LinearEntity (Line, Ray, Segment)
+
+-            The return type matches the type of the parameter ``other``.
+
+-
+
+-        Raises
+
+-        ======
+
+-
+
+-        GeometryError
+
+-            When method is unable to perform projection.
+
+-
+
+-        Notes
+
+-        =====
+
+-
+
+-        A projection involves taking the two points that define
+
+-        the linear entity and projecting those points onto a
+
+-        Line and then reforming the linear entity using these
+
+-        projections.
+
+-        A point P is projected onto a line L by finding the point
+
+-        on L that is closest to P. This point is the intersection
+
+-        of L and the line perpendicular to L that passes through P.
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        sympy.geometry.point.Point, perpendicular_line
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Point, Line, Segment, Rational
+
+-        >>> p1, p2, p3 = Point(0, 0), Point(1, 1), Point(Rational(1, 2), 0)
+
+-        >>> l1 = Line(p1, p2)
+
+-        >>> l1.projection(p3)
+
+-        Point2D(1/4, 1/4)
+
+-        >>> p4, p5 = Point(10, 0), Point(12, 1)
+
+-        >>> s1 = Segment(p4, p5)
+
+-        >>> l1.projection(s1)
+
+-        Segment2D(Point2D(5, 5), Point2D(13/2, 13/2))
+
+-        >>> p1, p2, p3 = Point(0, 0, 1), Point(1, 1, 2), Point(2, 0, 1)
+
+-        >>> l1 = Line(p1, p2)
+
+-        >>> l1.projection(p3)
+
+-        Point3D(2/3, 2/3, 5/3)
+
+-        >>> p4, p5 = Point(10, 0, 1), Point(12, 1, 3)
+
+-        >>> s1 = Segment(p4, p5)
+
+-        >>> l1.projection(s1)
+
+-        Segment3D(Point3D(10/3, 10/3, 13/3), Point3D(5, 5, 6))
+
+-
+
+-        """
+
+-
+
+-        if not isinstance(other, GeometryEntity):
+
+-            other = Point(other, dim=self.ambient_dimension)
+
+-
+
+-        def proj_point(p):
+
+-            return Point.project(p - self.p1, self.direction) + self.p1
+
+-
+
+-        if isinstance(other, Point):
+
+-            return proj_point(other)
+
+-        elif isinstance(other, LinearEntity):
+
+-            p1, p2 = proj_point(other.p1), proj_point(other.p2)
+
+-            # test to see if we're degenerate
+
+-            if p1 == p2:
+
+-                return p1
+
+-            projected = other.__class__(p1, p2)
+
+-            projected = Intersection(self, projected)
+
+-            # if we happen to have intersected in only a point, return that
+
+-            if projected.is_FiniteSet and len(projected) == 1:
+
+-                # projected is a set of size 1, so unpack it in `a`
+
+-                a, = projected
+
+-                return a
+
+-            # order args so projection is in the same direction as self
+
+-            if self.direction.dot(projected.direction) < 0:
+
+-                p1, p2 = projected.args
+
+-                projected = projected.func(p2, p1)
+
+-            return projected
+
+-
+
+-        raise GeometryError(
+
+-            "Do not know how to project %s onto %s" % (other, self))
+
++def projection(self, other):
+
++    """Project a point, line, ray, or segment onto this linear entity.
+
++
+
++    Parameters
+
++    ==========
+
++
+
++    other : Point or LinearEntity (Line, Ray, Segment)
+
++
+
++    Returns
+
++    =======
+
++
+
++    projection : Point or LinearEntity (Line, Ray, Segment)
+
++        The return type matches the type of the parameter ``other``.
+
++
+
++    Raises
+
++    ======
+
++
+
++    GeometryError
+
++        When method is unable to perform projection.
+
++
+
++    Notes
+
++    =====
+
++
+
++    A projection involves taking the two points that define
+
++    the linear entity and projecting those points onto a
+
++    Line and then reforming the linear entity using these
+
++    projections.
+
++    A point P is projected onto a line L by finding the point
+
++    on L that is closest to P. This point is the intersection
+
++    of L and the line perpendicular to L that passes through P.
+
++
+
++    See Also
+
++    ========
+
++
+
++    sympy.geometry.point.Point, perpendicular_line
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Point, Line, Segment, Rational
+
++    >>> p1, p2, p3 = Point(0, 0), Point(1, 1), Point(Rational(1, 2), 0)
+
++    >>> l1 = Line(p1, p2)
+
++    >>> l1.projection(p3)
+
++    Point2D(1/4, 1/4)
+
++    >>> p4, p5 = Point(10, 0), Point(12, 1)
+
++    >>> s1 = Segment(p4, p5)
+
++    >>> l1.projection(s1)
+
++    Segment2D(Point2D(5, 5), Point2D(13/2, 13/2))
+
++    >>> p1, p2, p3 = Point(0, 0, 1), Point(1, 1, 2), Point(2, 0, 1)
+
++    >>> l1 = Line(p1, p2)
+
++    >>> l1.projection(p3)
+
++    Point3D(2/3, 2/3, 5/3)
+
++    >>> p4, p5 = Point(10, 0, 1), Point(12, 1, 3)
+
++    >>> s1 = Segment(p4, p5)
+
++    >>> l1.projection(s1)
+
++    Segment3D(Point3D(10/3, 10/3, 13/3), Point3D(5, 5, 6))
+
++
+
++    """
+
++
+
++    if not isinstance(other, GeometryEntity):
+
++        other = Point(other, dim=self.ambient_dimension)
+
++
+
++    def proj_point(p):
+
++        return Point.project(p - self.p1, self.direction) + self.p1
+
++
+
++    if isinstance(other, Point):
+
++        return proj_point(other)
+
++    elif isinstance(other, LinearEntity):
+
++        p1, p2 = proj_point(other.p1), proj_point(other.p2)
+
++        # test to see if we're degenerate
+
++        if p1 == p2:
+
++            return p1
+
++        projected = other.__class__(p1, p2)
+
++        projected = Intersection(self, projected)
+
++        # if we happen to have intersected in only a point, return that
+
++        if projected.is_FiniteSet and len(projected) == 1:
+
++            # projected is a set of size 1, so unpack it in `a`
+
++            a, = projected
+
++            return a
+
++        # order args so projection is in the same direction as self
+
++        if self.direction.dot(projected.direction) < 0:
+
++            p1, p2 = projected.args
+
++            projected = projected.func(p2, p1)
+
++        return projected
+
++
+
++    raise GeometryError(
+
++        "Do not know how to project %s onto %s" % (other, self))
+
+ 
+
+     def random_point(self, seed=None):
+
+         """A random point on a LinearEntity.

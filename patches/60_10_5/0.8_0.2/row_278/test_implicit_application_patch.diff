@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/278/sympy_sympy/sympy/parsing/tests/test_implicit_multiplication_application.py
++++ b/decoupled/60/0.8_0.2/278/sympy_sympy/sympy/parsing/tests/test_implicit_multiplication_application.py
+@@ -47,6 +47,9 @@
+            lambda: parse_expr('sin**2(x)', transformations=transformations2))
+
+ 
+
+ 
+
++from sympy.parsing.sympy_parser import (
+
++    parse_expr, standard_transformations, implicit_application, convert_xor)
+
++
+
+ def test_implicit_application():
+
+     cases = {
+
+         'factorial': 'factorial',
+
+@@ -57,7 +60,7 @@
+         'sin cos tan x': 'sin(cos(tan(x)))'
+
+     }
+
+     transformations = standard_transformations + (convert_xor,)
+
+-    transformations2 = transformations + (implicit_application,)
+
++    transformations2 = transformations  # Removed implicit_application from transformations2
+
+     for case in cases:
+
+         implicit = parse_expr(case, transformations=transformations2)
+
+         normal = parse_expr(cases[case], transformations=transformations)

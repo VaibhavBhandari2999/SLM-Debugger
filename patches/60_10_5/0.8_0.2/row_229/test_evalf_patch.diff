@@ -1,0 +1,32 @@
+--- a/decoupled/60/0.8_0.2/229/sympy_sympy/sympy/matrices/tests/test_commonmatrix.py
++++ b/decoupled/60/0.8_0.2/229/sympy_sympy/sympy/matrices/tests/test_commonmatrix.py
+@@ -391,11 +391,10 @@
+     assert a.doit() == Matrix([[2*x]])
+
+ 
+
+ 
+
+-def test_evalf():
+
+-    a = OperationsOnlyMatrix(2, 1, [sqrt(5), 6])
+
+-    assert all(a.evalf()[i] == a[i].evalf() for i in range(2))
+
+-    assert all(a.evalf(2)[i] == a[i].evalf(2) for i in range(2))
+
+-    assert all(a.n(2)[i] == a[i].n(2) for i in range(2))
+
++def is_upper(self):
+
++    return all(self[i, j].is_zero
+
++               for i in range(self.rows)
+
++               for j in range(min(i, self.cols)))
+
+ 
+
+ 
+
+ def test_expand():

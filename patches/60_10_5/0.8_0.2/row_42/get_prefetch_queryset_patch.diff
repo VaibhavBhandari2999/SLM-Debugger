@@ -1,0 +1,138 @@
+--- a/decoupled/60/0.8_0.2/42/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/42/django_django/django/db/models/fields/related_descriptors.py
+@@ -117,36 +117,38 @@
+     def get_queryset(self, **hints):
+
+         return self.field.remote_field.model._base_manager.db_manager(hints=hints).all()
+
+ 
+
+-    def get_prefetch_queryset(self, instances, queryset=None):
+
+-        if queryset is None:
+
+-            queryset = self.get_queryset()
+
+-        queryset._add_hints(instance=instances[0])
+
+-
+
+-        rel_obj_attr = self.field.get_foreign_related_value
+
+-        instance_attr = self.field.get_local_related_value
+
+-        instances_dict = {instance_attr(inst): inst for inst in instances}
+
+-        related_field = self.field.foreign_related_fields[0]
+
+-        remote_field = self.field.remote_field
+
+-
+
+-        # FIXME: This will need to be revisited when we introduce support for
+
+-        # composite fields. In the meantime we take this practical approach to
+
+-        # solve a regression on 1.6 when the reverse manager in hidden
+
+-        # (related_name ends with a '+'). Refs #21410.
+
+-        # The check for len(...) == 1 is a special case that allows the query
+
+-        # to be join-less and smaller. Refs #21760.
+
+-        if remote_field.is_hidden() or len(self.field.foreign_related_fields) == 1:
+
+-            query = {'%s__in' % related_field.name: {instance_attr(inst)[0] for inst in instances}}
+
+-        else:
+
+-            query = {'%s__in' % self.field.related_query_name(): instances}
+
+-        queryset = queryset.filter(**query)
+
+-
+
+-        # Since we're going to assign directly in the cache,
+
+-        # we must manage the reverse relation cache manually.
+
+-        if not remote_field.multiple:
+
+-            for rel_obj in queryset:
+
+-                instance = instances_dict[rel_obj_attr(rel_obj)]
+
+-                remote_field.set_cached_value(rel_obj, instance)
+
+-        return queryset, rel_obj_attr, instance_attr, True, self.field.get_cache_name(), False
+
++def get_prefetch_queryset(self, instances, queryset=None):
+
++    if queryset is None:
+
++        queryset = self.get_queryset()
+
++    queryset._add_hints(instance=instances[0])
+
++
+
++    rel_obj_attr = self.field.get_foreign_related_value
+
++    instance_attr = self.field.get_local_related_value
+
++    instances_dict = {instance_attr(inst): inst for inst in instances}
+
++    related_field = self.field.foreign_related_fields[0]
+
++    remote_field = self.field.remote_field
+
++
+
++    # Validate the fields in the UniqueConstraint
+
++    model = self.model
+
++    for field_name in related_field.name, *related_field.related_model._meta.unique_together:
+
++        if not model._meta.get_field(field_name):
+
++            raise ValueError(f"Field '{field_name}' does not exist in model '{model.__name__}'")
+
++
+
++    # The check for len(...) == 1 is a special case that allows the query
+
++    # to be join-less and smaller. Refs #21760.
+
++    if remote_field.is_hidden() or len(self.field.foreign_related_fields) == 1:
+
++        query = {'%s__in' % related_field.name: {instance_attr(inst)[0] for inst in instances}}
+
++    else:
+
++        query = {'%s__in' % self.field.related_query_name(): instances}
+
++    queryset = queryset.filter(**query)
+
++
+
++    # Since we're going to assign directly in the cache,
+
++    # we must manage the reverse relation cache manually.
+
++    if not remote_field.multiple:
+
++        for rel_obj in queryset:
+
++            instance = instances_dict[rel_obj_attr(rel_obj)]
+
++            remote_field.set_cached_value(rel_obj, instance)
+
++    return queryset, rel_obj_attr, instance_attr, True, self.field.get_cache_name(), False
+
+ 
+
+     def get_object(self, instance):
+
+         qs = self.get_queryset(instance=instance)

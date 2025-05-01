@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/225/sympy_sympy/sympy/assumptions/ask.py
++++ b/decoupled/60/0.8_0.2/225/sympy_sympy/sympy/assumptions/ask.py
+@@ -1276,6 +1276,14 @@
+     if local_facts is None:
+
+         return satask(proposition, assumptions=assumptions, context=context)
+
+ 
+
++    # Ensure assumptions do not affect printing
+
++    from sympy.printing.latex import print_latex
+
++    from sympy.printing.pretty import pprint
+
++
+
++    # Override the assumptions in the printing context
+
++    with assumptions_context(assumptions=False):
+
++        latex_output = print_latex(expr)
+
++        pretty_output = pprint(expr)
+
+ 
+
+     # See if there's a straight-forward conclusion we can make for the inference
+
+     if local_facts.is_Atom:
+
+@@ -1306,6 +1314,8 @@
+     if res is None:
+
+         return satask(proposition, assumptions=assumptions, context=context)
+
+     return res
+
++
+
++def assumptions_context
+
+ 
+
+ 
+
+ def ask_full_inference(proposition, assumptions, known_facts_cnf):

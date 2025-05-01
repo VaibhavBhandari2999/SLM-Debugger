@@ -1,0 +1,36 @@
+--- a/decoupled/60/0.8_0.2/77/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/77/django_django/django/db/models/query_utils.py
+@@ -275,6 +275,17 @@
+         (getattr(field, 'primary_key', False) and check(field.model._meta))
+
+     )
+
+ 
+
++# Fix for the bug in ManyToManyRel
+
++class ManyToManyRel:
+
++    def __init__(self, field, model, symmetrical, through, through_fields):
+
++        self.field = field
+
++        self.model = model
+
++        self.symmetrical = symmetrical
+
++        self.through = through
+
++        self.through_fields = through_fields
+
++        # Add the missing make_hashable call on self.through_fields
+
++        self.through_fields = make_hashable(self.through_fields)
+
++
+
+ 
+
+ class FilteredRelation:
+
+     """Specify custom filtering in the ON clause of SQL joins."""

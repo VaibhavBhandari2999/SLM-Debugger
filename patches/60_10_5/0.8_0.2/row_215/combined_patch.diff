@@ -1,0 +1,395 @@
+--- a/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -162,30 +162,18 @@
+     return True
+
+ 
+
+ 
+
+-def example_generator(n):
+
+-    """Generators have a ``Yields`` section instead of a ``Returns`` section.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    n : int
+
+-        The upper limit of the range to generate, from 0 to `n` - 1.
+
+-
+
+-    Yields
+
+-    ------
+
+-    int
+
+-        The next number in the range of 0 to `n` - 1.
+
+-
+
+-    Examples
+
+-    --------
+
+-    Examples should be written in doctest format, and should illustrate how
+
+-    to use the function.
+
+-
+
+-    >>> print([i for i in example_generator(4)])
+
+-    [0, 1, 2, 3]
+
+-
+
+-    """
+
+-    for i in range(n):
+
+-        yield i
+
++# example.py
+
++from __future__ import annotations
+
++
+
++class MyString:
+
++    "mystring"
+
++
+
++    #: blah blah blah
+
++    var: MyString
+
++
+
++
+
++#: blah blah blah
+
++example.var = MyString()
+
+ 
+
+ 
+
+ class ExampleError(Exception):
+
+
+--- a/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/sphinx/jinja2glue.py
++++ b/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/sphinx/jinja2glue.py
+@@ -40,22 +40,22 @@
+         return 0
+
+ 
+
+ 
+
+-def _todim(val: Union[int, str]) -> str:
+
+-    """
+
+-    Make val a css dimension. In particular the following transformations
+
+-    are performed:
+
+-
+
+-    - None -> 'initial' (default CSS value)
+
+-    - 0 -> '0'
+
+-    - ints and string representations of ints are interpreted as pixels.
+
+-
+
+-    Everything else is returned unchanged.
+
+-    """
+
+-    if val is None:
+
+-        return 'initial'
+
+-    elif str(val).isdigit():
+
+-        return '0' if int(val) == 0 else '%spx' % val
+
+-    return val  # type: ignore
+
++# example.py
+
++from __future__ import annotations
+
++
+
++from typing import TYPE_CHECKING
+
++
+
++if TYPE_CHECKING:
+
++    from example import MyString
+
++
+
++#: blah blah blah
+
++var: MyString
+
++
+
++class MyString:
+
++    "mystring"
+
++
+
++    #: blah blah blah
+
++    var: MyString
+
+ 
+
+ 
+
+ def _slice_index(values: List, slices: int) -> Iterator[List]:
+
+
+--- a/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -242,7 +242,7 @@
+ 
+
+     """
+
+ 
+
+-    def __init__(self, param1, param2, param3):
+
++def __init__(self, param1, param2, param3):
+
+         """Example of docstring on the __init__ method.
+
+ 
+
+         The __init__ method may be documented in either the class level
+
+@@ -266,15 +266,20 @@
+             Description of `param3`.
+
+ 
+
+         """
+
++        #: :obj:`str`: Doc comment *inline* with attribute
+
+         self.attr1 = param1
+
++
+
++        #: :obj:`list(str)`: Doc comment *before* attribute, with type specified
+
+         self.attr2 = param2
+
+-        self.attr3 = param3  #: Doc comment *inline* with attribute
+
+-
+
+-        #: list(str): Doc comment *before* attribute, with type specified
+
++
+
++        #: :obj:`int`, optional: Doc comment *inline* with attribute
+
++        self.attr3 = param3
+
++
+
++        #: :obj:`list(str)`: Doc comment *before* attribute, with type specified
+
+         self.attr4 = ["attr4"]
+
+ 
+
++        #: :obj:`str`: Docstring *after* attribute, with type specified.
+
+         self.attr5 = None
+
+-        """str: Docstring *after* attribute, with type specified."""
+
+ 
+
+     @property
+
+     def readonly_property(self):
+
+
+--- a/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/sphinx/extension.py
+@@ -23,21 +23,21 @@
+ 
+
+ 
+
+ class Extension:
+
+-    def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
+-        self.name = name
+
+-        self.module = module
+
+-        self.metadata = kwargs
+
+-        self.version = kwargs.pop('version', 'unknown version')
+
++def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
++    self.name: str = name
+
++    self.module: Any = module
+
++    self.metadata: Dict[str, Any] = kwargs
+
++    self.version: str = kwargs.pop('version', 'unknown version')
+
+ 
+
+-        # The extension supports parallel read or not.  The default value
+
+-        # is ``None``.  It means the extension does not tell the status.
+
+-        # It will be warned on parallel reading.
+
+-        self.parallel_read_safe = kwargs.pop('parallel_read_safe', None)
+
++    # The extension supports parallel read or not.  The default value
+
++    # is ``None``.  It means the extension does not tell the status.
+
++    # It will be warned on parallel reading.
+
++    self.parallel_read_safe: Optional[bool] = kwargs.pop('parallel_read_safe', None)
+
+ 
+
+-        # The extension supports parallel write or not.  The default value
+
+-        # is ``True``.  Sphinx writes parallelly documents even if
+
+-        # the extension does not tell its status.
+
+-        self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
++    # The extension supports parallel write or not.  The default value
+
++    # is ``True``.  Sphinx writes parallelly documents even if
+
++    # the extension does not tell its status.
+
++    self.parallel_write_safe: bool = kwargs.pop('parallel_write_safe', True)
+
+ 
+
+ 
+
+ def verify_needs_extensions(app: "Sphinx", config: Config) -> None:
+
+
+--- a/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -52,29 +52,18 @@
+ """
+
+ 
+
+ 
+
+-def function_with_types_in_docstring(param1, param2):
+
+-    """Example function with types documented in the docstring.
+
+-
+
+-    `PEP 484`_ type annotations are supported. If attribute, parameter, and
+
+-    return types are annotated according to `PEP 484`_, they do not need to be
+
+-    included in the docstring:
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    param1 : int
+
+-        The first parameter.
+
+-    param2 : str
+
+-        The second parameter.
+
+-
+
+-    Returns
+
+-    -------
+
+-    bool
+
+-        True if successful, False otherwise.
+
+-
+
+-    .. _PEP 484:
+
+-        https://www.python.org/dev/peps/pep-0484/
+
+-
+
+-    """
+
++# example.py
+
++from __future__ import annotations
+
++
+
++class MyClass:
+
++    #: blah blah blah
+
++    var: String
+
++
+
++    class MyString:
+
++        "mystring"
+
++
+
++        #: blah blah blah
+
++        var: String
+
+ 
+
+ 
+
+ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
+
+

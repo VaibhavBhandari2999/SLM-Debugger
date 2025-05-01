@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/275/sympy_sympy/sympy/polys/solvers.py
++++ b/decoupled/60/0.8_0.2/275/sympy_sympy/sympy/polys/solvers.py
+@@ -232,22 +232,6 @@
+         def to_sympy(x):
+
+             as_expr = getattr(x, 'as_expr', None)
+
+             if as_expr:
+
+-                return as_expr()
+
+-            else:
+
+-                return ring.domain.to_sympy(x)
+
+-
+
+-        tresult = {to_sympy(sym): to_sympy(val) for sym, val in result.items()}
+
+-
+
+-        # Remove 1.0x
+
+-        result = {}
+
+-        for k, v in tresult.items():
+
+-            if k.is_Mul:
+
+-                c, s = k.as_coeff_Mul()
+
+-                result[s] = v/c
+
+-            else:
+
+-                result[k] = v
+
+-
+
+-    return result
+
+ 
+
+ 
+
+ def _solve_lin_sys(eqs_coeffs, eqs_rhs, ring):

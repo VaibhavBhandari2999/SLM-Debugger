@@ -1,0 +1,48 @@
+--- a/decoupled/60/0.8_0.2/162/pylint-dev_pylint/pylint/interfaces.py
++++ b/decoupled/60/0.8_0.2/162/pylint-dev_pylint/pylint/interfaces.py
+@@ -52,12 +52,17 @@
+ class Interface:
+
+     """Base class for interfaces."""
+
+ 
+
+-    def __init__(self) -> None:
+
+-        warnings.warn(
+
+-            "Interface and all of its subclasses have been deprecated "
+
+-            "and will be removed in pylint 3.0.",
+
+-            DeprecationWarning,
+
+-        )
+
++def __init__(self) -> None:
+
++        try:
+
++            warnings.warn(
+
++                "Interface and all of its subclasses have been deprecated "
+
++                "and will be removed in pylint 3.0.",
+
++                DeprecationWarning,
+
++            )
+
++        except pylint.config.exceptions._UnrecognizedOptionError as e:
+
++            print(f"Usage: {sys.argv[0]} [options]")
+
++            print("pylint: error: unrecognized arguments: {e.options}")
+
++            sys.exit(2)
+
+ 
+
+     @classmethod
+
+     def is_implemented_by(

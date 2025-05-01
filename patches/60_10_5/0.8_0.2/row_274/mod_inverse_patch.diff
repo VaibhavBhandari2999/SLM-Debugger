@@ -1,0 +1,70 @@
+--- a/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
+@@ -498,9 +498,6 @@
+     Examples
+
+     ========
+
+ 
+
+-    >>> from sympy import S
+
+-    >>> from sympy.core.numbers import mod_inverse
+
+-
+
+     Suppose we wish to find multiplicative inverse x of
+
+     3 modulo 11. This is the same as finding x such
+
+     that 3 * x = 1 (mod 11). One value of x that satisfies
+
+@@ -531,6 +528,8 @@
+     c = None
+
+     try:
+
+         a, m = as_int(a), as_int(m)
+
++        if m == 1 or m == -1:
+
++            return 1
+
+         if m != 1 and m != -1:
+
+             x, y, g = igcdex(a, m)
+
+             if g == 1:
+
+@@ -544,11 +543,11 @@
+                 but symbolic expressions can be handled with the
+
+                 similar function,
+
+                 sympy.polys.polytools.invert'''))
+
+-        big = (m > 1)
+
+-        if not (big is S.true or big is S.false):
+
+-            raise ValueError('m > 1 did not evaluate; try to simplify %s' % m)
+
+-        elif big:
+
+-            c = 1/a
+
++        if m == 1 or m == -1:
+
++            return 1
+
++        elif m == 0:
+
++            raise ValueError('inverse of %s (mod 0) is undefined' % a)
+
++        c = 1/a
+
+     if c is None:
+
+         raise ValueError('inverse of %s (mod %s) does not exist' % (a, m))
+
+     return c

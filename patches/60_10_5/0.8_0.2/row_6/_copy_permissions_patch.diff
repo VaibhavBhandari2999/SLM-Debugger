@@ -1,0 +1,34 @@
+--- a/decoupled/60/0.8_0.2/6/django_django/django/utils/archive.py
++++ b/decoupled/60/0.8_0.2/6/django_django/django/utils/archive.py
+@@ -98,14 +98,8 @@
+     Base Archive class.  Implementations should inherit this class.
+
+     """
+
+     @staticmethod
+
+-    def _copy_permissions(mode, filename):
+
+-        """
+
+-        If the file in the archive has some permissions (this assumes a file
+
+-        won't be writable/executable without being readable), apply those
+
+-        permissions to the unarchived file.
+
+-        """
+
+-        if mode & stat.S_IROTH:
+
+-            os.chmod(filename, mode)
+
++# In Django settings.py
+
++FILE_UPLOAD_PERMISSIONS = 0o644
+
+ 
+
+     def split_leading_dir(self, path):
+
+         path = str(path)

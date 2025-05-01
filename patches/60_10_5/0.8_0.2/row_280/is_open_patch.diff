@@ -1,0 +1,96 @@
+--- a/decoupled/60/0.8_0.2/280/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/280/sympy_sympy/sympy/sets/sets.py
+@@ -557,24 +557,29 @@
+         return self._boundary
+
+ 
+
+     @property
+
+-    def is_open(self):
+
+-        """
+
+-        Property method to check whether a set is open.
+
+-
+
+-        A set is open if and only if it has an empty intersection with its
+
+-        boundary. In particular, a subset A of the reals is open if and only
+
+-        if each one of its points is contained in an open interval that is a
+
+-        subset of A.
+
+-
+
+-        Examples
+
+-        ========
+
+-        >>> from sympy import S
+
+-        >>> S.Reals.is_open
+
+-        True
+
+-        >>> S.Rationals.is_open
+
+-        False
+
+-        """
+
+-        return Intersection(self, self.boundary).is_empty
+
++def is_open(self):
+
++    """
+
++    Property method to check whether a set is open.
+
++
+
++    A set is open if and only if it has an empty intersection with its
+
++    boundary. In particular, a subset A of the reals is open if and only
+
++    if each one of its points is contained in an open interval that is a
+
++    subset of A.
+
++
+
++    Examples
+
++    ========
+
++    >>> from sympy import S
+
++    >>> S.Reals.is_open
+
++    True
+
++    >>> S.Rationals.is_open
+
++    False
+
++    """
+
++    # Check if the Symbol instance has a __dict__ attribute
+
++    if hasattr(self, '__dict__'):
+
++        # If it does, clear it to avoid interference
+
++        self.__dict__.clear()
+
++    
+
++    return Intersection(self, self.boundary).is_empty
+
+ 
+
+     @property
+
+     def is_closed(self):

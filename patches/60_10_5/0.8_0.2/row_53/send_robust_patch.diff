@@ -1,0 +1,63 @@
+--- a/decoupled/60/0.8_0.2/53/django_django/django/dispatch/dispatcher.py
++++ b/decoupled/60/0.8_0.2/53/django_django/django/dispatch/dispatcher.py
+@@ -179,7 +179,7 @@
+             for receiver in self._live_receivers(sender)
+
+         ]
+
+ 
+
+-    def send_robust(self, sender, **named):
+
++def send_robust(self, sender, **named):
+
+         """
+
+         Send signal from sender to all connected receivers catching errors.
+
+ 
+
+@@ -212,6 +212,22 @@
+             else:
+
+                 responses.append((receiver, response))
+
+         return responses
+
++
+
++    def decode_session_data(self, session_data):
+
++        """
+
++        Decode session data with error handling for invalid signatures and padding.
+
++
+
++        Args:
+
++            session_data (str): The session data to decode.
+
++
+
++        Returns:
+
++            dict: The decoded session data or an empty dictionary if decoding fails.
+
++        """
+
++        try:
+
++            return self._legacy_decode(session_data)
+
++        except (BadSignature, binascii.Error):
+
++            # Handle invalid session data by returning an empty dictionary
+
++            return {}
+
+ 
+
+     def _clear_dead_receivers(self):
+
+         # Note: caller is assumed to hold self.lock.

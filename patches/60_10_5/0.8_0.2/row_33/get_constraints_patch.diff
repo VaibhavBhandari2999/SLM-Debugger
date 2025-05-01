@@ -1,0 +1,88 @@
+--- a/decoupled/60/0.8_0.2/33/django_django/django/db/backends/base/introspection.py
++++ b/decoupled/60/0.8_0.2/33/django_django/django/db/backends/base/introspection.py
+@@ -147,23 +147,25 @@
+                 return constraint['columns'][0]
+
+         return None
+
+ 
+
+-    def get_constraints(self, cursor, table_name):
+
+-        """
+
+-        Retrieve any constraints or keys (unique, pk, fk, check, index)
+
+-        across one or more columns.
+
++def get_constraints(self, cursor, table_name):
+
++    """
+
++    Retrieve any constraints or keys (unique, pk, fk, check, index)
+
++    across one or more columns.
+
+ 
+
+-        Return a dict mapping constraint names to their attributes,
+
+-        where attributes is a dict with keys:
+
+-         * columns: List of columns this covers
+
+-         * primary_key: True if primary key, False otherwise
+
+-         * unique: True if this is a unique constraint, False otherwise
+
+-         * foreign_key: (table, column) of target, or None
+
+-         * check: True if check constraint, False otherwise
+
+-         * index: True if index, False otherwise.
+
+-         * orders: The order (ASC/DESC) defined for the columns of indexes
+
+-         * type: The type of the index (btree, hash, etc.)
+
++    Return a dict mapping constraint names to their attributes,
+
++    where attributes is a dict with keys:
+
++     * columns: List of columns this covers
+
++     * primary_key: True if primary key, False otherwise
+
++     * unique: True if this is a unique constraint, False otherwise
+
++     * foreign_key: (table, column) of target, or None
+
++     * check: True if check constraint, False otherwise
+
++     * index: True if index, False otherwise.
+
++     * orders: The order (ASC/DESC) defined for the columns of indexes
+
++     * type: The type of the index (btree, hash, etc.)
+
+ 
+
+-        Some backends may return special constraint names that don't exist
+
+-        if they don't name constraints of a certain type (e.g. SQLite)
+
+-        """
+
+-        raise NotImplementedError('subclasses of BaseDatabaseIntrospection may require a get_constraints() method')
+
++    Some backends may return special constraint names that don't exist
+
++    if they don't name constraints of a certain type (e.g. SQLite)
+
++    """
+
++    # This function is not responsible for handling the LANGUAGE_CODE setting or translation.
+
++    # The issue described is likely in the settings or another part of the code.
+
++    raise NotImplementedError('subclasses of BaseDatabaseIntrospection may require a get_constraints() method')

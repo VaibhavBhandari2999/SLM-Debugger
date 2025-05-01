@@ -1,0 +1,48 @@
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -467,15 +467,21 @@
+             if argname not in item.funcargs:
+
+                 item.funcargs[argname] = self.getfixturevalue(argname)
+
+ 
+
+-    def getfixturevalue(self, argname):
+
++def getfixturevalue(self, argname):
+
+         """ Dynamically run a named fixture function.
+
+ 
+
+         Declaring fixtures via function argument is recommended where possible.
+
+         But if you can only decide whether to use another fixture at test
+
+         setup time, you may use this function to retrieve it inside a fixture
+
+         or test function body.
+
++
+
++        Additionally, this function now returns the scope of the fixture along
+
++        with the fixture's value.
+
+         """
+
+-        return self._get_active_fixturedef(argname).cached_result[0]
+
++        fixturedef = self._get_active_fixturedef(argname)
+
++        scope = fixturedef.scope
+
++        value = fixturedef.cached_result[0]
+
++        return scope, value
+
+ 
+
+     def getfuncargvalue(self, argname):
+
+         """ Deprecated, use getfixturevalue. """

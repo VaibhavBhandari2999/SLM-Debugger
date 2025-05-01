@@ -1,0 +1,65 @@
+--- a/decoupled/60/0.8_0.2/151/psf_requests/requests/packages/chardet/sbcharsetprober.py
++++ b/decoupled/60/0.8_0.2/151/psf_requests/requests/packages/chardet/sbcharsetprober.py
+@@ -67,12 +67,16 @@
+         else:
+
+             return self._mModel['charsetName']
+
+ 
+
+-    def feed(self, aBuf):
+
+-        if not self._mModel['keepEnglishLetter']:
+
+-            aBuf = self.filter_without_english_letters(aBuf)
+
+-        aLen = len(aBuf)
+
+-        if not aLen:
+
+-            return self.get_state()
+
++import requests
+
++
+
++def feed(self, aBuf):
+
++    if not self._mModel['keepEnglishLetter']:
+
++        aBuf = self.filter_without_english_letters(aBuf)
+
++    aLen = len(aBuf)
+
++    if not aLen:
+
++        return self.get_state()
+
++    
+
++    try:
+
+         for c in aBuf:
+
+             order = self._mModel['charToOrderMap'][wrap_ord(c)]
+
+             if order < SYMBOL_CAT_ORDER:
+
+@@ -108,6 +112,9 @@
+                     self._mState = constants.eNotMe
+
+ 
+
+         return self.get_state()
+
++    except socket.error as e:
+
++        # Wrap the socket.error in a requests.exceptions.ConnectionError
+
++        raise requests.exceptions.ConnectionError(str(e))
+
+ 
+
+     def get_confidence(self):
+
+         r = 0.01

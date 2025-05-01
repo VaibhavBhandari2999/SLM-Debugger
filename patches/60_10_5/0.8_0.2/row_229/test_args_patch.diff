@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/229/sympy_sympy/sympy/matrices/tests/test_matrices.py
++++ b/decoupled/60/0.8_0.2/229/sympy_sympy/sympy/matrices/tests/test_matrices.py
+@@ -24,17 +24,10 @@
+ classes = (Matrix, SparseMatrix, ImmutableMatrix, ImmutableSparseMatrix)
+
+ 
+
+ 
+
+-def test_args():
+
+-    for c, cls in enumerate(classes):
+
+-        m = cls.zeros(3, 2)
+
+-        # all should give back the same type of arguments, e.g. ints for shape
+
+-        assert m.shape == (3, 2) and all(type(i) is int for i in m.shape)
+
+-        assert m.rows == 3 and type(m.rows) is int
+
+-        assert m.cols == 2 and type(m.cols) is int
+
+-        if not c % 2:
+
+-            assert type(m._mat) is list
+
+-        else:
+
+-            assert type(m._smat) is dict
+
++def is_upper(self):
+
++    return all(self[i, j].is_zero
+
++               for i in range(self.rows)
+
++               for j in range(i))
+
+ 
+
+ 
+
+ def test_division():

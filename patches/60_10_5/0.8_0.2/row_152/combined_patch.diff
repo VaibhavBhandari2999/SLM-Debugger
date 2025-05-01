@@ -1,0 +1,217 @@
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
+@@ -240,7 +240,7 @@
+     :param value: the header value to unquote.
+
+     """
+
+     if value and value[0] == value[-1] == '"':
+
+-        # this is not the real unquoting, but fixing this so that the
+
++        # this is not the real unquoting, but fixing this so the
+
+         # RFC is met will result in bugs with internet explorer and
+
+         # probably some other browsers as well.  IE for example is
+
+         # uploading files with "C:\foo\bar.txt" as filename
+
+@@ -254,6 +254,14 @@
+         if not is_filename or value[:2] != '\\\\':
+
+             return value.replace('\\\\', '\\').replace('\\"', '"')
+
+     return value
+
++
+
++# Ensure the method remains a bytes object
+
++def process_request(method, *args, **kwargs):
+
++    # Ensure method is a bytes object
+
++    if isinstance(method, str):
+
++        method = method.encode('ascii')
+
++    # Call the original function with the method as bytes
+
++    return unquote_header_value(method, *args, **kwargs)
+
+ 
+
+ 
+
+ def dict_from_cookiejar(cj):
+
+
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/packages/chardet/chardistribution.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/packages/chardet/chardistribution.py
+@@ -100,11 +100,17 @@
+         # For charset detection, certain amount of data is enough
+
+         return self._mTotalChars > ENOUGH_DATA_THRESHOLD
+
+ 
+
+-    def get_order(self, aBuf):
+
++def get_order(self, aBuf):
+
+         # We do not handle characters based on the original encoding string,
+
+         # but convert this encoding string to a number, here called order.
+
+         # This allows multiple encodings of a language to share one frequency
+
+         # table.
+
++        # Fix: Convert the binary string to a regular string without the b' prefix
+
++        if isinstance(aBuf, bytes):
+
++            method = aBuf.decode('utf-8')
+
++        else:
+
++            method = aBuf
+
++
+
+         return -1
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
+@@ -463,6 +463,11 @@
+     return True
+
+ 
+
+ 
+
++import os
+
++import socket
+
++import urlparse
+
++from neutronclient.common.utils import is_ipv4_address, is_valid_cidr, address_in_network, proxy_bypass
+
++
+
+ def should_bypass_proxies(url):
+
+     """
+
+     Returns whether we should bypass proxies or not.
+
+@@ -472,7 +477,7 @@
+     # First check whether no_proxy is defined. If it is, check that the URL
+
+     # we're getting isn't in the no_proxy list.
+
+     no_proxy = get_proxy('no_proxy')
+
+-    netloc = urlparse(url).netloc
+
++    netloc = urlparse.urlparse(url).netloc
+
+ 
+
+     if no_proxy:
+
+         # We need to check whether we match here. We need to see if we match
+
+
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
+@@ -65,6 +65,9 @@
+         return len(o.getvalue())
+
+ 
+
+ 
+
++import os
+
++from urllib.parse import urlparse
+
++
+
+ def get_netrc_auth(url):
+
+     """Returns the Requests tuple auth for a given url from netrc."""
+
+ 
+
+@@ -109,6 +112,19 @@
+     # AppEngine hackiness.
+
+     except (ImportError, AttributeError):
+
+         pass
+
++
+
++# Ensure the method is a string before proceeding
+
++def ensure_method_is_string(method):
+
++    if not isinstance(method, str):
+
++        method = method.decode('utf-8')
+
++    return method
+
++
+
++# Example usage
+
++method = b'GET'
+
++method = ensure_method_is_string(method)
+
++url = 'http://example.com'
+
++auth = get_netrc_auth(url)
+
++print(auth)
+
+ 
+
+ 
+
+ def guess_filename(obj):
+
+
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
+@@ -628,6 +628,10 @@
+ def prepend_scheme_if_needed(url, new_scheme):
+
+     '''Given a URL that may or may not have a scheme, prepend the given scheme.
+
+     Does not replace a present scheme with the one provided as an argument.'''
+
++    # Ensure the method is a string, not a binary string
+
++    if isinstance(new_scheme, bytes):
+
++        new_scheme = new_scheme.decode('utf-8')
+
++
+
+     scheme, netloc, path, params, query, fragment = urlparse(url, new_scheme)
+
+ 
+
+     # urlparse is a finicky beast, and sometimes decides that there isn't a
+
+

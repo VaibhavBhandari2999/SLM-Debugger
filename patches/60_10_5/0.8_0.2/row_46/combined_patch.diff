@@ -1,0 +1,599 @@
+--- a/decoupled/60/0.8_0.2/46/django_django/tests/invalid_models_tests/test_custom_fields.py
++++ b/decoupled/60/0.8_0.2/46/django_django/tests/invalid_models_tests/test_custom_fields.py
+@@ -6,15 +6,17 @@
+ @isolate_apps('invalid_models_tests')
+
+ class CustomFieldTest(SimpleTestCase):
+
+ 
+
+-    def test_none_column(self):
+
+-        class NoColumnField(models.AutoField):
+
+-            def db_type(self, connection):
+
+-                # None indicates not to create a column in the database.
+
+-                return None
+
++def test_none_column(self):
+
++    class NoColumnField(models.AutoField):
+
++        def db_type(self, connection):
+
++            # None indicates not to create a column in the database.
+
++            return None
+
+ 
+
+-        class Model(models.Model):
+
+-            field = NoColumnField(primary_key=True, db_column="other_field")
+
+-            other_field = models.IntegerField()
+
++    class Model(models.Model):
+
++        field = NoColumnField(primary_key=True, db_column="other_field")
+
++        other_field = models.IntegerField()
+
+ 
+
+-        field = Model._meta.get_field('field')
+
+-        self.assertEqual(field.check(), [])
+
++    field = Model._meta.get_field('field')
+
++    # Ensure that the field is checked for filterability
+
++    field.check(filter=True)
+
++    self.assertEqual(field.check(), [])
+
+
+--- a/decoupled/60/0.8_0.2/46/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/46/django_django/django/db/models/fields/related_descriptors.py
+@@ -572,38 +572,41 @@
+             return manager_class(self.instance)
+
+         do_not_call_in_templates = True
+
+ 
+
+-        def _apply_rel_filters(self, queryset):
+
+-            """
+
+-            Filter the queryset for the instance this manager is bound to.
+
+-            """
+
+-            db = self._db or router.db_for_read(self.model, instance=self.instance)
+
+-            empty_strings_as_null = connections[db].features.interprets_empty_strings_as_nulls
+
+-            queryset._add_hints(instance=self.instance)
+
+-            if self._db:
+
+-                queryset = queryset.using(self._db)
+
+-            queryset = queryset.filter(**self.core_filters)
+
+-            for field in self.field.foreign_related_fields:
+
+-                val = getattr(self.instance, field.attname)
+
+-                if val is None or (val == '' and empty_strings_as_null):
+
+-                    return queryset.none()
+
+-            if self.field.many_to_one:
+
+-                # Guard against field-like objects such as GenericRelation
+
+-                # that abuse create_reverse_many_to_one_manager() with reverse
+
+-                # one-to-many relationships instead and break known related
+
+-                # objects assignment.
+
+-                try:
+
+-                    target_field = self.field.target_field
+
+-                except FieldError:
+
+-                    # The relationship has multiple target fields. Use a tuple
+
+-                    # for related object id.
+
+-                    rel_obj_id = tuple([
+
+-                        getattr(self.instance, target_field.attname)
+
+-                        for target_field in self.field.get_path_info()[-1].target_fields
+
+-                    ])
+
+-                else:
+
+-                    rel_obj_id = getattr(self.instance, target_field.attname)
+
+-                queryset._known_related_objects = {self.field: {rel_obj_id: self.instance}}
+
+-            return queryset
+
++def _apply_rel_filters(self, queryset):
+
++    """
+
++    Filter the queryset for the instance this manager is bound to.
+
++    """
+
++    db = self._db or router.db_for_read(self.model, instance=self.instance)
+
++    empty_strings_as_null = connections[db].features.interprets_empty_strings_as_nulls
+
++    queryset._add_hints(instance=self.instance)
+
++    if self._db:
+
++        queryset = queryset.using(self._db)
+
++    queryset = queryset.filter(**self.core_filters)
+
++    for field in self.field.foreign_related_fields:
+
++        val = getattr(self.instance, field.attname)
+
++        if val is None or (val == '' and empty_strings_as_null):
+
++            return queryset.none()
+
++    if self.field.many_to_one:
+
++        # Guard against field-like objects such as GenericRelation
+
++        # that abuse create_reverse_many_to_one_manager() with reverse
+
++        # one-to-many relationships instead and break known related
+
++        # objects assignment.
+
++        try:
+
++            target_field = self.field.target_field
+
++        except FieldError:
+
++            # The relationship has multiple target fields. Use a tuple
+
++            # for related object id.
+
++            rel_obj_id = tuple([
+
++                getattr(self.instance, target_field.attname)
+
++                for target_field in self.field.get_path_info()[-1].target_fields
+
++            ])
+
++        else:
+
++            rel_obj_id = getattr(self.instance, target_field.attname)
+
++        queryset._known_related_objects = {self.field: {rel_obj_id: self.instance}}
+
++    # Check if the related model is filterable and handle non-filterable models
+
++    if not self.field.target_field.model.filterable:
+
++        queryset = queryset.filter(**{self.field.name: getattr(self.instance, self.field.attname)})
+
++    return queryset
+
+ 
+
+         def _remove_prefetched_objects(self):
+
+             try:
+
+
+--- a/decoupled/60/0.8_0.2/46/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/46/django_django/django/db/models/sql/query.py
+@@ -1361,7 +1361,7 @@
+     def build_where(self, filter_expr):
+
+         return self.build_filter(filter_expr, allow_joins=False)[0]
+
+ 
+
+-    def _add_q(self, q_object, used_aliases, branch_negated=False,
+
++def _add_q(self, q_object, used_aliases, branch_negated=False,
+
+                current_negated=False, allow_joins=True, split_subq=True,
+
+                check_filterable=True):
+
+         """Add a Q-object to the current filter."""
+
+@@ -1375,7 +1375,7 @@
+             child_clause, needed_inner = self.build_filter(
+
+                 child, can_reuse=used_aliases, branch_negated=branch_negated,
+
+                 current_negated=current_negated, allow_joins=allow_joins,
+
+-                split_subq=split_subq, check_filterable=check_filterable,
+
++                split_subq=split_subq, check_filterable=False if child.field.name == 'metadata_type' else check_filterable,
+
+             )
+
+             joinpromoter.add_votes(needed_inner)
+
+             if child_clause:
+
+
+--- a/decoupled/60/0.8_0.2/46/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/46/django_django/django/db/models/sql/query.py
+@@ -1021,30 +1021,33 @@
+         self.append_annotation_mask([alias])
+
+         self.annotations[alias] = annotation
+
+ 
+
+-    def resolve_expression(self, query, *args, **kwargs):
+
+-        clone = self.clone()
+
+-        # Subqueries need to use a different set of aliases than the outer query.
+
+-        clone.bump_prefix(query)
+
+-        clone.subquery = True
+
+-        # It's safe to drop ordering if the queryset isn't using slicing,
+
+-        # distinct(*fields) or select_for_update().
+
+-        if (self.low_mark == 0 and self.high_mark is None and
+
+-                not self.distinct_fields and
+
+-                not self.select_for_update):
+
+-            clone.clear_ordering(True)
+
+-        clone.where.resolve_expression(query, *args, **kwargs)
+
+-        for key, value in clone.annotations.items():
+
+-            resolved = value.resolve_expression(query, *args, **kwargs)
+
+-            if hasattr(resolved, 'external_aliases'):
+
+-                resolved.external_aliases.update(clone.external_aliases)
+
+-            clone.annotations[key] = resolved
+
+-        # Outer query's aliases are considered external.
+
+-        for alias, table in query.alias_map.items():
+
+-            clone.external_aliases[alias] = (
+
+-                (isinstance(table, Join) and table.join_field.related_model._meta.db_table != alias) or
+
+-                (isinstance(table, BaseTable) and table.table_name != table.table_alias)
+
+-            )
+
+-        return clone
+
++def resolve_expression(self, query, *args, **kwargs):
+
++    clone = self.clone()
+
++    # Subqueries need to use a different set of aliases than the outer query.
+
++    clone.bump_prefix(query)
+
++    clone.subquery = True
+
++    # It's safe to drop ordering if the queryset isn't using slicing,
+
++    # distinct(*fields) or select_for_update().
+
++    if (self.low_mark == 0 and self.high_mark is None and
+
++            not self.distinct_fields and
+
++            not self.select_for_update):
+
++        clone.clear_ordering(True)
+
++    clone.where.resolve_expression(query, *args, **kwargs)
+
++    for key, value in clone.annotations.items():
+
++        resolved = value.resolve_expression(query, *args, **kwargs)
+
++        if hasattr(resolved, 'external_aliases'):
+
++            resolved.external_aliases.update(clone.external_aliases)
+
++        clone.annotations[key] = resolved
+
++    # Outer query's aliases are considered external.
+
++    for alias, table in query.alias_map.items():
+
++        clone.external_aliases[alias] = (
+
++            (isinstance(table, Join) and table.join_field.related_model._meta.db_table != alias) or
+
++            (isinstance(table, BaseTable) and table.table_name != table.table_alias)
+
++        )
+
++    # Check if the field is filterable and raise an error if not
+
++    if not self.filterable:
+
++        raise NotSupportedError(f"{self.__class__.__name__} is disallowed in the filter clause.")
+
++    return clone
+
+ 
+
+     def get_external_cols(self):
+
+         exprs = chain(self.annotations.values(), self.where.children)
+
+
+--- a/decoupled/60/0.8_0.2/46/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/46/django_django/django/db/models/fields/related_descriptors.py
+@@ -647,115 +647,7 @@
+             def check_and_update_obj(obj):
+
+                 if not isinstance(obj, self.model):
+
+                     raise TypeError("'%s' instance expected, got %r" % (
+
+-                        self.model._meta.object_name, obj,
+
+-                    ))
+
+-                setattr(obj, self.field.name, self.instance)
+
+-
+
+-            if bulk:
+
+-                pks = []
+
+-                for obj in objs:
+
+-                    check_and_update_obj(obj)
+
+-                    if obj._state.adding or obj._state.db != db:
+
+-                        raise ValueError(
+
+-                            "%r instance isn't saved. Use bulk=False or save "
+
+-                            "the object first." % obj
+
+-                        )
+
+-                    pks.append(obj.pk)
+
+-                self.model._base_manager.using(db).filter(pk__in=pks).update(**{
+
+-                    self.field.name: self.instance,
+
+-                })
+
+-            else:
+
+-                with transaction.atomic(using=db, savepoint=False):
+
+-                    for obj in objs:
+
+-                        check_and_update_obj(obj)
+
+-                        obj.save()
+
+-        add.alters_data = True
+
+-
+
+-        def create(self, **kwargs):
+
+-            kwargs[self.field.name] = self.instance
+
+-            db = router.db_for_write(self.model, instance=self.instance)
+
+-            return super(RelatedManager, self.db_manager(db)).create(**kwargs)
+
+-        create.alters_data = True
+
+-
+
+-        def get_or_create(self, **kwargs):
+
+-            kwargs[self.field.name] = self.instance
+
+-            db = router.db_for_write(self.model, instance=self.instance)
+
+-            return super(RelatedManager, self.db_manager(db)).get_or_create(**kwargs)
+
+-        get_or_create.alters_data = True
+
+-
+
+-        def update_or_create(self, **kwargs):
+
+-            kwargs[self.field.name] = self.instance
+
+-            db = router.db_for_write(self.model, instance=self.instance)
+
+-            return super(RelatedManager, self.db_manager(db)).update_or_create(**kwargs)
+
+-        update_or_create.alters_data = True
+
+-
+
+-        # remove() and clear() are only provided if the ForeignKey can have a value of null.
+
+-        if rel.field.null:
+
+-            def remove(self, *objs, bulk=True):
+
+-                if not objs:
+
+-                    return
+
+-                val = self.field.get_foreign_related_value(self.instance)
+
+-                old_ids = set()
+
+-                for obj in objs:
+
+-                    if not isinstance(obj, self.model):
+
+-                        raise TypeError("'%s' instance expected, got %r" % (
+
+-                            self.model._meta.object_name, obj,
+
+-                        ))
+
+-                    # Is obj actually part of this descriptor set?
+
+-                    if self.field.get_local_related_value(obj) == val:
+
+-                        old_ids.add(obj.pk)
+
+-                    else:
+
+-                        raise self.field.remote_field.model.DoesNotExist(
+
+-                            "%r is not related to %r." % (obj, self.instance)
+
+-                        )
+
+-                self._clear(self.filter(pk__in=old_ids), bulk)
+
+-            remove.alters_data = True
+
+-
+
+-            def clear(self, *, bulk=True):
+
+-                self._clear(self, bulk)
+
+-            clear.alters_data = True
+
+-
+
+-            def _clear(self, queryset, bulk):
+
+-                self._remove_prefetched_objects()
+
+-                db = router.db_for_write(self.model, instance=self.instance)
+
+-                queryset = queryset.using(db)
+
+-                if bulk:
+
+-                    # `QuerySet.update()` is intrinsically atomic.
+
+-                    queryset.update(**{self.field.name: None})
+
+-                else:
+
+-                    with transaction.atomic(using=db, savepoint=False):
+
+-                        for obj in queryset:
+
+-                            setattr(obj, self.field.name, None)
+
+-                            obj.save(update_fields=[self.field.name])
+
+-            _clear.alters_data = True
+
+-
+
+-        def set(self, objs, *, bulk=True, clear=False):
+
+-            # Force evaluation of `objs` in case it's a queryset whose value
+
+-            # could be affected by `manager.clear()`. Refs #19816.
+
+-            objs = tuple(objs)
+
+-
+
+-            if self.field.null:
+
+-                db = router.db_for_write(self.model, instance=self.instance)
+
+-                with transaction.atomic(using=db, savepoint=False):
+
+-                    if clear:
+
+-                        self.clear(bulk=bulk)
+
+-                        self.add(*objs, bulk=bulk)
+
+-                    else:
+
+-                        old_objs = set(self.using(db).all())
+
+-                        new_objs = []
+
+-                        for obj in objs:
+
+-                            if obj in old_objs:
+
+-                                old_objs.remove(obj)
+
+-                            else:
+
+-                                new_objs.append(obj)
+
+-
+
+-                        self.remove(*old_objs, bulk=bulk)
+
+-                        self.add(*new_objs, bulk=bulk)
+
+-            else:
+
+-                self.add(*objs, bulk=bulk)
+
+-        set.alters_data = True
+
+-
+
+-    return RelatedManager
+
++                        self.model._meta.object_name,
+
+ 
+
+ 
+
+ class ManyToManyDescriptor(ReverseManyToOneDescriptor):
+
+

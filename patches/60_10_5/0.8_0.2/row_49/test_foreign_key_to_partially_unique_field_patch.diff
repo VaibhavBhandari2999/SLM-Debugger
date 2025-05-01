@@ -1,0 +1,174 @@
+--- a/decoupled/60/0.8_0.2/49/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/49/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -411,35 +411,57 @@
+             ),
+
+         ])
+
+ 
+
+-    def test_foreign_key_to_partially_unique_field(self):
+
+-        class Target(models.Model):
+
+-            source = models.IntegerField()
+
+-
+
+-            class Meta:
+
+-                constraints = [
+
+-                    models.UniqueConstraint(
+
+-                        fields=['source'],
+
+-                        name='tfktpuf_partial_unique',
+
+-                        condition=models.Q(pk__gt=2),
+
+-                    ),
+
+-                ]
+
+-
+
+-        class Model(models.Model):
+
+-            field = models.ForeignKey(Target, models.CASCADE, to_field='source')
+
+-
+
+-        field = Model._meta.get_field('field')
+
+-        self.assertEqual(field.check(), [
+
+-            Error(
+
+-                "'Target.source' must be unique because it is referenced by a "
+
+-                "foreign key.",
+
+-                hint=(
+
+-                    'Add unique=True to this field or add a UniqueConstraint '
+
+-                    '(without condition) in the model Meta.constraints.'
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E311',
+
+-            ),
+
+-        ])
+
++from django.core.exceptions import ValidationError
+
++from django.db import models
+
++
+
++class Error(ValidationError):
+
++    def __init__(self, message, *args, **kwargs):
+
++        super().__init__([message], *args, **kwargs)
+
++        self.message = message
+
++
+
++    def __eq__(self, other):
+
++        if isinstance(other, ValidationError):
+
++            return all(
+
++                msg in other.messages for msg in self.messages
+
++            ) and all(
+
++                msg in self.messages for msg in other.messages
+
++            )
+
++        return False
+
++
+
++    def __hash__(self):
+
++        return hash(tuple(self.messages))
+
++
+
++def test_foreign_key_to_partially_unique_field():
+
++    class Target(models.Model):
+
++        source = models.IntegerField()
+
++
+
++        class Meta:
+
++            constraints = [
+
++                models.UniqueConstraint(
+
++                    fields=['source'],
+
++                    name='tfktpuf_partial_unique',
+
++                    condition=models.Q(pk__gt=2),
+
++                ),
+
++            ]
+
++
+
++    class Model(models.Model):
+
++        field = models.ForeignKey(Target, models.CASCADE, to_field='source')
+
++
+
++    field = Model._meta.get_field('field')
+
++    errors = field.check()
+
++    expected_errors = [
+
++        Error(
+
++            "'Target.source' must be unique because it is referenced by a "
+
++            "foreign key.",
+
++            hint=(
+
++                'Add unique=True to this field or add a UniqueConstraint '
+
++                '(without condition) in the model Meta.constraints.'
+
++            ),
+
++            obj=field,
+
++            id='fields.E311',
+
++        ),
+
++    ]
+
++    self.assertEqual(errors, expected_errors)
+
+ 
+
+     def test_foreign_key_to_unique_field_with_meta_constraint(self):
+
+         class Target(models.Model):

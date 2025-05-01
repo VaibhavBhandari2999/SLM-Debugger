@@ -1,0 +1,152 @@
+--- a/decoupled/60/0.8_0.2/227/sympy_sympy/sympy/physics/secondquant.py
++++ b/decoupled/60/0.8_0.2/227/sympy_sympy/sympy/physics/secondquant.py
+@@ -2697,64 +2697,17 @@
+ 
+
+ 
+
+ @cacheit
+
+-def _get_contractions(string1, keep_only_fully_contracted=False):
+
+-    """
+
+-    Returns Add-object with contracted terms.
+
+-
+
+-    Uses recursion to find all contractions. -- Internal helper function --
+
+-
+
+-    Will find nonzero contractions in string1 between indices given in
+
+-    leftrange and rightrange.
+
+-
+
+-    """
+
+-
+
+-    # Should we store current level of contraction?
+
+-    if keep_only_fully_contracted and string1:
+
+-        result = []
+
+-    else:
+
+-        result = [NO(Mul(*string1))]
+
+-
+
+-    for i in range(len(string1) - 1):
+
+-        for j in range(i + 1, len(string1)):
+
+-
+
+-            c = contraction(string1[i], string1[j])
+
+-
+
+-            if c:
+
+-                sign = (j - i + 1) % 2
+
+-                if sign:
+
+-                    coeff = S.NegativeOne*c
+
+-                else:
+
+-                    coeff = c
+
+-
+
+-                #
+
+-                #  Call next level of recursion
+
+-                #  ============================
+
+-                #
+
+-                # We now need to find more contractions among operators
+
+-                #
+
+-                # oplist = string1[:i]+ string1[i+1:j] + string1[j+1:]
+
+-                #
+
+-                # To prevent overcounting, we don't allow contractions
+
+-                # we have already encountered. i.e. contractions between
+
+-                #       string1[:i] <---> string1[i+1:j]
+
+-                # and   string1[:i] <---> string1[j+1:].
+
+-                #
+
+-                # This leaves the case:
+
+-                oplist = string1[i + 1:j] + string1[j + 1:]
+
+-
+
+-                if oplist:
+
+-
+
+-                    result.append(coeff*NO(
+
+-                        Mul(*string1[:i])*_get_contractions( oplist,
+
+-                            keep_only_fully_contracted=keep_only_fully_contracted)))
+
+-
+
+-                else:
+
+-                    result.append(coeff*NO( Mul(*string1[:i])))
+
+-
+
+-        if keep_only_fully_contracted:
+
+-            break   # next iteration over i leaves leftmost operator string1[0] uncontracted
+
+-
+
+-    return Add(*result)
+
++from sympy import symbols, apart
+
++
+
++a, t = symbols('a t', real=True, negative=False)
+
++
+
++# Define the expression
+
++bug = a * (-t + (-t + 1) * (2 * t - 1)) / (2 * t - 1)
+
++
+
++# Substitute a with 1 and simplify
+
++correct_result = bug.subs(a, 1).apart(t)
+
++
+
++print(correct_result)
+
+ 
+
+ 
+
+ def wicks(e, **kw_args):

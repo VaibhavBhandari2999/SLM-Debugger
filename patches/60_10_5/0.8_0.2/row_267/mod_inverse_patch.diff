@@ -1,0 +1,206 @@
+--- a/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
+@@ -488,69 +488,53 @@
+     return (x*x_sign, y*y_sign, a)
+
+ 
+
+ 
+
+-def mod_inverse(a, m):
+
++def nthroot_mod(a, n, p):
+
+     """
+
+-    Return the number c such that, (a * c) = 1 (mod m)
+
+-    where c has the same sign as m. If no such value exists,
+
+-    a ValueError is raised.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy import S
+
+-    >>> from sympy.core.numbers import mod_inverse
+
+-
+
+-    Suppose we wish to find multiplicative inverse x of
+
+-    3 modulo 11. This is the same as finding x such
+
+-    that 3 * x = 1 (mod 11). One value of x that satisfies
+
+-    this congruence is 4. Because 3 * 4 = 12 and 12 = 1 (mod 11).
+
+-    This is the value returned by mod_inverse:
+
+-
+
+-    >>> mod_inverse(3, 11)
+
+-    4
+
+-    >>> mod_inverse(-3, 11)
+
+-    7
+
+-
+
+-    When there is a common factor between the numerators of
+
+-    ``a`` and ``m`` the inverse does not exist:
+
+-
+
+-    >>> mod_inverse(2, 4)
+
+-    Traceback (most recent call last):
+
+-    ...
+
+-    ValueError: inverse of 2 mod 4 does not exist
+
+-
+
+-    >>> mod_inverse(S(2)/7, S(5)/2)
+
+-    7/2
+
+-
+
+-    References
+
+-    ==========
+
+-    - https://en.wikipedia.org/wiki/Modular_multiplicative_inverse
+
+-    - https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
+
++    Return the roots of the equation x**n = a mod p.
+
++    
+
++    Parameters
+
++    ----------
+
++    a : int
+
++        The value of a in the equation.
+
++    n : int
+
++        The root degree.
+
++    p : int
+
++        The modulus.
+
++        
+
++    Returns
+
++    -------
+
++    roots : list
+
++        A list of roots of the equation x**n = a mod p.
+
+     """
+
++    if a % p == 0:
+
++        if pow(0, n, p) == 0:
+
++            return [0]
+
++    
+
++    # The rest of the function remains the same
+
+     c = None
+
+     try:
+
+-        a, m = as_int(a), as_int(m)
+
+-        if m != 1 and m != -1:
+
+-            x, y, g = igcdex(a, m)
+
++        a, n, p = as_int(a), as_int(n), as_int(p)
+
++        if p != 1 and p != -1:
+
++            x, y, g = igcdex(a, p)
+
+             if g == 1:
+
+-                c = x % m
+
++                c = pow(x, n, p)
+
+     except ValueError:
+
+-        a, m = sympify(a), sympify(m)
+
+-        if not (a.is_number and m.is_number):
+
++        a, n, p = sympify(a), sympify(n), sympify(p)
+
++        if not (a.is_number and n.is_number and p.is_number):
+
+             raise TypeError(filldedent('''
+
+-                Expected numbers for arguments; symbolic `mod_inverse`
+
++                Expected numbers for arguments; symbolic `nthroot_mod`
+
+                 is not implemented
+
+                 but symbolic expressions can be handled with the
+
+                 similar function,
+
+                 sympy.polys.polytools.invert'''))
+
+-        big = (m > 1)
+
++        big = (p > 1)
+
+         if not (big is S.true or big is S.false):
+
+-            raise ValueError('m > 1 did not evaluate; try to simplify %s' % m)
+
++            raise ValueError('p > 1 did not evaluate; try to simplify %s' % p)
+
+         elif big:
+
+-            c = 1/a
+
++            c = pow(a, 1/n, p)
+
+     if c is None:
+
+-        raise ValueError('inverse of %s (mod %s) does not exist' % (a, m))
+
+-    return c
+
++        raise ValueError('No roots found for the given equation')
+
++    return [c]
+
+ 
+
+ 
+
+ class Number(AtomicExpr):

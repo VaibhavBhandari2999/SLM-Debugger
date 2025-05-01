@@ -1,0 +1,212 @@
+--- a/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
++++ b/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
+@@ -63,12 +63,10 @@
+         ]
+
+         super().__init__(widgets)
+
+ 
+
+-    def _set_choices(self, choices):
+
+-        """
+
+-        When choices are set for this widget, we want to pass those along to
+
+-        the Select widget.
+
+-        """
+
+-        self.widgets[0].choices = choices
+
++class BoundWidget:
+
++    def id_for_label(self):
+
++        # Use the 'id' attribute from self.data['attrs'] if it exists
+
++        return self.data.get('attrs', {}).get('id')
+
+ 
+
+     def _get_choices(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/73/django_django/tests/model_formsets/test_uuid.py
++++ b/decoupled/60/0.8_0.2/73/django_django/tests/model_formsets/test_uuid.py
+@@ -67,12 +67,16 @@
+         formset = FormSet()
+
+         self.assertIsNone(formset.forms[0].fields['parent'].initial)
+
+ 
+
+-    def test_inlineformset_factory_nulls_default_pks_alternate_key_relation(self):
+
+-        """
+
+-        #24958 - Variant of test_inlineformset_factory_nulls_default_pks for
+
+-        the case of a parent object with a UUID alternate key and a child
+
+-        object that relates to that alternate key.
+
+-        """
+
+-        FormSet = inlineformset_factory(ParentWithUUIDAlternateKey, ChildRelatedViaAK, fields='__all__')
+
+-        formset = FormSet()
+
+-        self.assertIsNone(formset.forms[0].fields['parent'].initial)
+
++def test_inlineformset_factory_nulls_default_pks_alternate_key_relation(self):
+
++    """
+
++    #24958 - Variant of test_inlineformset_factory_nulls_default_pks for
+
++    the case of a parent object with a UUID alternate key and a child
+
++    object that relates to that alternate key.
+
++    """
+
++    FormSet = inlineformset_factory(ParentWithUUIDAlternateKey, ChildRelatedViaAK, fields='__all__')
+
++    formset = FormSet()
+
++    # The bug fix here is not directly related to the test case itself,
+
++    # but rather to the implementation of BoundWidget.id_for_label.
+
++    # The test case is just an example of where the bug might be observed.
+
++    # The actual fix would be in the BoundWidget.id_for_label method.
+
++    self.assertIsNone(formset.forms[0].fields['parent'].initial)
+
+
+--- a/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/field_tests/test_multivaluefield.py
++++ b/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/field_tests/test_multivaluefield.py
+@@ -108,15 +108,19 @@
+             ['other text', ['J', 'P'], ['2007-04-25', '6:24:00']],
+
+         ))
+
+ 
+
+-    def test_has_changed_last_widget(self):
+
+-        """
+
+-        Test when the last widget's data has changed. This ensures that it is
+
+-        not short circuiting while testing the widgets.
+
+-        """
+
+-        self.assertTrue(self.field.has_changed(
+
+-            'some text,JP,2007-04-25 06:24:00',
+
+-            ['some text', ['J', 'P'], ['2009-04-25', '11:44:00']],
+
+-        ))
+
++class BoundWidget:
+
++    def id_for_label(self):
+
++        return self.data['attrs']['id']
+
++
+
++def test_has_changed_last_widget(self):
+
++    """
+
++    Test when the last widget's data has changed. This ensures that it is
+
++    not short circuiting while testing the widgets.
+
++    """
+
++    self.assertTrue(self.field.has_changed(
+
++        'some text,JP,2007-04-25 06:24:00',
+
++        ['some text', ['J', 'P'], ['2009-04-25', '11:44:00']],
+
++    ))
+
+ 
+
+     def test_disabled_has_changed(self):
+
+         f = MultiValueField(fields=(CharField(), CharField()), disabled=True)
+
+
+--- a/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_checkboxinput.py
++++ b/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_checkboxinput.py
+@@ -44,7 +44,7 @@
+             html='<input checked type="checkbox" name="is_cool" value="1">',
+
+         )
+
+ 
+
+-    def test_render_check_test(self):
+
++def test_render_check_test(self):
+
+         """
+
+         You can pass 'check_test' to the constructor. This is a callable that
+
+         takes the value and returns True if the box should be checked.
+
+
+--- a/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
++++ b/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
+@@ -70,11 +70,14 @@
+         """
+
+         self.widgets[0].choices = choices
+
+ 
+
+-    def _get_choices(self):
+
+-        """
+
+-        The choices for this widget are the Select widget's choices.
+
+-        """
+
+-        return self.widgets[0].choices
+
++class BoundWidget:
+
++    def id_for_label(self):
+
++        # Check if the 'id' attribute is present in the widget's attributes
+
++        if 'id' in self.data['attrs']:
+
++            return self.data['attrs']['id']
+
++        else:
+
++            # Fallback to the default format if 'id' is not present
+
++            return 'id_%s_%s' % (self.data['name'], self.data['index'])
+
+     choices = property(_get_choices, _set_choices)
+
+ 
+
+ 
+
+

@@ -1,0 +1,132 @@
+--- a/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
++++ b/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
+@@ -66,20 +66,51 @@
+     record[(domain_type, target)].add(location)
+
+ 
+
+ 
+
+-def record_missing_reference_handler(app, env, node, contnode):
+
+-    """
+
+-    When the sphinx app notices a missing reference, it emits an
+
+-    event which calls this function. This function records the missing
+
+-    references for analysis at the end of the sphinx build.
+
+-    """
+
+-    if not app.config.missing_references_enabled:
+
+-        # no-op when we are disabled.
+
+-        return
+
+-
+
+-    if not hasattr(env, "missing_references_events"):
+
+-        env.missing_references_events = defaultdict(set)
+
+-
+
+-    record_missing_reference(app, env.missing_references_events, node)
+
++import matplotlib.pyplot as plt
+
++import matplotlib.text as mtext
+
++
+
++def set_xticks(self, ticks, labels=None, **kwargs):
+
++    """
+
++    Set the x-axis ticks.
+
++
+
++    Parameters
+
++    ----------
+
++    ticks : array-like
+
++        The locations of the ticks.
+
++    labels : array-like, optional
+
++        The labels of the ticks.
+
++    **kwargs
+
++        `.Text` properties for the labels. These should be valid `.Text`
+
++        properties and will be validated. In addition, the following
+
++        properties are allowed: *labels*.
+
++
+
++    Notes
+
++    -----
+
++    If *labels* are not provided, the `tick_params` method can be used to
+
++    customize the appearance of the ticks.
+
++    """
+
++    # Validate the kwargs as text properties
+
++    valid_text_properties = {'family', 'style', 'variant', 'weight', 'stretch', 'size', 'color', 'label', 'labels'}
+
++    for key, value in kwargs.items():
+
++        if key not in valid_text_properties:
+
++            raise ValueError(f"Invalid text property: {key}")
+
++
+
++    # Set the ticks
+
++    self.set_xticks(ticks)
+
++
+
++    # Set the labels if provided
+
++    if labels is not None:
+
++        self.set_xticklabels(labels)
+
++
+
++    # Apply the kwargs to the labels
+
++    for label in self.get_xticklabels():
+
++        for key, value in kwargs.items():
+
++            setattr(label, key, value)
+
++
+
++# Example usage
+
++fig, ax = plt.subplots()
+
++ax.plot([0, 1], [0, 1])
+
++ax.set_xticks([0, 1], labels=["a", "b"], color='red')  # This will now raise an error if an invalid property is used
+
+ 
+
+ 
+
+ def get_location(node, app):

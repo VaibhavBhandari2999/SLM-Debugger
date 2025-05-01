@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/_gb_losses.py
++++ b/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/_gb_losses.py
+@@ -124,6 +124,12 @@
+         """Template method for updating terminal regions (i.e., leaves)."""
+
+ 
+
+     @abstractmethod
+
++from sklearn.ensemble import IsolationForest
+
++
+
++class CustomIsolationForest(IsolationForest):
+
++    def __init__(self, n_estimators=100, max_samples='auto', contamination='auto', max_features=1.0, bootstrap=False, n_jobs=None, behaviour='new', random_state=None, verbose=0, warm_start=False):
+
++        super().__init__(n_estimators=n_estimators, max_samples=max_samples, contamination=contamination, max_features=max_features, bootstrap=bootstrap, n_jobs=n_jobs, behaviour=behaviour, random_state=random_state, verbose=verbose, warm_start=warm_start)
+
++
+
+     def get_init_raw_predictions(self, X, estimator):
+
+         """Return the initial raw predictions.
+
+ 
+
+@@ -142,7 +148,10 @@
+             for multiclass classification. ``raw_predictions`` is casted
+
+             into float64.
+
+         """
+
+-        pass
+
++        # Assuming the implementation of get_init_raw_predictions is the same as in IsolationForest
+
++        # and that estimator is an instance of IsolationForest or a compatible estimator.
+
++        raw_predictions = estimator.decision_function(X)
+
++        return raw_predictions.astype(np.float64)
+
+ 
+
+ 
+
+ class RegressionLossFunction(LossFunction, metaclass=ABCMeta):

@@ -1,0 +1,86 @@
+--- a/decoupled/60/0.8_0.2/264/sympy_sympy/sympy/physics/quantum/represent.py
++++ b/decoupled/60/0.8_0.2/264/sympy_sympy/sympy/physics/quantum/represent.py
+@@ -468,31 +468,25 @@
+     if basis is None and not replace_none:
+
+         return None
+
+ 
+
++    if isinstance(basis, StateBase):
+
++        return basis
+
++
+
+     if basis is None:
+
+         if isinstance(expr, KetBase):
+
+             return _make_default(expr.__class__)
+
+         elif isinstance(expr, BraBase):
+
+-            return _make_default((expr.dual_class()))
+
++            return _make_default(expr.dual_class())
+
+         elif isinstance(expr, Operator):
+
+             state_inst = operators_to_state(expr)
+
+-            return (state_inst if state_inst is not None else None)
+
++            return state_inst if state_inst is not None else _make_default(expr.dual_class())
+
+         else:
+
+             return None
+
+-    elif (isinstance(basis, Operator) or
+
+-          (not isinstance(basis, StateBase) and issubclass(basis, Operator))):
+
+-        state = operators_to_state(basis)
+
+-        if state is None:
+
+-            return None
+
+-        elif isinstance(state, StateBase):
+
+-            return state
+
+-        else:
+
+-            return _make_default(state)
+
+-    elif isinstance(basis, StateBase):
+
+-        return basis
+
+-    elif issubclass(basis, StateBase):
+
+-        return _make_default(basis)
+
+-    else:
+
+-        return None
+
++
+
++    if isinstance(basis, Operator) or (not isinstance(basis, StateBase) and issubclass(basis, Operator)):
+
++        state_inst = operators_to_state(basis)
+
++        return state_inst if state_inst is not None else _make_default(basis.dual_class())
+
++
+
++    return None
+
+ 
+
+ 
+
+ def _make_default(expr):

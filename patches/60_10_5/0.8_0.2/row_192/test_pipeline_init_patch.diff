@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/192/scikit-learn_scikit-learn/sklearn/tests/test_pipeline.py
++++ b/decoupled/60/0.8_0.2/192/scikit-learn_scikit-learn/sklearn/tests/test_pipeline.py
+@@ -219,6 +219,10 @@
+     params2.pop('svc')
+
+     params2.pop('anova')
+
+     assert_equal(params, params2)
+
++
+
++    # Implement __len__ method to fix the bug
+
++    def __len__(self):
+
++        return len(self.steps)
+
+ 
+
+ 
+
+ def test_pipeline_init_tuple():

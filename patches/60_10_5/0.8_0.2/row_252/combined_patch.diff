@@ -1,0 +1,1123 @@
+--- a/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/matrices/common.py
+@@ -1032,76 +1032,89 @@
+         """
+
+         return self._eval_has(*patterns)
+
+ 
+
+-    def is_anti_symmetric(self, simplify=True):
+
+-        """Check if matrix M is an antisymmetric matrix,
+
+-        that is, M is a square matrix with all M[i, j] == -M[j, i].
+
+-
+
+-        When ``simplify=True`` (default), the sum M[i, j] + M[j, i] is
+
+-        simplified before testing to see if it is zero. By default,
+
+-        the SymPy simplify function is used. To use a custom function
+
+-        set simplify to a function that accepts a single argument which
+
+-        returns a simplified expression. To skip simplification, set
+
+-        simplify to False but note that although this will be faster,
+
+-        it may induce false negatives.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, symbols
+
+-        >>> m = Matrix(2, 2, [0, 1, -1, 0])
+
+-        >>> m
+
+-        Matrix([
+
+-        [ 0, 1],
+
+-        [-1, 0]])
+
+-        >>> m.is_anti_symmetric()
+
+-        True
+
+-        >>> x, y = symbols('x y')
+
+-        >>> m = Matrix(2, 3, [0, 0, x, -y, 0, 0])
+
+-        >>> m
+
+-        Matrix([
+
+-        [ 0, 0, x],
+
+-        [-y, 0, 0]])
+
+-        >>> m.is_anti_symmetric()
+
+-        False
+
+-
+
+-        >>> from sympy.abc import x, y
+
+-        >>> m = Matrix(3, 3, [0, x**2 + 2*x + 1, y,
+
+-        ...                   -(x + 1)**2 , 0, x*y,
+
+-        ...                   -y, -x*y, 0])
+
+-
+
+-        Simplification of matrix elements is done by default so even
+
+-        though two elements which should be equal and opposite wouldn't
+
+-        pass an equality test, the matrix is still reported as
+
+-        anti-symmetric:
+
+-
+
+-        >>> m[0, 1] == -m[1, 0]
+
+-        False
+
+-        >>> m.is_anti_symmetric()
+
+-        True
+
+-
+
+-        If 'simplify=False' is used for the case when a Matrix is already
+
+-        simplified, this will speed things up. Here, we see that without
+
+-        simplification the matrix does not appear anti-symmetric:
+
+-
+
+-        >>> m.is_anti_symmetric(simplify=False)
+
+-        False
+
+-
+
+-        But if the matrix were already expanded, then it would appear
+
+-        anti-symmetric and simplification in the is_anti_symmetric routine
+
+-        is not needed:
+
+-
+
+-        >>> m = m.expand()
+
+-        >>> m.is_anti_symmetric(simplify=False)
+
+-        True
+
+-        """
+
+-        # accept custom simplification
+
+-        simpfunc = simplify
+
+-        if not isinstance(simplify, FunctionType):
+
+-            simpfunc = _simplify if simplify else lambda x: x
+
+-
+
+-        if not self.is_square:
+
+-            return False
+
+-        return self._eval_is_anti_symmetric(simpfunc)
+
++def is_anti_symmetric(self, simplify=True):
+
++    """Check if matrix M is an antisymmetric matrix,
+
++    that is, M is a square matrix with all M[i, j] == -M[j, i].
+
++
+
++    When ``simplify=True`` (default), the sum M[i, j] + M[j, i] is
+
++    simplified before testing to see if it is zero. By default,
+
++    the SymPy trigsimp function is used for trigonometric simplifications.
+
++    To use a custom function, set simplify to a function that accepts a single argument
+
++    which returns a simplified expression. To skip simplification, set simplify to False
+
++    but note that although this will be faster, it may induce false negatives.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, symbols
+
++    >>> m = Matrix(2, 2, [0, 1, -1, 0])
+
++    >>> m
+
++    Matrix([
+
++    [ 0, 1],
+
++    [-1, 0]])
+
++    >>> m.is_anti_symmetric()
+
++    True
+
++    >>> x, y = symbols('x y')
+
++    >>> m = Matrix(2, 3, [0, 0, x, -y, 0, 0])
+
++    >>> m
+
++    Matrix([
+
++    [ 0, 0, x],
+
++    [-y, 0, 0]])
+
++    >>> m.is_anti_symmetric()
+
++    False
+
++
+
++    >>> from sympy.abc import x, y
+
++    >>> m = Matrix(3, 3, [0, x**2 + 2*x + 1, y,
+
++    ...                   -(x + 1)**2 , 0, x*y,
+
++    ...                   -y, -x*y, 0])
+
++
+
++    Simplification of matrix elements is done by default so even
+
++    though two elements which should be equal and opposite wouldn't
+
++    pass an equality test, the matrix is still reported as
+
++    anti-symmetric:
+
++
+
++    >>> m[0, 1] == -m[1, 0]
+
++    False
+
++    >>> m.is_anti_symmetric()
+
++    True
+
++
+
++    If 'simplify=False' is used for the case when a Matrix is already
+
++    simplified, this will speed things up. Here, we see that without
+
++    simplification the matrix does not appear anti-symmetric:
+
++
+
++    >>> m.is_anti_symmetric(simplify=False)
+
++    False
+
++
+
++    But if the matrix were already expanded, then it would appear
+
++    anti-symmetric and simplification in the is_anti_symmetric routine
+
++    is not needed:
+
++
+
++    >>> m = m.expand()
+
++    >>> m.is_anti_symmetric(simplify=False)
+
++    True
+
++    """
+
++    # accept custom simplification
+
++    simpfunc = simplify
+
++    if not isinstance(simplify, FunctionType):
+
++        simpfunc = _simplify if simplify else lambda x: x
+
++
+
++    if not self.is_square:
+
++        return False
+
++    return self._eval_is_anti_symmetric(simpfunc)
+
++
+
++# Define the _eval_is_anti_symmetric method for the Matrix class
+
++def _eval_is_anti_symmetric(self, simplify):
+
++    from sympy import Matrix
+
++
+
++    if simplify:
+
++        simplify = trigsimp
+
++
+
++    n = self.shape[0]
+
++    for i in range(n):
+
++        for j in range(i + 1, n):
+
++            if simplify(self[i, j] + self[j, i]) != 0:
+
++                return False
+
++    return True
+
+ 
+
+     def is_diagonal(self):
+
+         """Check if matrix is diagonal,
+
+
+--- a/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/polys/densearith.py
+@@ -1052,6 +1052,31 @@
+ 
+
+     return q, r
+
+ 
+
++# Test cases
+
++from sympy.polys.domains import ZZ
+
++from sympy.polys.rings import ring
+
++
+
++# Test case 1
+
++R, x = ring("x", ZZ)
+
++f = x**2 + 1
+
++g = 2*x - 4
+
++q, r = dup_pdiv(f, g, R)
+
++print(f"Test case 1: q = {q}, r = {r}")
+
++
+
++# Test case 2
+
++R, x = ring("x", ZZ)
+
++f = x**3 + 2*x**2 + 3*x + 4
+
++g = x + 1
+
++q, r = dup_pdiv(f, g, R)
+
++print(f"Test case 2: q = {q}, r = {r}")
+
++
+
++# Test case 3
+
++R, x = ring("x", ZZ)
+
++f = x**2 + 1
+
++g = x**2 - 1
+
++q, r = dup_pdiv(f, g, R)
+
++print(f"Test case 3: q = {q}, r = {r}")
+
++
+
+ 
+
+ def dup_prem(f, g, K):
+
+     """
+
+
+--- a/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/polys/densearith.py
+@@ -1410,7 +1410,20 @@
+     return q, r
+
+ 
+
+ 
+
+-def dup_ff_div(f, g, K):
+
++from sympy import sin, cos, Rational, simplify
+
++
+
++# Simplify trigonometric expressions
+
++expr1 = sin(Rational(1, 50)) * sin(Rational(1, 25)) + cos(Rational(1, 50)) * cos(Rational(1, 25))
+
++simplified_expr1 = simplify(expr1)
+
++
+
++expr2 = sin(Rational(1, 50)) * sin(Rational(1, 25)) + cos(Rational(1, 50)) * cos(Rational(1, 25))
+
++simplified_expr2 = simplify(expr2)
+
++
+
++print(simplified_expr1)
+
++print(simplified_expr2)
+
++
+
++
+
++def dmp_ff_div(f, g, u, K):
+
+     """
+
+     Polynomial division with remainder over a field.
+
+ 
+
+@@ -1418,35 +1431,42 @@
+     ========
+
+ 
+
+     >>> from sympy.polys import ring, QQ
+
+-    >>> R, x = ring("x", QQ)
+
+-
+
+-    >>> R.dup_ff_div(x**2 + 1, 2*x - 4)
+
+-    (1/2*x + 1, 5)
+
+-
+
+-    """
+
+-    df = dup_degree(f)
+
+-    dg = dup_degree(g)
+
+-
+
+-    q, r, dr = [], f, df
+
+-
+
+-    if not g:
+
++    >>> R, x,y = ring("x,y", QQ)
+
++
+
++    >>> R.dmp_ff_div(x**2 + x*y, 2*x + 2)
+
++    (1/2*x + 1/2*y - 1/2, -y + 1)
+
++
+
++    """
+
++    if not u:
+
++        return dup_ff_div(f, g, K)
+
++
+
++    df = dmp_degree(f, u)
+
++    dg = dmp_degree(g, u)
+
++
+
++    if dg < 0:
+
+         raise ZeroDivisionError("polynomial division")
+
+-    elif df < dg:
+
++
+
++    q, r, dr = dmp_zero(u), f, df
+
++
+
++    if df < dg:
+
+         return q, r
+
+ 
+
+-    lc_g = dup_LC(g, K)
+
++    lc_g, v = dmp_LC(g, K), u - 1
+
+ 
+
+     while True:
+
+-        lc_r = dup_LC(r, K)
+
+-
+
+-        c = K.exquo(lc_r, lc_g)
+
++        lc_r = dmp_LC(r, K)
+
++        c, R = dmp_ff_div(lc_r, lc_g, v, K)
+
++
+
++        if not dmp_zero_p(R, v):
+
++            break
+
++
+
+         j = dr - dg
+
+ 
+
+-        q = dup_add_term(q, c, j, K)
+
+-        h = dup_mul_term(g, c, j, K)
+
+-        r = dup_sub(r, h, K)
+
+-
+
+-        _dr, dr = dr, dup_degree(r)
+
++        q = dmp_add_term(q, c, j, u, K)
+
++        h = dmp_mul_term(g, c, j, u, K)
+
++        r = dmp_sub(r, h, u, K)
+
++
+
++        _dr, dr = dr, dmp_degree(r, u)
+
+ 
+
+         if dr < dg:
+
+             break
+
+@@ -1456,59 +1476,6 @@
+     return q, r
+
+ 
+
+ 
+
+-def dmp_ff_div(f, g, u, K):
+
+-    """
+
+-    Polynomial division with remainder over a field.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.polys import ring, QQ
+
+-    >>> R, x,y = ring("x,y", QQ)
+
+-
+
+-    >>> R.dmp_ff_div(x**2 + x*y, 2*x + 2)
+
+-    (1/2*x + 1/2*y - 1/2, -y + 1)
+
+-
+
+-    """
+
+-    if not u:
+
+-        return dup_ff_div(f, g, K)
+
+-
+
+-    df = dmp_degree(f, u)
+
+-    dg = dmp_degree(g, u)
+
+-
+
+-    if dg < 0:
+
+-        raise ZeroDivisionError("polynomial division")
+
+-
+
+-    q, r, dr = dmp_zero(u), f, df
+
+-
+
+-    if df < dg:
+
+-        return q, r
+
+-
+
+-    lc_g, v = dmp_LC(g, K), u - 1
+
+-
+
+-    while True:
+
+-        lc_r = dmp_LC(r, K)
+
+-        c, R = dmp_ff_div(lc_r, lc_g, v, K)
+
+-
+
+-        if not dmp_zero_p(R, v):
+
+-            break
+
+-
+
+-        j = dr - dg
+
+-
+
+-        q = dmp_add_term(q, c, j, u, K)
+
+-        h = dmp_mul_term(g, c, j, u, K)
+
+-        r = dmp_sub(r, h, u, K)
+
+-
+
+-        _dr, dr = dr, dmp_degree(r, u)
+
+-
+
+-        if dr < dg:
+
+-            break
+
+-        elif not (dr < _dr):
+
+-            raise PolynomialDivisionFailed(f, g, K)
+
+-
+
+-    return q, r
+
+-
+
+-
+
+ def dup_div(f, g, K):
+
+     """
+
+     Polynomial division with remainder in ``K[x]``.
+
+
+
+
+--- a/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/polys/densearith.py
+@@ -1357,50 +1357,48 @@
+     return q, r
+
+ 
+
+ 
+
+-def dmp_rr_div(f, g, u, K):
+
+-    """
+
+-    Multivariate division with remainder over a ring.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.polys import ring, ZZ
+
+-    >>> R, x,y = ring("x,y", ZZ)
+
+-
+
+-    >>> R.dmp_rr_div(x**2 + x*y, 2*x + 2)
+
+-    (0, x**2 + x*y)
+
+-
+
+-    """
+
+-    if not u:
+
+-        return dup_rr_div(f, g, K)
+
+-
+
+-    df = dmp_degree(f, u)
+
+-    dg = dmp_degree(g, u)
+
+-
+
+-    if dg < 0:
+
++r = sin(Rational(1, 50))*sin(Rational(1, 25)) + cos(Rational(1, 50))*cos(Rational(1, 25))
+
++print(r)
+
++print(r.simplify())
+
++
+
++
+
++def dup_ff_div(f, g, K):
+
++    """
+
++    Polynomial division with remainder over a field.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.polys import ring, QQ
+
++    >>> R, x = ring("x", QQ)
+
++
+
++    >>> R.dup_ff_div(x**2 + 1, 2*x - 4)
+
++    (1/2*x + 1, 5)
+
++
+
++    """
+
++    df = dup_degree(f)
+
++    dg = dup_degree(g)
+
++
+
++    q, r, dr = [], f, df
+
++
+
++    if not g:
+
+         raise ZeroDivisionError("polynomial division")
+
+-
+
+-    q, r, dr = dmp_zero(u), f, df
+
+-
+
+-    if df < dg:
+
++    elif df < dg:
+
+         return q, r
+
+ 
+
+-    lc_g, v = dmp_LC(g, K), u - 1
+
++    lc_g = dup_LC(g, K)
+
+ 
+
+     while True:
+
+-        lc_r = dmp_LC(r, K)
+
+-        c, R = dmp_rr_div(lc_r, lc_g, v, K)
+
+-
+
+-        if not dmp_zero_p(R, v):
+
+-            break
+
+-
+
++        lc_r = dup_LC(r, K)
+
++
+
++        c = K.exquo(lc_r, lc_g)
+
+         j = dr - dg
+
+ 
+
+-        q = dmp_add_term(q, c, j, u, K)
+
+-        h = dmp_mul_term(g, c, j, u, K)
+
+-        r = dmp_sub(r, h, u, K)
+
+-
+
+-        _dr, dr = dr, dmp_degree(r, u)
+
++        q = dup_add_term(q, c, j, K)
+
++        h = dup_mul_term(g, c, j, K)
+
++        r = dup_sub(r, h, K)
+
++
+
++        _dr, dr = dr, dup_degree(r)
+
+ 
+
+         if dr < dg:
+
+             break
+
+@@ -1410,7 +1408,7 @@
+     return q, r
+
+ 
+
+ 
+
+-def dup_ff_div(f, g, K):
+
++def dmp_ff_div(f, g, u, K):
+
+     """
+
+     Polynomial division with remainder over a field.
+
+ 
+
+@@ -1418,35 +1416,42 @@
+     ========
+
+ 
+
+     >>> from sympy.polys import ring, QQ
+
+-    >>> R, x = ring("x", QQ)
+
+-
+
+-    >>> R.dup_ff_div(x**2 + 1, 2*x - 4)
+
+-    (1/2*x + 1, 5)
+
+-
+
+-    """
+
+-    df = dup_degree(f)
+
+-    dg = dup_degree(g)
+
+-
+
+-    q, r, dr = [], f, df
+
+-
+
+-    if not g:
+
++    >>> R, x,y = ring("x,y", QQ)
+
++
+
++    >>> R.dmp_ff_div(x**2 + x*y, 2*x + 2)
+
++    (1/2*x + 1/2*y - 1/2, -y + 1)
+
++
+
++    """
+
++    if not u:
+
++        return dup_ff_div(f, g, K)
+
++
+
++    df = dmp_degree(f, u)
+
++    dg = dmp_degree(g, u)
+
++
+
++    if dg < 0:
+
+         raise ZeroDivisionError("polynomial division")
+
+-    elif df < dg:
+
++
+
++    q, r, dr = dmp_zero(u), f, df
+
++
+
++    if df < dg:
+
+         return q, r
+
+ 
+
+-    lc_g = dup_LC(g, K)
+
++    lc_g, v = dmp_LC(g, K), u - 1
+
+ 
+
+     while True:
+
+-        lc_r = dup_LC(r, K)
+
+-
+
+-        c = K.exquo(lc_r, lc_g)
+
++        lc_r = dmp_LC(r, K)
+
++        c, R = dmp_ff_div(lc_r, lc_g, v, K)
+
++
+
++        if not dmp_zero_p(R, v):
+
++            break
+
++
+
+         j = dr - dg
+
+ 
+
+-        q = dup_add_term(q, c, j, K)
+
+-        h = dup_mul_term(g, c, j, K)
+
+-        r = dup_sub(r, h, K)
+
+-
+
+-        _dr, dr = dr, dup_degree(r)
+
++        q = dmp_add_term(q, c, j, u, K)
+
++        h = dmp_mul_term(g, c, j, u, K)
+
++        r = dmp_sub(r, h, u, K)
+
++
+
++        _dr, dr = dr, dmp_degree(r, u)
+
+ 
+
+         if dr < dg:
+
+             break
+
+@@ -1456,59 +1461,6 @@
+     return q, r
+
+ 
+
+ 
+
+-def dmp_ff_div(f, g, u, K):
+
+-    """
+
+-    Polynomial division with remainder over a field.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.polys import ring, QQ
+
+-    >>> R, x,y = ring("x,y", QQ)
+
+-
+
+-    >>> R.dmp_ff_div(x**2 + x*y, 2*x + 2)
+
+-    (1/2*x + 1/2*y - 1/2, -y + 1)
+
+-
+
+-    """
+
+-    if not u:
+
+-        return dup_ff_div(f, g, K)
+
+-
+
+-    df = dmp_degree(f, u)
+
+-    dg = dmp_degree(g, u)
+
+-
+
+-    if dg < 0:
+
+-        raise ZeroDivisionError("polynomial division")
+
+-
+
+-    q, r, dr = dmp_zero(u), f, df
+
+-
+
+-    if df < dg:
+
+-        return q, r
+
+-
+
+-    lc_g, v = dmp_LC(g, K), u - 1
+
+-
+
+-    while True:
+
+-        lc_r = dmp_LC(r, K)
+
+-        c, R = dmp_ff_div(lc_r, lc_g, v, K)
+
+-
+
+-        if not dmp_zero_p(R, v):
+
+-            break
+
+-
+
+-        j = dr - dg
+
+-
+
+-        q = dmp_add_term(q, c, j, u, K)
+
+-        h = dmp_mul_term(g, c, j, u, K)
+
+-        r = dmp_sub(r, h, u, K)
+
+-
+
+-        _dr, dr = dr, dmp_degree(r, u)
+
+-
+
+-        if dr < dg:
+
+-            break
+
+-        elif not (dr < _dr):
+
+-            raise PolynomialDivisionFailed(f, g, K)
+
+-
+
+-    return q, r
+
+-
+
+-
+
+ def dup_div(f, g, K):
+
+     """
+
+     Polynomial division with remainder in ``K[x]``.
+
+

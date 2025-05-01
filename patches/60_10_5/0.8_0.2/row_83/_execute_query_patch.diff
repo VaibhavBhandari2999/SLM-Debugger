@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/83/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/83/django_django/django/db/models/sql/query.py
+@@ -116,7 +116,7 @@
+             return self.sql
+
+         return self.sql % self.params_type(self.params)
+
+ 
+
+-    def _execute_query(self):
+
++def _execute_query(self):
+
+         connection = connections[self.using]
+
+ 
+
+         # Adapt parameters to the database, as much as possible considering

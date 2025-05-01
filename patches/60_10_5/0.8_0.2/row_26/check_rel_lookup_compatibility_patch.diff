@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/26/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/26/django_django/django/db/models/query_utils.py
+@@ -289,6 +289,10 @@
+     # give Place's opts as the target opts, but Restaurant isn't compatible
+
+     # with that. This logic applies only to primary keys, as when doing __in=qs,
+
+     # we are going to turn this into __in=qs.values('pk') later on.
+
++    # Additionally, if the field is a ForeignKey and the to_field is set, we need to
+
++    # ensure that the to_field points to the correct field after renaming.
+
++    if isinstance(field, models.ForeignKey) and field.to_field:
+
++        field.to_field = field.model._meta.get_field(field.to_field).name
+
+     return (
+
+         check(target_opts) or
+
+         (getattr(field, 'primary_key', False) and check(field.model._meta))

@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/31/django_django/django/views/decorators/csrf.py
++++ b/decoupled/60/0.8_0.2/31/django_django/django/views/decorators/csrf.py
+@@ -46,6 +46,8 @@
+ """
+
+ 
+
+ 
+
++from functools import wraps
+
++
+
+ def csrf_exempt(view_func):
+
+     """Mark a view function as being exempt from the CSRF view protection."""
+
+     # view_func.csrf_exempt = True would also work, but decorators are nicer
+
+@@ -54,3 +56,11 @@
+         return view_func(*args, **kwargs)
+
+     wrapped_view.csrf_exempt = True
+
+     return wraps(view_func)(wrapped_view)
+
++
+
++@csrf_exempt
+
++def modules(request, format='html'):
+
++    # Use the format parameter as a keyword argument
+
++    if format not in ['html', 'json', 'xml']:
+
++        format = 'html'  # Default to 'html' if the format is invalid
+
++    # Your view logic here
+
++    return render(request, 'template.html', {'data': data})

@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/36/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/36/django_django/django/db/models/sql/query.py
+@@ -1845,7 +1845,7 @@
+         self.distinct_fields = field_names
+
+         self.distinct = True
+
+ 
+
+-    def add_fields(self, field_names, allow_m2m=True):
+
++def add_fields(self, field_names, allow_m2m=True):
+
+         """
+
+         Add the given (model) fields to the select set. Add the field names in
+
+         the order specified.

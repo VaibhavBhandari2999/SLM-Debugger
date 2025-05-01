@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/config/__init__.py
++++ b/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/config/__init__.py
+@@ -741,6 +741,9 @@
+ 
+
+ notset = Notset()
+
+ 
+
++
+
++import os
+
++from typing import Iterable, Iterator
+
+ 
+
+ def _iter_rewritable_modules(package_files: Iterable[str]) -> Iterator[str]:
+
+     """

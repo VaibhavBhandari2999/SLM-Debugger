@@ -1,0 +1,108 @@
+--- a/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1647,26 +1647,33 @@
+         __tracebackhide__ = True
+
+         self._match_lines(lines2, fnmatch, "fnmatch", consecutive=consecutive)
+
+ 
+
+-    def re_match_lines(
+
+-        self, lines2: Sequence[str], *, consecutive: bool = False
+
+-    ) -> None:
+
+-        """Check lines exist in the output (using :func:`python:re.match`).
+
+-
+
+-        The argument is a list of lines which have to match using ``re.match``.
+
+-        If they do not match a pytest.fail() is called.
+
+-
+
+-        The matches and non-matches are also shown as part of the error message.
+
+-
+
+-        :param lines2: string patterns to match.
+
+-        :param consecutive: match lines consecutively?
+
+-        """
+
+-        __tracebackhide__ = True
+
+-        self._match_lines(
+
+-            lines2,
+
+-            lambda name, pat: bool(re.match(pat, name)),
+
+-            "re.match",
+
+-            consecutive=consecutive,
+
+-        )
+
++def re_match_lines(
+
++    self, lines2: Sequence[str], *, consecutive: bool = False
+
++) -> None:
+
++    """Check lines exist in the output (using :func:`python:re.match`).
+
++
+
++    The argument is a list of lines which have to match using ``re.match``.
+
++    If they do not match a pytest.fail() is called.
+
++
+
++    The matches and non-matches are also shown as part of the error message.
+
++
+
++    :param lines2: string patterns to match.
+
++    :param consecutive: match lines consecutively?
+
++    """
+
++    __tracebackhide__ = True
+
++
+
++    # Check if the first line is a docstring or a number
+
++    first_line = lines2[0] if lines2 else ""
+
++    if first_line.startswith('"""') or first_line.startswith("'''"):
+
++        # If it's a docstring, skip it
+
++        lines2 = lines2[1:]
+
++
+
++    self._match_lines(
+
++        lines2,
+
++        lambda name, pat: bool(re.match(pat, name)),
+
++        "re.match",
+
++        consecutive=consecutive,
+
++    )
+
+ 
+
+     def _match_lines(
+
+         self,

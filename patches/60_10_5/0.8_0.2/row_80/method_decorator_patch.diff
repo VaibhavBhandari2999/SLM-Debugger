@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
+@@ -50,6 +50,8 @@
+     return _wrapper
+
+ 
+
+ 
+
++from functools import wraps
+
++
+
+ def method_decorator(decorator, name=''):
+
+     """
+
+     Convert a function decorator into a method decorator
+
+@@ -72,7 +74,11 @@
+                 "Cannot decorate '%s' as it isn't a callable attribute of "
+
+                 "%s (%s)." % (name, obj, method)
+
+             )
+
+-        _wrapper = _multi_decorate(decorator, method)
+
++        # Apply wraps directly to the inner function
+
++        @wraps(method)
+
++        def _wrapper(*args, **kwargs):
+
++            result = method(*args, **kwargs)
+
++            return decorator(result)
+
+         setattr(obj, name, _wrapper)
+
+         return obj
+
+ 

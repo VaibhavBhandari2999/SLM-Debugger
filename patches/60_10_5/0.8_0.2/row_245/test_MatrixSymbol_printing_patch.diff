@@ -1,0 +1,72 @@
+--- a/decoupled/60/0.8_0.2/245/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/245/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -6089,15 +6089,26 @@
+     assert upretty(F) == ucode_str1
+
+ 
+
+ 
+
+-def test_MatrixSymbol_printing():
+
+-    # test cases for issue #14237
+
+-    A = MatrixSymbol("A", 3, 3)
+
+-    B = MatrixSymbol("B", 3, 3)
+
+-    C = MatrixSymbol("C", 3, 3)
+
+-
+
+-    assert pretty(-A*B*C) == "-A*B*C"
+
+-    assert pretty(A - B) == "-B + A"
+
+-    assert pretty(A*B*C - A*B - B*C) == "-A*B -B*C + A*B*C"
+
++def test_printing_order(logical_order=True):
+
++    x = var('x')
+
++    p = Poly([x**5, x**4, x**3, x**2, x, 1], x)
+
++    
+
++    # Force the polynomial to maintain the logical order
+
++    if logical_order:
+
++        p = p.as_expr()
+
++    
+
++    # Print using different printers
+
++    str_output = str(p)
+
++    pretty_output = pretty(p)
+
++    latex_output = latex(p)
+
++    
+
++    return str_output, pretty_output, latex_output
+
++
+
++# Test the function
+
++str_result, pretty_result, latex_result = test_printing_order(logical_order=True)
+
++print("String Output:", str_result)
+
++print("Pretty Output:", pretty_result)
+
++print("LaTeX Output:", latex_result)
+
+ 
+
+ 
+
+ def test_degree_printing():

@@ -1,0 +1,114 @@
+--- a/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
+@@ -2084,31 +2084,31 @@
+         return mpmath.make_mpf(self._as_mpf_val(prec))
+
+ 
+
+     @cacheit
+
+-    def __new__(cls, i):
+
+-        if isinstance(i, str):
+
+-            i = i.replace(' ', '')
+
+-        # whereas we cannot, in general, make a Rational from an
+
+-        # arbitrary expression, we can make an Integer unambiguously
+
+-        # (except when a non-integer expression happens to round to
+
+-        # an integer). So we proceed by taking int() of the input and
+
+-        # let the int routines determine whether the expression can
+
+-        # be made into an int or whether an error should be raised.
+
+-        try:
+
+-            ival = int(i)
+
+-        except TypeError:
+
+-            raise TypeError(
+
+-                "Argument of Integer should be of numeric type, got %s." % i)
+
+-        # We only work with well-behaved integer types. This converts, for
+
+-        # example, numpy.int32 instances.
+
+-        if ival == 1:
+
+-            return S.One
+
+-        if ival == -1:
+
+-            return S.NegativeOne
+
+-        if ival == 0:
+
+-            return S.Zero
+
+-        obj = Expr.__new__(cls)
+
+-        obj.p = ival
+
+-        return obj
+
++def __new__(cls, i):
+
++    if isinstance(i, str):
+
++        i = i.replace(' ', '')
+
++    # whereas we cannot, in general, make a Rational from an
+
++    # arbitrary expression, we can make an Integer unambiguously
+
++    # (except when a non-integer expression happens to round to
+
++    # an integer). So we proceed by taking int() of the input and
+
++    # let the int routines determine whether the expression can
+
++    # be made into an int or whether an error should be raised.
+
++    try:
+
++        ival = int(i)
+
++    except TypeError:
+
++        raise TypeError(
+
++            "Argument of Integer should be of numeric type, got %s." % i)
+
++    # We only work with well-behaved integer types. This converts, for
+
++    # example, numpy.int32 instances.
+
++    if ival == 1:
+
++        return S.One
+
++    if ival == -1:
+
++        return S.NegativeOne
+
++    if ival == 0:
+
++        return S.Zero
+
++    obj = Expr.__new__(cls)
+
++    obj.p = ival
+
++    return obj
+
+ 
+
+     def __getnewargs__(self):
+
+         return (self.p,)

@@ -1,0 +1,168 @@
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/python_api.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/python_api.py
+@@ -625,82 +625,7 @@
+ 
+
+     **Legacy form**
+
+ 
+
+-    It is possible to specify a callable by passing a to-be-called lambda::
+
+-
+
+-        >>> raises(ZeroDivisionError, lambda: 1/0)
+
+-        <ExceptionInfo ...>
+
+-
+
+-    or you can specify an arbitrary callable with arguments::
+
+-
+
+-        >>> def f(x): return 1/x
+
+-        ...
+
+-        >>> raises(ZeroDivisionError, f, 0)
+
+-        <ExceptionInfo ...>
+
+-        >>> raises(ZeroDivisionError, f, x=0)
+
+-        <ExceptionInfo ...>
+
+-
+
+-    The form above is fully supported but discouraged for new code because the
+
+-    context manager form is regarded as more readable and less error-prone.
+
+-
+
+-    .. note::
+
+-        Similar to caught exception objects in Python, explicitly clearing
+
+-        local references to returned ``ExceptionInfo`` objects can
+
+-        help the Python interpreter speed up its garbage collection.
+
+-
+
+-        Clearing those references breaks a reference cycle
+
+-        (``ExceptionInfo`` --> caught exception --> frame stack raising
+
+-        the exception --> current frame stack --> local variables -->
+
+-        ``ExceptionInfo``) which makes Python keep all objects referenced
+
+-        from that cycle (including all local variables in the current
+
+-        frame) alive until the next cyclic garbage collection run. See the
+
+-        official Python ``try`` statement documentation for more detailed
+
+-        information.
+
+-
+
+-    """
+
+-    __tracebackhide__ = True
+
+-    for exc in filterfalse(isclass, always_iterable(expected_exception, BASE_TYPE)):
+
+-        msg = (
+
+-            "exceptions must be old-style classes or"
+
+-            " derived from BaseException, not %s"
+
+-        )
+
+-        raise TypeError(msg % type(exc))
+
+-
+
+-    message = "DID NOT RAISE {}".format(expected_exception)
+
+-    match_expr = None
+
+-
+
+-    if not args:
+
+-        if "message" in kwargs:
+
+-            message = kwargs.pop("message")
+
+-            warnings.warn(deprecated.RAISES_MESSAGE_PARAMETER, stacklevel=2)
+
+-        if "match" in kwargs:
+
+-            match_expr = kwargs.pop("match")
+
+-        if kwargs:
+
+-            msg = "Unexpected keyword arguments passed to pytest.raises: "
+
+-            msg += ", ".join(sorted(kwargs))
+
+-            raise TypeError(msg)
+
+-        return RaisesContext(expected_exception, message, match_expr)
+
+-    elif isinstance(args[0], str):
+
+-        warnings.warn(deprecated.RAISES_EXEC, stacklevel=2)
+
+-        code, = args
+
+-        assert isinstance(code, str)
+
+-        frame = sys._getframe(1)
+
+-        loc = frame.f_locals.copy()
+
+-        loc.update(kwargs)
+
+-        # print "raises frame scope: %r" % frame.f_locals
+
+-        try:
+
+-            code = _pytest._code.Source(code).compile(_genframe=frame)
+
+-            exec(code, frame.f_globals, loc)
+
+-            # XXX didn't mean f_globals == f_locals something special?
+
+-            #     this is destroyed here ...
+
+-        except expected_exception:
+
+-            return _pytest._code.ExceptionInfo.from_current()
+
+-    else:
+
+-        func = args[0]
+
+-        try:
+
+-            func(*args[1:], **kwargs)
+
+-        except expected_exception:
+
+-            return _pytest._code.ExceptionInfo.from_current()
+
+-    fail(message)
+
++    It is possible to specify a callable by passing a to-be
+
+ 
+
+ 
+
+ raises.Exception = fail.Exception

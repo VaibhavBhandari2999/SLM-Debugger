@@ -1,0 +1,111 @@
+--- a/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
++++ b/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
+@@ -1300,7 +1300,7 @@
+         except (TypeError, AttributeError):
+
+             return False
+
+ 
+
+-    def equals(self, other: "Dataset") -> bool:
+
++def equals(self, other: "Dataset") -> bool:
+
+         """Two Datasets are equal if they have matching variables and
+
+         coordinates, all of which are equal.
+
+ 
+
+@@ -1310,13 +1310,43 @@
+         This method is necessary because `v1 == v2` for ``Dataset``
+
+         does element-wise comparisons (like numpy.ndarrays).
+
+ 
+
+-        See Also
+
+-        --------
+
++        Parameters
+
++        ----------
+
++        other : Dataset
+
++            The other Dataset to compare with.
+
++
+
++        Returns
+
++        -------
+
++        bool
+
++            True if the datasets are equal, False otherwise.
+
++
+
++        Notes
+
++        -----
+
++        - If the datasets have different variables, the function will
+
++          return False unless the missing variables are filled with NaN.
+
++        - This method is necessary because `v1 == v2` for ``Dataset``
+
++          does element-wise comparisons (like numpy.ndarrays).
+
++        - See Also
+
++        ---------
+
+         Dataset.broadcast_equals
+
+         Dataset.identical
+
+         """
+
+         try:
+
+-            return self._all_compat(other, "equals")
+
++            # Check if the datasets have the same variables
+
++            if set(self.variables.keys()) != set(other.variables.keys()):
+
++                return False
+
++            
+
++            # Check if the datasets have the same coordinates
+
++            if not all(set(self.coords.keys()) == set(other.coords.keys()) and
+
++                       (self.coords[key].equals(other.coords[key]) for key in self.coords)):
+
++                return False
+
++            
+
++            # Check if the datasets have the same data variables and values
+
++            for var in self.variables:
+
++                if not self[var].equals(other[var]):
+
++                    return False
+
++            
+
++            return True
+
+         except (TypeError, AttributeError):
+
+             return False
+
+ 

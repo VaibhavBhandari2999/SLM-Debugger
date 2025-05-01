@@ -1,0 +1,138 @@
+--- a/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
++++ b/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
+@@ -153,31 +153,43 @@
+     def has_listeners(self, sender=None):
+
+         return bool(self._live_receivers(sender))
+
+ 
+
+-    def send(self, sender, **named):
+
+-        """
+
+-        Send signal from sender to all connected receivers.
+
+-
+
+-        If any receiver raises an error, the error propagates back through send,
+
+-        terminating the dispatch loop. So it's possible that all receivers
+
+-        won't be called if an error is raised.
+
+-
+
+-        Arguments:
+
+-
+
+-            sender
+
+-                The sender of the signal. Either a specific object or None.
+
+-
+
+-            named
+
+-                Named arguments which will be passed to receivers.
+
+-
+
+-        Return a list of tuple pairs [(receiver, response), ... ].
+
+-        """
+
+-        if not self.receivers or self.sender_receivers_cache.get(sender) is NO_RECEIVERS:
+
+-            return []
+
+-
+
+-        return [
+
+-            (receiver, receiver(signal=self, sender=sender, **named))
+
+-            for receiver in self._live_receivers(sender)
+
+-        ]
+
++def add_item(self, title, link, description, pubdate, comments=None, author=None, author_email=None, author_link=None, categories=None, unique_id=None, unique_id_is_permalink=None, enclosure=None, source=None, item_extra_kwargs=None):
+
++    """
+
++    Add an item to the feed.
+
++
+
++    :param title: The title of the item.
+
++    :param link: The link to the item.
+
++    :param description: The description of the item.
+
++    :param pubdate: The publication date of the item.
+
++    :param comments: The URL of the comments for the item.
+
++    :param author: The author of the item.
+
++    :param author_email: The email of the author.
+
++    :param author_link: The link to the author.
+
++    :param categories: A list of categories for the item.
+
++    :param unique_id: The unique identifier for the item.
+
++    :param unique_id_is_permalink: Whether the unique_id is a permalink.
+
++    :param enclosure: An enclosure for the item.
+
++    :param source: The source of the item.
+
++    :param item_extra_kwargs: Extra keyword arguments for the item.
+
++    """
+
++    item = {
+
++        'title': title,
+
++        'link': link,
+
++        'description': description,
+
++        'pubdate': pubdate,
+
++        'author': author,
+
++        'author_email': author_email,
+
++        'author_link': author_link,
+
++        'categories': categories,
+
++        'unique_id': unique_id,
+
++        'unique_id_is_permalink': unique_id_is_permalink,
+
++        'enclosure': enclosure,
+
++        'source': source,
+
++        'comments': comments,
+
++    }
+
++    if item_extra_kwargs:
+
++        item.update(item_extra_kwargs)
+
++    self.items.append(item)
+
+ 
+
+     def send_robust(self, sender, **named):
+
+         """

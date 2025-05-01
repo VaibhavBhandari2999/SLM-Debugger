@@ -1,0 +1,100 @@
+--- a/decoupled/60/0.8_0.2/165/pylint-dev_pylint/pylint/testutils/configuration_test.py
++++ b/decoupled/60/0.8_0.2/165/pylint-dev_pylint/pylint/testutils/configuration_test.py
+@@ -31,12 +31,49 @@
+     copy._deepcopy_dispatch[type(re.compile(""))] = lambda r, _: r  # type: ignore[attr-defined]
+
+ 
+
+ 
+
++import re
+
++import logging
+
++from pathlib import Path
+
++
+
+ def get_expected_or_default(
+
+     tested_configuration_file: str | Path,
+
+     suffix: str,
+
+     default: str,
+
+ ) -> str:
+
+     """Return the expected value from the file if it exists, or the given default."""
+
++    expected = default
+
++    path = Path(tested_configuration_file)
+
++    expected_result_path = path.parent / f"{path.stem}.{suffix}"
+
++    if expected_result_path.exists():
+
++        with open(expected_result_path, encoding="utf8") as f:
+
++            expected = f.read()
+
++        # logging is helpful to realize your file is not taken into
+
++        # account after a misspelling of the file name. The output of the
+
++        # program is checked during the test so printing messes with the result.
+
++        logging.info("%s exists.", expected_result_path)
+
++    else:
+
++        logging.info("%s not found, using '%s'.", expected_result_path, default)
+
++    return expected
+
++
+
++# Fix the regex pattern to be valid in Python
+
++# The original pattern uses \p{Han} which is not supported in Python's regex
+
++# We can use a valid regex pattern that matches the same criteria
+
++# For example, we can use a pattern that matches any Unicode character (including Han characters)
+
++# followed by lowercase letters, digits, or underscores, and has a minimum length of 3 and a maximum length of 31
+
++# The pattern will be: ^[\u4e00-\u9fff_a-z0-9_]{3,30}$
+
++# This pattern matches any Unicode character in the range of Han characters (U+4E00 to U+9FFF)
+
++# followed by lowercase letters, digits, or underscores, and has a minimum length of 3 and a maximum length of 30
+
++
+
++# Update the function to use the fixed regex pattern
+
++def get_expected_or_default(
+
++    tested_configuration_file: str | Path,
+
++    suffix: str,
+
++    default: str,
+
++) -> str:
+
++    """Return the expected value from the file if it exists, or the given default."""
+
++    # Fix the regex pattern to be valid in Python
+
++    function_regex = re.compile(r'^[\u4e00-\u9fff_a-z0-9_]{3,30}$')
+
++    
+
+     expected = default
+
+     path = Path(tested_configuration_file)
+
+     expected_result_path = path.parent / f"{path.stem}.{suffix}"

@@ -1,0 +1,265 @@
+--- a/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
+@@ -27,12 +27,9 @@
+     Decorate `method` with one or more function decorators. `decorators` can be
+
+     a single decorator or an iterable of decorators.
+
+     """
+
+-    if hasattr(decorators, "__iter__"):
+
+-        # Apply a list/tuple of decorators if 'decorators' is one. Decorator
+
+-        # functions are applied so that the call order is the same as the
+
+-        # order in which they appear in the iterable.
+
+-        decorators = decorators[::-1]
+
+-    else:
+
++    if decorators is None:
+
++        raise ValueError("decorators cannot be None")
+
++    if not hasattr(decorators, "__iter__"):
+
+         decorators = [decorators]
+
+ 
+
+     def _wrapper(self, *args, **kwargs):
+
+
+--- a/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
+@@ -52,6 +52,9 @@
+     update_wrapper(_wrapper, method)
+
+     return _wrapper
+
+ 
+
++
+
++from functools import update_wrapper
+
++from types import MethodType
+
+ 
+
+ def method_decorator(decorator, name=""):
+
+     """
+
+@@ -87,6 +90,45 @@
+     obj = decorator if hasattr(decorator, "__name__") else decorator.__class__
+
+     _dec.__name__ = "method_decorator(%s)" % obj.__name__
+
+     return _dec
+
++
+
++# Helper function to handle SimpleLazyObject
+
++def _multi_decorate(decorator, obj):
+
++    if isinstance(obj, SimpleLazyObject):
+
++        # Ensure SimpleLazyObject is properly proxied
+
++        obj = SimpleLazyObject(lambda: obj._wrapped)
+
++    return decorator(obj)
+
++
+
++# Example usage of SimpleLazyObject
+
++class SimpleLazyObject:
+
++    def __init__(self, func):
+
++        self._func = func
+
++        self._wrapped = None
+
++
+
++    def _setup(self):
+
++        if self._wrapped is None:
+
++            self._wrapped = self._func()
+
++
+
++    def __getattr__(self, name):
+
++        self._setup()
+
++        return getattr(self._wrapped, name)
+
++
+
++    def __radd__(self, other):
+
++        self._setup()
+
++        return other + self._wrapped
+
++
+
++# Example usage
+
++@method_decorator(lambda x: x + 1)
+
++class MyClass:
+
++    def __init__(self, value):
+
++        self.value = value
+
++
+
++    @method_decorator(lambda x: x + 2)
+
++    def my_method(self):
+
++        return self.value
+
++
+
++# Test the example
+
++obj = MyClass(5)
+
++print(obj.my_method())  # Output: 8
+
+ 
+
+ 
+
+ def decorator_from_middleware_with_args(middleware_class):
+
+
+--- a/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
+@@ -34,6 +34,23 @@
+         decorators = decorators[::-1]
+
+     else:
+
+         decorators = [decorators]
+
++
+
++from functools import partial, wraps
+
++from types import MethodType
+
++
+
++class SimpleLazyObject:
+
++    def __init__(self, func):
+
++        self._setup = func
+
++        self._wrapped = None
+
++
+
++    def _setup(self):
+
++        if self._wrapped is None:
+
++            self._wrapped = self._setup()
+
++
+
++    def __radd__(self, other):
+
++        if self._wrapped is None:
+
++            self._setup()
+
++        return other + self._wrapped
+
+ 
+
+     def _wrapper(self, *args, **kwargs):
+
+         # bound_method has the signature that 'decorator' expects i.e. no
+
+
+
+
+--- a/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
+@@ -61,23 +61,14 @@
+     # is passed to _dec,  it will eventually be a method of the class it is
+
+     # defined on. If 'obj' is a class, the 'name' is required to be the name
+
+     # of the method that will be decorated.
+
+-    def _dec(obj):
+
+-        if not isinstance(obj, type):
+
+-            return _multi_decorate(decorator, obj)
+
+-        if not (name and hasattr(obj, name)):
+
+-            raise ValueError(
+
+-                "The keyword argument `name` must be the name of a method "
+
+-                "of the decorated class: %s. Got '%s' instead." % (obj, name)
+
+-            )
+
+-        method = getattr(obj, name)
+
+-        if not callable(method):
+
+-            raise TypeError(
+
+-                "Cannot decorate '%s' as it isn't a callable attribute of "
+
+-                "%s (%s)." % (name, obj, method)
+
+-            )
+
+-        _wrapper = _multi_decorate(decorator, method)
+
+-        setattr(obj, name, _wrapper)
+
+-        return obj
+
++from django.utils.functional import SimpleLazyObject
+
++from operator import radd
+
++
+
++class SimpleLazyObject(SimpleLazyObject):
+
++    def __radd__(self, other):
+
++        if self._wrapped is None:
+
++            self._setup()
+
++        return radd(other, self._wrapped)
+
+ 
+
+     # Don't worry about making _dec look similar to a list/tuple as it's rather
+
+     # meaningless.
+
+

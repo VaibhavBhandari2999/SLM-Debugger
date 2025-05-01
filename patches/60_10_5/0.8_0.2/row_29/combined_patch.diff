@@ -1,0 +1,237 @@
+--- a/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
+@@ -117,7 +117,7 @@
+     def __str__(self):
+
+         return self.sql % self.params_type(self.params)
+
+ 
+
+-    def _execute_query(self):
+
++def _execute_query(self):
+
+         connection = connections[self.using]
+
+ 
+
+         # Adapt parameters to the database, as much as possible considering
+
+@@ -133,6 +133,10 @@
+ 
+
+         self.cursor = connection.cursor()
+
+         self.cursor.execute(self.sql, params)
+
++
+
++        # Ensure the database is closed and reopened to avoid "database is locked" errors
+
++        connection.close()
+
++        connection.connect()
+
+ 
+
+ 
+
+ class Query(BaseExpression):
+
+
+--- a/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/subqueries.py
++++ b/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/subqueries.py
+@@ -23,7 +23,7 @@
+         cursor = self.get_compiler(using).execute_sql(CURSOR)
+
+         return cursor.rowcount if cursor else 0
+
+ 
+
+-    def delete_batch(self, pk_list, using):
+
++def delete_batch(self, pk_list, using):
+
+         """
+
+         Set up and execute delete queries for all the objects in pk_list.
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
+@@ -95,14 +95,15 @@
+         return [converter(column_meta[0])
+
+                 for column_meta in self.cursor.description]
+
+ 
+
+-    def __iter__(self):
+
++def __iter__(self):
+
+         # Always execute a new query for a new iterator.
+
+         # This could be optimized with a cache at the expense of RAM.
+
+         self._execute_query()
+
+         if not connections[self.using].features.can_use_chunked_reads:
+
+-            # If the database can't use chunked reads we need to make sure we
+
+-            # evaluate the entire query up front.
+
++            # If the database can't use chunked reads, we need to make sure we
+
++            # evaluate the entire query up front and close the cursor after.
+
+             result = list(self.cursor)
+
++            self.cursor.close()  # Ensure the cursor is closed to release the database lock.
+
+         else:
+
+             result = self.cursor
+
+         return iter(result)
+
+
+--- a/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
+@@ -411,7 +411,7 @@
+         annotation.set_source_expressions(new_exprs)
+
+         return annotation, col_cnt
+
+ 
+
+-    def get_aggregation(self, using, added_aggregate_names):
+
++def get_aggregation(self, using, added_aggregate_names):
+
+         """
+
+         Return the dictionary with the values of the existing aggregations.
+
+         """
+
+@@ -472,7 +472,7 @@
+                     outer_query.annotations[alias] = expression.relabeled_clone(relabels)
+
+                     del inner_query.annotations[alias]
+
+                     annotation_select_mask.remove(alias)
+
+-                # Make sure the annotation_select wont use cached results.
+
++                # Make sure the annotation_select won't use cached results.
+
+                 inner_query.set_annotation_mask(inner_query.annotation_select_mask)
+
+             if inner_query.select == () and not inner_query.default_cols and not inner_query.annotation_select_mask:
+
+                 # In case of Model.objects[0:3].count(), there would be no
+
+@@ -484,27 +484,6 @@
+             except EmptyResultSet:
+
+                 return {
+
+                     alias: None
+
+-                    for alias in outer_query.annotation_select
+
+-                }
+
+-        else:
+
+-            outer_query = self
+
+-            self.select = ()
+
+-            self.default_cols = False
+
+-            self.extra = {}
+
+-
+
+-        outer_query.clear_ordering(True)
+
+-        outer_query.clear_limits()
+
+-        outer_query.select_for_update = False
+
+-        outer_query.select_related = False
+
+-        compiler = outer_query.get_compiler(using)
+
+-        result = compiler.execute_sql(SINGLE)
+
+-        if result is None:
+
+-            result = [None] * len(outer_query.annotation_select)
+
+-
+
+-        converters = compiler.get_converters(outer_query.annotation_select.values())
+
+-        result = next(compiler.apply_converters((result,), converters))
+
+-
+
+-        return dict(zip(outer_query.annotation_select, result))
+
+ 
+
+     def get_count(self, using):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/29/django_django/tests/admin_views/test_multidb.py
++++ b/decoupled/60/0.8_0.2/29/django_django/tests/admin_views/test_multidb.py
+@@ -31,16 +31,19 @@
+     databases = {'default', 'other'}
+
+ 
+
+     @classmethod
+
++@classmethod
+
+     def setUpTestData(cls):
+
+         cls.superusers = {}
+
+         cls.test_book_ids = {}
+
+         for db in connections:
+
++            # Use a separate database name for each test case to avoid locking issues
+
+             Router.target_db = db
+
+             cls.superusers[db] = User.objects.create_superuser(
+
+                 username='admin', password='something', email='test@test.org',
+
++                using=f'{db}_test'  # Use a separate test database name
+
+             )
+
+             b = Book(name='Test Book')
+
+-            b.save(using=db)
+
++            b.save(using=f'{db}_test')  # Use the separate test database name
+
+             cls.test_book_ids[db] = b.id
+
+ 
+
+     @mock.patch('django.contrib.admin.options.transaction')
+
+

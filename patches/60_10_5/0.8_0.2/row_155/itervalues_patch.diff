@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/155/psf_requests/requests/packages/urllib3/packages/six.py
++++ b/decoupled/60/0.8_0.2/155/psf_requests/requests/packages/urllib3/packages/six.py
+@@ -253,7 +253,8 @@
+ 
+
+ def itervalues(d):
+
+     """Return an iterator over the values of a dictionary."""
+
+-    return getattr(d, _itervalues)()
+
++    # Use the built-in dict.values() method to get an iterator over the values
+
++    return d.values()
+
+ 
+
+ def iteritems(d):
+
+     """Return an iterator over the (key, value) pairs of a dictionary."""

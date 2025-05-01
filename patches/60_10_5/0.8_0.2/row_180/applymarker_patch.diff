@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/180/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/180/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -546,7 +546,7 @@
+             finalizer=finalizer, colitem=colitem
+
+         )
+
+ 
+
+-    def applymarker(self, marker) -> None:
+
++def applymarker(self, marker) -> None:
+
+         """ Apply a marker to a single test function invocation.
+
+         This method is useful if you don't want to have a keyword/marker
+
+         on all function invocations.
+
+@@ -554,7 +554,11 @@
+         :arg marker: a :py:class:`_pytest.mark.MarkDecorator` object
+
+             created by a call to ``pytest.mark.NAME(...)``.
+
+         """
+
+-        self.node.add_marker(marker)
+
++        # Ensure the marker is treated as an xfail marker
+
++        if marker.name == 'xfail':
+
++            self.node.set_xfail(reason=marker.kwargs.get('reason', ''))
+
++        else:
+
++            self.node.add_marker(marker)
+
+ 
+
+     def raiseerror(self, msg: Optional[str]) -> "NoReturn":
+
+         """ raise a FixtureLookupError with the given message. """

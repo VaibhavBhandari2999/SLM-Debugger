@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
+@@ -463,6 +463,11 @@
+     return True
+
+ 
+
+ 
+
++import os
+
++import socket
+
++import urlparse
+
++from neutronclient.common.utils import is_ipv4_address, is_valid_cidr, address_in_network, proxy_bypass
+
++
+
+ def should_bypass_proxies(url):
+
+     """
+
+     Returns whether we should bypass proxies or not.
+
+@@ -472,7 +477,7 @@
+     # First check whether no_proxy is defined. If it is, check that the URL
+
+     # we're getting isn't in the no_proxy list.
+
+     no_proxy = get_proxy('no_proxy')
+
+-    netloc = urlparse(url).netloc
+
++    netloc = urlparse.urlparse(url).netloc
+
+ 
+
+     if no_proxy:
+
+         # We need to check whether we match here. We need to see if we match

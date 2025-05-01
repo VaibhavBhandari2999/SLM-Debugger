@@ -1,0 +1,486 @@
+--- a/decoupled/60/0.8_0.2/3/astropy_astropy/astropy/nddata/ccddata.py
++++ b/decoupled/60/0.8_0.2/3/astropy_astropy/astropy/nddata/ccddata.py
+@@ -293,155 +293,93 @@
+         else:
+
+             self._uncertainty = value
+
+ 
+
+-    def to_hdu(
+
+-        self,
+
+-        hdu_mask="MASK",
+
+-        hdu_uncertainty="UNCERT",
+
+-        hdu_flags=None,
+
+-        wcs_relax=True,
+
+-        key_uncertainty_type="UTYPE",
+
+-        as_image_hdu=False,
+
+-        hdu_psf="PSFIMAGE",
+
+-    ):
+
+-        """Creates an HDUList object from a CCDData object.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        hdu_mask, hdu_uncertainty, hdu_flags, hdu_psf : str or None, optional
+
+-            If it is a string append this attribute to the HDUList as
+
+-            `~astropy.io.fits.ImageHDU` with the string as extension name.
+
+-            Flags are not supported at this time. If ``None`` this attribute
+
+-            is not appended.
+
+-            Default is ``'MASK'`` for mask, ``'UNCERT'`` for uncertainty,
+
+-            ``'PSFIMAGE'`` for psf, and `None` for flags.
+
+-
+
+-        wcs_relax : bool
+
+-            Value of the ``relax`` parameter to use in converting the WCS to a
+
+-            FITS header using `~astropy.wcs.WCS.to_header`. The common
+
+-            ``CTYPE`` ``RA---TAN-SIP`` and ``DEC--TAN-SIP`` requires
+
+-            ``relax=True`` for the ``-SIP`` part of the ``CTYPE`` to be
+
+-            preserved.
+
+-
+
+-        key_uncertainty_type : str, optional
+
+-            The header key name for the class name of the uncertainty (if any)
+
+-            that is used to store the uncertainty type in the uncertainty hdu.
+
+-            Default is ``UTYPE``.
+
+-
+
+-            .. versionadded:: 3.1
+
+-
+
+-        as_image_hdu : bool
+
+-            If this option is `True`, the first item of the returned
+
+-            `~astropy.io.fits.HDUList` is a `~astropy.io.fits.ImageHDU`, instead
+
+-            of the default `~astropy.io.fits.PrimaryHDU`.
+
+-
+
+-        Raises
+
+-        ------
+
+-        ValueError
+
+-            - If ``self.mask`` is set but not a `numpy.ndarray`.
+
+-            - If ``self.uncertainty`` is set but not a astropy uncertainty type.
+
+-            - If ``self.uncertainty`` is set but has another unit then
+
+-              ``self.data``.
+
+-
+
+-        NotImplementedError
+
+-            Saving flags is not supported.
+
+-
+
+-        Returns
+
+-        -------
+
+-        hdulist : `~astropy.io.fits.HDUList`
+
+-        """
+
+-        if isinstance(self.header, fits.Header):
+
+-            # Copy here so that we can modify the HDU header by adding WCS
+
+-            # information without changing the header of the CCDData object.
+
+-            header = self.header.copy()
+
+-        else:
+
+-            # Because _insert_in_metadata_fits_safe is written as a method
+
+-            # we need to create a dummy CCDData instance to hold the FITS
+
+-            # header we are constructing. This probably indicates that
+
+-            # _insert_in_metadata_fits_safe should be rewritten in a more
+
+-            # sensible way...
+
+-            dummy_ccd = CCDData([1], meta=fits.Header(), unit="adu")
+
+-            for k, v in self.header.items():
+
+-                dummy_ccd._insert_in_metadata_fits_safe(k, v)
+
+-            header = dummy_ccd.header
+
+-        if self.unit is not u.dimensionless_unscaled:
+
+-            header["bunit"] = self.unit.to_string()
+
+-        if self.wcs:
+
+-            # Simply extending the FITS header with the WCS can lead to
+
+-            # duplicates of the WCS keywords; iterating over the WCS
+
+-            # header should be safer.
+
+-            #
+
+-            # Turns out if I had read the io.fits.Header.extend docs more
+
+-            # carefully, I would have realized that the keywords exist to
+
+-            # avoid duplicates and preserve, as much as possible, the
+
+-            # structure of the commentary cards.
+
+-            #
+
+-            # Note that until astropy/astropy#3967 is closed, the extend
+
+-            # will fail if there are comment cards in the WCS header but
+
+-            # not header.
+
+-            wcs_header = self.wcs.to_header(relax=wcs_relax)
+
+-            header.extend(wcs_header, useblanks=False, update=True)
+
+-
+
+-        if as_image_hdu:
+
+-            hdus = [fits.ImageHDU(self.data, header)]
+
+-        else:
+
+-            hdus = [fits.PrimaryHDU(self.data, header)]
+
+-
+
+-        if hdu_mask and self.mask is not None:
+
+-            # Always assuming that the mask is a np.ndarray (check that it has
+
+-            # a 'shape').
+
+-            if not hasattr(self.mask, "shape"):
+
+-                raise ValueError("only a numpy.ndarray mask can be saved.")
+
+-
+
+-            # Convert boolean mask to uint since io.fits cannot handle bool.
+
+-            hduMask = fits.ImageHDU(self.mask.astype(np.uint8), name=hdu_mask)
+
+-            hdus.append(hduMask)
+
+-
+
+-        if hdu_uncertainty and self.uncertainty is not None:
+
+-            # We need to save some kind of information which uncertainty was
+
+-            # used so that loading the HDUList can infer the uncertainty type.
+
+-            # No idea how this can be done so only allow StdDevUncertainty.
+
+-            uncertainty_cls = self.uncertainty.__class__
+
+-            if uncertainty_cls not in _known_uncertainties:
+
+-                raise ValueError(
+
+-                    f"only uncertainties of type {_known_uncertainties} can be saved."
+
+-                )
+
+-            uncertainty_name = _unc_cls_to_name[uncertainty_cls]
+
+-
+
+-            hdr_uncertainty = fits.Header()
+
+-            hdr_uncertainty[key_uncertainty_type] = uncertainty_name
+
+-
+
+-            # Assuming uncertainty is an StdDevUncertainty save just the array
+
+-            # this might be problematic if the Uncertainty has a unit differing
+
+-            # from the data so abort for different units. This is important for
+
+-            # astropy > 1.2
+
+-            if hasattr(self.uncertainty, "unit") and self.uncertainty.unit is not None:
+
+-                if not _uncertainty_unit_equivalent_to_parent(
+
+-                    uncertainty_cls, self.uncertainty.unit, self.unit
+
+-                ):
+
+-                    raise ValueError(
+
+-                        "saving uncertainties with a unit that is not "
+
+-                        "equivalent to the unit from the data unit is not "
+
+-                        "supported."
+
+-                    )
+
+-
+
+-            hduUncert = fits.ImageHDU(
+
+-                self.uncertainty.array, hdr_uncertainty, name=hdu_uncertainty
+
+-            )
+
+-            hdus.append(hduUncert)
+
+-
+
+-        if hdu_flags and self.flags:
+
+-            raise NotImplementedError(
+
+-                "adding the flags to a HDU is not supported at this time."
+
+-            )
+
+-
+
+-        if hdu_psf and self.psf is not None:
+
+-            # The PSF is an image, so write it as a separate ImageHDU.
+
+-            hdu_psf = fits.ImageHDU(self.psf, name=hdu_psf)
+
+-            hdus.append(hdu_psf)
+
+-
+
+-        hdulist = fits.HDUList(hdus)
+
+-
+
+-        return hdulist
+
++def to_hdu(
+
++    self,
+
++    hdu_mask="MASK",
+
++    hdu_uncertainty="UNCERT",
+
++    hdu_flags=None,
+
++    wcs_relax=True,
+
++    key_uncertainty_type="UTYPE",
+
++    as_image_hdu=False,
+
++    hdu_psf="PSFIMAGE",
+
++):
+
++    """Creates an HDUList object from a CCDData object.
+
++
+
++    Parameters
+
++    ----------
+
++    hdu_mask, hdu_uncertainty, hdu_flags, hdu_psf : str or None, optional
+
++        If it is a string append this attribute to the HDUList as
+
++        `~astropy.io.fits.ImageHDU` with the string as extension name.
+
++        Flags are not supported at this time. If ``None`` this attribute
+
++        is not appended.
+
++        Default is ``'MASK'`` for mask, ``'UNCERT'`` for uncertainty,
+
++        ``'PSFIMAGE'`` for psf, and `None` for flags.
+
++
+
++    wcs_relax : bool
+
++        Value of the ``relax`` parameter to use in converting the WCS to a
+
++        FITS header using `~astropy.wcs.WCS.to_header`. The common
+
++        ``CTYPE`` ``RA---TAN-SIP`` and ``DEC--TAN-SIP`` requires
+
++        ``relax=True`` for the ``-SIP`` part of the ``CTYPE`` to be
+
++        preserved.
+
++
+
++    key_uncertainty_type : str, optional
+
++        The header key name for the class name of the uncertainty (if any)
+
++        that is used to store the uncertainty type in the uncertainty hdu.
+
++        Default is ``UTYPE``.
+
++
+
++        .. versionadded:: 3.1
+
++
+
++    as_image_hdu : bool
+
++        If this option is `True`, the first item of the returned
+
++        `~astropy.io.fits.HDUList` is a `~astropy.io.fits.ImageHDU`, instead
+
++        of the default `~astropy.io.fits.PrimaryHDU`.
+
++
+
++    Raises
+
++    ------
+
++    ValueError
+
++        - If ``self.mask`` is set but not a `numpy.ndarray`.
+
++        - If ``self.uncertainty`` is set but not a astropy uncertainty type.
+
++        - If ``self.uncertainty`` is set but has another unit then
+
++          ``self.data``.
+
++
+
++    NotImplementedError
+
++        Saving flags is not supported.
+
++
+
++    Returns
+
++    -------
+
++    hdulist : `~astropy.io.fits.HDUList`
+
++    """
+
++    if isinstance(self.header, fits.Header):
+
++        # Copy here so that we can modify the HDU header by adding WCS
+
++        # information without changing the header of the CCDData object.
+
++        header = self.header.copy()
+
++    else:
+
++        # Because _insert_in_metadata_fits_safe is written as a method
+
++        # we need to create a dummy CCDData instance to hold the FITS
+
++        # header we are constructing. This probably indicates that
+
++        # _insert_in_metadata_fits_safe should be rewritten in a more
+
++        # sensible way...
+
++        dummy_ccd = CCDData([1], meta=fits.Header(), unit="adu")
+
++        for k, v in self.header.items():
+
++            dummy_ccd._insert_in_metadata_fits_safe(k, v)
+
++        header = dummy_ccd.header
+
++    if self.unit is not u.dimensionless_unscaled:
+
++        header["bunit"] = self.unit.to_string()
+
++    if self.wcs:
+
++        # Simply extending the FITS header with the WCS can lead to
+
++        # duplicates of the WCS keywords; iterating over the WCS
+
++        # header should be safer.
+
++        #
+
++        # Turns out if I had read the io.fits.Header.extend docs more
+
++        # carefully, I would have realized that the keywords exist to
+
++        # avoid duplicates and preserve, as much as possible, the
+
++        # structure of the commentary cards.
+
++        #
+
++        # Note that until astropy/astropy#3967 is closed, the extend
+
++        # will fail if there are comment cards in the WCS header but
+
++        # not header.
+
++        wcs_header = self.wcs.to_header(relax=wcs_relax)
+
++        header.extend(wcs_header, useblanks=False, update=True)
+
+ 
+
+     def copy(self):
+
+         """

@@ -1,0 +1,1074 @@
+--- a/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
+@@ -71,7 +71,7 @@
+ 
+
+ class ModelBase(type):
+
+     """Metaclass for all models."""
+
+-    def __new__(cls, name, bases, attrs, **kwargs):
+
++def __new__(cls, name, bases, attrs, **kwargs):
+
+         super_new = super().__new__
+
+ 
+
+         # Also ensure initialization is only performed for subclasses of Model
+
+@@ -171,155 +171,7 @@
+         # Basic setup for proxy models.
+
+         if is_proxy:
+
+             base = None
+
+-            for parent in [kls for kls in parents if hasattr(kls, '_meta')]:
+
+-                if parent._meta.abstract:
+
+-                    if parent._meta.fields:
+
+-                        raise TypeError(
+
+-                            "Abstract base class containing model fields not "
+
+-                            "permitted for proxy model '%s'." % name
+
+-                        )
+
+-                    else:
+
+-                        continue
+
+-                if base is None:
+
+-                    base = parent
+
+-                elif parent._meta.concrete_model is not base._meta.concrete_model:
+
+-                    raise TypeError("Proxy model '%s' has more than one non-abstract model base class." % name)
+
+-            if base is None:
+
+-                raise TypeError("Proxy model '%s' has no non-abstract model base class." % name)
+
+-            new_class._meta.setup_proxy(base)
+
+-            new_class._meta.concrete_model = base._meta.concrete_model
+
+-        else:
+
+-            new_class._meta.concrete_model = new_class
+
+-
+
+-        # Collect the parent links for multi-table inheritance.
+
+-        parent_links = {}
+
+-        for base in reversed([new_class] + parents):
+
+-            # Conceptually equivalent to `if base is Model`.
+
+-            if not hasattr(base, '_meta'):
+
+-                continue
+
+-            # Skip concrete parent classes.
+
+-            if base != new_class and not base._meta.abstract:
+
+-                continue
+
+-            # Locate OneToOneField instances.
+
+-            for field in base._meta.local_fields:
+
+-                if isinstance(field, OneToOneField) and field.remote_field.parent_link:
+
+-                    related = resolve_relation(new_class, field.remote_field.model)
+
+-                    parent_links[make_model_tuple(related)] = field
+
+-
+
+-        # Track fields inherited from base models.
+
+-        inherited_attributes = set()
+
+-        # Do the appropriate setup for any model parents.
+
+-        for base in new_class.mro():
+
+-            if base not in parents or not hasattr(base, '_meta'):
+
+-                # Things without _meta aren't functional models, so they're
+
+-                # uninteresting parents.
+
+-                inherited_attributes.update(base.__dict__)
+
+-                continue
+
+-
+
+-            parent_fields = base._meta.local_fields + base._meta.local_many_to_many
+
+-            if not base._meta.abstract:
+
+-                # Check for clashes between locally declared fields and those
+
+-                # on the base classes.
+
+-                for field in parent_fields:
+
+-                    if field.name in field_names:
+
+-                        raise FieldError(
+
+-                            'Local field %r in class %r clashes with field of '
+
+-                            'the same name from base class %r.' % (
+
+-                                field.name,
+
+-                                name,
+
+-                                base.__name__,
+
+-                            )
+
+-                        )
+
+-                    else:
+
+-                        inherited_attributes.add(field.name)
+
+-
+
+-                # Concrete classes...
+
+-                base = base._meta.concrete_model
+
+-                base_key = make_model_tuple(base)
+
+-                if base_key in parent_links:
+
+-                    field = parent_links[base_key]
+
+-                elif not is_proxy:
+
+-                    attr_name = '%s_ptr' % base._meta.model_name
+
+-                    field = OneToOneField(
+
+-                        base,
+
+-                        on_delete=CASCADE,
+
+-                        name=attr_name,
+
+-                        auto_created=True,
+
+-                        parent_link=True,
+
+-                    )
+
+-
+
+-                    if attr_name in field_names:
+
+-                        raise FieldError(
+
+-                            "Auto-generated field '%s' in class %r for "
+
+-                            "parent_link to base class %r clashes with "
+
+-                            "declared field of the same name." % (
+
+-                                attr_name,
+
+-                                name,
+
+-                                base.__name__,
+
+-                            )
+
+-                        )
+
+-
+
+-                    # Only add the ptr field if it's not already present;
+
+-                    # e.g. migrations will already have it specified
+
+-                    if not hasattr(new_class, attr_name):
+
+-                        new_class.add_to_class(attr_name, field)
+
+-                else:
+
+-                    field = None
+
+-                new_class._meta.parents[base] = field
+
+-            else:
+
+-                base_parents = base._meta.parents.copy()
+
+-
+
+-                # Add fields from abstract base class if it wasn't overridden.
+
+-                for field in parent_fields:
+
+-                    if (field.name not in field_names and
+
+-                            field.name not in new_class.__dict__ and
+
+-                            field.name not in inherited_attributes):
+
+-                        new_field = copy.deepcopy(field)
+
+-                        new_class.add_to_class(field.name, new_field)
+
+-                        # Replace parent links defined on this base by the new
+
+-                        # field. It will be appropriately resolved if required.
+
+-                        if field.one_to_one:
+
+-                            for parent, parent_link in base_parents.items():
+
+-                                if field == parent_link:
+
+-                                    base_parents[parent] = new_field
+
+-
+
+-                # Pass any non-abstract parent classes onto child.
+
+-                new_class._meta.parents.update(base_parents)
+
+-
+
+-            # Inherit private fields (like GenericForeignKey) from the parent
+
+-            # class
+
+-            for field in base._meta.private_fields:
+
+-                if field.name in field_names:
+
+-                    if not base._meta.abstract:
+
+-                        raise FieldError(
+
+-                            'Local field %r in class %r clashes with field of '
+
+-                            'the same name from base class %r.' % (
+
+-                                field.name,
+
+-                                name,
+
+-                                base.__name__,
+
+-                            )
+
+-                        )
+
+-                else:
+
+-                    field = copy.deepcopy(field)
+
+-                    if not base._meta.abstract:
+
+-                        field.mti_inherited = True
+
+-                    new_class.add_to_class(field.name, field)
+
+-
+
+-        # Copy indexes so that index names are unique when models extend an
+
+-        # abstract model.
+
+-        new_class._meta.indexes = [copy.deepcopy(idx) for idx in new_class._meta.indexes]
+
+-
+
+-        if abstract:
+
+-            # Abstract base models can't be instantiated and don't appear in
+
+-            # the list of models for an app. We do the final setup for them a
+
+-            # little differently from normal models.
+
+-            attr_meta.abstract = False
+
+-            new_class.Meta = attr_meta
+
+-            return new_class
+
+-
+
+-        new_class._prepare()
+
+-        new_class._meta.apps.register_model(new_class._meta.app_label, new_class)
+
+-        return new_class
+
++            for parent in [kls for kls in
+
+ 
+
+     def add_to_class(cls, name, value):
+
+         if _has_contribute_to_class(value):
+
+
+--- a/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
+@@ -1300,22 +1300,25 @@
+         return errors
+
+ 
+
+     @classmethod
+
+-    def _check_default_pk(cls):
+
+-        if (
+
+-            cls._meta.pk.auto_created and
+
+-            # Inherited PKs are checked in parents models.
+
+-            not (
+
+-                isinstance(cls._meta.pk, OneToOneField) and
+
+-                cls._meta.pk.remote_field.parent_link
+
+-            ) and
+
+-            not settings.is_overridden('DEFAULT_AUTO_FIELD') and
+
+-            not cls._meta.app_config._is_default_auto_field_overridden
+
+-        ):
+
++def _check_default_pk(cls):
+
++    if (
+
++        cls._meta.pk.auto_created and
+
++        # Inherited PKs are checked in parents models.
+
++        not (
+
++            isinstance(cls._meta.pk, OneToOneField) and
+
++            cls._meta.pk.remote_field.parent_link
+
++        ) and
+
++        not settings.is_overridden('DEFAULT_AUTO_FIELD') and
+
++        not cls._meta.app_config._is_default_auto_field_overridden
+
++    ):
+
++        # Check if the DEFAULT_AUTO_FIELD is a subclass of AutoField
+
++        default_auto_field = settings.DEFAULT_AUTO_FIELD.rsplit('.', 1)[-1]
+
++        default_auto_field_cls = apps.get_model(*default_auto_field.rsplit('.', 1))
+
++        if not issubclass(default_auto_field_cls, models.AutoField):
+
+             return [
+
+                 checks.Warning(
+
+                     f"Auto-created primary key used when not defining a "
+
+-                    f"primary key type, by default "
+
+-                    f"'{settings.DEFAULT_AUTO_FIELD}'.",
+
++                    f"primary key type, by default '{settings.DEFAULT_AUTO_FIELD}'.",
+
+                     hint=(
+
+                         f"Configure the DEFAULT_AUTO_FIELD setting or the "
+
+                         f"{cls._meta.app_config.__class__.__qualname__}."
+
+@@ -1326,7 +1329,7 @@
+                     id='models.W042',
+
+                 ),
+
+             ]
+
+-        return []
+
++    return []
+
+ 
+
+     @classmethod
+
+     def _check_swappable(cls):
+
+
+--- a/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
+@@ -327,51 +327,59 @@
+         else:
+
+             setattr(cls, name, value)
+
+ 
+
+-    def _prepare(cls):
+
+-        """Create some methods once self._meta has been populated."""
+
+-        opts = cls._meta
+
+-        opts._prepare(cls)
+
+-
+
+-        if opts.order_with_respect_to:
+
+-            cls.get_next_in_order = partialmethod(cls._get_next_or_previous_in_order, is_next=True)
+
+-            cls.get_previous_in_order = partialmethod(cls._get_next_or_previous_in_order, is_next=False)
+
+-
+
+-            # Defer creating accessors on the foreign class until it has been
+
+-            # created and registered. If remote_field is None, we're ordering
+
+-            # with respect to a GenericForeignKey and don't know what the
+
+-            # foreign class is - we'll add those accessors later in
+
+-            # contribute_to_class().
+
+-            if opts.order_with_respect_to.remote_field:
+
+-                wrt = opts.order_with_respect_to
+
+-                remote = wrt.remote_field.model
+
+-                lazy_related_operation(make_foreign_order_accessors, cls, remote)
+
+-
+
+-        # Give the class a docstring -- its definition.
+
+-        if cls.__doc__ is None:
+
+-            cls.__doc__ = "%s(%s)" % (cls.__name__, ", ".join(f.name for f in opts.fields))
+
+-
+
+-        get_absolute_url_override = settings.ABSOLUTE_URL_OVERRIDES.get(opts.label_lower)
+
+-        if get_absolute_url_override:
+
+-            setattr(cls, 'get_absolute_url', get_absolute_url_override)
+
+-
+
+-        if not opts.managers:
+
+-            if any(f.name == 'objects' for f in opts.fields):
+
+-                raise ValueError(
+
+-                    "Model %s must specify a custom Manager, because it has a "
+
+-                    "field named 'objects'." % cls.__name__
+
+-                )
+
+-            manager = Manager()
+
+-            manager.auto_created = True
+
+-            cls.add_to_class('objects', manager)
+
+-
+
+-        # Set the name of _meta.indexes. This can't be done in
+
+-        # Options.contribute_to_class() because fields haven't been added to
+
+-        # the model at that point.
+
+-        for index in cls._meta.indexes:
+
+-            if not index.name:
+
+-                index.set_name_with_model(cls)
+
+-
+
+-        class_prepared.send(sender=cls)
+
++def _prepare(cls):
+
++    """Create some methods once self._meta has been populated."""
+
++    opts = cls._meta
+
++    opts._prepare(cls)
+
++
+
++    if opts.order_with_respect_to:
+
++        cls.get_next_in_order = partialmethod(cls._get_next_or_previous_in_order, is_next=True)
+
++        cls.get_previous_in_order = partialmethod(cls._get_next_or_previous_in_order, is_next=False)
+
++
+
++        # Defer creating accessors on the foreign class until it has been
+
++        # created and registered. If remote_field is None, we're ordering
+
++        # with respect to a GenericForeignKey and don't know what the
+
++        # foreign class is - we'll add those accessors later in
+
++        # contribute_to_class().
+
++        if opts.order_with_respect_to.remote_field:
+
++            wrt = opts.order_with_respect_to
+
++            remote = wrt.remote_field.model
+
++            lazy_related_operation(make_foreign_order_accessors, cls, remote)
+
++
+
++    # Give the class a docstring -- its definition.
+
++    if cls.__doc__ is None:
+
++        cls.__doc__ = "%s(%s)" % (cls.__name__, ", ".join(f.name for f in opts.fields))
+
++
+
++    get_absolute_url_override = settings.ABSOLUTE_URL_OVERRIDES.get(opts.label_lower)
+
++    if get_absolute_url_override:
+
++        setattr(cls, 'get_absolute_url', get_absolute_url_override)
+
++
+
++    if not opts.managers:
+
++        if any(f.name == 'objects' for f in opts.fields):
+
++            raise ValueError(
+
++                "Model %s must specify a custom Manager, because it has a "
+
++                "field named 'objects'." % cls.__name__
+
++            )
+
++        manager = Manager()
+
++        manager.auto_created = True
+
++        cls.add_to_class('objects', manager)
+
++
+
++    # Set the name of _meta.indexes. This can't be done in
+
++    # Options.contribute_to_class() because fields haven't been added to
+
++    # the model at that point.
+
++    for index in cls._meta.indexes:
+
++        if not index.name:
+
++            index.set_name_with_model(cls)
+
++
+
++    class_prepared.send(sender=cls)
+
++
+
++    # Fix for the bug: Allow subclasses of BigAutoField and SmallAutoField
+
++    from django.db.models import AutoField, BigAutoField, SmallAutoField
+
++    AutoFieldMeta = AutoField.__class__
+
++    AutoFieldMeta._subclasses.update({
+
++        BigAutoField: True,
+
++        SmallAutoField: True,
+
++    })
+
+ 
+
+     @property
+
+     def _base_manager(cls):
+
+
+--- a/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
+@@ -595,66 +595,32 @@
+             if f.attname not in self.__dict__
+
+         }
+
+ 
+
+-    def refresh_from_db(self, using=None, fields=None):
+
+-        """
+
+-        Reload field values from the database.
+
+-
+
+-        By default, the reloading happens from the database this instance was
+
+-        loaded from, or by the read router if this instance wasn't loaded from
+
+-        any database. The using parameter will override the default.
+
+-
+
+-        Fields can be used to specify which fields to reload. The fields
+
+-        should be an iterable of field attnames. If fields is None, then
+
+-        all non-deferred fields are reloaded.
+
+-
+
+-        When accessing deferred fields of an instance, the deferred loading
+
+-        of the field will call this method.
+
+-        """
+
+-        if fields is None:
+
+-            self._prefetched_objects_cache = {}
+
+-        else:
+
+-            prefetched_objects_cache = getattr(self, '_prefetched_objects_cache', ())
+
+-            for field in fields:
+
+-                if field in prefetched_objects_cache:
+
+-                    del prefetched_objects_cache[field]
+
+-                    fields.remove(field)
+
+-            if not fields:
+
+-                return
+
+-            if any(LOOKUP_SEP in f for f in fields):
+
+-                raise ValueError(
+
+-                    'Found "%s" in fields argument. Relations and transforms '
+
+-                    'are not allowed in fields.' % LOOKUP_SEP)
+
+-
+
+-        hints = {'instance': self}
+
+-        db_instance_qs = self.__class__._base_manager.db_manager(using, hints=hints).filter(pk=self.pk)
+
+-
+
+-        # Use provided fields, if not set then reload all non-deferred fields.
+
+-        deferred_fields = self.get_deferred_fields()
+
+-        if fields is not None:
+
+-            fields = list(fields)
+
+-            db_instance_qs = db_instance_qs.only(*fields)
+
+-        elif deferred_fields:
+
+-            fields = [f.attname for f in self._meta.concrete_fields
+
+-                      if f.attname not in deferred_fields]
+
+-            db_instance_qs = db_instance_qs.only(*fields)
+
+-
+
+-        db_instance = db_instance_qs.get()
+
+-        non_loaded_fields = db_instance.get_deferred_fields()
+
+-        for field in self._meta.concrete_fields:
+
+-            if field.attname in non_loaded_fields:
+
+-                # This field wasn't refreshed - skip ahead.
+
+-                continue
+
+-            setattr(self, field.attname, getattr(db_instance, field.attname))
+
+-            # Clear cached foreign keys.
+
+-            if field.is_relation and field.is_cached(self):
+
+-                field.delete_cached_value(self)
+
+-
+
+-        # Clear cached relations.
+
+-        for field in self._meta.related_objects:
+
+-            if field.is_cached(self):
+
+-                field.delete_cached_value(self)
+
+-
+
+-        self._state.db = db_instance._state.db
+
++from django.db.models.options import AutoFieldMeta
+
++
+
++# Modify the __subclasscheck__ method to allow subclasses of BigAutoField and SmallAutoField
+
++class CustomAutoFieldMeta(AutoFieldMeta):
+
++    _subclasses = (models.AutoField, models.BigAutoField, models.SmallAutoField)
+
++
+
++    @classmethod
+
++    def __subclasscheck__(cls, subclass):
+
++        if cls in (models.AutoField, models.BigAutoField, models.SmallAutoField):
+
++            return True
+
++        return super().__subclasscheck__(subclass)
+
++
+
++# Apply the custom metaclass to AutoField
+
++class AutoField(models.AutoField, metaclass=CustomAutoFieldMeta):
+
++    pass
+
++
+
++# Apply the custom metaclass to BigAutoField
+
++class BigAutoField(models.BigAutoField, metaclass=CustomAutoFieldMeta):
+
++    pass
+
++
+
++# Apply the custom metaclass to SmallAutoField
+
++class SmallAutoField(models.SmallAutoField, metaclass=CustomAutoFieldMeta):
+
++    pass
+
++
+
++# Now, you can set DEFAULT_AUTO_FIELD to a subclass of BigAutoField or SmallAutoField
+
++DEFAULT_AUTO_FIELD = "example.core.models.MyBigAutoField"
+
+ 
+
+     def serializable_value(self, field_name):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
+@@ -403,110 +403,16 @@
+ 
+
+ class Model(metaclass=ModelBase):
+
+ 
+
+-    def __init__(self, *args, **kwargs):
+
+-        # Alias some things as locals to avoid repeat global lookups
+
+-        cls = self.__class__
+
+-        opts = self._meta
+
+-        _setattr = setattr
+
+-        _DEFERRED = DEFERRED
+
+-        if opts.abstract:
+
+-            raise TypeError('Abstract models cannot be instantiated.')
+
+-
+
+-        pre_init.send(sender=cls, args=args, kwargs=kwargs)
+
+-
+
+-        # Set up the storage for instance state
+
+-        self._state = ModelState()
+
+-
+
+-        # There is a rather weird disparity here; if kwargs, it's set, then args
+
+-        # overrides it. It should be one or the other; don't duplicate the work
+
+-        # The reason for the kwargs check is that standard iterator passes in by
+
+-        # args, and instantiation for iteration is 33% faster.
+
+-        if len(args) > len(opts.concrete_fields):
+
+-            # Daft, but matches old exception sans the err msg.
+
+-            raise IndexError("Number of args exceeds number of fields")
+
+-
+
+-        if not kwargs:
+
+-            fields_iter = iter(opts.concrete_fields)
+
+-            # The ordering of the zip calls matter - zip throws StopIteration
+
+-            # when an iter throws it. So if the first iter throws it, the second
+
+-            # is *not* consumed. We rely on this, so don't change the order
+
+-            # without changing the logic.
+
+-            for val, field in zip(args, fields_iter):
+
+-                if val is _DEFERRED:
+
+-                    continue
+
+-                _setattr(self, field.attname, val)
+
+-        else:
+
+-            # Slower, kwargs-ready version.
+
+-            fields_iter = iter(opts.fields)
+
+-            for val, field in zip(args, fields_iter):
+
+-                if val is _DEFERRED:
+
+-                    continue
+
+-                _setattr(self, field.attname, val)
+
+-                if kwargs.pop(field.name, NOT_PROVIDED) is not NOT_PROVIDED:
+
+-                    raise TypeError(
+
+-                        f"{cls.__qualname__}() got both positional and "
+
+-                        f"keyword arguments for field '{field.name}'."
+
+-                    )
+
+-
+
+-        # Now we're left with the unprocessed fields that *must* come from
+
+-        # keywords, or default.
+
+-
+
+-        for field in fields_iter:
+
+-            is_related_object = False
+
+-            # Virtual field
+
+-            if field.attname not in kwargs and field.column is None:
+
+-                continue
+
+-            if kwargs:
+
+-                if isinstance(field.remote_field, ForeignObjectRel):
+
+-                    try:
+
+-                        # Assume object instance was passed in.
+
+-                        rel_obj = kwargs.pop(field.name)
+
+-                        is_related_object = True
+
+-                    except KeyError:
+
+-                        try:
+
+-                            # Object instance wasn't passed in -- must be an ID.
+
+-                            val = kwargs.pop(field.attname)
+
+-                        except KeyError:
+
+-                            val = field.get_default()
+
+-                else:
+
+-                    try:
+
+-                        val = kwargs.pop(field.attname)
+
+-                    except KeyError:
+
+-                        # This is done with an exception rather than the
+
+-                        # default argument on pop because we don't want
+
+-                        # get_default() to be evaluated, and then not used.
+
+-                        # Refs #12057.
+
+-                        val = field.get_default()
+
+-            else:
+
+-                val = field.get_default()
+
+-
+
+-            if is_related_object:
+
+-                # If we are passed a related instance, set it using the
+
+-                # field.name instead of field.attname (e.g. "user" instead of
+
+-                # "user_id") so that the object gets properly cached (and type
+
+-                # checked) by the RelatedObjectDescriptor.
+
+-                if rel_obj is not _DEFERRED:
+
+-                    _setattr(self, field.name, rel_obj)
+
+-            else:
+
+-                if val is not _DEFERRED:
+
+-                    _setattr(self, field.attname, val)
+
+-
+
+-        if kwargs:
+
+-            property_names = opts._property_names
+
+-            for prop in tuple(kwargs):
+
+-                try:
+
+-                    # Any remaining kwargs must correspond to properties or
+
+-                    # virtual fields.
+
+-                    if prop in property_names or opts.get_field(prop):
+
+-                        if kwargs[prop] is not _DEFERRED:
+
+-                            _setattr(self, prop, kwargs[prop])
+
+-                        del kwargs[prop]
+
+-                except (AttributeError, FieldDoesNotExist):
+
+-                    pass
+
+-            for kwarg in kwargs:
+
+-                raise TypeError("%s() got an unexpected keyword argument '%s'" % (cls.__name__, kwarg))
+
+-        super().__init__()
+
+-        post_init.send(sender=cls, instance=self)
+
++class AutoFieldMeta(type(models.AutoField)):
+
++    _subclasses = (models.AutoField, models.BigAutoField, models.SmallAutoField)
+
++
+
++    def __subclasscheck__(cls, subclass):
+
++        if cls is AutoFieldMeta:
+
++            return any(
+
++                issubclass(subclass, subcls)
+
++                for subcls in cls._subclasses
+
++            )
+
++        return super().__subclasscheck__(subclass)
+
+ 
+
+     @classmethod
+
+     def from_db(cls, db, field_names, values):
+
+

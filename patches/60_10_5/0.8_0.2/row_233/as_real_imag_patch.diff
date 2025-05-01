@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/233/sympy_sympy/sympy/matrices/expressions/matexpr.py
++++ b/decoupled/60/0.8_0.2/233/sympy_sympy/sympy/matrices/expressions/matexpr.py
+@@ -173,10 +173,11 @@
+         from sympy.matrices.expressions.transpose import Transpose
+
+         return Adjoint(Transpose(self))
+
+ 
+
+-    def as_real_imag(self):
+
++def as_real_imag(self):
+
+         from sympy import I
+
+         real = (S(1)/2) * (self + self._eval_conjugate())
+
+         im = (self - self._eval_conjugate())/(2*I)
+
++        real, im = simplify(real), simplify(im)
+
+         return (real, im)
+
+ 
+
+     def _eval_inverse(self):

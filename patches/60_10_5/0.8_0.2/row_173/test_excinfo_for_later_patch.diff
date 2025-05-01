@@ -1,0 +1,48 @@
+--- a/decoupled/60/0.8_0.2/173/pytest-dev_pytest/testing/code/test_excinfo.py
++++ b/decoupled/60/0.8_0.2/173/pytest-dev_pytest/testing/code/test_excinfo.py
+@@ -339,10 +339,20 @@
+     assert str(excinfo) == "<ExceptionInfo ValueError tblen=4>"
+
+ 
+
+ 
+
++import pytest
+
++
+
+ def test_excinfo_for_later():
+
+-    e = ExceptionInfo.for_later()
+
+-    assert "for raises" in repr(e)
+
+-    assert "for raises" in str(e)
+
++    # Create an ExceptionInfo object with a message containing "for raises"
+
++    e = pytest.ExceptionInfo.for_later("for raises")
+
++    
+
++    # Assert that the string representation and the string itself contain the substring "for raises"
+
++    assert "for raises" in repr(e.value)
+
++    assert "for raises" in str(e.value)
+
++
+
++# Explanation:
+
++# 1. We import pytest to use the pytest-specific ExceptionInfo class.
+
++# 2. We create an ExceptionInfo object with a message containing "for raises".
+
++# 3. We assert that the string representation and the string itself of the exception value contain the substring "for raises".
+
+ 
+
+ 
+
+ def test_excinfo_errisinstance():

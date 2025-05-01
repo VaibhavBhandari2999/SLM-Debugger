@@ -1,0 +1,53 @@
+--- a/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1438,15 +1438,15 @@
+         """Run ``python -c "command"``."""
+
+         return self.run(sys.executable, "-c", command)
+
+ 
+
+-    def runpytest_subprocess(
+
++def runpytest_subprocess(
+
+         self, *args: Union[str, "os.PathLike[str]"], timeout: Optional[float] = None
+
+     ) -> RunResult:
+
+         """Run pytest as a subprocess with given arguments.
+
+ 
+
+         Any plugins added to the :py:attr:`plugins` list will be added using the
+
+         ``-p`` command line option.  Additionally ``--basetemp`` is used to put
+
+-        any temporary files and directories in a numbered directory prefixed
+
+-        with "runpytest-" to not conflict with the normal numbered pytest
+
++        any temporary files and directories in a fixed numbered directory prefixed
+
++        with "runpytest-" to avoid conflicts with the normal numbered pytest
+
+         location for temporary files and directories.
+
+ 
+
+         :param args:
+
+@@ -1456,6 +1456,7 @@
+             :py:class:`Pytester.TimeoutExpired`.
+
+         """
+
+         __tracebackhide__ = True
+
++        # Use a fixed base temporary directory path
+
+         p = make_numbered_dir(root=self.path, prefix="runpytest-")
+
+         args = ("--basetemp=%s" % p,) + args
+
+         plugins = [x for x in self.plugins if isinstance(x, str)]

@@ -1,0 +1,52 @@
+--- a/decoupled/60/0.8_0.2/176/pytest-dev_pytest/testing/code/test_excinfo.py
++++ b/decoupled/60/0.8_0.2/176/pytest-dev_pytest/testing/code/test_excinfo.py
+@@ -350,7 +350,24 @@
+     except ValueError:
+
+         excinfo = _pytest._code.ExceptionInfo.from_current()
+
+     s = str(excinfo.traceback[-1])
+
+-    assert s == "  File '<string>':1 in <module>\n  ???\n"
+
++    # Catch the exception in the __repr__ method and return a default representation
+
++    class SomeClass:
+
++        def __getattribute__(self, attr):
+
++            raise
+
++
+
++        def __repr__(self):
+
++            return "<SomeClass instance>"
+
++
+
++    # Create an instance of SomeClass and check the traceback
+
++    instance = SomeClass()
+
++    try:
+
++        repr(instance)
+
++    except Exception as e:
+
++        # Ensure that the exception is caught and does not cause an INTERNALERROR
+
++        assert False, f"Exception should not be raised: {e}"
+
++    else:
+
++        # Check the traceback representation
+
++        assert s == "  File '<string>':1 in <module>\n  ???\n"
+
+ 
+
+ 
+
+ def test_excinfo_no_python_sourcecode(tmpdir):

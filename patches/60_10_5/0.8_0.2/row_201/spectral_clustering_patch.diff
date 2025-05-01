@@ -1,0 +1,58 @@
+--- a/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
++++ b/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
+@@ -249,27 +249,7 @@
+     """
+
+     if assign_labels not in ('kmeans', 'discretize'):
+
+         raise ValueError("The 'assign_labels' parameter should be "
+
+-                         "'kmeans' or 'discretize', but '%s' was given"
+
+-                         % assign_labels)
+
+-
+
+-    random_state = check_random_state(random_state)
+
+-    n_components = n_clusters if n_components is None else n_components
+
+-
+
+-    # The first eigen vector is constant only for fully connected graphs
+
+-    # and should be kept for spectral clustering (drop_first = False)
+
+-    # See spectral_embedding documentation.
+
+-    maps = spectral_embedding(affinity, n_components=n_components,
+
+-                              eigen_solver=eigen_solver,
+
+-                              random_state=random_state,
+
+-                              eigen_tol=eigen_tol, drop_first=False)
+
+-
+
+-    if assign_labels == 'kmeans':
+
+-        _, labels, _ = k_means(maps, n_clusters, random_state=random_state,
+
+-                               n_init=n_init)
+
+-    else:
+
+-        labels = discretize(maps, random_state=random_state)
+
+-
+
+-    return labels
+
++                         "'kmeans'
+
+ 
+
+ 
+
+ class SpectralClustering(ClusterMixin, BaseEstimator):

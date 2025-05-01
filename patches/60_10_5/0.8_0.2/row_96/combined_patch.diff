@@ -1,0 +1,390 @@
+--- a/decoupled/60/0.8_0.2/96/django_django/django/core/management/commands/shell.py
++++ b/decoupled/60/0.8_0.2/96/django_django/django/core/management/commands/shell.py
+@@ -54,62 +54,62 @@
+ 
+
+         bpython.embed()
+
+ 
+
+-    def python(self, options):
+
+-        import code
+
++def python(self, options):
+
++    import code
+
+ 
+
+-        # Set up a dictionary to serve as the environment for the shell.
+
+-        imported_objects = {}
+
++    # Set up a dictionary to serve as the environment for the shell.
+
++    imported_objects = {}
+
+ 
+
+-        # We want to honor both $PYTHONSTARTUP and .pythonrc.py, so follow system
+
+-        # conventions and get $PYTHONSTARTUP first then .pythonrc.py.
+
+-        if not options["no_startup"]:
+
+-            for pythonrc in OrderedSet(
+
+-                [os.environ.get("PYTHONSTARTUP"), os.path.expanduser("~/.pythonrc.py")]
+
+-            ):
+
+-                if not pythonrc:
+
+-                    continue
+
+-                if not os.path.isfile(pythonrc):
+
+-                    continue
+
+-                with open(pythonrc) as handle:
+
+-                    pythonrc_code = handle.read()
+
+-                # Match the behavior of the cpython shell where an error in
+
+-                # PYTHONSTARTUP prints an exception and continues.
+
+-                try:
+
+-                    exec(compile(pythonrc_code, pythonrc, "exec"), imported_objects)
+
+-                except Exception:
+
+-                    traceback.print_exc()
+
+-
+
+-        # By default, this will set up readline to do tab completion and to read and
+
+-        # write history to the .python_history file, but this can be overridden by
+
+-        # $PYTHONSTARTUP or ~/.pythonrc.py.
+
+-        try:
+
+-            hook = sys.__interactivehook__
+
+-        except AttributeError:
+
+-            # Match the behavior of the cpython shell where a missing
+
+-            # sys.__interactivehook__ is ignored.
+
+-            pass
+
+-        else:
+
++    # We want to honor both $PYTHONSTARTUP and .pythonrc.py, so follow system
+
++    # conventions and get $PYTHONSTARTUP first then .pythonrc.py.
+
++    if not options["no_startup"]:
+
++        for pythonrc in OrderedSet(
+
++            [os.environ.get("PYTHONSTARTUP"), os.path.expanduser("~/.pythonrc.py")]
+
++        ):
+
++            if not pythonrc:
+
++                continue
+
++            if not os.path.isfile(pythonrc):
+
++                continue
+
++            with open(pythonrc) as handle:
+
++                pythonrc_code = handle.read()
+
++            # Match the behavior of the cpython shell where an error in
+
++            # PYTHONSTARTUP prints an exception and continues.
+
+             try:
+
+-                hook()
+
++                exec(compile(pythonrc_code, pythonrc, "exec"), imported_objects)
+
+             except Exception:
+
+-                # Match the behavior of the cpython shell where an error in
+
+-                # sys.__interactivehook__ prints a warning and the exception
+
+-                # and continues.
+
+-                print("Failed calling sys.__interactivehook__")
+
+                 traceback.print_exc()
+
+ 
+
+-        # Set up tab completion for objects imported by $PYTHONSTARTUP or
+
+-        # ~/.pythonrc.py.
+
++    # By default, this will set up readline to do tab completion and to read and
+
++    # write history to the .python_history file, but this can be overridden by
+
++    # $PYTHONSTARTUP or ~/.pythonrc.py.
+
++    try:
+
++        hook = sys.__interactivehook__
+
++    except AttributeError:
+
++        # Match the behavior of the cpython shell where a missing
+
++        # sys.__interactivehook__ is ignored.
+
++        pass
+
++    else:
+
+         try:
+
+-            import readline
+
+-            import rlcompleter
+
++            hook()
+
++        except Exception:
+
++            # Match the behavior of the cpython shell where an error in
+
++            # sys.__interactivehook__ prints a warning and the exception
+
++            # and continues.
+
++            print("Failed calling sys.__interactivehook__")
+
++            traceback.print_exc()
+
+ 
+
+-            readline.set_completer(rlcompleter.Completer(imported_objects).complete)
+
+-        except ImportError:
+
+-            pass
+
++    # Set up tab completion for objects imported by $PYTHONSTARTUP or
+
++    # ~/.pythonrc.py.
+
++    try:
+
++        import readline
+
++        import rlcompleter
+
+ 
+
+-        # Start the interactive interpreter.
+
+-        code.interact(local=imported_objects)
+
++        readline.set_completer(rlcompleter.Completer(imported_objects).complete)
+
++    except ImportError:
+
++        pass
+
++
+
++    # Start the interactive interpreter.
+
++    code.interact(local=imported_objects)
+
+ 
+
+     def handle(self, **options):
+
+         # Execute the command and exit.
+
+
+--- a/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
++++ b/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
+@@ -374,12 +374,17 @@
+                 break
+
+         parser.add_argument(*args, **kwargs)
+
+ 
+
++import argparse
+
++
+
++class CustomCommand(BaseCommand):
+
+     def print_help(self, prog_name, subcommand):
+
+         """
+
+         Print the help message for this command, derived from
+
+         ``self.usage()``.
+
+         """
+
+         parser = self.create_parser(prog_name, subcommand)
+
++        # Add the example usage to the help message
+
++        parser.epilog = self.usage().split('\n')[1]  # Extract the example usage
+
+         parser.print_help()
+
+ 
+
+     def run_from_argv(self, argv):
+
+
+--- a/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
++++ b/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
+@@ -83,6 +83,21 @@
+     if options.pythonpath:
+
+         sys.path.insert(0, options.pythonpath)
+
+ 
+
++
+
++from django.core.management.base import BaseCommand, CommandParser
+
++
+
++class CustomCommand(BaseCommand):
+
++    def add_arguments(self, parser: CommandParser):
+
++        super().add_arguments(parser)
+
++        # Customize the help text formatting
+
++        parser.formatter_class = CustomHelpFormatter
+
++
+
++class CustomHelpFormatter(CommandParser):
+
++    def _format_help(self, parser):
+
++        help_text = super()._format_help(parser)
+
++        # Add custom formatting to the help text
+
++        help_text = help_text.replace('Example usage: ', 'Example usage:\n\t')
+
++        return help_text
+
+ 
+
+ def no_translations(handle_func):
+
+     """Decorator that forces a command to run with translations deactivated."""
+
+
+--- a/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
++++ b/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
+@@ -631,14 +631,14 @@
+                 output.append(app_output)
+
+         return "\n".join(output)
+
+ 
+
+-    def handle_app_config(self, app_config, **options):
+
+-        """
+
+-        Perform the command's actions for app_config, an AppConfig instance
+
+-        corresponding to an application label given on the command line.
+
+-        """
+
+-        raise NotImplementedError(
+
+-            "Subclasses of AppCommand must provide a handle_app_config() method."
+
+-        )
+
++from django.core.management.base import BaseCommand
+
++
+
++class Command(BaseCommand):
+
++    help = """
+
++    Import a contract from tzkt.
+
++    Example usage:
+
++        ./manage.py tzkt_import 'Tezos Mainnet' KT1HTDtMBRCKoNHjfWEEvXneGQpCfPAt6BRe
+
++    """
+
+ 
+
+ 
+
+ class LabelCommand(BaseCommand):
+
+
+--- a/decoupled/60/0.8_0.2/96/django_django/django/core/management/commands/shell.py
++++ b/decoupled/60/0.8_0.2/96/django_django/django/core/management/commands/shell.py
+@@ -44,10 +44,12 @@
+             ),
+
+         )
+
+ 
+
+-    def ipython(self, options):
+
+-        from IPython import start_ipython
+
+-
+
+-        start_ipython(argv=[])
+
++class Command(BaseCommand):
+
++    help = """
+
++    Import a contract from tzkt.
+
++    Example usage:
+
++        ./manage.py tzkt_import 'Tezos Mainnet' KT1HTDtMBRCKoNHjfWEEvXneGQpCfPAt6BRe
+
++    """
+
+ 
+
+     def bpython(self, options):
+
+         import bpython
+
+

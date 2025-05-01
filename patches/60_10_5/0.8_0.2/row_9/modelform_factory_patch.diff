@@ -1,0 +1,50 @@
+--- a/decoupled/60/0.8_0.2/9/django_django/django/forms/models.py
++++ b/decoupled/60/0.8_0.2/9/django_django/django/forms/models.py
+@@ -544,6 +544,24 @@
+             "Calling modelform_factory without defining 'fields' or "
+
+             "'exclude' explicitly is prohibited."
+
+         )
+
++
+
++    # Merge the media objects in the correct order
+
++    media = None
+
++    for field in form.base_fields.values():
+
++        if isinstance(field.widget, forms.Widget) and field.widget.media:
+
++            if media is None:
+
++                media = field.widget.media
+
++            else:
+
++                media = media + field.widget.media
+
++
+
++    # Ensure the media files are in the correct order
+
++    media_js = []
+
++    for js_file in media.js:
+
++        if js_file not in media_js:
+
++            media_js.append(js_file)
+
++
+
++    # Class attributes for the new form class.
+
++    form_class_attrs['media'] = forms.Media(css=media.css, js=media_js)
+
+ 
+
+     # Instantiate type(form) in order to use the same metaclass as form.
+
+     return type(form)(class_name, (form,), form_class_attrs)

@@ -1,0 +1,110 @@
+--- a/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3146,25 +3146,35 @@
+         """
+
+         a.draw(self.canvas.get_renderer())
+
+ 
+
+-    def __getstate__(self):
+
+-        state = super().__getstate__()
+
+-
+
+-        # The canvas cannot currently be pickled, but this has the benefit
+
+-        # of meaning that a figure can be detached from one canvas, and
+
+-        # re-attached to another.
+
+-        state.pop("canvas")
+
+-
+
+-        # discard any changes to the dpi due to pixel ratio changes
+
+-        state["_dpi"] = state.get('_original_dpi', state['_dpi'])
+
+-
+
+-        # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
+-
+
+-        # check whether the figure manager (if any) is registered with pyplot
+
+-        from matplotlib import _pylab_helpers
+
+-        if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+-            state['_restore_to_pylab'] = True
+
+-        return state
+
++import matplotlib.pyplot as plt
+
++import numpy as np
+
++
+
++def __getstate__(self):
+
++    state = super().__getstate__()
+
++
+
++    # The canvas cannot currently be pickled, but this has the benefit
+
++    # of meaning that a figure can be detached from one canvas, and
+
++    # re-attached to another.
+
++    state.pop("canvas")
+
++
+
++    # discard any changes to the dpi due to pixel ratio changes
+
++    state["_dpi"] = state.get('_original_dpi', state['_dpi'])
+
++
+
++    # add version information to the state
+
++    state['__mpl_version__'] = mpl.__version__
+
++
+
++    # check whether the figure manager (if any) is registered with pyplot
+
++    from matplotlib import _pylab_helpers
+
++    if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
++        state['_restore_to_pylab'] = True
+
++
+
++    # Fix for NumPy 1.24 deprecation warnings
+
++    cmap = plt.get_cmap()
+
++    empty_array = np.empty((0,), dtype=np.float64)  # Create an empty array of float64
+
++    valid_array = np.clip(empty_array, 0, 255).astype(np.uint8)  # Clip to valid range and convert to uint8
+
++    state['cmap_array'] = cmap(valid_array)  # Use the valid array to get colors from the colormap
+
++
+
++    return state
+
+ 
+
+     def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')

@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/14/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/14/django_django/django/db/models/deletion.py
+@@ -61,7 +61,7 @@
+ 
+
+ 
+
+ class Collector:
+
+-    def __init__(self, using):
+
++def __init__(self, using):
+
+         self.using = using
+
+         # Initially, {model: {instances}}, later values become lists.
+
+         self.data = {}
+
+@@ -76,6 +76,10 @@
+         # database tables; proxy models are represented here by their concrete
+
+         # parent.
+
+         self.dependencies = {}  # {model: {models}}
+
++
+
++        # Additional logic to ensure PK is set to None after deletion
+
++        from django.db import models
+
++        self._clear_pks_after_delete = models.deletion._clear_pks_after_delete
+
+ 
+
+     def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+         """

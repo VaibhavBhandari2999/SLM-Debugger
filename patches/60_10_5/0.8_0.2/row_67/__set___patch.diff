@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/67/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/67/django_django/django/db/models/fields/related_descriptors.py
+@@ -200,7 +200,7 @@
+         else:
+
+             return rel_obj
+
+ 
+
+-    def __set__(self, instance, value):
+
++def __set__(self, instance, value):
+
+         """
+
+         Set the related instance through the forward relation.
+
+ 

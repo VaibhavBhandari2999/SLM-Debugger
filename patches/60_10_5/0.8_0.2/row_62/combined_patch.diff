@@ -1,0 +1,489 @@
+--- a/decoupled/60/0.8_0.2/62/django_django/django/db/backends/oracle/base.py
++++ b/decoupled/60/0.8_0.2/62/django_django/django/db/backends/oracle/base.py
+@@ -482,39 +482,45 @@
+         else:
+
+             return [p.force_bytes for p in params]
+
+ 
+
+-    def _fix_for_params(self, query, params, unify_by_values=False):
+
+-        # cx_Oracle wants no trailing ';' for SQL statements.  For PL/SQL, it
+
+-        # it does want a trailing ';' but not a trailing '/'.  However, these
+
+-        # characters must be included in the original query in case the query
+
+-        # is being passed to SQL*Plus.
+
+-        if query.endswith(';') or query.endswith('/'):
+
+-            query = query[:-1]
+
+-        if params is None:
+
+-            params = []
+
+-        elif hasattr(params, 'keys'):
+
+-            # Handle params as dict
+
+-            args = {k: ":%s" % k for k in params}
+
+-            query = query % args
+
+-        elif unify_by_values and params:
+
+-            # Handle params as a dict with unified query parameters by their
+
+-            # values. It can be used only in single query execute() because
+
+-            # executemany() shares the formatted query with each of the params
+
+-            # list. e.g. for input params = [0.75, 2, 0.75, 'sth', 0.75]
+
+-            # params_dict = {0.75: ':arg0', 2: ':arg1', 'sth': ':arg2'}
+
+-            # args = [':arg0', ':arg1', ':arg0', ':arg2', ':arg0']
+
+-            # params = {':arg0': 0.75, ':arg1': 2, ':arg2': 'sth'}
+
+-            params_dict = {
+
+-                param: ':arg%d' % i
+
+-                for i, param in enumerate(dict.fromkeys(params))
+
+-            }
+
+-            args = [params_dict[param] for param in params]
+
+-            params = {value: key for key, value in params_dict.items()}
+
+-            query = query % tuple(args)
+
+-        else:
+
+-            # Handle params as sequence
+
+-            args = [(':arg%d' % i) for i in range(len(params))]
+
+-            query = query % tuple(args)
+
+-        return query, self._format_params(params)
+
++def _fix_for_params(self, query, params, unify_by_values=False):
+
++    # cx_Oracle wants no trailing ';' for SQL statements.  For PL/SQL, it
+
++    # it does want a trailing ';' but not a trailing '/'.  However, these
+
++    # characters must be included in the original query in case the query
+
++    # is being passed to SQL*Plus.
+
++    if query.endswith(';') or query.endswith('/'):
+
++        query = query[:-1]
+
++    if params is None:
+
++        params = []
+
++    elif hasattr(params, 'keys'):
+
++        # Handle params as dict
+
++        args = {k: ":%s" % k for k in params}
+
++        query = query % args
+
++    elif unify_by_values and params:
+
++        # Handle params as a dict with unified query parameters by their
+
++        # values. It can be used only in single query execute() because
+
++        # executemany() shares the formatted query with each of the params
+
++        # list. e.g. for input params = [0.75, 2, 0.75, 'sth', 0.75]
+
++        # params_dict = {0.75: ':arg0', 2: ':arg1', 'sth': ':arg2'}
+
++        # args = [':arg0', ':arg1', ':arg0', ':arg2', ':arg0']
+
++        # params = {':arg0': 0.75, ':arg1': 2, ':arg2': 'sth'}
+
++        params_dict = {
+
++            param: ':arg%d' % i
+
++            for i, param in enumerate(dict.fromkeys(params))
+
++        }
+
++        args = [params_dict[param] for param in params]
+
++        params = {value: key for key, value in params_dict.items()}
+
++        query = query % tuple(args)
+
++    else:
+
++        # Handle params as sequence
+
++        args = [(':arg%d' % i) for i in range(len(params))]
+
++        query = query % tuple(args)
+
++    
+
++    # Fix for isnull=True on KeyTransform for SQLite and Oracle
+
++    if '__isnull' in query and 'isnull=True' in query:
+
++        # Replace the condition to match only when the key does not exist
+
++        query = query.replace('isnull=True', 'isnull=False')
+
++    
+
++    return query, self._format_params(params)
+
+ 
+
+     def execute(self, query, params=None):
+
+         query, params = self._fix_for_params(query, params, unify_by_values=True)
+
+
+--- a/decoupled/60/0.8_0.2/62/django_django/django/db/backends/oracle/base.py
++++ b/decoupled/60/0.8_0.2/62/django_django/django/db/backends/oracle/base.py
+@@ -233,45 +233,63 @@
+             **conn_params,
+
+         )
+
+ 
+
+-    def init_connection_state(self):
+
++def init_connection_state(self):
+
++    cursor = self.create_cursor()
+
++    # Set the territory first. The territory overrides NLS_DATE_FORMAT
+
++    # and NLS_TIMESTAMP_FORMAT to the territory default. When all of
+
++    # these are set in single statement it isn't clear what is supposed
+
++    # to happen.
+
++    cursor.execute("ALTER SESSION SET NLS_TERRITORY = 'AMERICA'")
+
++    # Set Oracle date to ANSI date format.  This only needs to execute
+
++    # once when we create a new connection. We also set the Territory
+
++    # to 'AMERICA' which forces Sunday to evaluate to a '1' in
+
++    # TO_CHAR().
+
++    cursor.execute(
+
++        "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS'"
+
++        " NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'" +
+
++        (" TIME_ZONE = 'UTC'" if settings.USE_TZ else '')
+
++    )
+
++    cursor.close()
+
++    if 'operators' not in self.__dict__:
+
++        # Ticket #14149: Check whether our LIKE implementation will
+
++        # work for this connection or we need to fall back on LIKEC.
+
++        # This check is performed only once per DatabaseWrapper
+
++        # instance per thread, since subsequent connections will use
+
++        # the same settings.
+
+         cursor = self.create_cursor()
+
+-        # Set the territory first. The territory overrides NLS_DATE_FORMAT
+
+-        # and NLS_TIMESTAMP_FORMAT to the territory default. When all of
+
+-        # these are set in single statement it isn't clear what is supposed
+
+-        # to happen.
+
+-        cursor.execute("ALTER SESSION SET NLS_TERRITORY = 'AMERICA'")
+
+-        # Set Oracle date to ANSI date format.  This only needs to execute
+
+-        # once when we create a new connection. We also set the Territory
+
+-        # to 'AMERICA' which forces Sunday to evaluate to a '1' in
+
+-        # TO_CHAR().
+
+-        cursor.execute(
+
+-            "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS'"
+
+-            " NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'" +
+
+-            (" TIME_ZONE = 'UTC'" if settings.USE_TZ else '')
+
+-        )
+
++        try:
+
++            cursor.execute("SELECT 1 FROM DUAL WHERE DUMMY %s"
+
++                           % self._standard_operators['contains'],
+
++                           ['X'])
+
++        except Database.DatabaseError:
+
++            self.operators = self._likec_operators
+
++            self.pattern_ops = self._likec_pattern_ops
+
++        else:
+
++            self.operators = self._standard_operators
+
++            self.pattern_ops = self._standard_pattern_ops
+
+         cursor.close()
+
+-        if 'operators' not in self.__dict__:
+
+-            # Ticket #14149: Check whether our LIKE implementation will
+
+-            # work for this connection or we need to fall back on LIKEC.
+
+-            # This check is performed only once per DatabaseWrapper
+
+-            # instance per thread, since subsequent connections will use
+
+-            # the same settings.
+
+-            cursor = self.create_cursor()
+
+-            try:
+
+-                cursor.execute("SELECT 1 FROM DUAL WHERE DUMMY %s"
+
+-                               % self._standard_operators['contains'],
+
+-                               ['X'])
+
+-            except Database.DatabaseError:
+
+-                self.operators = self._likec_operators
+
+-                self.pattern_ops = self._likec_pattern_ops
+
++    self.connection.stmtcachesize = 20
+
++    # Ensure all changes are preserved even when AUTOCOMMIT is False.
+
++    if not self.get_autocommit():
+
++        self.commit()
+
++
+
++    # Fix for the bug: Ensure that __isnull=True on a KeyTransform does not
+
++    # match JSON null on SQLite and Oracle.
+
++    if self.db in ('sqlite', 'oracle'):
+
++        from django.db.models import JSONField
+
++        from django.db.models.expressions import KeyTransform
+
++        from django.db.models.lookups import KeyTransformIsNull
+
++
+
++        # Override the KeyTransformIsNull lookup to handle isnull=True correctly
+
++        def isnull_key_transform_isnull(self, compiler, connection):
+
++            # Use the original KeyTransformIsNull logic for MariaDB, MySQL, and PostgreSQL
+
++            if connection.vendor in ('mysql', 'postgresql', 'mariadb'):
+
++                return self.lhs.output_field.get_lookup('isnull')(self.lhs, self.rhs, isnull=True)
+
++            # For SQLite and Oracle, do not match JSON null
+
+             else:
+
+-                self.operators = self._standard_operators
+
+-                self.pattern_ops = self._standard_pattern_ops
+
+-            cursor.close()
+
+-        self.connection.stmtcachesize = 20
+
+-        # Ensure all changes are preserved even when AUTOCOMMIT is False.
+
+-        if not self.get_autocommit():
+
+-            self.commit()
+
++                return self.lhs.output_field.get_lookup('exact')(self.lhs, self.rhs, isnull=True)
+
++
+
++        KeyTransformIsNull.isnull = isnull_key_transform_isnull
+
+ 
+
+     @async_unsafe
+
+     def create_cursor(self, name=None):
+
+
+--- a/decoupled/60/0.8_0.2/62/django_django/tests/backends/oracle/test_operations.py
++++ b/decoupled/60/0.8_0.2/62/django_django/tests/backends/oracle/test_operations.py
+@@ -15,19 +15,19 @@
+         seq_name = connection.ops._get_no_autofield_sequence_name('schema_authorwithevenlongee869')
+
+         self.assertEqual(seq_name, 'SCHEMA_AUTHORWITHEVENLOB0B8_SQ')
+
+ 
+
+-    def test_bulk_batch_size(self):
+
+-        # Oracle restricts the number of parameters in a query.
+
+-        objects = range(2**16)
+
+-        self.assertEqual(connection.ops.bulk_batch_size([], objects), len(objects))
+
+-        # Each field is a parameter for each object.
+
+-        self.assertEqual(
+
+-            connection.ops.bulk_batch_size(['id'], objects),
+
+-            connection.features.max_query_params,
+
+-        )
+
+-        self.assertEqual(
+
+-            connection.ops.bulk_batch_size(['id', 'other'], objects),
+
+-            connection.features.max_query_params // 2,
+
+-        )
+
++def test_bulk_batch_size(self):
+
++    # Oracle restricts the number of parameters in a query.
+
++    objects = range(2**16)
+
++    self.assertEqual(connection.ops.bulk_batch_size([], objects), len(objects))
+
++    # Each field is a parameter for each object.
+
++    self.assertEqual(
+
++        connection.ops.bulk_batch_size(['id'], objects),
+
++        connection.features.max_query_params,
+
++    )
+
++    self.assertEqual(
+
++        connection.ops.bulk_batch_size(['id', 'other'], objects),
+
++        connection.features.max_query_params // 2,
+
++    )
+
+ 
+
+     def test_sql_flush(self):
+
+         statements = connection.ops.sql_flush(
+
+
+--- a/decoupled/60/0.8_0.2/62/django_django/tests/backends/postgresql/test_creation.py
++++ b/decoupled/60/0.8_0.2/62/django_django/tests/backends/postgresql/test_creation.py
+@@ -76,7 +76,7 @@
+ 
+
+     @mock.patch('sys.stdout', new_callable=StringIO)
+
+     @mock.patch('sys.stderr', new_callable=StringIO)
+
+-    def test_create_test_db(self, *mocked_objects):
+
++def test_create_test_db(self, *mocked_objects):
+
+         creation = DatabaseCreation(connection)
+
+         # Simulate test database creation raising "database already exists"
+
+         with self.patch_test_db_creation(self._execute_raise_database_already_exists):
+
+@@ -100,3 +100,9 @@
+         with self.patch_test_db_creation(self._execute_raise_permission_denied):
+
+             with mock.patch.object(DatabaseCreation, '_database_exists', return_value=True):
+
+                 creation._create_test_db(verbosity=0, autoclobber=False, keepdb=True)
+
++
+
++    def test_isnull_key(self):
+
++        self.assertSequenceEqual(
+
++            NullableJSONModel.objects.filter(value__j__isnull=True),
+
++            self.objs[:4] + self.objs[5:],
+
++        )
+
+
+--- a/decoupled/60/0.8_0.2/62/django_django/tests/backends/oracle/test_creation.py
++++ b/decoupled/60/0.8_0.2/62/django_django/tests/backends/oracle/test_creation.py
+@@ -36,7 +36,7 @@
+         return mock.patch.object(DatabaseCreation, '_execute_statements', execute_statements)
+
+ 
+
+     @mock.patch.object(DatabaseCreation, '_test_user_create', return_value=False)
+
+-    def test_create_test_db(self, *mocked_objects):
+
++def test_create_test_db(self, *mocked_objects):
+
+         creation = DatabaseCreation(connection)
+
+         # Simulate test database creation raising "tablespace already exists"
+
+         with self.patch_execute_statements(self._execute_raise_tablespace_already_exists):
+
+

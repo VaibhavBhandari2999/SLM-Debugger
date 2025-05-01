@@ -1,0 +1,96 @@
+--- a/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
+@@ -131,22 +131,31 @@
+             a.protect.p.delete()
+
+         self.assertEqual(cm.exception.protected_objects, {a})
+
+ 
+
+-    def test_do_nothing(self):
+
+-        # Testing DO_NOTHING is a bit harder: It would raise IntegrityError for
+
+-        # a normal model, so we connect to pre_delete and set the fk to a known
+
+-        # value.
+
+-        replacement_r = R.objects.create()
+
+-
+
+-        def check_do_nothing(sender, **kwargs):
+
+-            obj = kwargs["instance"]
+
+-            obj.donothing_set.update(donothing=replacement_r)
+
+-
+
+-        models.signals.pre_delete.connect(check_do_nothing)
+
+-        a = create_a("do_nothing")
+
+-        a.donothing.delete()
+
+-        a = A.objects.get(pk=a.pk)
+
+-        self.assertEqual(replacement_r, a.donothing)
+
+-        models.signals.pre_delete.disconnect(check_do_nothing)
+
++from django.db import migrations, models
+
++
+
++class Migration(migrations.Migration):
+
++
+
++    dependencies = [
+
++        ('app', 'previous_migration_name'),  # Replace with the actual previous migration name
+
++    ]
+
++
+
++    operations = [
+
++        migrations.RemoveField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++        ),
+
++        migrations.AlterUniqueTogether(
+
++            name='authors',
+
++            unique_together=set(),
+
++        ),
+
++        migrations.AddField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++            field=models.ManyToManyField(
+
++                to='app.ProjectDataSet',
+
++            ),
+
++        ),
+
++    ]
+
+ 
+
+     def test_do_nothing_qscount(self):
+
+         """

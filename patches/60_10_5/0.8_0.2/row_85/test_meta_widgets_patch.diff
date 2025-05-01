@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/85/django_django/tests/generic_relations/test_forms.py
++++ b/decoupled/60/0.8_0.2/85/django_django/tests/generic_relations/test_forms.py
+@@ -139,7 +139,7 @@
+         formset = GenericFormSet(initial=initial_data)
+
+         self.assertEqual(formset.forms[0].initial, initial_data[0])
+
+ 
+
+-    def test_meta_widgets(self):
+
++def test_meta_widgets(self):
+
+         """TaggedItemForm has a widget defined in Meta."""
+
+         Formset = generic_inlineformset_factory(TaggedItem, TaggedItemForm)
+
+         form = Formset().forms[0]

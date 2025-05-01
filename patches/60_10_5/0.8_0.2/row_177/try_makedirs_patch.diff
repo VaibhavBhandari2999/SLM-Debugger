@@ -1,0 +1,108 @@
+--- a/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/177/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -1032,24 +1032,36 @@
+         return res, self.explanation_param(self.pop_format_context(expl_call))
+
+ 
+
+ 
+
+-def try_makedirs(cache_dir) -> bool:
+
+-    """Attempts to create the given directory and sub-directories exist, returns True if
+
+-    successful or it already exists"""
+
++import os
+
++import errno
+
++import shutil
+
++
+
++import pytest
+
++
+
++@pytest.fixture
+
++def private_dir():  # or (monkeypatch)
+
++    out_dir = 'ddd'
+
++
+
+     try:
+
+-        os.makedirs(fspath(cache_dir), exist_ok=True)
+
+-    except (FileNotFoundError, NotADirectoryError, FileExistsError):
+
+-        # One of the path components was not a directory:
+
+-        # - we're in a zip file
+
+-        # - it is a file
+
+-        return False
+
+-    except PermissionError:
+
+-        return False
+
+-    except OSError as e:
+
+-        # as of now, EROFS doesn't have an equivalent OSError-subclass
+
+-        if e.errno == errno.EROFS:
+
+-            return False
+
+-        raise
+
+-    return True
+
++        shutil.rmtree(out_dir)
+
++    except OSError as ex:
+
++        if ex.errno != errno.ENOENT:
+
++            raise
+
++    os.mkdir(out_dir)
+
++
+
++    old_dir = os.getcwd()
+
++    os.chdir(out_dir)
+
++    yield out_dir
+
++    os.chdir(old_dir)
+
++
+
++    # Same issue if using:
+
++    # monkeypatch.chdir(out_dir)
+
++
+
++
+
++def test_show_correct_path(private_dir):
+
++    # Get the full path to the test file relative to the original directory
+
++    test_file_path = os.path.join(os.path.dirname(__file__), 'test_path_error.py')
+
++    assert False, f"Test file path: {test_file_path}"
+
+ 
+
+ 
+
+ def get_cache_dir(file_path: Path) -> Path:

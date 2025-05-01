@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/188/scikit-learn_scikit-learn/sklearn/metrics/cluster/supervised.py
++++ b/decoupled/60/0.8_0.2/188/scikit-learn_scikit-learn/sklearn/metrics/cluster/supervised.py
+@@ -433,7 +433,8 @@
+ 
+
+ 
+
+ def v_measure_score(labels_true, labels_pred):
+
+-    """V-measure cluster labeling given a ground truth.
+
++    """
+
++    V-measure cluster labeling given a ground truth.
+
+ 
+
+     This score is identical to :func:`normalized_mutual_info_score`.
+
+ 
+
+@@ -524,7 +525,11 @@
+       0.0...
+
+ 
+
+     """
+
+-    return homogeneity_completeness_v_measure(labels_true, labels_pred)[2]
+
++    # Calculate homogeneity, completeness, and v_measure
+
++    homogeneity, completeness, v_measure = homogeneity_completeness_v_measure(
+
++        labels_true, labels_pred
+
++    )
+
++    return v_measure
+
+ 
+
+ 
+
+ def mutual_info_score(labels_true, labels_pred, contingency=None):

@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/51/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/51/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -371,7 +371,7 @@
+             ),
+
+         ])
+
+ 
+
+-    def test_foreign_key_to_non_unique_field(self):
+
++def test_foreign_key_to_non_unique_field(self):
+
+         class Target(models.Model):
+
+             bad = models.IntegerField()  # No unique=True
+
+ 

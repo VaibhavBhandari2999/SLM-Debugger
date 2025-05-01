@@ -1,0 +1,112 @@
+--- a/decoupled/60/0.8_0.2/64/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/64/django_django/django/db/models/base.py
+@@ -1296,28 +1296,34 @@
+         return errors
+
+ 
+
+     @classmethod
+
+-    def _check_default_pk(cls):
+
+-        if (
+
+-            cls._meta.pk.auto_created and
+
+-            not settings.is_overridden('DEFAULT_AUTO_FIELD') and
+
+-            not cls._meta.app_config._is_default_auto_field_overridden
+
+-        ):
+
+-            return [
+
+-                checks.Warning(
+
+-                    f"Auto-created primary key used when not defining a "
+
+-                    f"primary key type, by default "
+
+-                    f"'{settings.DEFAULT_AUTO_FIELD}'.",
+
+-                    hint=(
+
+-                        f"Configure the DEFAULT_AUTO_FIELD setting or the "
+
+-                        f"{cls._meta.app_config.__class__.__qualname__}."
+
+-                        f"default_auto_field attribute to point to a subclass "
+
+-                        f"of AutoField, e.g. 'django.db.models.BigAutoField'."
+
+-                    ),
+
+-                    obj=cls,
+
+-                    id='models.W042',
+
++def _check_default_pk(cls):
+
++    # Check if the primary key is auto-created and if the default auto field is not overridden
+
++    if (
+
++        cls._meta.pk.auto_created and
+
++        not settings.is_overridden('DEFAULT_AUTO_FIELD') and
+
++        not cls._meta.app_config._is_default_auto_field_overridden
+
++    ):
+
++        # Check if the primary key is manually specified in an ancestor model
+
++        for base in cls.__bases__:
+
++            if hasattr(base, '_meta') and base._meta.pk and not base._meta.pk.auto_created:
+
++                return []  # No warning needed if a manually specified primary key is found in an ancestor
+
++        # If no manually specified primary key is found, issue the warning
+
++        return [
+
++            checks.Warning(
+
++                f"Auto-created primary key used when not defining a "
+
++                f"primary key type, by default "
+
++                f"'{settings.DEFAULT_AUTO_FIELD}'.",
+
++                hint=(
+
++                    f"Configure the DEFAULT_AUTO_FIELD setting or the "
+
++                    f"{cls._meta.app_config.__class__.__qualname__}."
+
++                    f"default_auto_field attribute to point to a subclass "
+
++                    f"of AutoField, e.g. 'django.db.models.BigAutoField'."
+
+                 ),
+
+-            ]
+
+-        return []
+
++                obj=cls,
+
++                id='models.W042',
+
++            ),
+
++        ]
+
++    return []
+
+ 
+
+     @classmethod
+
+     def _check_swappable(cls):

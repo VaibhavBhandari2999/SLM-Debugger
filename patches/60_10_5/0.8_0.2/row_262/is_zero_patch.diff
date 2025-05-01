@@ -1,0 +1,152 @@
+--- a/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
+@@ -1619,35 +1619,46 @@
+                    for j in range(min(i, self.cols)))
+
+ 
+
+     @property
+
+-    def is_zero(self):
+
+-        """Checks if a matrix is a zero matrix.
+
+-
+
+-        A matrix is zero if every element is zero.  A matrix need not be square
+
+-        to be considered zero.  The empty matrix is zero by the principle of
+
+-        vacuous truth.  For a matrix that may or may not be zero (e.g.
+
+-        contains a symbol), this will be None
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, zeros
+
+-        >>> from sympy.abc import x
+
+-        >>> a = Matrix([[0, 0], [0, 0]])
+
+-        >>> b = zeros(3, 4)
+
+-        >>> c = Matrix([[0, 1], [0, 0]])
+
+-        >>> d = Matrix([])
+
+-        >>> e = Matrix([[x, 0], [0, 0]])
+
+-        >>> a.is_zero
+
+-        True
+
+-        >>> b.is_zero
+
+-        True
+
+-        >>> c.is_zero
+
+-        False
+
+-        >>> d.is_zero
+
+-        True
+
+-        >>> e.is_zero
+
+-        """
+
+-        return self._eval_is_zero()
+
++def is_zero(self):
+
++    """Checks if a matrix is a zero matrix.
+
++
+
++    A matrix is zero if every element is zero.  A matrix need not be square
+
++    to be considered zero.  The empty matrix is zero by the principle of
+
++    vacuous truth.  For a matrix that may or may not be zero (e.g.
+
++    contains a symbol), this will be None
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, zeros
+
++    >>> from sympy.abc import x
+
++    >>> a = Matrix([[0, 0], [0, 0]])
+
++    >>> b = zeros(3, 4)
+
++    >>> c = Matrix([[0, 1], [0, 0]])
+
++    >>> d = Matrix([])
+
++    >>> e = Matrix([[x, 0], [0, 0]])
+
++    >>> a.is_zero
+
++    True
+
++    >>> b.is_zero
+
++    True
+
++    >>> c.is_zero
+
++    False
+
++    >>> d.is_zero
+
++    True
+
++    >>> e.is_zero
+
++    """
+
++    return self._eval_is_zero()
+
++
+
++def _blockmul(self, other):
+
++    # Ensure that Zero objects are converted back to ZeroMatrix
+
++    from sympy.matrices.expressions.blockmatrix import BlockMatrix, ZeroMatrix
+
++    if isinstance(self.blocks[0, 0], Zero):
+
++        self.blocks[0, 0] = ZeroMatrix(self.blocks[0, 0].rows, self.blocks[0, 0].cols)
+
++    if isinstance(other.blocks[0, 0], Zero):
+
++        other.blocks[0, 0] = ZeroMatrix(other.blocks[0, 0].rows, other.blocks[0, 0].cols)
+
++
+
++    # Continue with the block multiplication
+
++    # ... (rest of the _blockmul method remains the same)
+
+ 
+
+     def values(self):
+
+         """Return non-zero values of self."""

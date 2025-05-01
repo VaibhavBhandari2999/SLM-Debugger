@@ -1,0 +1,64 @@
+--- a/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
+@@ -2095,7 +2095,7 @@
+         else:
+
+             return self.extra
+
+ 
+
+-    def trim_start(self, names_with_path):
+
++def trim_start(self, names_with_path):
+
+         """
+
+         Trim joins from the start of the join path. The candidates for trim
+
+         are the PathInfos in names_with_path structure that are m2m joins.
+
+@@ -2107,7 +2107,7 @@
+ 
+
+         Return a lookup usable for doing outerq.filter(lookup=self) and a
+
+         boolean indicating if the joins in the prefix contain a LEFT OUTER join.
+
+-        _"""
+
++        """
+
+         all_paths = []
+
+         for _, paths in names_with_path:
+
+             all_paths.extend(paths)
+
+@@ -2164,6 +2164,14 @@
+                 break
+
+         self.set_select([f.get_col(select_alias) for f in select_fields])
+
+         return trimmed_prefix, contains_louter
+
++
+
++    def set_path_as_callable(self, path):
+
++        """
+
++        Set the path to be a callable if it is not already.
+
++        """
+
++        if not callable(path):
+
++            path = lambda: path
+
++        return path
+
+ 
+
+     def is_nullable(self, field):
+
+         """

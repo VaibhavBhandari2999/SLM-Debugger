@@ -1,0 +1,35 @@
+--- a/decoupled/60/0.8_0.2/239/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/239/sympy_sympy/sympy/matrices/dense.py
+@@ -1150,8 +1150,6 @@
+     [0, 2, 0, 0, 0],
+
+     [0, 0, 3, 0, 0]])
+
+ 
+
+-
+
+-
+
+     The type is mutable by default but can be made immutable by setting
+
+     the ``mutable`` flag to False:
+
+ 
+
+@@ -1177,7 +1175,7 @@
+         return m
+
+     values = (normalize(m) for m in values)
+
+ 
+
+-    return Matrix.diag(*values, **kwargs)
+
++    # Ensure that the @ operator only works
+
+ 
+
+ 
+
+ def GramSchmidt(vlist, orthonormal=False):

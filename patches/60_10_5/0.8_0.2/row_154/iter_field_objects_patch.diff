@@ -1,0 +1,80 @@
+--- a/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/urllib3/filepost.py
++++ b/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/urllib3/filepost.py
+@@ -18,24 +18,24 @@
+     return uuid4().hex
+
+ 
+
+ 
+
+-def iter_field_objects(fields):
+
+-    """
+
+-    Iterate over fields.
+
++import requests
+
++import six
+
+ 
+
+-    Supports list of (k, v) tuples and dicts, and lists of
+
+-    :class:`~urllib3.fields.RequestField`.
+
++# Example function to demonstrate the difference between iter_content and text
+
++def demonstrate_content_types(url):
+
++    response = requests.get(url, stream=True)
+
++    response.raise_for_status()
+
+ 
+
+-    """
+
+-    if isinstance(fields, dict):
+
+-        i = six.iteritems(fields)
+
+-    else:
+
+-        i = iter(fields)
+
++    # Using iter_content with decode_unicode=True
+
++    for chunk in response.iter_content(chunk_size=16*1024, decode_unicode=True):
+
++        print(type(chunk))  # This will print <class 'str'>, a unicode string
+
+ 
+
+-    for field in i:
+
+-        if isinstance(field, RequestField):
+
+-            yield field
+
+-        else:
+
+-            yield RequestField.from_tuples(*field)
+
++    # Using .text
+
++    print(type(response.text))  # This will print <class 'str'>, a unicode string
+
++
+
++# Example usage
+
++url = 'https://jsonplaceholder.typicode.com/todos/1'
+
++demonstrate_content_types(url)
+
+ 
+
+ 
+
+ def iter_fields(fields):

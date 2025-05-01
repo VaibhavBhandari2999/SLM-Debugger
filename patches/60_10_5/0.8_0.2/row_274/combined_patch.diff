@@ -1,0 +1,369 @@
+--- a/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
+@@ -160,19 +160,22 @@
+     """
+
+     sign, man, expt, bc = mpf
+
+     if not man:
+
+-        # hack for mpf_normalize which does not do this;
+
+-        # it assumes that if man is zero the result is 0
+
+-        # (see issue 6639)
+
+-        if not bc:
+
+-            return fzero
+
+-        else:
+
+-            # don't change anything; this should already
+
+-            # be a well formed mpf tuple
+
+-            return mpf
+
+-
+
+-    # Necessary if mpmath is using the gmpy backend
+
++        # If the mantissa is zero, we need to handle the sign correctly.
+
++        # For zero, the sign is zero, and the absolute value is also zero.
+
++        # We need to return a tuple that represents zero.
+
++        return (0, 0, 0, bc)
+
++    
+
++    # Calculate the sign using the absolute value
+
++    if man > 0:
+
++        new_sign = 1
+
++    elif man < 0:
+
++        new_sign = -1
+
++    else:
+
++        new_sign = 0  # This should not happen for non-zero mantissa
+
++
+
++    # Normalize the mantissa and exponent
+
+     from mpmath.libmp.backend import MPZ
+
+-    rv = mpf_normalize(sign, MPZ(man), expt, bc, prec, rnd)
+
++    rv = mpf_normalize(new_sign, MPZ(man), expt, bc, prec, rnd)
+
+     return rv
+
+ 
+
+ # TODO: we should use the warnings module
+
+
+--- a/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/matrices/solvers.py
++++ b/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/matrices/solvers.py
+@@ -605,8 +605,7 @@
+         for that purpose; if so, it must be the same shape as x, with as
+
+         many rows as matrix A has columns, and as many columns as matrix
+
+         B.  If left as None, an appropriate matrix containing dummy
+
+-        symbols in the form of ``wn_m`` will be used, with n and m being
+
+-        row and column position of each symbol.
+
++        symbols in the form of ``w0_0``, ``w0_1``, etc. will be used.
+
+ 
+
+     Returns
+
+     =======
+
+@@ -651,29 +650,6 @@
+     This may return either exact solutions or least squares solutions.
+
+     To determine which, check ``A * A.pinv() * B == B``.  It will be
+
+     True if exact solutions exist, and False if only a least-squares
+
+-    solution exists.  Be aware that the left hand side of that equation
+
+-    may need to be simplified to correctly compare to the right hand
+
+-    side.
+
+-
+
+-    References
+
+-    ==========
+
+-
+
+-    .. [1] https://en.wikipedia.org/wiki/Moore-Penrose_pseudoinverse#Obtaining_all_solutions_of_a_linear_system
+
+-
+
+-    """
+
+-
+
+-    from sympy.matrices import eye
+
+-
+
+-    A      = M
+
+-    A_pinv = M.pinv()
+
+-
+
+-    if arbitrary_matrix is None:
+
+-        rows, cols       = A.cols, B.cols
+
+-        w                = symbols('w:{}_:{}'.format(rows, cols), cls=Dummy)
+
+-        arbitrary_matrix = M.__class__(cols, rows, w).T
+
+-
+
+-    return A_pinv.multiply(B) + (eye(A.cols) -
+
+-            A_pinv.multiply(A)).multiply(arbitrary_matrix)
+
+ 
+
+ 
+
+ def _solve(M, rhs, method='GJ'):
+
+
+--- a/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
+@@ -2084,31 +2084,31 @@
+         return mpmath.make_mpf(self._as_mpf_val(prec))
+
+ 
+
+     @cacheit
+
+-    def __new__(cls, i):
+
+-        if isinstance(i, str):
+
+-            i = i.replace(' ', '')
+
+-        # whereas we cannot, in general, make a Rational from an
+
+-        # arbitrary expression, we can make an Integer unambiguously
+
+-        # (except when a non-integer expression happens to round to
+
+-        # an integer). So we proceed by taking int() of the input and
+
+-        # let the int routines determine whether the expression can
+
+-        # be made into an int or whether an error should be raised.
+
+-        try:
+
+-            ival = int(i)
+
+-        except TypeError:
+
+-            raise TypeError(
+
+-                "Argument of Integer should be of numeric type, got %s." % i)
+
+-        # We only work with well-behaved integer types. This converts, for
+
+-        # example, numpy.int32 instances.
+
+-        if ival == 1:
+
+-            return S.One
+
+-        if ival == -1:
+
+-            return S.NegativeOne
+
+-        if ival == 0:
+
+-            return S.Zero
+
+-        obj = Expr.__new__(cls)
+
+-        obj.p = ival
+
+-        return obj
+
++def __new__(cls, i):
+
++    if isinstance(i, str):
+
++        i = i.replace(' ', '')
+
++    # whereas we cannot, in general, make a Rational from an
+
++    # arbitrary expression, we can make an Integer unambiguously
+
++    # (except when a non-integer expression happens to round to
+
++    # an integer). So we proceed by taking int() of the input and
+
++    # let the int routines determine whether the expression can
+
++    # be made into an int or whether an error should be raised.
+
++    try:
+
++        ival = int(i)
+
++    except TypeError:
+
++        raise TypeError(
+
++            "Argument of Integer should be of numeric type, got %s." % i)
+
++    # We only work with well-behaved integer types. This converts, for
+
++    # example, numpy.int32 instances.
+
++    if ival == 1:
+
++        return S.One
+
++    if ival == -1:
+
++        return S.NegativeOne
+
++    if ival == 0:
+
++        return S.Zero
+
++    obj = Expr.__new__(cls)
+
++    obj.p = ival
+
++    return obj
+
+ 
+
+     def __getnewargs__(self):
+
+         return (self.p,)
+
+
+--- a/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
+@@ -498,9 +498,6 @@
+     Examples
+
+     ========
+
+ 
+
+-    >>> from sympy import S
+
+-    >>> from sympy.core.numbers import mod_inverse
+
+-
+
+     Suppose we wish to find multiplicative inverse x of
+
+     3 modulo 11. This is the same as finding x such
+
+     that 3 * x = 1 (mod 11). One value of x that satisfies
+
+@@ -531,6 +528,8 @@
+     c = None
+
+     try:
+
+         a, m = as_int(a), as_int(m)
+
++        if m == 1 or m == -1:
+
++            return 1
+
+         if m != 1 and m != -1:
+
+             x, y, g = igcdex(a, m)
+
+             if g == 1:
+
+@@ -544,11 +543,11 @@
+                 but symbolic expressions can be handled with the
+
+                 similar function,
+
+                 sympy.polys.polytools.invert'''))
+
+-        big = (m > 1)
+
+-        if not (big is S.true or big is S.false):
+
+-            raise ValueError('m > 1 did not evaluate; try to simplify %s' % m)
+
+-        elif big:
+
+-            c = 1/a
+
++        if m == 1 or m == -1:
+
++            return 1
+
++        elif m == 0:
+
++            raise ValueError('inverse of %s (mod 0) is undefined' % a)
+
++        c = 1/a
+
+     if c is None:
+
+         raise ValueError('inverse of %s (mod %s) does not exist' % (a, m))
+
+     return c
+
+
+--- a/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/274/sympy_sympy/sympy/core/numbers.py
+@@ -2641,9 +2641,9 @@
+ 
+
+     __bool__ = __nonzero__
+
+ 
+
+-    def as_coeff_Mul(self, rational=False):  # XXX this routine should be deleted
+
+-        """Efficiently extract the coefficient of a summation. """
+
+-        return S.One, self
+
++def as_coeff_Mul(self, rational=False):  # XXX this routine should be deleted
+
++    """Efficiently extract the coefficient of a summation. """
+
++    return S.One, self
+
+ 
+
+ 
+
+ class One(IntegerConstant, metaclass=Singleton):
+
+

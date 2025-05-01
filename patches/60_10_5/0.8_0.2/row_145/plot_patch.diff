@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/regression.py
+@@ -337,7 +337,7 @@
+         a_prime = a - b.dot(np.linalg.pinv(b).dot(a))
+
+         return np.asarray(a_prime + a_mean).reshape(a.shape)
+
+ 
+
+-    def plot(self, ax, scatter_kws, line_kws):
+
++def plot(self, ax, scatter_kws, line_kws):
+
+         """Draw the full plot."""
+
+         # Insert the plot label into the correct set of keyword arguments
+
+         if self.scatter:
+
+@@ -355,6 +355,10 @@
+ 
+
+         # Ensure that color is hex to avoid matplotlib weirdness
+
+         color = mpl.colors.rgb2hex(mpl.colors.colorConverter.to_rgb(color))
+
++
+
++        # Convert boolean color data to categorical to avoid numpy boolean subtract error
+
++        if pd.api.types.is_bool_dtype(color):
+
++            color = color.astype('category')
+
+ 
+
+         # Let color in keyword arguments override overall plot color
+
+         scatter_kws.setdefault("color", color)

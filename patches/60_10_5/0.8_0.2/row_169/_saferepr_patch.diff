@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/169/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/169/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -479,6 +479,10 @@
+     JSON reprs.
+
+ 
+
+     """
+
++    # Unroll the iterable to a list if it is an iterable
+
++    if isinstance(obj, (list, tuple, set, dict, range, map, filter, zip, generator)):
+
++        obj = list(obj)
+
++    
+
+     r = saferepr(obj)
+
+     # only occurs in python2.x, repr must return text in python3+
+
+     if isinstance(r, bytes):

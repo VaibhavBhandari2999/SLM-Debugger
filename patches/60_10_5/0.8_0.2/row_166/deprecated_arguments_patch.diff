@@ -1,0 +1,134 @@
+--- a/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/checkers/deprecated.py
++++ b/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/checkers/deprecated.py
+@@ -143,31 +143,41 @@
+         """
+
+         return ()
+
+ 
+
+-    def deprecated_arguments(self, method: str) -> Iterable[tuple[int | None, str]]:
+
+-        """Callback returning the deprecated arguments of method/function.
+
+-
+
+-        Args:
+
+-            method (str): name of function/method checked for deprecated arguments
+
+-
+
+-        Returns:
+
+-            collections.abc.Iterable in form:
+
+-                ((POSITION1, PARAM1), (POSITION2: PARAM2) ...)
+
+-            where
+
+-                * POSITIONX - position of deprecated argument PARAMX in function definition.
+
+-                  If argument is keyword-only, POSITIONX should be None.
+
+-                * PARAMX - name of the deprecated argument.
+
+-            E.g. suppose function:
+
+-
+
+-            .. code-block:: python
+
+-                def bar(arg1, arg2, arg3, arg4, arg5='spam')
+
+-
+
+-            with deprecated arguments `arg2` and `arg4`. `deprecated_arguments` should return:
+
+-
+
+-            .. code-block:: python
+
+-                ((1, 'arg2'), (3, 'arg4'))
+
+-        """
+
+-        # pylint: disable=unused-argument
+
+-        return ()
+
++def deprecated_arguments(self, method: str) -> Iterable[tuple[int | None, str]]:
+
++    """Callback returning the deprecated arguments of method/function.
+
++
+
++    Args:
+
++        method (str): name of function/method checked for deprecated arguments
+
++
+
++    Returns:
+
++        collections.abc.Iterable in form:
+
++            ((POSITION1, PARAM1), (POSITION2: PARAM2) ...)
+
++        where
+
++            * POSITIONX - position of deprecated argument PARAMX in function definition.
+
++              If argument is keyword-only, POSITIONX should be None.
+
++            * PARAMX - name of the deprecated argument.
+
++        E.g. suppose function:
+
++
+
++        .. code-block:: python
+
++            def bar(arg1, arg2, arg3, arg4, arg5='spam')
+
++
+
++        with deprecated arguments `arg2` and `arg4`. `deprecated_arguments` should return:
+
++
+
++        .. code-block:: python
+
++            ((1, 'arg2'), (3, 'arg4'))
+
++    """
+
++    # pylint: disable=unused-argument
+
++    return ()
+
++
+
++# To fix the issue with the custom message template, we can use a standard template and then modify the output
+
++def custom_message_template(message: Message) -> str:
+
++    return f'{{"Category": "{message.category}"}}'
+
++
+
++# Example usage in a Pylint reporter or similar context
+
++class CustomPylintReporter(BaseReporter):
+
++    def handle_message(self, msg: Message) -> None:
+
++        formatted_message = custom_message_template(msg)
+
++        print(formatted_message)
+
+ 
+
+     def deprecated_modules(self) -> Iterable[str]:
+
+         """Callback returning the deprecated modules.

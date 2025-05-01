@@ -1,0 +1,76 @@
+--- a/decoupled/60/0.8_0.2/91/django_django/django/conf/__init__.py
++++ b/decoupled/60/0.8_0.2/91/django_django/django/conf/__init__.py
+@@ -131,18 +131,25 @@
+         self._wrapped = holder
+
+ 
+
+     @staticmethod
+
+-    def _add_script_prefix(value):
+
+-        """
+
+-        Add SCRIPT_NAME prefix to relative paths.
+
+-
+
+-        Useful when the app is being served at a subpath and manually prefixing
+
+-        subpath to STATIC_URL and MEDIA_URL in settings is inconvenient.
+
+-        """
+
+-        # Don't apply prefix to absolute paths and URLs.
+
+-        if value.startswith(('http://', 'https://', '/')):
+
+-            return value
+
+-        from django.urls import get_script_prefix
+
+-        return '%s%s' % (get_script_prefix(), value)
+
++import os
+
++
+
++BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
++
+
++TEMPLATES = [
+
++    {
+
++        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
++        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+
++        'APP_DIRS': True,
+
++        'OPTIONS': {
+
++            'context_processors': [
+
++                'django.template.context_processors.debug',
+
++                'django.template.context_processors.request',
+
++                'django.contrib.auth.context_processors.auth',
+
++                'django.contrib.messages.context_processors.messages',
+
++            ],
+
++        },
+
++    },
+
++]
+
+ 
+
+     @property
+
+     def configured(self):

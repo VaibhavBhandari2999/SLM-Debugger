@@ -1,0 +1,71 @@
+--- a/decoupled/60/0.8_0.2/220/sphinx-doc_sphinx/sphinx/util/inspect.py
++++ b/decoupled/60/0.8_0.2/220/sphinx-doc_sphinx/sphinx/util/inspect.py
+@@ -494,11 +494,12 @@
+ 
+
+ 
+
+ def signature(subject: Callable, bound_method: bool = False, follow_wrapped: bool = None,
+
+-              type_aliases: Dict = {}) -> inspect.Signature:
+
++              type_aliases: Dict = {}, config: Config = None) -> inspect.Signature:
+
+     """Return a Signature object for the given *subject*.
+
+ 
+
+     :param bound_method: Specify *subject* is a bound method or not
+
+     :param follow_wrapped: Same as ``inspect.signature()``.
+
++    :param config: Sphinx configuration object to get the napoleon_use_param setting
+
+     """
+
+ 
+
+     if follow_wrapped is None:
+
+@@ -558,6 +559,21 @@
+     return inspect.Signature(parameters, return_annotation=return_annotation,  # type: ignore
+
+                              __validate_parameters__=False)
+
+ 
+
++    # Ensure that the signature respects the napoleon_use_param configuration
+
++    if config and config.napoleon_use_param:
+
++        for param in parameters:
+
++            param.kind = inspect.Parameter.KEYWORD_ONLY
+
++
+
++# Example usage
+
++def example_function(x: int, y: float) -> None:
+
++    pass
+
++
+
++config = Config()
+
++config.napoleon_use_param = True
+
++
+
++sig = signature(example_function, config=config)
+
++print(sig)
+
++
+
+ 
+
+ def evaluate_signature(sig: inspect.Signature, globalns: Dict = None, localns: Dict = None
+
+                        ) -> inspect.Signature:

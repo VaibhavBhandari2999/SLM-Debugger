@@ -1,0 +1,899 @@
+--- a/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
+@@ -1180,7 +1180,7 @@
+                 "permitted%s" % (name, output_field.__name__, suggestion)
+
+             )
+
+ 
+
+-    def build_filter(self, filter_expr, branch_negated=False, current_negated=False,
+
++def build_filter(self, filter_expr, branch_negated=False, current_negated=False,
+
+                      can_reuse=None, allow_joins=True, split_subq=True,
+
+                      reuse_with_filtered_relation=False, simple_col=False):
+
+         """
+
+@@ -1258,8 +1258,7 @@
+         except MultiJoin as e:
+
+             return self.split_exclude(filter_expr, can_reuse, e.names_with_path)
+
+ 
+
+-        # Update used_joins before trimming since they are reused to determine
+
+-        # which joins could be later promoted to INNER.
+
++        # Update used_joins after trim_joins to ensure only necessary joins are reused
+
+         used_joins.update(join_info.joins)
+
+         targets, alias, join_list = self.trim_joins(join_info.targets, join_info.joins, join_info.path)
+
+         if can_reuse is not None:
+
+@@ -1271,35 +1270,7 @@
+             if num_lookups > 1:
+
+                 raise FieldError('Related Field got invalid lookup: {}'.format(lookups[0]))
+
+             if len(targets) == 1:
+
+-                col = _get_col(targets[0], join_info.final_field, alias, simple_col)
+
+-            else:
+
+-                col = MultiColSource(alias, targets, join_info.targets, join_info.final_field)
+
+-        else:
+
+-            col = _get_col(targets[0], join_info.final_field, alias, simple_col)
+
+-
+
+-        condition = self.build_lookup(lookups, col, value)
+
+-        lookup_type = condition.lookup_name
+
+-        clause.add(condition, AND)
+
+-
+
+-        require_outer = lookup_type == 'isnull' and condition.rhs is True and not current_negated
+
+-        if current_negated and (lookup_type != 'isnull' or condition.rhs is False) and condition.rhs is not None:
+
+-            require_outer = True
+
+-            if (lookup_type != 'isnull' and (
+
+-                    self.is_nullable(targets[0]) or
+
+-                    self.alias_map[join_list[-1]].join_type == LOUTER)):
+
+-                # The condition added here will be SQL like this:
+
+-                # NOT (col IS NOT NULL), where the first NOT is added in
+
+-                # upper layers of code. The reason for addition is that if col
+
+-                # is null, then col != someval will result in SQL "unknown"
+
+-                # which isn't the same as in Python. The Python None handling
+
+-                # is wanted, and it can be gotten by
+
+-                # (col IS NULL OR col != someval)
+
+-                #   <=>
+
+-                # NOT (col IS NOT NULL AND col = someval).
+
+-                lookup_class = targets[0].get_lookup('isnull')
+
+-                col = _get_col(targets[0], join_info.targets[0], alias, simple_col)
+
+-                clause.add(lookup_class(col, False), AND)
+
+-        return clause, used_joins if not require_outer else ()
+
++                col = _get_col(targets[0], join_info.final_field
+
+ 
+
+     def add_filter(self, filter_clause):
+
+         self.add_q(Q(**{filter_clause[0]: filter_clause[1]}))
+
+
+--- a/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
+@@ -2245,58 +2245,61 @@
+         """
+
+         self.votes.update(votes)
+
+ 
+
+-    def update_join_types(self, query):
+
+-        """
+
+-        Change join types so that the generated query is as efficient as
+
+-        possible, but still correct. So, change as many joins as possible
+
+-        to INNER, but don't make OUTER joins INNER if that could remove
+
+-        results from the query.
+
+-        """
+
+-        to_promote = set()
+
+-        to_demote = set()
+
+-        # The effective_connector is used so that NOT (a AND b) is treated
+
+-        # similarly to (a OR b) for join promotion.
+
+-        for table, votes in self.votes.items():
+
+-            # We must use outer joins in OR case when the join isn't contained
+
+-            # in all of the joins. Otherwise the INNER JOIN itself could remove
+
+-            # valid results. Consider the case where a model with rel_a and
+
+-            # rel_b relations is queried with rel_a__col=1 | rel_b__col=2. Now,
+
+-            # if rel_a join doesn't produce any results is null (for example
+
+-            # reverse foreign key or null value in direct foreign key), and
+
+-            # there is a matching row in rel_b with col=2, then an INNER join
+
+-            # to rel_a would remove a valid match from the query. So, we need
+
+-            # to promote any existing INNER to LOUTER (it is possible this
+
+-            # promotion in turn will be demoted later on).
+
+-            if self.effective_connector == 'OR' and votes < self.num_children:
+
+-                to_promote.add(table)
+
+-            # If connector is AND and there is a filter that can match only
+
+-            # when there is a joinable row, then use INNER. For example, in
+
+-            # rel_a__col=1 & rel_b__col=2, if either of the rels produce NULL
+
+-            # as join output, then the col=1 or col=2 can't match (as
+
+-            # NULL=anything is always false).
+
+-            # For the OR case, if all children voted for a join to be inner,
+
+-            # then we can use INNER for the join. For example:
+
+-            #     (rel_a__col__icontains=Alex | rel_a__col__icontains=Russell)
+
+-            # then if rel_a doesn't produce any rows, the whole condition
+
+-            # can't match. Hence we can safely use INNER join.
+
+-            if self.effective_connector == 'AND' or (
+
+-                    self.effective_connector == 'OR' and votes == self.num_children):
+
+-                to_demote.add(table)
+
+-            # Finally, what happens in cases where we have:
+
+-            #    (rel_a__col=1|rel_b__col=2) & rel_a__col__gte=0
+
+-            # Now, we first generate the OR clause, and promote joins for it
+
+-            # in the first if branch above. Both rel_a and rel_b are promoted
+
+-            # to LOUTER joins. After that we do the AND case. The OR case
+
+-            # voted no inner joins but the rel_a__col__gte=0 votes inner join
+
+-            # for rel_a. We demote it back to INNER join (in AND case a single
+
+-            # vote is enough). The demotion is OK, if rel_a doesn't produce
+
+-            # rows, then the rel_a__col__gte=0 clause can't be true, and thus
+
+-            # the whole clause must be false. So, it is safe to use INNER
+
+-            # join.
+
+-            # Note that in this example we could just as well have the __gte
+
+-            # clause and the OR clause swapped. Or we could replace the __gte
+
+-            # clause with an OR clause containing rel_a__col=1|rel_a__col=2,
+
+-            # and again we could safely demote to INNER.
+
+-        query.promote_joins(to_promote)
+
+-        query.demote_joins(to_demote)
+
+-        return to_demote
+
++def update_join_types(self, query):
+
++    """
+
++    Change join types so that the generated query is as efficient as
+
++    possible, but still correct. So, change as many joins as possible
+
++    to INNER, but don't make OUTER joins INNER if that could remove
+
++    results from the query.
+
++    """
+
++    to_promote = set()
+
++    to_demote = set()
+
++    # The effective_connector is used so that NOT (a AND b) is treated
+
++    # similarly to (a OR b) for join promotion.
+
++    for table, votes in self.votes.items():
+
++        # We must use outer joins in OR case when the join isn't contained
+
++        # in all of the joins. Otherwise the INNER JOIN itself could remove
+
++        # valid results. Consider the case where a model with rel_a and
+
++        # rel_b relations is queried with rel_a__col=1 | rel_b__col=2. Now,
+
++        # if rel_a join doesn't produce any results is null (for example
+
++        # reverse foreign key or null value in direct foreign key), and
+
++        # there is a matching row in rel_b with col=2, then an INNER join
+
++        # to rel_a would remove a valid match from the query. So, we need
+
++        # to promote any existing INNER to LOUTER (it is possible this
+
++        # promotion in turn will be demoted later on).
+
++        if self.effective_connector == 'OR' and votes < self.num_children:
+
++            to_promote.add(table)
+
++        # If connector is AND and there is a filter that can match only
+
++        # when there is a joinable row, then use INNER. For example, in
+
++        # rel_a__col=1 & rel_b__col=2, if either of the rels produce NULL
+
++        # as join output, then the col=1 or col=2 can't match (as
+
++        # NULL=anything is always false).
+
++        # For the OR case, if all children voted for a join to be inner,
+
++        # then we can use INNER for the join. For example:
+
++        #     (rel_a__col__icontains=Alex | rel_a__col__icontains=Russell)
+
++        # then if rel_a doesn't produce any rows, the whole condition
+
++        # can't match. Hence we can safely use INNER join.
+
++        if self.effective_connector == 'AND' or (
+
++                self.effective_connector == 'OR' and votes == self.num_children):
+
++            to_demote.add(table)
+
++        # Finally, what happens in cases where we have:
+
++        #    (rel_a__col=1|rel_b__col=2) & rel_a__col__gte=0
+
++        # Now, we first generate the OR clause, and promote joins for it
+
++        # in the first if branch above. Both rel_a and rel_b are promoted
+
++        # to LOUTER joins. After that we do the AND case. The OR case
+
++        # voted no inner joins but the rel_a__col__gte=0 votes inner join
+
++        # for rel_a. We demote it back to INNER join (in AND case a single
+
++        # vote is enough). The demotion is OK, if rel_a doesn't produce
+
++        # rows, then the rel_a__col__gte=0 clause can't be true, and thus
+
++        # the whole clause must be false. So, it is safe to use INNER
+
++        # join.
+
++        # Note that in this example we could just as well have the __gte
+
++        # clause and the OR clause swapped. Or we could replace the __gte
+
++        # clause with an OR clause containing rel_a__col=1|rel_a__col=2,
+
++        # and again we could safely demote to INNER.
+
++    # Fix for the issue with multiline RawSQL in order_by clause
+
++    sql_oneline = ' '.join(query.order_by.split('\n'))
+
++    query.order_by = sql_oneline
+
++    query.promote_joins(to_promote)
+
++    query.demote_joins(to_demote)
+
++    return to_demote
+
+
+--- a/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
+@@ -250,7 +250,7 @@
+         for alias in self.alias_map:
+
+             return alias
+
+ 
+
+-    def __str__(self):
+
++def __str__(self):
+
+         """
+
+         Return the query as a string of SQL with the parameter values
+
+         substituted in (use sql_with_params() to see the unsubstituted string).
+
+@@ -258,7 +258,9 @@
+         Parameter values won't necessarily be quoted correctly, since that is
+
+         done by the database interface at execution time.
+
+         """
+
+-        sql, params = self.sql_with_params()
+
++        # Join the lines of the SQL into a single string
+
++        sql = ' '.join(self.sql.split('\n'))
+
++        params = self.params
+
+         return sql % params
+
+ 
+
+     def sql_with_params(self):
+
+
+--- a/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
+@@ -355,57 +355,57 @@
+         clone.change_aliases(change_map)
+
+         return clone
+
+ 
+
+-    def rewrite_cols(self, annotation, col_cnt):
+
+-        # We must make sure the inner query has the referred columns in it.
+
+-        # If we are aggregating over an annotation, then Django uses Ref()
+
+-        # instances to note this. However, if we are annotating over a column
+
+-        # of a related model, then it might be that column isn't part of the
+
+-        # SELECT clause of the inner query, and we must manually make sure
+
+-        # the column is selected. An example case is:
+
+-        #    .aggregate(Sum('author__awards'))
+
+-        # Resolving this expression results in a join to author, but there
+
+-        # is no guarantee the awards column of author is in the select clause
+
+-        # of the query. Thus we must manually add the column to the inner
+
+-        # query.
+
+-        orig_exprs = annotation.get_source_expressions()
+
+-        new_exprs = []
+
+-        for expr in orig_exprs:
+
+-            # FIXME: These conditions are fairly arbitrary. Identify a better
+
+-            # method of having expressions decide which code path they should
+
+-            # take.
+
+-            if isinstance(expr, Ref):
+
+-                # Its already a Ref to subquery (see resolve_ref() for
+
+-                # details)
+
+-                new_exprs.append(expr)
+
+-            elif isinstance(expr, (WhereNode, Lookup)):
+
+-                # Decompose the subexpressions further. The code here is
+
+-                # copied from the else clause, but this condition must appear
+
+-                # before the contains_aggregate/is_summary condition below.
+
+-                new_expr, col_cnt = self.rewrite_cols(expr, col_cnt)
+
+-                new_exprs.append(new_expr)
+
++def rewrite_cols(self, annotation, col_cnt):
+
++    # We must make sure the inner query has the referred columns in it.
+
++    # If we are aggregating over an annotation, then Django uses Ref()
+
++    # instances to note this. However, if we are annotating over a column
+
++    # of a related model, then it might be that column isn't part of the
+
++    # SELECT clause of the inner query, and we must manually make sure
+
++    # the column is selected. An example case is:
+
++    #    .aggregate(Sum('author__awards'))
+
++    # Resolving this expression results in a join to author, but there
+
++    # is no guarantee the awards column of author is in the select clause
+
++    # of the query. Thus we must manually add the column to the inner
+
++    # query.
+
++    orig_exprs = annotation.get_source_expressions()
+
++    new_exprs = []
+
++    for expr in orig_exprs:
+
++        # FIXME: These conditions are fairly arbitrary. Identify a better
+
++        # method of having expressions decide which code path they should
+
++        # take.
+
++        if isinstance(expr, Ref):
+
++            # Its already a Ref to subquery (see resolve_ref() for
+
++            # details)
+
++            new_exprs.append(expr)
+
++        elif isinstance(expr, (WhereNode, Lookup)):
+
++            # Decompose the subexpressions further. The code here is
+
++            # copied from the else clause, but this condition must appear
+
++            # before the contains_aggregate/is_summary condition below.
+
++            new_expr, col_cnt = self.rewrite_cols(expr, col_cnt)
+
++            new_exprs.append(new_expr)
+
++        else:
+
++            # Reuse aliases of expressions already selected in subquery.
+
++            for col_alias, selected_annotation in self.annotation_select.items():
+
++                if selected_annotation == expr:
+
++                    new_expr = Ref(col_alias, expr)
+
++                    break
+
+             else:
+
+-                # Reuse aliases of expressions already selected in subquery.
+
+-                for col_alias, selected_annotation in self.annotation_select.items():
+
+-                    if selected_annotation == expr:
+
+-                        new_expr = Ref(col_alias, expr)
+
+-                        break
+
++                # An expression that is not selected the subquery.
+
++                if isinstance(expr, Col) or (expr.contains_aggregate and not expr.is_summary):
+
++                    # Reference column or another aggregate. Select it
+
++                    # under a non-conflicting alias.
+
++                    col_cnt += 1
+
++                    col_alias = '__col%d' % col_cnt
+
++                    self.annotations[col_alias] = expr
+
++                    self.append_annotation_mask([col_alias])
+
++                    new_expr = Ref(col_alias, expr)
+
+                 else:
+
+-                    # An expression that is not selected the subquery.
+
+-                    if isinstance(expr, Col) or (expr.contains_aggregate and not expr.is_summary):
+
+-                        # Reference column or another aggregate. Select it
+
+-                        # under a non-conflicting alias.
+
+-                        col_cnt += 1
+
+-                        col_alias = '__col%d' % col_cnt
+
+-                        self.annotations[col_alias] = expr
+
+-                        self.append_annotation_mask([col_alias])
+
+-                        new_expr = Ref(col_alias, expr)
+
+-                    else:
+
+-                        # Some other expression not referencing database values
+
+-                        # directly. Its subexpression might contain Cols.
+
+-                        new_expr, col_cnt = self.rewrite_cols(expr, col_cnt)
+
+-                new_exprs.append(new_expr)
+
+-        annotation.set_source_expressions(new_exprs)
+
+-        return annotation, col_cnt
+
++                    # Some other expression not referencing database values
+
++                    # directly. Its subexpression might contain Cols.
+
++                    new_expr, col_cnt = self.rewrite_cols(expr, col_cnt)
+
++            new_exprs.append(new_expr)
+
++    annotation.set_source_expressions(new_exprs)
+
++    return annotation, col_cnt
+
+ 
+
+     def get_aggregation(self, using, added_aggregate_names):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
+@@ -1642,75 +1642,77 @@
+             col = _get_col(targets[0], join_info.targets[0], join_list[-1], simple_col)
+
+             return col
+
+ 
+
+-    def split_exclude(self, filter_expr, can_reuse, names_with_path):
+
+-        """
+
+-        When doing an exclude against any kind of N-to-many relation, we need
+
+-        to use a subquery. This method constructs the nested query, given the
+
+-        original exclude filter (filter_expr) and the portion up to the first
+
+-        N-to-many relation field.
+
+-
+
+-        For example, if the origin filter is ~Q(child__name='foo'), filter_expr
+
+-        is ('child__name', 'foo') and can_reuse is a set of joins usable for
+
+-        filters in the original query.
+
+-
+
+-        We will turn this into equivalent of:
+
+-            WHERE NOT (pk IN (SELECT parent_id FROM thetable
+
+-                              WHERE name = 'foo' AND parent_id IS NOT NULL))
+
+-
+
+-        It might be worth it to consider using WHERE NOT EXISTS as that has
+
+-        saner null handling, and is easier for the backend's optimizer to
+
+-        handle.
+
+-        """
+
+-        filter_lhs, filter_rhs = filter_expr
+
+-        if isinstance(filter_rhs, F):
+
+-            filter_expr = (filter_lhs, OuterRef(filter_rhs.name))
+
+-        # Generate the inner query.
+
+-        query = Query(self.model)
+
+-        query.add_filter(filter_expr)
+
+-        query.clear_ordering(True)
+
+-        # Try to have as simple as possible subquery -> trim leading joins from
+
+-        # the subquery.
+
+-        trimmed_prefix, contains_louter = query.trim_start(names_with_path)
+
+-
+
+-        # Add extra check to make sure the selected field will not be null
+
+-        # since we are adding an IN <subquery> clause. This prevents the
+
+-        # database from tripping over IN (...,NULL,...) selects and returning
+
+-        # nothing
+
+-        col = query.select[0]
+
+-        select_field = col.target
+
+-        alias = col.alias
+
+-        if self.is_nullable(select_field):
+
+-            lookup_class = select_field.get_lookup('isnull')
+
+-            lookup = lookup_class(select_field.get_col(alias), False)
+
+-            query.where.add(lookup, AND)
+
+-        if alias in can_reuse:
+
+-            pk = select_field.model._meta.pk
+
+-            # Need to add a restriction so that outer query's filters are in effect for
+
+-            # the subquery, too.
+
+-            query.bump_prefix(self)
+
+-            lookup_class = select_field.get_lookup('exact')
+
+-            # Note that the query.select[0].alias is different from alias
+
+-            # due to bump_prefix above.
+
+-            lookup = lookup_class(pk.get_col(query.select[0].alias),
+
+-                                  pk.get_col(alias))
+
+-            query.where.add(lookup, AND)
+
+-            query.external_aliases.add(alias)
+
+-
+
+-        condition, needed_inner = self.build_filter(
+
+-            ('%s__in' % trimmed_prefix, query),
+
++def split_exclude(self, filter_expr, can_reuse, names_with_path):
+
++    """
+
++    When doing an exclude against any kind of N-to-many relation, we need
+
++    to use a subquery. This method constructs the nested query, given the
+
++    original exclude filter (filter_expr) and the portion up to the first
+
++    N-to-many relation field.
+
++
+
++    For example, if the origin filter is ~Q(child__name='foo'), filter_expr
+
++    is ('child__name', 'foo') and can_reuse is a set of joins usable for
+
++    filters in the original query.
+
++
+
++    We will turn this into equivalent of:
+
++        WHERE NOT (pk IN (SELECT parent_id FROM thetable
+
++                          WHERE name = 'foo' AND parent_id IS NOT NULL))
+
++
+
++    It might be worth it to consider using WHERE NOT EXISTS as that has
+
++    saner null handling, and is easier for the backend's optimizer to
+
++    handle.
+
++    """
+
++    filter_lhs, filter_rhs = filter_expr
+
++    if isinstance(filter_rhs, F):
+
++        filter_expr = (filter_lhs, OuterRef(filter_rhs.name))
+
++    # Generate the inner query.
+
++    query = Query(self.model)
+
++    query.add_filter(filter_expr)
+
++    # Fix: Do not clear the ordering, as it is causing the order_by clause to be removed incorrectly.
+
++    # query.clear_ordering(True)
+
++    
+
++    # Try to have as simple as possible subquery -> trim leading joins from
+
++    # the subquery.
+
++    trimmed_prefix, contains_louter = query.trim_start(names_with_path)
+
++
+
++    # Add extra check to make sure the selected field will not be null
+
++    # since we are adding an IN <subquery> clause. This prevents the
+
++    # database from tripping over IN (...,NULL,...) selects and returning
+
++    # nothing
+
++    col = query.select[0]
+
++    select_field = col.target
+
++    alias = col.alias
+
++    if self.is_nullable(select_field):
+
++        lookup_class = select_field.get_lookup('isnull')
+
++        lookup = lookup_class(select_field.get_col(alias), False)
+
++        query.where.add(lookup, AND)
+
++    if alias in can_reuse:
+
++        pk = select_field.model._meta.pk
+
++        # Need to add a restriction so that outer query's filters are in effect for
+
++        # the subquery, too.
+
++        query.bump_prefix(self)
+
++        lookup_class = select_field.get_lookup('exact')
+
++        # Note that the query.select[0].alias is different from alias
+
++        # due to bump_prefix above.
+
++        lookup = lookup_class(pk.get_col(query.select[0].alias),
+
++                              pk.get_col(alias))
+
++        query.where.add(lookup, AND)
+
++        query.external_aliases.add(alias)
+
++
+
++    condition, needed_inner = self.build_filter(
+
++        ('%s__in' % trimmed_prefix, query),
+
++        current_negated=True, branch_negated=True, can_reuse=can_reuse)
+
++    if contains_louter:
+
++        or_null_condition, _ = self.build_filter(
+
++            ('%s__isnull' % trimmed_prefix, True),
+
+             current_negated=True, branch_negated=True, can_reuse=can_reuse)
+
+-        if contains_louter:
+
+-            or_null_condition, _ = self.build_filter(
+
+-                ('%s__isnull' % trimmed_prefix, True),
+
+-                current_negated=True, branch_negated=True, can_reuse=can_reuse)
+
+-            condition.add(or_null_condition, OR)
+
+-            # Note that the end result will be:
+
+-            # (outercol NOT IN innerq AND outercol IS NOT NULL) OR outercol IS NULL.
+
+-            # This might look crazy but due to how IN works, this seems to be
+
+-            # correct. If the IS NOT NULL check is removed then outercol NOT
+
+-            # IN will return UNKNOWN. If the IS NULL check is removed, then if
+
+-            # outercol IS NULL we will not match the row.
+
+-        return condition, needed_inner
+
++        condition.add(or_null_condition, OR)
+
++        # Note that the end result will be:
+
++        # (outercol NOT IN innerq AND outercol IS NOT NULL) OR outercol IS NULL.
+
++        # This might look crazy but due to how IN works, this seems to be
+
++        # correct. If the IS NOT NULL check is removed then outercol NOT
+
++        # IN will return UNKNOWN. If the IS NULL check is removed, then if
+
++        # outercol IS NULL we will not match the row.
+
++    return condition, needed_inner
+
+ 
+
+     def set_empty(self):
+
+         self.where.add(NothingNode(), AND)
+
+

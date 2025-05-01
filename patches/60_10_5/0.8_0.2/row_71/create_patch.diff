@@ -1,0 +1,148 @@
+--- a/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
++++ b/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
+@@ -96,7 +96,7 @@
+         return paths[0]
+
+ 
+
+     @classmethod
+
+-    def create(cls, entry):
+
++def create(cls, entry):
+
+         """
+
+         Factory that creates an app config from an entry in INSTALLED_APPS.
+
+         """
+
+@@ -112,7 +112,7 @@
+         except Exception:
+
+             pass
+
+         else:
+
+-            # If app_module has an apps submodule that defines a single
+
++            # If app_module has an an apps submodule that defines a single
+
+             # AppConfig subclass, use it automatically.
+
+             # To prevent this, an AppConfig subclass can declare a class
+
+             # variable default = False.
+
+@@ -203,55 +203,7 @@
+             # an app module. Provide a nice error message in both cases.
+
+             mod_path, _, cls_name = entry.rpartition('.')
+
+             if mod_path and cls_name[0].isupper():
+
+-                # We could simply re-trigger the string import exception, but
+
+-                # we're going the extra mile and providing a better error
+
+-                # message for typos in INSTALLED_APPS.
+
+-                # This may raise ImportError, which is the best exception
+
+-                # possible if the module at mod_path cannot be imported.
+
+-                mod = import_module(mod_path)
+
+-                candidates = [
+
+-                    repr(name)
+
+-                    for name, candidate in inspect.getmembers(mod, inspect.isclass)
+
+-                    if issubclass(candidate, cls) and candidate is not cls
+
+-                ]
+
+-                msg = "Module '%s' does not contain a '%s' class." % (mod_path, cls_name)
+
+-                if candidates:
+
+-                    msg += ' Choices are: %s.' % ', '.join(candidates)
+
+-                raise ImportError(msg)
+
+-            else:
+
+-                # Re-trigger the module import exception.
+
+-                import_module(entry)
+
+-
+
+-        # Check for obvious errors. (This check prevents duck typing, but
+
+-        # it could be removed if it became a problem in practice.)
+
+-        if not issubclass(app_config_class, AppConfig):
+
+-            raise ImproperlyConfigured(
+
+-                "'%s' isn't a subclass of AppConfig." % entry)
+
+-
+
+-        # Obtain app name here rather than in AppClass.__init__ to keep
+
+-        # all error checking for entries in INSTALLED_APPS in one place.
+
+-        if app_name is None:
+
+-            try:
+
+-                app_name = app_config_class.name
+
+-            except AttributeError:
+
+-                raise ImproperlyConfigured(
+
+-                    "'%s' must supply a name attribute." % entry
+
+-                )
+
+-
+
+-        # Ensure app_name points to a valid module.
+
+-        try:
+
+-            app_module = import_module(app_name)
+
+-        except ImportError:
+
+-            raise ImproperlyConfigured(
+
+-                "Cannot import '%s'. Check that '%s.%s.name' is correct." % (
+
+-                    app_name,
+
+-                    app_config_class.__module__,
+
+-                    app_config_class.__qualname__,
+
+-                )
+
+-            )
+
+-
+
+-        # Entry is a path to an app config class.
+
+-        return app_config_class(app_name, app_module)
+
++                # We could simply re-trigger the string
+
+ 
+
+     def get_model(self, model_name, require_ready=True):
+
+         """

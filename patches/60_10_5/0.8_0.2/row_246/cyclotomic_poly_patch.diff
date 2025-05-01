@@ -1,0 +1,28 @@
+--- a/decoupled/60/0.8_0.2/246/sympy_sympy/sympy/polys/specialpolys.py
++++ b/decoupled/60/0.8_0.2/246/sympy_sympy/sympy/polys/specialpolys.py
+@@ -94,9 +94,11 @@
+     poly = DMP(dup_zz_cyclotomic_poly(int(n), ZZ), ZZ)
+
+ 
+
+     if x is not None:
+
+-        poly = Poly.new(poly, x)
+
++        # Specify the domain explicitly as RR
+
++        poly = Poly(poly, x, domain='RR')
+
+     else:
+
+-        poly = PurePoly.new(poly, Dummy('x'))
+
++        # Create a dummy variable if x is not provided
+
++        poly = PurePoly(poly, Dummy('x'))
+
+ 
+
+     return poly if polys else poly.as_expr()
+
+ 

@@ -1,0 +1,54 @@
+--- a/decoupled/60/0.8_0.2/178/pytest-dev_pytest/testing/test_warnings.py
++++ b/decoupled/60/0.8_0.2/178/pytest-dev_pytest/testing/test_warnings.py
+@@ -288,19 +288,19 @@
+         collected_result = collected[index]
+
+         expected_result = expected[index]
+
+ 
+
+-        assert collected_result[0] == expected_result[0], str(collected)
+
+-        assert collected_result[1] == expected_result[1], str(collected)
+
+-        assert collected_result[2] == expected_result[2], str(collected)
+
++        assert collected_result[0] == expected_result[0], f"Expected warning message '{expected_result[0]}' but got '{collected_result[0]}'"
+
++        assert collected_result[1] == expected_result[1], f"Expected warning when '{expected_result[1]}' but got '{collected_result[1]}'"
+
++        assert collected_result[2] == expected_result[2], f"Expected nodeid '{expected_result[2]}' but got '{collected_result[2]}'"
+
+ 
+
+         # NOTE: collected_result[3] is location, which differs based on the platform you are on
+
+         #       thus, the best we can do here is assert the types of the paremeters match what we expect
+
+         #       and not try and preload it in the expected array
+
+         if collected_result[3] is not None:
+
+-            assert type(collected_result[3][0]) is str, str(collected)
+
+-            assert type(collected_result[3][1]) is int, str(collected)
+
+-            assert type(collected_result[3][2]) is str, str(collected)
+
++            assert type(collected_result[3][0]) is str, f"Expected location[0] to be str but got {type(collected_result[3][0])}"
+
++            assert type(collected_result[3][1]) is int, f"Expected location[1] to be int but got {type(collected_result[3][1])}"
+
++            assert type(collected_result[3][2]) is str, f"Expected location[2] to be str but got {type(collected_result[3][2])}"
+
+         else:
+
+-            assert collected_result[3] is None, str(collected)
+
++            assert collected_result[3] is None, f"Expected location to be None but got {collected_result[3]}"
+
+ 
+
+ 
+
+ @pytest.mark.filterwarnings("always")

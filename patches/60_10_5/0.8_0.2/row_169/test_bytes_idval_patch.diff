@@ -1,0 +1,84 @@
+--- a/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/python/metafunc.py
++++ b/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/python/metafunc.py
+@@ -229,23 +229,24 @@
+         for val, expected in values:
+
+             assert _idval(val, "a", 6, None, item=None, config=None) == expected
+
+ 
+
+-    def test_bytes_idval(self):
+
+-        """unittest for the expected behavior to obtain ids for parametrized
+
+-        bytes values:
+
+-        - python2: non-ascii strings are considered bytes and formatted using
+
+-        "binary escape", where any byte < 127 is escaped into its hex form.
+
+-        - python3: bytes objects are always escaped using "binary escape".
+
+-        """
+
+-        from _pytest.python import _idval
+
+-
+
+-        values = [
+
+-            (b"", ""),
+
+-            (b"\xc3\xb4\xff\xe4", "\\xc3\\xb4\\xff\\xe4"),
+
+-            (b"ascii", "ascii"),
+
+-            (u"αρά".encode("utf-8"), "\\xce\\xb1\\xcf\\x81\\xce\\xac"),
+
+-        ]
+
+-        for val, expected in values:
+
+-            assert _idval(val, "a", 6, idfn=None, item=None, config=None) == expected
+
++def test_bytes_idval(self):
+
++    """unittest for the expected behavior to obtain ids for parametrized
+
++    bytes values:
+
++    - python2: non-ascii strings are considered bytes and formatted using
+
++    "binary escape", where any byte < 127 is escaped into its hex form.
+
++    - python3: bytes objects are always escaped using "binary escape".
+
++    """
+
++    from _pytest.python import _idval
+
++
+
++    values = [
+
++        (b"", ""),
+
++        (b"\xc3\xb4\xff\xe4", "\\xc3\\xb4\\xff\\xe4"),
+
++        (b"ascii", "ascii"),
+
++        (u"αρά".encode("utf-8"), "\\xce\\xb1\\xcf\\x81\\xce\\xac"),
+
++    ]
+
++    for val, expected in values:
+
++        result = _idval(val, "a", 6, idfn=None, item=None, config=None)
+
++        assert result == expected, f"Failed for value: {val}, expected: {expected}, got: {result}"
+
+ 
+
+     def test_class_or_function_idval(self):
+
+         """unittest for the expected behavior to obtain ids for parametrized

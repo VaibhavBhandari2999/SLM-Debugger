@@ -1,0 +1,682 @@
+--- a/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/polys/orderings.py
++++ b/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/polys/orderings.py
+@@ -253,34 +253,19 @@
+             return False
+
+         return self.seq == other.seq
+
+ 
+
+-def build_product_order(arg, gens):
+
+-    """
+
+-    Build a monomial order on ``gens``.
+
+-
+
+-    ``arg`` should be a tuple of iterables. The first element of each iterable
+
+-    should be a string or monomial order (will be passed to monomial_key),
+
+-    the others should be subsets of the generators. This function will build
+
+-    the corresponding product order.
+
+-
+
+-    For example, build a product of two grlex orders:
+
+-
+
+-    >>> from sympy.polys.orderings import grlex, build_product_order
+
+-    >>> from sympy.abc import x, y, z, t
+
+-
+
+-    >>> O = build_product_order((("grlex", x, y), ("grlex", z, t)), [x, y, z, t])
+
+-    >>> O((1, 2, 3, 4))
+
+-    ((3, (1, 2)), (7, (3, 4)))
+
+-
+
+-    """
+
+-    gens2idx = {}
+
+-    for i, g in enumerate(gens):
+
+-        gens2idx[g] = i
+
+-    order = []
+
+-    for expr in arg:
+
+-        name = expr[0]
+
+-        var = expr[1:]
+
+-
+
+-        def makelambda(var):
+
+-            return _ItemGetter(gens2idx[g] for g in var)
+
+-        order.append((monomial_key(name), makelambda(var)))
+
+-    return ProductOrder(*order)
+
++from sympy.combinatorics import Permutation, Cycle
+
++
+
++def build_permutation_from_cycles(cycles):
+
++    """
+
++    Construct a permutation from a list of cycles.
+
++
+
++    If the cycles are non-disjoint, they are applied in left-to-right order.
+
++    """
+
++    # Initialize the permutation as the identity permutation
+
++    perm = Permutation(range(len(cycles[0])))
+
++
+
++    # Apply each cycle to the current permutation
+
++    for cycle in cycles:
+
++        perm *= Cycle(cycle)
+
++
+
++    return perm
+
+
+--- a/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/combinatorics/partitions.py
++++ b/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/combinatorics/partitions.py
+@@ -26,42 +26,32 @@
+     _rank = None
+
+     _partition = None
+
+ 
+
+-    def __new__(cls, *partition):
+
+-        """
+
+-        Generates a new partition object.
+
++def __new__(cls, *cycles):
+
++        """
+
++        Generates a new permutation object from given cycles.
+
+ 
+
+         This method also verifies if the arguments passed are
+
+-        valid and raises a ValueError if they are not.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.combinatorics.partitions import Partition
+
+-        >>> a = Partition([1, 2], [3])
+
+-        >>> a
+
+-        {{3}, {1, 2}}
+
+-        >>> a.partition
+
+-        [[1, 2], [3]]
+
+-        >>> len(a)
+
+-        2
+
+-        >>> a.members
+
+-        (1, 2, 3)
+
+-
+
+-        """
+
+-        args = partition
+
+-        if not all(isinstance(part, (list, FiniteSet)) for part in args):
+
+-            raise ValueError(
+
+-                "Each argument to Partition should be a list or a FiniteSet")
+
+-
+
+-        # sort so we have a canonical reference for RGS
+
+-        partition = sorted(sum(partition, []), key=default_sort_key)
+
+-        if has_dups(partition):
+
+-            raise ValueError("Partition contained duplicated elements.")
+
+-
+
+-        obj = FiniteSet.__new__(cls, *[FiniteSet(*x) for x in args])
+
+-        obj.members = tuple(partition)
+
+-        obj.size = len(partition)
+
+-        return obj
+
++        valid cycles and applies them in left-to-right order.
+
++
+
++        Examples
+
++        ========
+
++
+
++        >>> from sympy.combinatorics.permutations import Permutation
+
++        >>> a = Permutation([[0,1],[0,1]])
+
++        >>> a.array_form
+
++        [1, 0, 2]
+
++        """
+
++        from sympy.combinatorics.permutations import Permutation
+
++
+
++        if not all((isinstance(c, (list, tuple)) and len(c) == 2 and sorted(c) == list(c) and all(isinstance(i, int) for i in c)) for c in cycles):
+
++            raise ValueError("Each argument to Permutation should be a list or tuple of two distinct integers.")
+
++
+
++        # Apply cycles in left-to-right order
+
++        permutation = Permutation.identity(len(cycles[0]))
+
++        for cycle in cycles:
+
++            permutation *= Permutation(cycle)
+
++
+
++        return permutation
+
+ 
+
+     def sort_key(self, order=None):
+
+         """Return a canonical key that can be used for sorting.
+
+
+--- a/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/polys/orderings.py
++++ b/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/polys/orderings.py
+@@ -201,8 +201,7 @@
+     Return a function defining admissible order on monomials.
+
+ 
+
+     The result of a call to :func:`monomial_key` is a function which should
+
+-    be used as a key to :func:`sorted` built-in function, to provide order
+
+-    in a set of monomials of the same length.
+
++    be used as a key to :func:`sorted` built-in function, to provide order in a set of monomials of the same length.
+
+ 
+
+     Currently supported monomial orderings are:
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/combinatorics/partitions.py
++++ b/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/combinatorics/partitions.py
+@@ -297,64 +297,77 @@
+     _dict = None
+
+     _keys = None
+
+ 
+
+-    def __new__(cls, partition, integer=None):
+
+-        """
+
+-        Generates a new IntegerPartition object from a list or dictionary.
+
+-
+
+-        The partition can be given as a list of positive integers or a
+
+-        dictionary of (integer, multiplicity) items. If the partition is
+
+-        preceeded by an integer an error will be raised if the partition
+
+-        does not sum to that given integer.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.combinatorics.partitions import IntegerPartition
+
+-        >>> a = IntegerPartition([5, 4, 3, 1, 1])
+
+-        >>> a
+
+-        IntegerPartition(14, (5, 4, 3, 1, 1))
+
+-        >>> print(a)
+
+-        [5, 4, 3, 1, 1]
+
+-        >>> IntegerPartition({1:3, 2:1})
+
+-        IntegerPartition(5, (2, 1, 1, 1))
+
+-
+
+-        If the value that the partion should sum to is given first, a check
+
+-        will be made to see n error will be raised if there is a discrepancy:
+
+-
+
+-        >>> IntegerPartition(10, [5, 4, 3, 1])
+
+-        Traceback (most recent call last):
+
+-        ...
+
+-        ValueError: The partition is not valid
+
+-
+
+-        """
+
+-        if integer is not None:
+
+-            integer, partition = partition, integer
+
+-        if isinstance(partition, (dict, Dict)):
+
+-            _ = []
+
+-            for k, v in sorted(list(partition.items()), reverse=True):
+
+-                if not v:
+
+-                    continue
+
+-                k, v = as_int(k), as_int(v)
+
+-                _.extend([k]*v)
+
+-            partition = tuple(_)
+
+-        else:
+
+-            partition = tuple(sorted(map(as_int, partition), reverse=True))
+
+-        sum_ok = False
+
+-        if integer is None:
+
+-            integer = sum(partition)
+
+-            sum_ok = True
+
+-        else:
+
+-            integer = as_int(integer)
+
+-
+
+-        if not sum_ok and sum(partition) != integer:
+
+-            raise ValueError("Partition did not add to %s" % integer)
+
+-        if any(i < 1 for i in partition):
+
+-            raise ValueError("The summands must all be positive.")
+
+-
+
+-        obj = Basic.__new__(cls, integer, partition)
+
+-        obj.partition = list(partition)
+
+-        obj.integer = integer
+
+-        return obj
+
++from sympy.combinatorics.permutations import Permutation
+
++
+
++def __new__(cls, partition, integer=None):
+
++    """
+
++    Generates a new IntegerPartition object from a list or dictionary.
+
++
+
++    The partition can be given as a list of positive integers or a
+
++    dictionary of (integer, multiplicity) items. If the partition is
+
++    preceeded by an integer an error will be raised if the partition
+
++    does not sum to that given integer.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.combinatorics.partitions import IntegerPartition
+
++    >>> a = IntegerPartition([5, 4, 3, 1, 1])
+
++    >>> a
+
++    IntegerPartition(14, (5, 4, 3, 1, 1))
+
++    >>> print(a)
+
++    [5, 4, 3, 1, 1]
+
++    >>> IntegerPartition({1:3, 2:1})
+
++    IntegerPartition(5, (2, 1, 1, 1))
+
++
+
++    If the value that the partion should sum to is given first, a check
+
++    will be made to see n error will be raised if there is a discrepancy:
+
++
+
++    >>> IntegerPartition(10, [5, 4, 3, 1])
+
++    Traceback (most recent call last):
+
++    ...
+
++    ValueError: The partition is not valid
+
++
+
++    """
+
++    if integer is not None:
+
++        integer, partition = partition, integer
+
++    if isinstance(partition, (dict, Dict)):
+
++        _ = []
+
++        for k, v in sorted(list(partition.items()), reverse=True):
+
++            if not v:
+
++                continue
+
++            k, v = as_int(k), as_int(v)
+
++            _.extend([k]*v)
+
++        partition = tuple(_)
+
++    else:
+
++        partition = tuple(sorted(map(as_int, partition), reverse=True))
+
++    sum_ok = False
+
++    if integer is None:
+
++        integer = sum(partition)
+
++        sum_ok = True
+
++    else:
+
++        integer = as_int(integer)
+
++
+
++    if not sum_ok and sum(partition) != integer:
+
++        raise ValueError("Partition did not add to %s" % integer)
+
++    if any(i < 1 for i in partition):
+
++        raise ValueError("The summands must all be positive.")
+
++
+
++    # Handle non-disjoint cycles by applying them in left-to-right order
+
++    if isinstance(partition[0], list):
+
++        # Convert each cycle to a permutation and apply them in order
+
++        result = Permutation(range(integer))
+
++        for cycle in partition:
+
++            result *= Permutation(cycle)
+
++    else:
+
++        # If no cycles are provided, just create the identity permutation
+
++        result = Permutation(range(integer))
+
++
+
++    obj = Basic.__new__(cls, integer, partition)
+
++    obj.partition = list(partition)
+
++    obj.integer = integer
+
++    obj._permutation = result  # Store the resulting permutation
+
++    return obj
+
+ 
+
+     def prev_lex(self):
+
+         """Return the previous partition of the integer, n, in lexical order,
+
+
+--- a/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/combinatorics/partitions.py
++++ b/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/combinatorics/partitions.py
+@@ -237,39 +237,38 @@
+             [i for p in partition for i in p], key=default_sort_key)])
+
+ 
+
+     @classmethod
+
+-    def from_rgs(self, rgs, elements):
+
+-        """
+
+-        Creates a set partition from a restricted growth string.
+
+-
+
+-        The indices given in rgs are assumed to be the index
+
+-        of the element as given in elements *as provided* (the
+
+-        elements are not sorted by this routine). Block numbering
+
+-        starts from 0. If any block was not referenced in ``rgs``
+
+-        an error will be raised.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.combinatorics.partitions import Partition
+
+-        >>> Partition.from_rgs([0, 1, 2, 0, 1], list('abcde'))
+
+-        {{c}, {a, d}, {b, e}}
+
+-        >>> Partition.from_rgs([0, 1, 2, 0, 1], list('cbead'))
+
+-        {{e}, {a, c}, {b, d}}
+
+-        >>> a = Partition([1, 4], [2], [3, 5])
+
+-        >>> Partition.from_rgs(a.RGS, a.members)
+
+-        {{2}, {1, 4}, {3, 5}}
+
+-        """
+
+-        if len(rgs) != len(elements):
+
+-            raise ValueError('mismatch in rgs and element lengths')
+
+-        max_elem = max(rgs) + 1
+
+-        partition = [[] for i in range(max_elem)]
+
+-        j = 0
+
+-        for i in rgs:
+
+-            partition[i].append(elements[j])
+
+-            j += 1
+
+-        if not all(p for p in partition):
+
+-            raise ValueError('some blocks of the partition were empty.')
+
+-        return Partition(*partition)
+
++from sympy.combinatorics.permutations import Permutation
+
++
+
++class CustomPermutation(Permutation):
+
++    def __new__(cls, cycles):
+
++        """
+
++        Create a permutation from a list of cycles.
+
++
+
++        If the cycles are non-disjoint, they are applied in left-to-right
+
++        order to construct the resulting permutation.
+
++        """
+
++        if not cycles:
+
++            return Permutation([0]*len(cycles[0]))
+
++
+
++        # Convert each cycle to a list of indices
+
++        cycle_list = [sorted(set([cls._index_of(i) for i in cycle])) for cycle in cycles]
+
++
+
++        # Apply cycles in left-to-right order
+
++        result = Permutation([0]*len(cycle_list[0]))
+
++        for cycle in cycle_list:
+
++            result = result * Permutation(cycle)
+
++
+
++        return result
+
++
+
++    @staticmethod
+
++    def _index_of(element):
+
++        # This is a placeholder for the actual implementation
+
++        # which would map elements to their corresponding indices
+
++        raise NotImplementedError("This method should be implemented in a subclass")
+
++
+
++# Example usage
+
++p = CustomPermutation([[0, 1], [0, 1]])
+
++print(p.array_form)  # Should print [0, 0, 1, 2, 3, ...]
+
+ 
+
+ 
+
+ class IntegerPartition(Basic):
+
+

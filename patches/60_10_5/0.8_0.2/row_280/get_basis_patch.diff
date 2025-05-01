@@ -1,0 +1,28 @@
+--- a/decoupled/60/0.8_0.2/280/sympy_sympy/sympy/physics/quantum/represent.py
++++ b/decoupled/60/0.8_0.2/280/sympy_sympy/sympy/physics/quantum/represent.py
+@@ -491,6 +491,13 @@
+     else:
+
+         return None
+
+ 
+
++# Assuming _make_default and operators_to_state are defined elsewhere
+
++# def _make_default(cls):
+
++#     return cls()
+
++
+
++# def operators_to_state(op):
+
++#     return op.state if hasattr(op, 'state') else None
+
++
+
+ 
+
+ def _make_default(expr):
+
+     # XXX: Catching TypeError like this is a bad way of distinguishing

@@ -1,0 +1,59 @@
+--- a/decoupled/60/0.8_0.2/79/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/79/django_django/django/db/models/deletion.py
+@@ -161,7 +161,7 @@
+             signals.post_delete.has_listeners(model)
+
+         )
+
+ 
+
+-    def can_fast_delete(self, objs, from_field=None):
+
++def can_fast_delete(self, objs, from_field=None):
+
+         """
+
+         Determine if the objects in the given queryset-like or single object
+
+         can be fast-deleted. This can be done if there are no cascades, no
+
+@@ -174,12 +174,15 @@
+         """
+
+         if from_field and from_field.remote_field.on_delete is not CASCADE:
+
+             return False
+
+-        if hasattr(objs, '_meta'):
+
+-            model = objs._meta.model
+
+-        elif hasattr(objs, 'model') and hasattr(objs, '_raw_delete'):
+
+-            model = objs.model
+
++        if isinstance(objs, (QuerySet, Model)):
+
++            if hasattr(objs, '_meta'):
+
++                model = objs._meta.model
+
++            elif hasattr(objs, 'model') and hasattr(objs, '_raw_delete'):
+
++                model = objs.model
+
++            else:
+
++                return False
+
+         else:
+
+-            return False
+
++            model = objs.__class__
+
+         if self._has_signal_listeners(model):
+
+             return False
+
+         # The use of from_field comes from the need to avoid cascade back to

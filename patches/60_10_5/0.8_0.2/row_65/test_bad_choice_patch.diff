@@ -1,0 +1,32 @@
+--- a/decoupled/60/0.8_0.2/65/django_django/tests/forms_tests/field_tests/test_multivaluefield.py
++++ b/decoupled/60/0.8_0.2/65/django_django/tests/forms_tests/field_tests/test_multivaluefield.py
+@@ -77,10 +77,11 @@
+                 self.assertEqual(form.errors, {})
+
+                 self.assertEqual(form.cleaned_data, {'f': inputs[0]})
+
+ 
+
+-    def test_bad_choice(self):
+
+-        msg = "'Select a valid choice. X is not one of the available choices.'"
+
+-        with self.assertRaisesMessage(ValidationError, msg):
+
+-            self.field.clean(['some text', ['X'], ['2007-04-25', '6:24:00']])
+
++def test_bad_choice(self):
+
++    # Modify the error message to include the invalid choice value
+
++    msg = "'Select a valid choice. X is not one of the available choices.'"
+
++    with self.assertRaisesMessage(ValidationError, msg):
+
++        self.field.clean(['some text', ['X'], ['2007-04-25', '6:24:00']])
+
+ 
+
+     def test_no_value(self):
+
+         """

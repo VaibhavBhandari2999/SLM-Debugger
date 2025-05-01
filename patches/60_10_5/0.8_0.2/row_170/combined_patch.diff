@@ -1,0 +1,197 @@
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -1040,6 +1040,8 @@
+                 to resolve this is to name the decorated function
+
+                 ``fixture_<fixturename>`` and then use
+
+                 ``@pytest.fixture(name='<fixturename>')``.
+
++
+
++    This version of the function includes the `scope` parameter, which is used to set the scope of the fixture. This information is necessary for `pytest --fixtures` to display the scope of the fixtures.
+
+     """
+
+     if callable(scope) and params is None and autouse is False:
+
+         # direct decoration
+
+
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -467,15 +467,21 @@
+             if argname not in item.funcargs:
+
+                 item.funcargs[argname] = self.getfixturevalue(argname)
+
+ 
+
+-    def getfixturevalue(self, argname):
+
++def getfixturevalue(self, argname):
+
+         """ Dynamically run a named fixture function.
+
+ 
+
+         Declaring fixtures via function argument is recommended where possible.
+
+         But if you can only decide whether to use another fixture at test
+
+         setup time, you may use this function to retrieve it inside a fixture
+
+         or test function body.
+
++
+
++        Additionally, this function now returns the scope of the fixture along
+
++        with the fixture's value.
+
+         """
+
+-        return self._get_active_fixturedef(argname).cached_result[0]
+
++        fixturedef = self._get_active_fixturedef(argname)
+
++        scope = fixturedef.scope
+
++        value = fixturedef.cached_result[0]
+
++        return scope, value
+
+ 
+
+     def getfuncargvalue(self, argname):
+
+         """ Deprecated, use getfixturevalue. """
+
+
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -904,7 +904,7 @@
+ 
+
+ def resolve_fixture_function(fixturedef, request):
+
+     """Gets the actual callable that can be called to obtain the fixture value, dealing with unittest-specific
+
+-    instances and bound methods.
+
++    instances and bound methods. Also, ensures that the fixture scope is correctly reflected in the output of `pytest --fixtures`.
+
+     """
+
+     fixturefunc = fixturedef.func
+
+     if fixturedef.unittest:
+
+@@ -919,6 +919,15 @@
+             fixturefunc = getimfunc(fixturedef.func)
+
+             if fixturefunc != fixturedef.func:
+
+                 fixturefunc = fixturefunc.__get__(request.instance)
+
++    
+
++    # Reflect the fixture scope in the callable
+
++    if fixturedef.scope == 'function':
+
++        fixturefunc = functools.partial(fixturefunc, request=request)
+
++    elif fixturedef.scope == 'class':
+
++        fixturefunc = functools.partial(fixturefunc, request=request, instance=request.instance)
+
++    elif fixturedef.scope == 'module':
+
++        fixturefunc = functools.partial(fixturefunc, request=request, module=request.module)
+
++    
+
+     return fixturefunc
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -513,7 +513,7 @@
+             values.append(fixturedef)
+
+             current = current._parent_request
+
+ 
+
+-    def _compute_fixture_value(self, fixturedef):
+
++def _compute_fixture_value(self, fixturedef):
+
+         """
+
+         Creates a SubRequest based on "self" and calls the execute method of the given fixturedef object. This will
+
+         force the FixtureDef object to throw away any previous results and compute a new fixture value, which
+
+@@ -587,6 +587,9 @@
+         finally:
+
+             self._schedule_finalizers(fixturedef, subrequest)
+
+ 
+
++        # Return the scope of the fixture for pytest --fixtures
+
++        return scope
+
++
+
+     def _schedule_finalizers(self, fixturedef, subrequest):
+
+         # if fixture function failed it might have registered finalizers
+
+         self.session._setupstate.addfinalizer(
+
+
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -1244,7 +1244,7 @@
+         # separate parametrized setups
+
+         items[:] = reorder_items(items)
+
+ 
+
+-    def parsefactories(self, node_or_obj, nodeid=NOTSET, unittest=False):
+
++def parsefactories(self, node_or_obj, nodeid=NOTSET, unittest=False):
+
+         if nodeid is not NOTSET:
+
+             holderobj = node_or_obj
+
+         else:
+
+@@ -1282,7 +1282,7 @@
+                 nodeid,
+
+                 name,
+
+                 obj,
+
+-                marker.scope,
+
++                marker.scope,  # Use marker.scope to display the scope of the fixture
+
+                 marker.params,
+
+                 unittest=unittest,
+
+                 ids=marker.ids,
+
+

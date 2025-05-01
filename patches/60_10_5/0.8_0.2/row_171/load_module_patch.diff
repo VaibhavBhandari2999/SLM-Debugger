@@ -1,0 +1,75 @@
+--- a/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -279,6 +279,22 @@
+             stacklevel=5,
+
+         )
+
+ 
+
++import logging
+
++import sys
+
++import imp
+
++import os
+
++import six
+
++
+
++# Define the default log format
+
++DEFAULT_LOG_FORMAT = "%(levelname)-8s %(name)s:%(filename)s:%(lineno)d %(message)s"
+
++
+
++# Set up logging with the new format
+
++logging.basicConfig(format=DEFAULT_LOG_FORMAT)
+
++
+
++class ModuleLoader:
+
++    def __init__(self):
+
++        self.modules = {}
+
++
+
+     def load_module(self, name):
+
+         co, pyc = self.modules.pop(name)
+
+         if name in sys.modules:
+
+@@ -304,6 +320,14 @@
+                 del sys.modules[name]
+
+             raise
+
+         return sys.modules[name]
+
++
+
++# Example usage
+
++if __name__ == "__main__":
+
++    loader = ModuleLoader()
+
++    # Simulate loading a module
+
++    co, pyc = None, None  # Replace with actual compiled code and pyc file
+
++    module_name = "example_module"
+
++    loader.load_module(module_name)
+
+ 
+
+     def is_package(self, name):
+
+         try:

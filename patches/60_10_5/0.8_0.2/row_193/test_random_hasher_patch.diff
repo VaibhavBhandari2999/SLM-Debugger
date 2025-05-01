@@ -1,0 +1,81 @@
+--- a/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_forest.py
++++ b/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_forest.py
+@@ -635,17 +635,22 @@
+ 
+
+ # Ignore warnings from switching to more power iterations in randomized_svd
+
+ @ignore_warnings
+
++from sklearn.ensemble import IsolationForest
+
++from sklearn.datasets import make_circles
+
++from sklearn.decomposition import TruncatedSVD
+
++from sklearn.linear_model import LinearSVC
+
++
+
+ def test_random_hasher():
+
+     # test random forest hashing on circles dataset
+
+     # make sure that it is linearly separable.
+
+     # even after projected to two SVD dimensions
+
+     # Note: Not all random_states produce perfect results.
+
+-    hasher = RandomTreesEmbedding(n_estimators=30, random_state=1)
+
+-    X, y = datasets.make_circles(factor=0.5)
+
++    hasher = IsolationForest(n_estimators=30, random_state=1, warm_start=False)
+
++    X, y = make_circles(factor=0.5)
+
+     X_transformed = hasher.fit_transform(X)
+
+ 
+
+     # test fit and transform:
+
+-    hasher = RandomTreesEmbedding(n_estimators=30, random_state=1)
+
++    hasher = IsolationForest(n_estimators=30, random_state=1, warm_start=False)
+
+     assert_array_equal(hasher.fit(X).transform(X).toarray(),
+
+                        X_transformed.toarray())
+
+ 
+
+@@ -657,6 +662,14 @@
+     linear_clf = LinearSVC()
+
+     linear_clf.fit(X_reduced, y)
+
+     assert_equal(linear_clf.score(X_reduced, y), 1.)
+
++
+
++    # Test warm_start functionality
+
++    hasher.warm_start = True
+
++    hasher.n_estimators += 30  # Add more estimators
+
++    X_transformed_warm_start = hasher.fit_transform(X)
+
++    assert_array_equal(hasher.estimators_, hasher._base_estimator.estimators_)
+
++    assert_equal(X_transformed_warm_start.shape[0], X.shape[0])
+
++    assert_array_equal(X_transformed_warm_start.sum(axis=1), hasher.n_estimators)
+
+ 
+
+ 
+
+ def test_random_hasher_sparse_data():

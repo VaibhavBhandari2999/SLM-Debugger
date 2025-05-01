@@ -1,0 +1,48 @@
+--- a/decoupled/60/0.8_0.2/53/django_django/django/core/checks/security/sessions.py
++++ b/decoupled/60/0.8_0.2/53/django_django/django/core/checks/security/sessions.py
+@@ -90,7 +90,22 @@
+ 
+
+ 
+
+ def _session_middleware():
+
+-    return 'django.contrib.sessions.middleware.SessionMiddleware' in settings.MIDDLEWARE
+
++    # Check if the session middleware is enabled
+
++    if 'django.contrib.sessions.middleware.SessionMiddleware' not in settings.MIDDLEWARE:
+
++        return False
+
++    
+
++    # Attempt to load the session data with a fallback mechanism
+
++    try:
+
++        # Load the session data
+
++        request.session.load()
+
++    except (BadSignature, binascii.Error) as e:
+
++        # If there's an error, clear the session and reload
+
++        request.session.flush()
+
++        request.session.save()
+
++        request.session.load()
+
++    
+
++    # Return True if the session is successfully loaded
+
++    return True
+
+ 
+
+ 
+
+ def _session_app():

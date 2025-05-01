@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/93/django_django/tests/check_framework/test_model_field_deprecation.py
++++ b/decoupled/60/0.8_0.2/93/django_django/tests/check_framework/test_model_field_deprecation.py
+@@ -25,7 +25,7 @@
+             ],
+
+         )
+
+ 
+
+-    def test_user_specified_details(self):
+
++def test_user_specified_details(self):
+
+         class MyField(models.Field):
+
+             system_check_deprecated_details = {
+
+                 "msg": "This field is deprecated and will be removed soon.",

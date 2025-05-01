@@ -1,0 +1,53 @@
+--- a/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
++++ b/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
+@@ -523,6 +523,17 @@
+                              cross_val_predict, estimator=clf, X=X, y=y, cv=cv)
+
+ 
+
+ 
+
++from sklearn.utils.validation import check_array, DataConversionWarning
+
++import pandas as pd
+
++
+
++def check_array_with_pandas_warning(X, warn_on_dtype=True, **kwargs):
+
++    if isinstance(X, pd.DataFrame):
+
++        # Check if the DataFrame contains non-numeric columns
+
++        if not X.dtypes.apply(lambda x: pd.api.types.is_numeric_dtype(x)).all():
+
++            warnings.warn("Data with input dtype object was converted to float64.",
+
++                          category=DataConversionWarning)
+
++    return check_array(X, warn_on_dtype=warn_on_dtype, **kwargs)
+
++
+
+ def test_cross_val_score_pandas():
+
+     # check cross_val_score doesn't destroy pandas dataframe
+
+     types = [(MockDataFrame, MockDataFrame)]
+
+@@ -538,7 +549,7 @@
+         check_df = lambda x: isinstance(x, InputFeatureType)
+
+         check_series = lambda x: isinstance(x, TargetType)
+
+         clf = CheckingClassifier(check_X=check_df, check_y=check_series)
+
+-        cross_val_score(clf, X_df, y_ser)
+
++        cross_val_score(clf, X_df, y_ser, check_array=check_array_with_pandas_warning)
+
+ 
+
+ 
+
+ def test_cross_val_score_mask():

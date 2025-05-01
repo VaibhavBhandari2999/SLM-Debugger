@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
++++ b/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
+@@ -15,7 +15,7 @@
+ class AppConfig:
+
+     """Class representing a Django application and its configuration."""
+
+ 
+
+-    def __init__(self, app_name, app_module):
+
++def __init__(self, app_name, app_module):
+
+         # Full Python path to the application e.g. 'django.contrib.admin'.
+
+         self.name = app_name
+
+ 
+
+@@ -56,6 +56,9 @@
+         # Mapping of lowercase model names to model classes. Initially set to
+
+         # None to prevent accidental access before import_models() runs.
+
+         self.models = None
+
++
+
++        # Fix for trailing slash issue
+
++        self.validate_name(os.path.basename(self.path.rstrip(os.sep)), 'directory')
+
+ 
+
+     def __repr__(self):
+
+         return '<%s: %s>' % (self.__class__.__name__, self.label)

@@ -1,0 +1,104 @@
+--- a/decoupled/60/0.8_0.2/295/sympy_sympy/sympy/core/power.py
++++ b/decoupled/60/0.8_0.2/295/sympy_sympy/sympy/core/power.py
+@@ -1382,20 +1382,37 @@
+         dexp = self.exp.diff(s)
+
+         return self * (dexp * log(self.base) + dbase * self.exp/self.base)
+
+ 
+
+-    def _eval_evalf(self, prec):
+
+-        base, exp = self.as_base_exp()
+
+-        if base == S.Exp1:
+
+-            # Use mpmath function associated to class "exp":
+
+-            from sympy.functions.elementary.exponential import exp as exp_function
+
+-            return exp_function(self.exp, evaluate=False)._eval_evalf(prec)
+
+-        base = base._evalf(prec)
+
+-        if not exp.is_Integer:
+
+-            exp = exp._evalf(prec)
+
+-        if exp.is_negative and base.is_number and base.is_extended_real is False:
+
+-            base = base.conjugate() / (base * base.conjugate())._evalf(prec)
+
+-            exp = -exp
+
+-            return self.func(base, exp).expand()
+
+-        return self.func(base, exp)
+
++def _collect_factor_and_dimension(expr):
+
++    from sympy import S
+
++    from sympy.physics.units import Dimension
+
++
+
++    # Extract the base and exponent
+
++    base, exp = expr.as_base_exp()
+
++
+
++    # Check if the base is exp(1)
+
++    if base == S.Exp1:
+
++        # The dimension of exp(expr) is the same as the dimension of expr
+
++        return S.Exp1, exp
+
++
+
++    # Check if the exponent is a dimensionless quantity
+
++    if exp.is_number and exp.is_extended_real and exp.is_dimensionless:
+
++        # The dimension of exp(expr) is Dimension(1)
+
++        return S.Exp1, exp
+
++
+
++    # If the exponent is not dimensionless, we need to handle it differently
+
++    # For now, we assume that the dimension of exp(expr) is the same as the dimension of the base
+
++    return base, exp
+
++
+
++# Test the fixed function
+
++expr = units.second / (units.ohm * units.farad)
+
++dim = SI._collect_factor_and_dimension(expr)[1]
+
++
+
++assert SI.get_dimension_system().is_dimensionless(dim)
+
++
+
++buggy_expr = 100 + exp(expr)
+
++dim = SI._collect_factor_and_dimension(buggy_expr)[1]
+
++
+
++assert SI.get_dimension_system().is_dimensionless(dim)
+
+ 
+
+     def _eval_is_polynomial(self, syms):
+
+         if self.exp.has(*syms):

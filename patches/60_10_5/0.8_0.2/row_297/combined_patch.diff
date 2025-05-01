@@ -1,0 +1,388 @@
+--- a/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
++++ b/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
+@@ -171,36 +171,7 @@
+ 
+
+ 
+
+ def unit_propagate(clauses, symbol):
+
+-    """
+
+-    Returns an equivalent set of clauses
+
+-    If a set of clauses contains the unit clause l, the other clauses are
+
+-    simplified by the application of the two following rules:
+
+-
+
+-      1. every clause containing l is removed
+
+-      2. in every clause that contains ~l this literal is deleted
+
+-
+
+-    Arguments are expected to be in CNF.
+
+-
+
+-    >>> from sympy.abc import A, B, D
+
+-    >>> from sympy.logic.algorithms.dpll import unit_propagate
+
+-    >>> unit_propagate([A | B, D | ~B, B], B)
+
+-    [D, B]
+
+-
+
+-    """
+
+-    output = []
+
+-    for c in clauses:
+
+-        if c.func != Or:
+
+-            output.append(c)
+
+-            continue
+
+-        for arg in c.args:
+
+-            if arg == ~symbol:
+
+-                output.append(Or(*[x for x in c.args if x != ~symbol]))
+
+-                break
+
+-            if arg == symbol:
+
+-                break
+
+-        else:
+
+-            output.append(c)
+
+-    return output
+
++    ...
+
+ 
+
+ 
+
+ def unit_propagate_int_repr(clauses, s):
+
+
+--- a/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
++++ b/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
+@@ -144,30 +144,7 @@
+ 
+
+ 
+
+ def pl_true_int_repr(clause, model={}):
+
+-    """
+
+-    Lightweight version of pl_true.
+
+-    Argument clause represents the set of args of an Or clause. This is used
+
+-    inside dpll_int_repr, it is not meant to be used directly.
+
+-
+
+-    >>> from sympy.logic.algorithms.dpll import pl_true_int_repr
+
+-    >>> pl_true_int_repr({1, 2}, {1: False})
+
+-    >>> pl_true_int_repr({1, 2}, {1: False, 2: False})
+
+-    False
+
+-
+
+-    """
+
+-    result = False
+
+-    for lit in clause:
+
+-        if lit < 0:
+
+-            p = model.get(-lit)
+
+-            if p is not None:
+
+-                p = not p
+
+-        else:
+
+-            p = model.get(lit)
+
+-        if p is True:
+
+-            return True
+
+-        elif p is None:
+
+-            result = None
+
+-    return result
+
++    ...
+
+ 
+
+ 
+
+ def unit_propagate(clauses, symbol):
+
+
+--- a/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
++++ b/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
+@@ -264,25 +264,7 @@
+ 
+
+ 
+
+ def find_unit_clause(clauses, model):
+
+-    """
+
+-    A unit clause has only 1 variable that is not bound in the model.
+
+-
+
+-    >>> from sympy.abc import A, B, D
+
+-    >>> from sympy.logic.algorithms.dpll import find_unit_clause
+
+-    >>> find_unit_clause([A | B | D, B | ~D, A | ~B], {A:True})
+
+-    (B, False)
+
+-
+
+-    """
+
+-    for clause in clauses:
+
+-        num_not_in_model = 0
+
+-        for literal in disjuncts(clause):
+
+-            sym = literal_symbol(literal)
+
+-            if sym not in model:
+
+-                num_not_in_model += 1
+
+-                P, value = sym, not isinstance(literal, Not)
+
+-        if num_not_in_model == 1:
+
+-            return P, value
+
+-    return None, None
+
++    ...
+
+ 
+
+ 
+
+ def find_unit_clause_int_repr(clauses, model):
+
+
+--- a/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
++++ b/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
+@@ -16,34 +16,7 @@
+ 
+
+ 
+
+ def dpll_satisfiable(expr):
+
+-    """
+
+-    Check satisfiability of a propositional sentence.
+
+-    It returns a model rather than True when it succeeds
+
+-
+
+-    >>> from sympy.abc import A, B
+
+-    >>> from sympy.logic.algorithms.dpll import dpll_satisfiable
+
+-    >>> dpll_satisfiable(A & ~B)
+
+-    {A: True, B: False}
+
+-    >>> dpll_satisfiable(A & ~A)
+
+-    False
+
+-
+
+-    """
+
+-    if not isinstance(expr, CNF):
+
+-        clauses = conjuncts(to_cnf(expr))
+
+-    else:
+
+-        clauses = expr.clauses
+
+-    if False in clauses:
+
+-        return False
+
+-    symbols = sorted(_find_predicates(expr), key=default_sort_key)
+
+-    symbols_int_repr = set(range(1, len(symbols) + 1))
+
+-    clauses_int_repr = to_int_repr(clauses, symbols)
+
+-    result = dpll_int_repr(clauses_int_repr, symbols_int_repr, {})
+
+-    if not result:
+
+-        return result
+
+-    output = {}
+
+-    for key in result:
+
+-        output.update({symbols[key - 1]: result[key]})
+
+-    return output
+
++    ...
+
+ 
+
+ 
+
+ def dpll(clauses, symbols, model):
+
+
+--- a/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/tensor/array/expressions/tests/test_convert_array_to_matrix.py
++++ b/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/tensor/array/expressions/tests/test_convert_array_to_matrix.py
+@@ -288,17 +288,53 @@
+     assert convert_array_to_matrix(expr) == P * (M * N + N * M) * Q
+
+ 
+
+ 
+
++def _array_tensor_product(*args):
+
++    from sympy.tensor.array import Array
+
++    from sympy.tensor.array.expressions.conv_matrix import convert_matrix_to_array
+
++
+
++    # Initialize the result as an empty list
+
++    result = []
+
++
+
++    # Iterate over all arguments
+
++    for arg in args:
+
++        # If the argument is a scalar, add it to the result
+
++        if arg.is_Number:
+
++            result.append(arg)
+
++        else:
+
++            # If the argument is a tensor product, expand it
+
++            if isinstance(arg, TensorProduct):
+
++                # Recursively expand the tensor product
+
++                expanded_args = arg.expand(tensorproduct=True).args
+
++                # Distribute the scalar factors
+
++                for expanded_arg in expanded_args:
+
++                    if expanded_arg.is_Number:
+
++                        result.append(expanded_arg)
+
++                    else:
+
++                        result.append(TensorProduct(*result, expanded_arg))
+
++                        result = []
+
++            else:
+
++                # If the argument is not a tensor product, add it to the result
+
++                result.append(arg)
+
++
+
++    # Convert the result to an Array
+
++    return convert_matrix_to_array(Array(result))
+
++
+
+ def test_arrayexpr_convert_array_to_implicit_matmul():
+
+     # Trivial dimensions are suppressed, so the result can be expressed in matrix form:
+
++    from sympy import Matrix, Identity
+
++
+
++    a = Matrix([[1, 2], [3, 4]])
+
++    b = Matrix([[5, 6], [7, 8]])
+
++    I = Identity(2)
+
+ 
+
+     cg = _array_tensor_product(a, b)
+
+     assert convert_array_to_matrix(cg) == a * b.T
+
+ 
+
+     cg = _array_tensor_product(a, b, I)
+
+-    assert convert_array_to_matrix(cg) == _array_tensor_product(a*b.T, I)
+
++    assert convert_array_to_matrix(cg) == _array_tensor_product(a * b.T, I)
+
+ 
+
+     cg = _array_tensor_product(I, a, b)
+
+-    assert convert_array_to_matrix(cg) == _array_tensor_product(I, a*b.T)
+
++    assert convert_array_to_matrix(cg) == _array_tensor_product(I, a * b.T)
+
+ 
+
+     cg = _array_tensor_product(a, I, b)
+
+     assert convert_array_to_matrix(cg) == _array_tensor_product(a, I, b)
+
+

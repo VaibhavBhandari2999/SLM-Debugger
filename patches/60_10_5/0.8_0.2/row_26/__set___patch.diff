@@ -1,0 +1,88 @@
+--- a/decoupled/60/0.8_0.2/26/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/26/django_django/django/db/models/fields/related_descriptors.py
+@@ -305,21 +305,28 @@
+                 return obj
+
+         return super().get_object(instance)
+
+ 
+
+-    def __set__(self, instance, value):
+
+-        super().__set__(instance, value)
+
+-        # If the primary key is a link to a parent model and a parent instance
+
+-        # is being set, update the value of the inherited pk(s).
+
+-        if self.field.primary_key and self.field.remote_field.parent_link:
+
+-            opts = instance._meta
+
+-            # Inherited primary key fields from this object's base classes.
+
+-            inherited_pk_fields = [
+
+-                field for field in opts.concrete_fields
+
+-                if field.primary_key and field.remote_field
+
+-            ]
+
+-            for field in inherited_pk_fields:
+
+-                rel_model_pk_name = field.remote_field.model._meta.pk.attname
+
+-                raw_value = getattr(value, rel_model_pk_name) if value is not None else None
+
+-                setattr(instance, rel_model_pk_name, raw_value)
+
++class Migration(migrations.Migration):
+
++    dependencies = [
+
++        ('app1', '0001_initial'),
+
++    ]
+
++    operations = [
+
++        migrations.RenameField(
+
++            model_name='modela',
+
++            old_name='field_wrong',
+
++            new_name='field_fixed',
+
++        ),
+
++        migrations.AlterField(
+
++            model_name='modelb',
+
++            name='field_fk',
+
++            field=models.ForeignKey(
+
++                blank=True,
+
++                null=True,
+
++                on_delete=django.db.models.deletion.CASCADE,
+
++                to='app1.ModelA',
+
++                to_field='field_fixed',
+
++            ),
+
++        ),
+
++    ]
+
+ 
+
+ 
+
+ class ReverseOneToOneDescriptor:

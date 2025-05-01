@@ -1,0 +1,122 @@
+--- a/decoupled/60/0.8_0.2/35/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/35/django_django/django/db/models/deletion.py
+@@ -211,7 +211,7 @@
+         else:
+
+             return [objs]
+
+ 
+
+-    def collect(self, objs, source=None, nullable=False, collect_related=True,
+
++def collect(self, objs, source=None, nullable=False, collect_related=True,
+
+                 source_attr=None, reverse_dependency=False, keep_parents=False,
+
+                 fail_on_restricted=True):
+
+         """
+
+@@ -294,7 +294,8 @@
+                     sub_objs = sub_objs.only(*tuple(referenced_fields))
+
+                 if sub_objs:
+
+                     try:
+
+-                        field.remote_field.on_delete(self, field, sub_objs, self.using)
+
++                        with transaction.atomic(using=self.using):
+
++                            field.remote_field.on_delete(self, field, sub_objs, self.using)
+
+                     except ProtectedError as error:
+
+                         key = "'%s.%s'" % (field.model.__name__, field.name)
+
+                         protected_objects[key] += error.protected_objects
+
+@@ -306,42 +307,6 @@
+                     ', '.join(protected_objects),
+
+                 ),
+
+                 chain.from_iterable(protected_objects.values()),
+
+-            )
+
+-        for related_model, related_fields in model_fast_deletes.items():
+
+-            batches = self.get_del_batches(new_objs, related_fields)
+
+-            for batch in batches:
+
+-                sub_objs = self.related_objects(related_model, related_fields, batch)
+
+-                self.fast_deletes.append(sub_objs)
+
+-        for field in model._meta.private_fields:
+
+-            if hasattr(field, 'bulk_related_objects'):
+
+-                # It's something like generic foreign key.
+
+-                sub_objs = field.bulk_related_objects(new_objs, self.using)
+
+-                self.collect(sub_objs, source=model, nullable=True, fail_on_restricted=False)
+
+-
+
+-        if fail_on_restricted:
+
+-            # Raise an error if collected restricted objects (RESTRICT) aren't
+
+-            # candidates for deletion also collected via CASCADE.
+
+-            for related_model, instances in self.data.items():
+
+-                self.clear_restricted_objects_from_set(related_model, instances)
+
+-            for qs in self.fast_deletes:
+
+-                self.clear_restricted_objects_from_queryset(qs.model, qs)
+
+-            if self.restricted_objects.values():
+
+-                restricted_objects = defaultdict(list)
+
+-                for related_model, fields in self.restricted_objects.items():
+
+-                    for field, objs in fields.items():
+
+-                        if objs:
+
+-                            key = "'%s.%s'" % (related_model.__name__, field.name)
+
+-                            restricted_objects[key] += objs
+
+-                if restricted_objects:
+
+-                    raise RestrictedError(
+
+-                        'Cannot delete some instances of model %r because '
+
+-                        'they are referenced through restricted foreign keys: '
+
+-                        '%s.' % (
+
+-                            model.__name__,
+
+-                            ', '.join(restricted_objects),
+
+-                        ),
+
+-                        chain.from_iterable(restricted_objects.values()),
+
+-                    )
+
+ 
+
+     def related_objects(self, related_model, related_fields, objs):
+
+         """

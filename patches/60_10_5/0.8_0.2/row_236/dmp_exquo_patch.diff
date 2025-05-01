@@ -1,0 +1,16 @@
+--- a/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/polys/densearith.py
+@@ -1691,6 +1691,7 @@
+     ExactQuotientFailed: [[2], [2]] does not divide [[1], [1, 0], []]
+
+ 
+
+     """
+
++    # Ensure that the function does not contain any operations that might cause issues during pickling
+
+     q, r = dmp_div(f, g, u, K)
+
+ 
+
+     if dmp_zero_p(r, u):

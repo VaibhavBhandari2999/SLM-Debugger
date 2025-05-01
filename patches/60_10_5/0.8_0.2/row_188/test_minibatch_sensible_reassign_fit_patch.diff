@@ -1,0 +1,40 @@
+--- a/decoupled/60/0.8_0.2/188/scikit-learn_scikit-learn/sklearn/cluster/tests/test_k_means.py
++++ b/decoupled/60/0.8_0.2/188/scikit-learn_scikit-learn/sklearn/cluster/tests/test_k_means.py
+@@ -390,14 +390,17 @@
+                                  init="random")
+
+     mb_k_means.fit(zeroed_X)
+
+     # there should not be too many exact zero cluster centers
+
+-    assert_greater(mb_k_means.cluster_centers_.any(axis=1).sum(), 10)
+
++    # The assertion is checking for the number of cluster centers that have any non-zero values.
+
++    # The bug is that the assertion is checking for the sum of any axis, which is incorrect.
+
++    # We need to check if the number of non-zero cluster centers is greater than 10.
+
++    assert_greater(np.count_nonzero(mb_k_means.cluster_centers_.any(axis=1)), 10)
+
+ 
+
+     # do the same with batch-size > X.shape[0] (regression test)
+
+     mb_k_means = MiniBatchKMeans(n_clusters=20, batch_size=201,
+
+                                  random_state=42, init="random")
+
+     mb_k_means.fit(zeroed_X)
+
+     # there should not be too many exact zero cluster centers
+
+-    assert_greater(mb_k_means.cluster_centers_.any(axis=1).sum(), 10)
+
++    assert_greater(np.count_nonzero(mb_k_means.cluster_centers_.any(axis=1)), 10)
+
+ 
+
+ 
+
+ def test_minibatch_sensible_reassign_partial_fit():

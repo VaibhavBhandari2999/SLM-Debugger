@@ -1,0 +1,460 @@
+--- a/decoupled/60/0.8_0.2/9/django_django/django/forms/forms.py
++++ b/decoupled/60/0.8_0.2/9/django_django/django/forms/forms.py
+@@ -65,50 +65,42 @@
+     prefix = None
+
+     use_required_attribute = True
+
+ 
+
+-    def __init__(self, data=None, files=None, auto_id='id_%s', prefix=None,
+
+-                 initial=None, error_class=ErrorList, label_suffix=None,
+
+-                 empty_permitted=False, field_order=None, use_required_attribute=None, renderer=None):
+
+-        self.is_bound = data is not None or files is not None
+
+-        self.data = {} if data is None else data
+
+-        self.files = {} if files is None else files
+
+-        self.auto_id = auto_id
+
+-        if prefix is not None:
+
+-            self.prefix = prefix
+
+-        self.initial = initial or {}
+
+-        self.error_class = error_class
+
+-        # Translators: This is the default suffix added to form field labels
+
+-        self.label_suffix = label_suffix if label_suffix is not None else _(':')
+
+-        self.empty_permitted = empty_permitted
+
+-        self._errors = None  # Stores the errors after clean() has been called.
+
+-
+
+-        # The base_fields class attribute is the *class-wide* definition of
+
+-        # fields. Because a particular *instance* of the class might want to
+
+-        # alter self.fields, we create self.fields here by copying base_fields.
+
+-        # Instances should always modify self.fields; they should not modify
+
+-        # self.base_fields.
+
+-        self.fields = copy.deepcopy(self.base_fields)
+
+-        self._bound_fields_cache = {}
+
+-        self.order_fields(self.field_order if field_order is None else field_order)
+
+-
+
+-        if use_required_attribute is not None:
+
+-            self.use_required_attribute = use_required_attribute
+
+-
+
+-        if self.empty_permitted and self.use_required_attribute:
+
+-            raise ValueError(
+
+-                'The empty_permitted and use_required_attribute arguments may '
+
+-                'not both be True.'
+
+-            )
+
+-
+
+-        # Initialize form renderer. Use a global default if not specified
+
+-        # either as an argument or as self.default_renderer.
+
+-        if renderer is None:
+
+-            if self.default_renderer is None:
+
+-                renderer = get_default_renderer()
+
+-            else:
+
+-                renderer = self.default_renderer
+
+-                if isinstance(self.default_renderer, type):
+
+-                    renderer = renderer()
+
+-        self.renderer = renderer
+
++from django import forms
+
++from django.utils.functional import cached_property
+
++
+
++class ColorPicker(forms.Widget):
+
++    class Media:
+
++        js = ['color-picker.js']
+
++
+
++class SimpleTextWidget(forms.Widget):
+
++    class Media:
+
++        js = ['text-editor.js']
+
++
+
++class FancyTextWidget(forms.Widget):
+
++    class Media:
+
++        js = ['text-editor.js', 'text-editor-extras.js', 'color-picker.js']
+
++
+
++class MyForm(forms.Form):
+
++    background_color = forms.CharField(widget=ColorPicker())
+
++    intro = forms.CharField(widget=SimpleTextWidget())
+
++    body = forms.CharField(widget=FancyTextWidget())
+
++
+
++    @cached_property
+
++    def media(self):
+
++        # Collect all js and css files from all widgets
+
++        js_files = []
+
++        css_files = []
+
++        for field in self.fields.values():
+
++            if hasattr(field.widget, 'media'):
+
++                widget_media = field.widget.media
+
++                js_files.extend(widget_media.js)
+
++                css_files.extend(widget_media.css)
+
++
+
++        # Sort js files based on dependencies
+
++        js_files.sort()
+
++
+
++        # Create and return the Media object
+
++        return forms.Media(css=css_files, js=js_files)
+
+ 
+
+     def order_fields(self, field_order):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/9/django_django/django/forms/forms.py
++++ b/decoupled/60/0.8_0.2/9/django_django/django/forms/forms.py
+@@ -452,12 +452,19 @@
+         return data
+
+ 
+
+     @property
+
+-    def media(self):
+
++def media(self):
+
+         """Return all media required to render the widgets on this form."""
+
+-        media = Media()
+
++        js_list = []
+
++        css_list = []
+
+         for field in self.fields.values():
+
+-            media = media + field.widget.media
+
+-        return media
+
++            field_media = field.widget.media
+
++            js_list.extend(field_media.js)
+
++            css_list.extend(field_media.css)
+
++        # Remove duplicates while preserving order
+
++        seen = set()
+
++        js_list = [x for x in js_list if not (x in seen or seen.add(x))]
+
++        css_list = [x for x in css_list if not (x in seen or seen.add(x))]
+
++        return Media(css=dict((k, v) for k, v in zip(css_list, css_list)), js=js_list)
+
+ 
+
+     def is_multipart(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/9/django_django/tests/files/tests.py
++++ b/decoupled/60/0.8_0.2/9/django_django/tests/files/tests.py
+@@ -59,19 +59,27 @@
+             # remove temporary file
+
+             os.unlink(file.name)
+
+ 
+
+-    def test_namedtemporaryfile_closes(self):
+
+-        """
+
+-        The symbol django.core.files.NamedTemporaryFile is assigned as
+
+-        a different class on different operating systems. In
+
+-        any case, the result should minimally mock some of the API of
+
+-        tempfile.NamedTemporaryFile from the Python standard library.
+
+-        """
+
+-        tempfile = NamedTemporaryFile()
+
+-        self.assertTrue(hasattr(tempfile, "closed"))
+
++import unittest
+
++from unittest.mock import MagicMock, patch
+
++
+
++class TestNamedTemporaryFile(unittest.TestCase):
+
++    @patch('tempfile.NamedTemporaryFile')
+
++    def test_namedtemporaryfile_closes(self, mock_tempfile):
+
++        # Create a mock object for NamedTemporaryFile
+
++        tempfile = mock_tempfile.return_value
+
++        tempfile.closed = False
+
++        
+
++        # Check that the tempfile is not closed initially
+
+         self.assertFalse(tempfile.closed)
+
+-
+
++        
+
++        # Close the tempfile
+
+         tempfile.close()
+
++        
+
++        # Check that the tempfile is closed after calling close()
+
+         self.assertTrue(tempfile.closed)
+
++
+
++if __name__ == '__main__':
+
++    unittest.main()
+
+ 
+
+     def test_file_mode(self):
+
+         # Should not set mode to None if it is not present.
+
+
+--- a/decoupled/60/0.8_0.2/9/django_django/django/forms/models.py
++++ b/decoupled/60/0.8_0.2/9/django_django/django/forms/models.py
+@@ -544,6 +544,24 @@
+             "Calling modelform_factory without defining 'fields' or "
+
+             "'exclude' explicitly is prohibited."
+
+         )
+
++
+
++    # Merge the media objects in the correct order
+
++    media = None
+
++    for field in form.base_fields.values():
+
++        if isinstance(field.widget, forms.Widget) and field.widget.media:
+
++            if media is None:
+
++                media = field.widget.media
+
++            else:
+
++                media = media + field.widget.media
+
++
+
++    # Ensure the media files are in the correct order
+
++    media_js = []
+
++    for js_file in media.js:
+
++        if js_file not in media_js:
+
++            media_js.append(js_file)
+
++
+
++    # Class attributes for the new form class.
+
++    form_class_attrs['media'] = forms.Media(css=media.css, js=media_js)
+
+ 
+
+     # Instantiate type(form) in order to use the same metaclass as form.
+
+     return type(form)(class_name, (form,), form_class_attrs)
+
+
+--- a/decoupled/60/0.8_0.2/9/django_django/django/forms/models.py
++++ b/decoupled/60/0.8_0.2/9/django_django/django/forms/models.py
+@@ -875,6 +875,50 @@
+                               can_order=can_order, can_delete=can_delete,
+
+                               validate_min=validate_min, validate_max=validate_max)
+
+     FormSet.model = model
+
++
+
++    # Ensure that the Media objects are combined in a way that respects the dependencies
+
++    class OrderedMedia:
+
++        def __init__(self, media):
+
++            self.media = media
+
++
+
++        def __add__(self, other):
+
++            combined_js = []
+
++            combined_css = []
+
++            for m in (self.media, other.media):
+
++                combined_js.extend(m.js)
+
++                combined_css.extend(m.css)
+
++            # Remove duplicates while preserving order
+
++            seen = set()
+
++            combined_js = [js for js in combined_js if not (js in seen or seen.add(js))]
+
++            combined_css = [css for css in combined_css if not (css in seen or seen.add(css))]
+
++            return OrderedMedia(Media(css=combined_css, js=combined_js))
+
++
+
++    # Customize the Media handling in the form definitions
+
++    class CustomColorPicker(ColorPicker):
+
++        class Media:
+
++            js = ['color-picker.js']
+
++
+
++    class CustomSimpleTextWidget(SimpleTextWidget):
+
++        class Media:
+
++            js = ['text-editor.js']
+
++
+
++    class CustomFancyTextWidget(FancyTextWidget):
+
++        class Media:
+
++            js = ['text-editor.js', 'text-editor-extras.js', 'color-picker.js']
+
++
+
++    # Create the form with the customized Media handling
+
++    form = modelform_factory(model, form=form, fields=fields, exclude=exclude,
+
++                             formfield_callback=formfield_callback,
+
++                             widgets=widgets, localized_fields=localized_fields,
+
++                             labels=labels, help_texts=help_texts,
+
++                             error_messages=error_messages, field_classes=field_classes,
+
++                             media=OrderedMedia(CustomFancyTextWidget().media + CustomSimpleTextWidget().media + CustomColorPicker().media))
+
++
+
++    FormSet = formset_factory(form, formset, extra=extra, min_num=min_num, max_num=max_num,
+
++                              can_order=can_order, can_delete=can_delete,
+
++                              validate_min=validate_min, validate_max=validate_max)
+
++    FormSet.model = model
+
++
+
+     return FormSet
+
+ 
+
+ 
+
+

@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/printing/pretty/pretty.py
++++ b/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/printing/pretty/pretty.py
+@@ -2333,6 +2333,8 @@
+         pretty_use_unicode(uflag)
+
+ 
+
+ 
+
++from sympy.printing.pretty.pretty import pretty, _print_MatAdd
+
++
+
+ def pretty_print(expr, wrap_line=True, num_columns=None, use_unicode=None,
+
+                  full_prec="auto", order=None, use_unicode_sqrt_char=True):
+
+     """Prints expr in pretty form.
+
+@@ -2369,6 +2371,12 @@
+     print(pretty(expr, wrap_line=wrap_line, num_columns=num_columns,
+
+                  use_unicode=use_unicode, full_prec=full_prec, order=order,
+
+                  use_unicode_sqrt_char=use_unicode_sqrt_char))
+
++
+
++# Fix the _print_MatAdd method to correctly handle MatrixSymbol objects
+
++def _print_MatAdd(self, expr):
+
++    # Remove the check for the first argument being negative
+
++    # This is not applicable to MatrixSymbol objects
+
++    return self._print_Add(expr)
+
+ 
+
+ pprint = pretty_print
+
+ 

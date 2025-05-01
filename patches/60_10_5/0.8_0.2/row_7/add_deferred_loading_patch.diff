@@ -1,0 +1,66 @@
+--- a/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
+@@ -1936,25 +1936,13 @@
+         """Remove any fields from the deferred loading set."""
+
+         self.deferred_loading = (frozenset(), True)
+
+ 
+
+-    def add_deferred_loading(self, field_names):
+
+-        """
+
+-        Add the given list of model field names to the set of fields to
+
+-        exclude from loading from the database when automatic column selection
+
+-        is done. Add the new field names to any existing field names that
+
+-        are deferred (or removed from any existing field names that are marked
+
+-        as the only ones for immediate loading).
+
+-        """
+
+-        # Fields on related models are stored in the literal double-underscore
+
+-        # format, so that we can use a set datastructure. We do the foo__bar
+
+-        # splitting and handling when computing the SQL column names (as part of
+
+-        # get_columns()).
+
+-        existing, defer = self.deferred_loading
+
+-        if defer:
+
+-            # Add to existing deferred names.
+
+-            self.deferred_loading = existing.union(field_names), True
+
+-        else:
+
+-            # Remove names from the set of any existing "immediate load" names.
+
+-            self.deferred_loading = existing.difference(field_names), False
+
++from django.db import models
+
++import os
+
++from django.conf import settings
+
++
+
++class LocalFiles(models.Model):
+
++    name = models.CharField(max_length=255)
+
++    file = models.FilePathField(path=lambda: os.path.join(settings.LOCAL_FILE_DIR, 'example_dir'))
+
+ 
+
+     def add_immediate_loading(self, field_names):
+
+         """

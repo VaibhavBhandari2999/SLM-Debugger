@@ -1,0 +1,59 @@
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
+@@ -65,6 +65,9 @@
+         return len(o.getvalue())
+
+ 
+
+ 
+
++import os
+
++from urllib.parse import urlparse
+
++
+
+ def get_netrc_auth(url):
+
+     """Returns the Requests tuple auth for a given url from netrc."""
+
+ 
+
+@@ -109,6 +112,19 @@
+     # AppEngine hackiness.
+
+     except (ImportError, AttributeError):
+
+         pass
+
++
+
++# Ensure the method is a string before proceeding
+
++def ensure_method_is_string(method):
+
++    if not isinstance(method, str):
+
++        method = method.decode('utf-8')
+
++    return method
+
++
+
++# Example usage
+
++method = b'GET'
+
++method = ensure_method_is_string(method)
+
++url = 'http://example.com'
+
++auth = get_netrc_auth(url)
+
++print(auth)
+
+ 
+
+ 
+
+ def guess_filename(obj):

@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/sphinx/ext/autodoc/importer.py
++++ b/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/sphinx/ext/autodoc/importer.py
+@@ -101,7 +101,7 @@
+         raise ImportError(errmsg)
+
+ 
+
+ 
+
+-def get_module_members(module: Any) -> List[Tuple[str, Any]]:
+
++def get_module_members(module: Any, autosummary_imported_members: bool) -> List[Tuple[str, Any]]:
+
+     """Get members of target module."""
+
+     from sphinx.ext.autodoc import INSTANCEATTR
+
+ 
+
+@@ -109,7 +109,8 @@
+     for name in dir(module):
+
+         try:
+
+             value = safe_getattr(module, name, None)
+
+-            members[name] = (name, value)
+
++            if autosummary_imported_members or name not in globals():
+
++                members[name] = (name, value)
+
+         except AttributeError:
+
+             continue
+
+ 

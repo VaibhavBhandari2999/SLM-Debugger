@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/241/sympy_sympy/sympy/simplify/simplify.py
++++ b/decoupled/60/0.8_0.2/241/sympy_sympy/sympy/simplify/simplify.py
+@@ -1348,8 +1348,8 @@
+     >>> _real_to_rational(.76 + .1*x**.5)
+
+     sqrt(x)/10 + 19/25
+
+ 
+
+-    If rational_conversion='base10', this uses the base-10 string. If
+
+-    rational_conversion='exact', the exact, base-2 representation is used.
+
++    If rational_conversion='exact', this uses the exact, base-2 representation. If
+
++    rational_conversion='base10', the base-10 string is used.
+
+ 
+
+     >>> _real_to_rational(0.333333333333333, rational_conversion='exact')
+
+     6004799503160655/18014398509481984
+
+@@ -1397,6 +1397,8 @@
+                 else:
+
+                     r = Integer(0)
+
+         reps[key] = r
+
++    # Simplify the expression before performing the substitution
+
++    p = p.simplify()
+
+     return p.subs(reps, simultaneous=True)
+
+ 
+
+ 

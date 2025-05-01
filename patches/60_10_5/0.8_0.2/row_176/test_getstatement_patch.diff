@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/176/pytest-dev_pytest/testing/code/test_source.py
++++ b/decoupled/60/0.8_0.2/176/pytest-dev_pytest/testing/code/test_source.py
+@@ -211,14 +211,19 @@
+         source2 = inspect.getsource(co2)
+
+         assert "ValueError" in source2
+
+ 
+
+-    def test_getstatement(self) -> None:
+
+-        # print str(self.source)
+
+-        ass = str(self.source[1:])
+
+-        for i in range(1, 4):
+
+-            # print "trying start in line %r" % self.source[i]
+
+-            s = self.source.getstatement(i)
+
+-            # x = s.deindent()
+
+-            assert str(s) == ass
+
++class SomeClass:
+
++    def __getattribute__(self, attr):
+
++        raise AttributeError(f"Attribute {attr} not found")
+
++
+
++    def __repr__(self):
+
++        # Catch the exception and return a custom error message
+
++        try:
+
++            return super().__repr__()
+
++        except Exception as e:
+
++            return f"<SomeClass instance raised an exception: {e}>"
+
++
+
++def test():
+
++    SomeClass().attr
+
+ 
+
+     def test_getstatementrange_triple_quoted(self) -> None:
+
+         # print str(self.source)

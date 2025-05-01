@@ -1,0 +1,60 @@
+--- a/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/__init__.py
++++ b/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/__init__.py
+@@ -20,13 +20,21 @@
+ 
+
+ 
+
+ def detect(aBuf):
+
+-    if ((version_info < (3, 0) and isinstance(aBuf, unicode)) or
+
+-            (version_info >= (3, 0) and not isinstance(aBuf, bytes))):
+
++    import sys
+
++    from . import universaldetector
+
++    from requests.packages.urllib3.exceptions import DecodeError, TimeoutError
+
++
+
++    if ((sys.version_info < (3, 0) and isinstance(aBuf, unicode)) or
+
++            (sys.version_info >= (3, 0) and not isinstance(aBuf, bytes))):
+
+         raise ValueError('Expected a bytes object, not a unicode object')
+
+ 
+
+-    from . import universaldetector
+
+-    u = universaldetector.UniversalDetector()
+
+-    u.reset()
+
+-    u.feed(aBuf)
+
+-    u.close()
+
+-    return u.result
+
++    try:
+
++        u = universaldetector.UniversalDetector()
+
++        u.reset()
+
++        u.feed(aBuf)
+
++        u.close()
+
++        return u.result
+
++    except (DecodeError, TimeoutError) as e:
+
++        # Handle urllib3 exceptions
+
++        print(f"An exception occurred: {e}")
+
++        raise  # Reraise the exception after handling it

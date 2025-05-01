@@ -1,0 +1,387 @@
+--- a/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -312,21 +312,21 @@
+         """
+
+         return True
+
+ 
+
+-    def __special__(self):
+
+-        """By default special members with docstrings are not included.
+
+-
+
+-        Special members are any methods or attributes that start with and
+
+-        end with a double underscore. Any special member with a docstring
+
+-        will be included in the output, if
+
+-        ``napoleon_include_special_with_doc`` is set to True.
+
+-
+
+-        This behavior can be enabled by changing the following setting in
+
+-        Sphinx's conf.py::
+
+-
+
+-            napoleon_include_special_with_doc = True
+
+-
+
+-        """
+
+-        pass
+
++def __special__(self):
+
++    """By default special members with docstrings are not included.
+
++
+
++    Special members are any methods or attributes that start with and
+
++    end with a double underscore. Any special member with a docstring
+
++    will be included in the output, if
+
++    ``napoleon_include_special_with_doc`` is set to True.
+
++
+
++    This behavior can be enabled by changing the following setting in
+
++    Sphinx's conf.py::
+
++
+
++        napoleon_include_special_with_doc = True
+
++
+
++    """
+
++    pass
+
+ 
+
+     def __special_without_docstring__(self):
+
+         pass
+
+
+--- a/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -133,8 +133,8 @@
+         True if successful, False otherwise.
+
+ 
+
+         The return type is not optional. The ``Returns`` section may span
+
+-        multiple lines and paragraphs. Following lines should be indented to
+
+-        match the first line of the description.
+
++        multiple lines and paragraphs. Following lines
+
++        should be indented to match the first line of the description.
+
+ 
+
+         The ``Returns`` section supports any reStructuredText formatting,
+
+         including literal blocks::
+
+
+--- a/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/sphinx/extension.py
+@@ -35,6 +35,14 @@
+         self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
+ 
+
+ 
+
++from packaging.version import Version, InvalidVersion
+
++from sphinx.application import Sphinx
+
++from sphinx.config import Config
+
++from sphinx.errors import VersionRequirementError
+
++import logging
+
++
+
++logger = logging.getLogger(__name__)
+
++
+
+ def verify_needs_extensions(app: Sphinx, config: Config) -> None:
+
+     """Check that extensions mentioned in :confval:`needs_extensions` satisfy the version
+
+     requirement, and warn if an extension is not loaded.
+
+@@ -62,7 +70,8 @@
+                 if Version(reqversion) > Version(extension.version):
+
+                     fulfilled = False
+
+             except InvalidVersion:
+
+-                if reqversion > extension.version:
+
++                if reqversion != 'unknown version':  # Skip if reqversion is 'unknown version'
+
++                    logger.warning(__('Invalid version string: %s'), reqversion)
+
+                     fulfilled = False
+
+ 
+
+         if not fulfilled:
+
+
+--- a/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/sphinx/extension.py
+@@ -18,21 +18,29 @@
+ 
+
+ 
+
+ class Extension:
+
+-    def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
+-        self.name = name
+
+-        self.module = module
+
+-        self.metadata = kwargs
+
+-        self.version = kwargs.pop('version', 'unknown version')
+
++def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
++    self.name = name
+
++    self.module = module
+
++    self.metadata = kwargs
+
++    self.version = kwargs.pop('version', 'unknown version')
+
+ 
+
+-        # The extension supports parallel read or not.  The default value
+
+-        # is ``None``.  It means the extension does not tell the status.
+
+-        # It will be warned on parallel reading.
+
+-        self.parallel_read_safe = kwargs.pop('parallel_read_safe', None)
+
++    # The extension supports parallel read or not.  The default value
+
++    # is ``None``.  It means the extension does not tell the status.
+
++    # It will be warned on parallel reading.
+
++    self.parallel_read_safe = kwargs.pop('parallel_read_safe', None)
+
+ 
+
+-        # The extension supports parallel write or not.  The default value
+
+-        # is ``True``.  Sphinx writes parallelly documents even if
+
+-        # the extension does not tell its status.
+
+-        self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
++    # The extension supports parallel write or not.  The default value
+
++    # is ``True``.  Sphinx writes parallelly documents even if
+
++    # the extension does not tell its status.
+
++    self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
++
+
++    # Ensure that rst_prolog is not applied to the document content
+
++    # in a way that interferes with the parsing of top-level headings.
+
++    if 'rst_prolog' in kwargs:
+
++        rst_prolog = kwargs['rst_prolog']
+
++        # Apply rst_prolog to the document content after parsing
+
++        # to avoid interference with top-level headings.
+
++        self.metadata['rst_prolog'] = rst_prolog
+
+ 
+
+ 
+
+ def verify_needs_extensions(app: Sphinx, config: Config) -> None:
+
+
+--- a/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -237,39 +237,39 @@
+ 
+
+     """
+
+ 
+
+-    def __init__(self, param1, param2, param3):
+
+-        """Example of docstring on the __init__ method.
+
+-
+
+-        The __init__ method may be documented in either the class level
+
+-        docstring, or as a docstring on the __init__ method itself.
+
+-
+
+-        Either form is acceptable, but the two should not be mixed. Choose one
+
+-        convention to document the __init__ method and be consistent with it.
+
+-
+
+-        Note
+
+-        ----
+
+-        Do not include the `self` parameter in the ``Parameters`` section.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        param1 : str
+
+-            Description of `param1`.
+
+-        param2 : list(str)
+
+-            Description of `param2`. Multiple
+
+-            lines are supported.
+
+-        param3 : :obj:`int`, optional
+
+-            Description of `param3`.
+
+-
+
+-        """
+
+-        self.attr1 = param1
+
+-        self.attr2 = param2
+
+-        self.attr3 = param3  #: Doc comment *inline* with attribute
+
+-
+
+-        #: list(str): Doc comment *before* attribute, with type specified
+
+-        self.attr4 = ["attr4"]
+
+-
+
+-        self.attr5 = None
+
+-        """str: Docstring *after* attribute, with type specified."""
+
++def __init__(self, param1, param2, param3):
+
++    """Example of docstring on the __init__ method.
+
++
+
++    The __init__ method may be documented in either the class level
+
++    docstring, or as a docstring on the __init__ method itself.
+
++
+
++    Either form is acceptable, but the two should not be mixed. Choose one
+
++    convention to document the __init__ method and be consistent with it.
+
++
+
++    Note
+
++    ----
+
++    Do not include the `self` parameter in the ``Parameters`` section.
+
++
+
++    Parameters
+
++    ----------
+
++    param1 : str
+
++        Description of `param1`.
+
++    param2 : list(str)
+
++        Description of `param2`. Multiple
+
++        lines are supported.
+
++    param3 : :obj:`int`, optional
+
++        Description of `param3`.
+
++
+
++    """
+
++    self.attr1 = param1
+
++    self.attr2 = param2
+
++    self.attr3 = param3  #: Doc comment *inline* with attribute
+
++
+
++    #: list(str): Doc comment *before* attribute, with type specified
+
++    self.attr4 = ["attr4"]
+
++
+
++    self.attr5 = None
+
++    """str: Docstring *after* attribute, with type specified."""
+
+ 
+
+     @property
+
+     def readonly_property(self):
+
+

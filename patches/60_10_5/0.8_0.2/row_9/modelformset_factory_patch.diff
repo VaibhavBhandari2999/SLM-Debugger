@@ -1,0 +1,102 @@
+--- a/decoupled/60/0.8_0.2/9/django_django/django/forms/models.py
++++ b/decoupled/60/0.8_0.2/9/django_django/django/forms/models.py
+@@ -875,6 +875,50 @@
+                               can_order=can_order, can_delete=can_delete,
+
+                               validate_min=validate_min, validate_max=validate_max)
+
+     FormSet.model = model
+
++
+
++    # Ensure that the Media objects are combined in a way that respects the dependencies
+
++    class OrderedMedia:
+
++        def __init__(self, media):
+
++            self.media = media
+
++
+
++        def __add__(self, other):
+
++            combined_js = []
+
++            combined_css = []
+
++            for m in (self.media, other.media):
+
++                combined_js.extend(m.js)
+
++                combined_css.extend(m.css)
+
++            # Remove duplicates while preserving order
+
++            seen = set()
+
++            combined_js = [js for js in combined_js if not (js in seen or seen.add(js))]
+
++            combined_css = [css for css in combined_css if not (css in seen or seen.add(css))]
+
++            return OrderedMedia(Media(css=combined_css, js=combined_js))
+
++
+
++    # Customize the Media handling in the form definitions
+
++    class CustomColorPicker(ColorPicker):
+
++        class Media:
+
++            js = ['color-picker.js']
+
++
+
++    class CustomSimpleTextWidget(SimpleTextWidget):
+
++        class Media:
+
++            js = ['text-editor.js']
+
++
+
++    class CustomFancyTextWidget(FancyTextWidget):
+
++        class Media:
+
++            js = ['text-editor.js', 'text-editor-extras.js', 'color-picker.js']
+
++
+
++    # Create the form with the customized Media handling
+
++    form = modelform_factory(model, form=form, fields=fields, exclude=exclude,
+
++                             formfield_callback=formfield_callback,
+
++                             widgets=widgets, localized_fields=localized_fields,
+
++                             labels=labels, help_texts=help_texts,
+
++                             error_messages=error_messages, field_classes=field_classes,
+
++                             media=OrderedMedia(CustomFancyTextWidget().media + CustomSimpleTextWidget().media + CustomColorPicker().media))
+
++
+
++    FormSet = formset_factory(form, formset, extra=extra, min_num=min_num, max_num=max_num,
+
++                              can_order=can_order, can_delete=can_delete,
+
++                              validate_min=validate_min, validate_max=validate_max)
+
++    FormSet.model = model
+
++
+
+     return FormSet
+
+ 
+
+ 

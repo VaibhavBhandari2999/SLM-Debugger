@@ -1,0 +1,65 @@
+--- a/decoupled/60/0.8_0.2/188/scikit-learn_scikit-learn/sklearn/metrics/cluster/supervised.py
++++ b/decoupled/60/0.8_0.2/188/scikit-learn_scikit-learn/sklearn/metrics/cluster/supervised.py
+@@ -167,12 +167,6 @@
+     ARI is symmetric, so labelings that have pure clusters with members
+
+     coming from the same classes but unnecessary splits are penalized::
+
+ 
+
+-      >>> adjusted_rand_score([0, 0, 1, 1], [0, 0, 1, 2])  # doctest: +ELLIPSIS
+
+-      0.57...
+
+-
+
+-    If classes members are completely split across different clusters, the
+
+-    assignment is totally incomplete, hence the ARI is very low::
+
+-
+
+       >>> adjusted_rand_score([0, 0, 0, 0], [0, 1, 2, 3])
+
+       0.0
+
+ 
+
+@@ -200,18 +194,7 @@
+     # These are perfect matches hence return 1.0.
+
+     if (n_classes == n_clusters == 1 or
+
+             n_classes == n_clusters == 0 or
+
+-            n_classes == n_clusters == n_samples):
+
+-        return 1.0
+
+-
+
+-    # Compute the ARI using the contingency data
+
+-    contingency = contingency_matrix(labels_true, labels_pred, sparse=True)
+
+-    sum_comb_c = sum(comb2(n_c) for n_c in np.ravel(contingency.sum(axis=1)))
+
+-    sum_comb_k = sum(comb2(n_k) for n_k in np.ravel(contingency.sum(axis=0)))
+
+-    sum_comb = sum(comb2(n_ij) for n_ij in contingency.data)
+
+-
+
+-    prod_comb = (sum_comb_c * sum_comb_k) / comb2(n_samples)
+
+-    mean_comb = (sum_comb_k + sum_comb_c) / 2.
+
+-    return (sum_comb - prod_comb) / (mean_comb - prod_comb)
+
++            n_classes == n
+
+ 
+
+ 
+
+ def homogeneity_completeness_v_measure(labels_true, labels_pred):

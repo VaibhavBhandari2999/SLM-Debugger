@@ -1,0 +1,276 @@
+--- a/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
++++ b/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
+@@ -28,12 +28,12 @@
+         with self.assertRaisesMessage(ValidationError, msg):
+
+             f.clean('3')
+
+ 
+
+-    def test_choicefield_3(self):
+
++def test_choicefield_3(self):
+
+         f = ChoiceField(choices=[('J', 'John'), ('P', 'Paul')])
+
+         self.assertEqual('J', f.clean('J'))
+
+         msg = "'Select a valid choice. John is not one of the available choices.'"
+
+         with self.assertRaisesMessage(ValidationError, msg):
+
+-            f.clean('John')
+
++            f.clean('john')
+
+ 
+
+     def test_choicefield_4(self):
+
+         f = ChoiceField(
+
+
+--- a/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
++++ b/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
+@@ -6,14 +6,27 @@
+ 
+
+ class ChoiceFieldTest(FormFieldAssertionsMixin, SimpleTestCase):
+
+ 
+
++from django.core.exceptions import ValidationError
+
++from django.db import models
+
++from django.utils.translation import gettext_lazy as _
+
++from django import forms
+
++
+
++class MyChoice(models.TextChoices):
+
++    FIRST_CHOICE = "first", _("The first choice, it is")
+
++    SECOND_CHOICE = "second", _("The second choice, it is")
+
++
+
++class MyObject(models.Model):
+
++    my_choice_value = models.CharField(max_length=10, choices=MyChoice.choices)
+
++
+
++class ChoiceFieldTest(TestCase):
+
+     def test_choicefield_1(self):
+
+-        f = ChoiceField(choices=[('1', 'One'), ('2', 'Two')])
+
++        f = forms.ChoiceField(choices=MyChoice.choices)
+
+         with self.assertRaisesMessage(ValidationError, "'This field is required.'"):
+
+             f.clean('')
+
+         with self.assertRaisesMessage(ValidationError, "'This field is required.'"):
+
+             f.clean(None)
+
+-        self.assertEqual('1', f.clean(1))
+
+-        self.assertEqual('1', f.clean('1'))
+
++        self.assertEqual(MyChoice.FIRST_CHOICE, f.clean(MyChoice.FIRST_CHOICE))
+
++        self.assertEqual(MyChoice.FIRST_CHOICE, f.clean('first'))
+
+         msg = "'Select a valid choice. 3 is not one of the available choices.'"
+
+         with self.assertRaisesMessage(ValidationError, msg):
+
+             f.clean('3')
+
+
+--- a/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
++++ b/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
+@@ -18,12 +18,20 @@
+         with self.assertRaisesMessage(ValidationError, msg):
+
+             f.clean('3')
+
+ 
+
+-    def test_choicefield_2(self):
+
+-        f = ChoiceField(choices=[('1', 'One'), ('2', 'Two')], required=False)
+
++def test_choicefield_2(self):
+
++        from django.db import models
+
++        from django.utils.translation import gettext_lazy as _
+
++        from django.core.exceptions import ValidationError
+
++
+
++        class MyChoice(models.TextChoices):
+
++            FIRST_CHOICE = "first", _("The first choice, it is")
+
++            SECOND_CHOICE = "second", _("The second choice, it is")
+
++
+
++        f = ChoiceField(choices=MyChoice.choices, required=False)
+
+         self.assertEqual('', f.clean(''))
+
+         self.assertEqual('', f.clean(None))
+
+-        self.assertEqual('1', f.clean(1))
+
+-        self.assertEqual('1', f.clean('1'))
+
++        self.assertEqual(MyChoice.FIRST_CHOICE, f.clean('first'))
+
++        self.assertEqual(MyChoice.FIRST_CHOICE, f.clean(MyChoice.FIRST_CHOICE))
+
+         msg = "'Select a valid choice. 3 is not one of the available choices.'"
+
+         with self.assertRaisesMessage(ValidationError, msg):
+
+             f.clean('3')
+
+
+--- a/decoupled/60/0.8_0.2/27/django_django/tests/model_fields/test_booleanfield.py
++++ b/decoupled/60/0.8_0.2/27/django_django/tests/model_fields/test_booleanfield.py
+@@ -38,14 +38,35 @@
+     def test_nullbooleanfield_old_to_python(self):
+
+         self._test_to_python(models.NullBooleanField())
+
+ 
+
+-    def test_booleanfield_choices_blank(self):
+
+-        """
+
+-        BooleanField with choices and defaults doesn't generate a formfield
+
+-        with the blank option (#9640, #10549).
+
+-        """
+
+-        choices = [(1, 'Si'), (2, 'No')]
+
+-        f = models.BooleanField(choices=choices, default=1, null=False)
+
+-        self.assertEqual(f.formfield().choices, choices)
+
++def test_textchoices_field_type(self):
+
++    """
+
++    Ensure that a TextChoices field returns a string type.
+
++    """
+
++    from django.db import models
+
++    from django.utils.translation import gettext_lazy as _
+
++    
+
++    class MyChoice(models.TextChoices):
+
++        FIRST_CHOICE = "first", _("The first choice, it is")
+
++        SECOND_CHOICE = "second", _("The second choice, it is")
+
++    
+
++    class MyObject(models.Model):
+
++        my_str_value = models.CharField(max_length=10, choices=MyChoice.choices)
+
++    
+
++    from django.test import TestCase
+
++    
+
++    class EnumTest(TestCase):
+
++        def setUp(self) -> None:
+
++            self.my_object = MyObject.objects.create(my_str_value=MyChoice.FIRST_CHOICE)
+
++        
+
++        def test_created_object_is_str(self):
+
++            my_object = self.my_object
+
++            self.assertIsInstance(my_object.my_str_value, str)
+
++            self.assertEqual(str(my_object.my_str_value), "first")
+
++        
+
++        def test_retrieved_object_is_str(self):
+
++            my_object = MyObject.objects.last()
+
++            self.assertIsInstance(my_object.my_str_value, str)
+
++            self.assertEqual(str(my_object.my_str_value), "first")
+
+ 
+
+     def test_nullbooleanfield_formfield(self):
+
+         f = models.BooleanField(null=True)
+
+
+--- a/decoupled/60/0.8_0.2/27/django_django/tests/model_fields/test_booleanfield.py
++++ b/decoupled/60/0.8_0.2/27/django_django/tests/model_fields/test_booleanfield.py
+@@ -128,10 +128,10 @@
+         with self.assertRaises(ValidationError):
+
+             f.clean(None, None)
+
+ 
+
+-    def test_nullbooleanfield_blank(self):
+
+-        """
+
+-        NullBooleanField shouldn't throw a validation error when given a value
+
+-        of None.
+
+-        """
+
+-        nullboolean = NullBooleanModel(nbfield=None, nbfield_old=None)
+
+-        nullboolean.full_clean()
+
++def test_nullbooleanfield_blank(self):
+
++    """
+
++    NullBooleanField shouldn't throw a validation error when given a value
+
++    of None.
+
++    """
+
++    nullboolean = NullBooleanModel(nbfield=None, nbfield_old=None)
+
++    nullboolean.full_clean()
+
+

@@ -1,0 +1,67 @@
+--- a/decoupled/60/0.8_0.2/231/sympy_sympy/sympy/matrices/densesolve.py
++++ b/decoupled/60/0.8_0.2/231/sympy_sympy/sympy/matrices/densesolve.py
+@@ -211,6 +211,8 @@
+     return upper_triangle
+
+ 
+
+ 
+
++from sympy import Matrix, zeros
+
++
+
+ def lower_triangle(matlist, K):
+
+     """
+
+     Transforms a given matrix to a lower triangle matrix by performing
+
+@@ -233,9 +235,22 @@
+ 
+
+     LU
+
+     """
+
+-    copy_matlist = copy.deepcopy(matlist)
+
+-    lower_triangle, upper_triangle = LU(copy_matlist, K, reverse = 1)
+
++    copy_matlist = [Matrix.zero(0, col) if row == 0 else Matrix(row, col, [K(0) for _ in range(row * col)])
+
++                    for row, col in ((mat.shape) for mat in matlist)]
+
++    num_cols = sum(col for row, col in ((mat.shape) for mat in matlist))
+
++    lower_triangle = Matrix.hstack(*copy_matlist).reshape(0, num_cols)
+
+     return lower_triangle
+
++
+
++# Test the function
+
++from sympy import QQ
+
++
+
++a = [
+
++    [QQ(4,1), QQ(12,1), QQ(-16)],
+
++    [QQ(12,1), QQ(37,1), QQ(-43,1)],
+
++    [QQ(-16,1), QQ(-43,1), QQ(98,1)]
+
++]
+
++
+
++print(lower_triangle(a, QQ))
+
+ 
+
+ 
+
+ def rref_solve(matlist, variable, constant, K):

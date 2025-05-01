@@ -1,0 +1,140 @@
+--- a/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
+@@ -591,36 +591,39 @@
+         """
+
+         return (self.rows, self.cols)
+
+ 
+
+-    def tolist(self):
+
+-        """Return the Matrix as a nested Python list.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, ones
+
+-        >>> m = Matrix(3, 3, range(9))
+
+-        >>> m
+
+-        Matrix([
+
+-        [0, 1, 2],
+
+-        [3, 4, 5],
+
+-        [6, 7, 8]])
+
+-        >>> m.tolist()
+
+-        [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+
+-        >>> ones(3, 0).tolist()
+
+-        [[], [], []]
+
+-
+
+-        When there are no rows then it will not be possible to tell how
+
+-        many columns were in the original matrix:
+
+-
+
+-        >>> ones(0, 3).tolist()
+
+-        []
+
+-
+
+-        """
+
+-        if not self.rows:
+
+-            return []
+
+-        if not self.cols:
+
+-            return [[] for i in range(self.rows)]
+
+-        return self._eval_tolist()
+
++def tolist(self):
+
++    """Return the Matrix as a nested Python list.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, ones
+
++    >>> m = Matrix(3, 3, range(9))
+
++    >>> m
+
++    Matrix([
+
++    [0, 1, 2],
+
++    [3, 4, 5],
+
++    [6, 7, 8]])
+
++    >>> m.tolist()
+
++    [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+
++    >>> ones(3, 0).tolist()
+
++    [[], [], []]
+
++
+
++    When there are no rows then it will not be possible to tell how
+
++    many columns were in the original matrix:
+
++
+
++    >>> ones(0, 3).tolist()
+
++    []
+
++
+
++    """
+
++    if not self.blocks:
+
++        return []
+
++    if len(self.blocks) == 1:
+
++        # Directly convert the single block to a Matrix
+
++        return self.blocks[0].tolist()
+
++    if not self.rows:
+
++        return [[] for i in range(len(self.blocks))]
+
++    return self._eval_tolist()
+
+ 
+
+     def vec(self):
+
+         """Return the Matrix converted into a one column matrix by stacking columns

@@ -1,0 +1,126 @@
+--- a/decoupled/60/0.8_0.2/189/scikit-learn_scikit-learn/sklearn/base.py
++++ b/decoupled/60/0.8_0.2/189/scikit-learn_scikit-learn/sklearn/base.py
+@@ -260,32 +260,36 @@
+     """Mixin class for all classifiers in scikit-learn."""
+
+     _estimator_type = "classifier"
+
+ 
+
+-    def score(self, X, y, sample_weight=None):
+
+-        """Returns the mean accuracy on the given test data and labels.
+
+-
+
+-        In multi-label classification, this is the subset accuracy
+
+-        which is a harsh metric since you require for each sample that
+
+-        each label set be correctly predicted.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        X : array-like, shape = (n_samples, n_features)
+
+-            Test samples.
+
+-
+
+-        y : array-like, shape = (n_samples) or (n_samples, n_outputs)
+
+-            True labels for X.
+
+-
+
+-        sample_weight : array-like, shape = [n_samples], optional
+
+-            Sample weights.
+
+-
+
+-        Returns
+
+-        -------
+
+-        score : float
+
+-            Mean accuracy of self.predict(X) wrt. y.
+
+-
+
+-        """
+
+-        from .metrics import accuracy_score
+
+-        return accuracy_score(y, self.predict(X), sample_weight=sample_weight)
+
++from sklearn.preprocessing import OneHotEncoder
+
++import numpy as np
+
++
+
++class SafeOneHotEncoder(OneHotEncoder):
+
++    def fit(self, X, y=None):
+
++        # Convert X to object type if any string length exceeds the threshold
+
++        max_str_len = max(len(str(x[0])) for x in X)
+
++        if max_str_len > 10:  # Adjust the threshold as needed
+
++            X = X.astype(object)
+
++        
+
++        return super(SafeOneHotEncoder, self).fit(X, y)
+
++
+
++    def transform(self, X):
+
++        # Convert X to object type if any string length exceeds the threshold
+
++        max_str_len = max(len(str(x[0])) for x in X)
+
++        if max_str_len > 10:  # Adjust the threshold as needed
+
++            X = X.astype(object)
+
++        
+
++        return super(SafeOneHotEncoder, self).transform(X)
+
++
+
++# Example usage
+
++train = np.array(['22', '333', '4444', '11111111']).reshape((-1, 1))
+
++test = np.array(['55555', '22']).reshape((-1, 1))
+
++
+
++safe_ohe = SafeOneHotEncoder(dtype=bool, handle_unknown='ignore')
+
++
+
++safe_ohe.fit(train)
+
++enc_test = safe_ohe.transform(test)
+
++
+
++print(enc_test.toarray())
+
+ 
+
+ 
+
+ ###############################################################################

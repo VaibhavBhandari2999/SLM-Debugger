@@ -1,0 +1,152 @@
+--- a/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
++++ b/decoupled/60/0.8_0.2/133/matplotlib_matplotlib/doc/sphinxext/missing_references.py
+@@ -239,46 +239,35 @@
+     return ignored_references
+
+ 
+
+ 
+
+-def prepare_missing_references_handler(app):
+
+-    """
+
+-    Handler called to initialize this extension once the configuration
+
+-    is ready.
+
+-
+
+-    Reads the missing references file and populates ``nitpick_ignore`` if
+
+-    appropriate.
+
+-    """
+
+-    if not app.config.missing_references_enabled:
+
+-        # no-op when we are disabled.
+
+-        return
+
+-
+
+-    sphinx_logger = logging.getLogger('sphinx')
+
+-    missing_reference_filter = MissingReferenceFilter(app)
+
+-    for handler in sphinx_logger.handlers:
+
+-        if (isinstance(handler, sphinx_logging.WarningStreamHandler)
+
+-                and missing_reference_filter not in handler.filters):
+
+-
+
+-            # This *must* be the first filter, because subsequent filters
+
+-            # throw away the node information and then we can't identify
+
+-            # the reference uniquely.
+
+-            handler.filters.insert(0, missing_reference_filter)
+
+-
+
+-    app.env.missing_references_ignored_references = {}
+
+-
+
+-    json_path = (Path(app.confdir) /
+
+-                    app.config.missing_references_filename)
+
+-    if not json_path.exists():
+
+-        return
+
+-
+
+-    ignored_references = _read_missing_references_json(json_path)
+
+-
+
+-    app.env.missing_references_ignored_references = ignored_references
+
+-
+
+-    # If we are going to re-write the JSON file, then don't suppress missing
+
+-    # reference warnings. We want to record a full list of missing references
+
+-    # for use later. Otherwise, add all known missing references to
+
+-    # ``nitpick_ignore```
+
+-    if not app.config.missing_references_write_json:
+
+-        app.config.nitpick_ignore.extend(ignored_references.keys())
+
++import matplotlib.pyplot as plt
+
++
+
++def set_xticks_with_validation(ax, ticks, **kwargs):
+
++    """
+
++    Set the x-ticks on the axis and validate the kwargs.
+
++    
+
++    This function ensures that any kwargs passed are valid for Text properties,
+
++    even if labels are not explicitly set.
+
++    """
+
++    # Set the x-ticks
+
++    ax.set_xticks(ticks)
+
++    
+
++    # Validate the kwargs
+
++    valid_text_properties = {'color', 'size', 'weight', 'family', 'rotation', 'ha', 'va', 'labelpad', 'y'}
+
++    for key, value in kwargs.items():
+
++        if key not in valid_text_properties:
+
++            raise ValueError(f"Invalid Text property: {key}")
+
++    
+
++    # Apply the kwargs to the x-ticks labels
+
++    for label in ax.get_xticklabels():
+
++        for prop, value in kwargs.items():
+
++            setattr(label, prop, value)
+
++
+
++# Example usage
+
++fig, ax = plt.subplots()
+
++ax.plot([0, 1], [0, 1])
+
++ax.set_xticks([0, 1], **{'color': 'red', 'size': 12})  # This should work
+
++# ax.set_xticks([0, 1], **{'invalid_property': 'value'})  # This should raise an error
+
++plt.show()
+
+ 
+
+ 
+
+ def setup(app):

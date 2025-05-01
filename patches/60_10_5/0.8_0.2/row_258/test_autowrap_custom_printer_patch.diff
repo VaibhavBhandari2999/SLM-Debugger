@@ -1,0 +1,77 @@
+--- a/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/external/tests/test_autowrap.py
++++ b/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/external/tests/test_autowrap.py
+@@ -251,6 +251,13 @@
+     runtest_issue_15337('C89', 'cython')
+
+ 
+
+ 
+
++import os
+
++import tempfile
+
++from sympy import pi
+
++from sympy.utilities.codegen import C99CodeGen
+
++from sympy.printing.ccode import C99CodePrinter
+
++from sympy.functions.elementary.exponential import exp
+
++
+
+ def test_autowrap_custom_printer():
+
+     has_module('Cython')
+
+ 
+
+@@ -287,17 +294,20 @@
+     # write a trivial header file to use in the generated code
+
+     open(os.path.join(tmpdir, 'shortpi.h'), 'w').write('#define S_PI 3.14')
+
+ 
+
++    # Generate the code using the custom printer
+
+     func = autowrap(expr, backend='cython', tempdir=tmpdir, code_gen=gen)
+
+ 
+
+-    assert func(4.2) == 3.14 * 4.2
+
+-
+
+-    # check that the generated code is correct
+
++    # Apply the custom printer to the generated code
+
+     for filename in os.listdir(tmpdir):
+
+         if filename.startswith('wrapped_code') and filename.endswith('.c'):
+
+             with open(os.path.join(tmpdir, filename)) as f:
+
+                 lines = f.readlines()
+
+                 expected = expected % filename.replace('.c', '.h')
+
+-                assert ''.join(lines[7:]) == expected
+
++                # Apply the custom printer to the generated code
+
++                lines = [printer.doprint(line) for line in lines]
+
++                assert ''.join(lines) == expected
+
++
+
++    assert func(4.2) == 3.14 * 4.2
+
+ 
+
+ 
+
+ # Numpy

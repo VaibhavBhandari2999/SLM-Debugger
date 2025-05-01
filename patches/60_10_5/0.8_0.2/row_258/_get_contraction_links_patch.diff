@@ -1,0 +1,194 @@
+--- a/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/codegen/array_utils.py
++++ b/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/codegen/array_utils.py
+@@ -380,48 +380,54 @@
+         )
+
+         return CodegenArrayContraction(c_tp, *new_contr_indices)
+
+ 
+
+-    def _get_contraction_links(self):
+
+-        r"""
+
+-        Returns a dictionary of links between arguments in the tensor product
+
+-        being contracted.
+
+-
+
+-        See the example for an explanation of the values.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import MatrixSymbol, MatrixExpr, Sum, Symbol
+
+-        >>> from sympy.abc import i, j, k, l, N
+
+-        >>> from sympy.codegen.array_utils import CodegenArrayContraction
+
+-        >>> A = MatrixSymbol("A", N, N)
+
+-        >>> B = MatrixSymbol("B", N, N)
+
+-        >>> C = MatrixSymbol("C", N, N)
+
+-        >>> D = MatrixSymbol("D", N, N)
+
+-
+
+-        Matrix multiplications are pairwise contractions between neighboring
+
+-        matrices:
+
+-
+
+-        `A_{ij} B_{jk} C_{kl} D_{lm}`
+
+-
+
+-        >>> cg = CodegenArrayContraction.from_MatMul(A*B*C*D)
+
+-        >>> cg
+
+-        CodegenArrayContraction(CodegenArrayTensorProduct(A, B, C, D), (1, 2), (3, 4), (5, 6))
+
+-        >>> cg._get_contraction_links()
+
+-        {0: {1: (1, 0)}, 1: {0: (0, 1), 1: (2, 0)}, 2: {0: (1, 1), 1: (3, 0)}, 3: {0: (2, 1)}}
+
+-
+
+-        This dictionary is interpreted as follows: argument in position 0 (i.e.
+
+-        matrix `A`) has its second index (i.e. 1) contracted to `(1, 0)`, that
+
+-        is argument in position 1 (matrix `B`) on the first index slot of `B`,
+
+-        this is the contraction provided by the index `j` from `A`.
+
+-
+
+-        The argument in position 1 (that is, matrix `B`) has two contractions,
+
+-        the ones provided by the indices `j` and `k`, respectively the first
+
+-        and second indices (0 and 1 in the sub-dict).  The link `(0, 1)` and
+
+-        `(2, 0)` respectively. `(0, 1)` is the index slot 1 (the 2nd) of
+
+-        argument in position 0 (that is, `A_{\ldot j}`), and so on.
+
+-        """
+
+-        args, dlinks = _get_contraction_links([self], self.subranks, *self.contraction_indices)
+
+-        return dlinks
+
++def _get_contraction_links(self):
+
++    r"""
+
++    Returns a dictionary of links between arguments in the tensor product
+
++    being contracted.
+
++
+
++    See the example for an explanation of the values.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import MatrixSymbol, MatrixExpr, Sum, Symbol
+
++    >>> from sympy.abc import i, j, k, l, N
+
++    >>> from sympy.codegen.array_utils import CodegenArrayContraction
+
++    >>> A = MatrixSymbol("A", N, N)
+
++    >>> B = MatrixSymbol("B", N, N)
+
++    >>> C = MatrixSymbol("C", N, N)
+
++    >>> D = MatrixSymbol("D", N, N)
+
++
+
++    Matrix multiplications are pairwise contractions between neighboring
+
++    matrices:
+
++
+
++    `A_{ij} B_{jk} C_{kl} D_{lm}`
+
++
+
++    >>> cg = CodegenArrayContraction.from_MatMul(A*B*C*D)
+
++    >>> cg
+
++    CodegenArrayContraction(CodegenArrayTensorProduct(A, B, C, D), (1, 2), (3, 4), (5, 6))
+
++    >>> cg._get_contraction_links()
+
++    {0: {1: (1, 0)}, 1: {0: (0, 1), 1: (2, 0)}, 2: {0: (1, 1), 1: (3, 0)}, 3: {0: (2, 1)}}
+
++
+
++    This dictionary is interpreted as follows: argument in position 0 (i.e.
+
++    matrix `A`) has its second index (i.e. 1) contracted to `(1, 0)`, that
+
++    is argument in position 1 (matrix `B`) on the first index slot of `B`,
+
++    this is the contraction provided by the index `j` from `A`.
+
++
+
++    The argument in position 1 (that is, matrix `B`) has two contractions,
+
++    the ones provided by the indices `j` and `k`, respectively the first
+
++    and second indices (0 and 1 in the sub-dict).  The link `(0, 1)` and
+
++    `(2, 0)` respectively. `(0, 1)` is the index slot 1 (the 2nd) of
+
++    argument in position 0 (that is, `A_{\ldot j}`), and so on.
+
++    """
+
++    # Get the contraction links for the tensor product
+
++    args, dlinks = _get_contraction_links([self], self.subranks, *self.contraction_indices)
+
++
+
++    # Filter out links for arguments that do not appear in the final expression
+
++    final_args = set(self.contraction_indices)
+
++    filtered_dlinks = {arg: {other_arg: link for other_arg, link in links.items() if other_arg in final_args} for arg, links in dlinks.items()}
+
++
+
++    return filtered_dlinks
+
+ 
+
+     @staticmethod
+
+     def from_MatMul(expr):

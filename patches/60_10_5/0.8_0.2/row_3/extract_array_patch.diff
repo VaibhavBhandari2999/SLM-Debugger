@@ -1,0 +1,74 @@
+--- a/decoupled/60/0.8_0.2/3/astropy_astropy/astropy/nddata/utils.py
++++ b/decoupled/60/0.8_0.2/3/astropy_astropy/astropy/nddata/utils.py
+@@ -236,35 +236,7 @@
+     if mode not in ["partial", "trim", "strict"]:
+
+         raise ValueError("Valid modes are 'partial', 'trim', and 'strict'.")
+
+ 
+
+-    large_slices, small_slices = overlap_slices(
+
+-        array_large.shape, shape, position, mode=mode
+
+-    )
+
+-    extracted_array = array_large[large_slices]
+
+-    if return_position:
+
+-        new_position = [i - s.start for i, s in zip(position, large_slices)]
+
+-
+
+-    # Extracting on the edges is presumably a rare case, so treat special here
+
+-    if (extracted_array.shape != shape) and (mode == "partial"):
+
+-        extracted_array = np.zeros(shape, dtype=array_large.dtype)
+
+-        try:
+
+-            extracted_array[:] = fill_value
+
+-        except ValueError as exc:
+
+-            exc.args += (
+
+-                "fill_value is inconsistent with the data type of "
+
+-                "the input array (e.g., fill_value cannot be set to "
+
+-                "np.nan if the input array has integer type). Please "
+
+-                "change either the input array dtype or the "
+
+-                "fill_value.",
+
+-            )
+
+-            raise exc
+
+-
+
+-        extracted_array[small_slices] = array_large[large_slices]
+
+-        if return_position:
+
+-            new_position = [i + s.start for i, s in zip(new_position, small_slices)]
+
+-    if return_position:
+
+-        return extracted_array, tuple(new_position)
+
+-    else:
+
+-        return extracted_array
+
++    large
+
+ 
+
+ 
+
+ def add_array(array_large, array_small, position):

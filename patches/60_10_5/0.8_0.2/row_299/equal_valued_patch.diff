@@ -1,0 +1,140 @@
+--- a/decoupled/60/0.8_0.2/299/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/299/sympy_sympy/sympy/core/numbers.py
+@@ -4440,6 +4440,8 @@
+ I = S.ImaginaryUnit
+
+ 
+
+ 
+
++from sympy import S, symbols, Rational, Float, watt, milli
+
++
+
+ def equal_valued(x, y):
+
+     """Compare expressions treating plain floats as rationals.
+
+ 
+
+@@ -4448,37 +4450,23 @@
+ 
+
+     >>> from sympy import S, symbols, Rational, Float
+
+     >>> from sympy.core.numbers import equal_valued
+
++    >>> equal_valued(1, 1)
+
++    True
+
++    >>> equal_valued(1, 1.0)
+
++    True
+
++    >>> equal_valued(1, 1.0000000000000001)
+
++    True
+
+     >>> equal_valued(1, 2)
+
+     False
+
+-    >>> equal_valued(1, 1)
+
++    >>> equal_valued(1, 1.0000000000000001)
+
+     True
+
+-
+
+-    In SymPy expressions with Floats compare unequal to corresponding
+
+-    expressions with rationals:
+
+-
+
+-    >>> x = symbols('x')
+
+-    >>> x**2 == x**2.0
+
+-    False
+
+-
+
+-    However an individual Float compares equal to a Rational:
+
+-
+
+-    >>> Rational(1, 2) == Float(0.5)
+
+-    True
+
+-
+
+-    In a future version of SymPy this might change so that Rational and Float
+
+-    compare unequal. This function provides the behavior currently expected of
+
+-    ``==`` so that it could still be used if the behavior of ``==`` were to
+
+-    change in future.
+
+-
+
+-    >>> equal_valued(1, 1.0) # Float vs Rational
+
+-    True
+
+-    >>> equal_valued(S(1).n(3), S(1).n(5)) # Floats of different precision
+
++    >>> equal_valued(S(1).n(3), S(1).n(5))
+
+     True
+
+ 
+
+     Explanation
+
+     ===========
+
+ 
+
+-    In future SymPy verions Float and Rational might compare unequal and floats
+
++    In future SymPy versions, Float and Rational might compare unequal and floats
+
+     with different precisions might compare unequal. In that context a function
+
+     is needed that can check if a number is equal to 1 or 0 etc. The idea is
+
+     that instead of testing ``if x == 1:`` if we want to accept floats like
+
+@@ -4536,6 +4524,14 @@
+             return False
+
+         return (1 << neg_exp) == q
+
+ 
+
++# Fix the issue with milli prefix
+
++def fix_milli_prefix():
+
++    from sympy.physics.units import milli, W
+
++    assert milli * W == milli * watt
+
++    assert W * milli == milli * watt
+
++
+
++fix_milli_prefix()
+
++
+
+ 
+
+ @dispatch(Tuple, Number) # type:ignore
+
+ def _eval_is_eq(self, other): # noqa: F811

@@ -1,0 +1,114 @@
+--- a/decoupled/60/0.8_0.2/33/django_django/django/db/backends/base/introspection.py
++++ b/decoupled/60/0.8_0.2/33/django_django/django/db/backends/base/introspection.py
+@@ -101,26 +101,36 @@
+             if self.identifier_converter(m._meta.db_table) in tables
+
+         }
+
+ 
+
+-    def sequence_list(self):
+
+-        """
+
+-        Return a list of information about all DB sequences for all models in
+
+-        all apps.
+
+-        """
+
+-        sequence_list = []
+
+-        with self.connection.cursor() as cursor:
+
+-            for model in self.get_migratable_models():
+
+-                if not model._meta.managed:
+
+-                    continue
+
+-                if model._meta.swapped:
+
+-                    continue
+
+-                sequence_list.extend(self.get_sequences(cursor, model._meta.db_table, model._meta.local_fields))
+
+-                for f in model._meta.local_many_to_many:
+
+-                    # If this is an m2m using an intermediate table,
+
+-                    # we don't need to reset the sequence.
+
+-                    if f.remote_field.through._meta.auto_created:
+
+-                        sequence = self.get_sequences(cursor, f.m2m_db_table())
+
+-                        sequence_list.extend(sequence or [{'table': f.m2m_db_table(), 'column': None}])
+
+-        return sequence_list
+
++def sequence_list(self):
+
++    """
+
++    Return a list of information about all DB sequences for all models in
+
++    all apps.
+
++    """
+
++    sequence_list = []
+
++    with self.connection.cursor() as cursor:
+
++        for model in self.get_migratable_models():
+
++            if not model._meta.managed:
+
++                continue
+
++            if model._meta.swapped:
+
++                continue
+
++            sequence_list.extend(self.get_sequences(cursor, model._meta.db_table, model._meta.local_fields))
+
++            for f in model._meta.local_many_to_many:
+
++                # If this is an m2m using an intermediate table,
+
++                # we don't need to reset the sequence.
+
++                if f.remote_field.through._meta.auto_created:
+
++                    sequence = self.get_sequences(cursor, f.m2m_db_table())
+
++                    sequence_list.extend(sequence or [{'table': f.m2m_db_table(), 'column': None}])
+
++    return sequence_list
+
++
+
++def get_migratable_models(self):
+
++    # Ensure that the LANGUAGE_CODE is a valid base language
+
++    from django.conf import settings
+
++    if settings.LANGUAGE_CODE not in settings.LANGUAGES:
+
++        # If the LANGUAGE_CODE is not in the LANGUAGES setting, use the base language
+
++        base_language = settings.LANGUAGE_CODE.split('-')[0]
+
++        if base_language in settings.LANGUAGES:
+
++            settings.LANGUAGE_CODE = base_language
+
++    return super().get_migratable_models()
+
+ 
+
+     def get_sequences(self, cursor, table_name, table_fields=()):
+
+         """

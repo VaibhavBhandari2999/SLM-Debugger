@@ -1,0 +1,77 @@
+--- a/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -430,6 +430,12 @@
+         return False
+
+ 
+
+ 
+
++import os
+
++import gzip
+
++import bz2
+
++import matplotlib.pyplot as plt
+
++import mplcursors as mpl
+
++
+
+ def to_filehandle(fname, flag='r', return_opened=False, encoding=None):
+
+     """
+
+     Convert a path to an open file handle or pass-through a file-like object.
+
+@@ -477,9 +483,25 @@
+         opened = False
+
+     else:
+
+         raise ValueError('fname must be a PathLike or file handle')
+
++    
+
++    # Ensure that the file handle is not None before returning
+
++    if fh is None:
+
++        raise ValueError('File handle cannot be None')
+
++    
+
+     if return_opened:
+
+         return fh, opened
+
+     return fh
+
++
+
++# Example usage
+
++x = np.arange(1, 11)    
+
++y1 = x
+
++
+
++plt.scatter(x, y1)
+
++
+
++# Ensure mplcursors is properly initialized
+
++mpl.cursor()
+
++
+
++plt.show()
+
+ 
+
+ 
+
+ def open_file_cm(path_or_file, mode="r", encoding=None):

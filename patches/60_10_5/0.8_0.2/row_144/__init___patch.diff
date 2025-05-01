@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
+@@ -73,7 +73,7 @@
+     This does the computations and drawing for the `regplot` function, and
+
+     is thus also used indirectly by `lmplot`.
+
+     """
+
+-    def __init__(self, x, y, data=None, x_estimator=None, x_bins=None,
+
++def __init__(self, x, y, data=None, x_estimator=None, x_bins=None,
+
+                  x_ci="ci", scatter=True, fit_reg=True, ci=95, n_boot=1000,
+
+                  units=None, seed=None, order=1, logistic=False, lowess=False,
+
+                  robust=False, logx=False, x_partial=None, y_partial=None,
+
+@@ -132,6 +132,15 @@
+         # Save the range of the x variable for the grid later
+
+         if self.fit_reg:
+
+             self.x_range = self.x.min(), self.x.max()
+
++
+
++        # Ensure that the data is free of None values before fitting the polynomial
+
++        if self.fit_reg:
+
++            self.x, self.y = self._remove_none_values(self.x, self.y)
+
++
+
++    def _remove_none_values(self, x, y):
+
++        # Remove None values from x and y
+
++        valid_indices = ~np.isnan(x) & ~np.isnan(y)
+
++        return x[valid_indices], y[valid_indices]
+
+ 
+
+     @property
+
+     def scatter_data(self):

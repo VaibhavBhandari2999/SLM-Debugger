@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/78/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/78/django_django/django/db/models/fields/related_descriptors.py
+@@ -152,6 +152,12 @@
+         qs = self.get_queryset(instance=instance)
+
+         # Assuming the database enforces foreign keys, this won't fail.
+
+         return qs.get(self.field.get_reverse_related_filter(instance))
+
++
+
++from django.core.exceptions import ValidationError
+
++
+
++class SymmetricalManyToManyFieldDescriptor:
+
++    def __init__(self, field):
+
++        self.field = field
+
+ 
+
+     def __get__(self, instance, cls=None):
+
+         """
+
+@@ -199,6 +205,12 @@
+             )
+
+         else:
+
+             return rel_obj
+
++
+
++    def __set__(self, instance, value):
+
++        # Ensure that the related_name is not set on a symmetrical ManyToManyField
+
++        if self.field.symmetrical and self.field.remote_field.related_name:
+
++            raise ValidationError("Cannot set related_name on a symmetrical ManyToManyField.")
+
++        self.field.set_value(instance, value)
+
+ 
+
+     def __set__(self, instance, value):
+
+         """

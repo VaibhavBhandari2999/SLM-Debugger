@@ -1,0 +1,68 @@
+--- a/decoupled/60/0.8_0.2/97/django_django/django/core/serializers/pyyaml.py
++++ b/decoupled/60/0.8_0.2/97/django_django/django/core/serializers/pyyaml.py
+@@ -45,17 +45,22 @@
+ 
+
+     internal_use_only = False
+
+ 
+
+-    def handle_field(self, obj, field):
+
+-        # A nasty special case: base YAML doesn't support serialization of time
+
+-        # types (as opposed to dates or datetimes, which it does support). Since
+
+-        # we want to use the "safe" serializer for better interoperability, we
+
+-        # need to do something with those pesky times. Converting 'em to strings
+
+-        # isn't perfect, but it's better than a "!!python/time" type which would
+
+-        # halt deserialization under any other language.
+
+-        if isinstance(field, models.TimeField) and getattr(obj, field.name) is not None:
+
+-            self._current[field.name] = str(getattr(obj, field.name))
+
+-        else:
+
+-            super().handle_field(obj, field)
+
++from django.utils.html import format_html
+
++from django.utils.safestring import mark_safe
+
++from django.core.serializers.json import DjangoJSONEncoder
+
++
+
++def json_script(data, encoder=DjangoJSONEncoder, safe=True):
+
++    """
+
++    Returns a script tag with the given data serialized as JSON.
+
++    
+
++    :param data: The data to serialize.
+
++    :param encoder: The JSON encoder class to use. Defaults to DjangoJSONEncoder.
+
++    :param safe: Whether the output should be marked as safe for HTML. Defaults to True.
+
++    """
+
++    json_data = encoder().encode(data)
+
++    if safe:
+
++        json_data = mark_safe(json_data)
+
++    return format_html('<script type="application/json">{}</script>', json_data)
+
+ 
+
+     def end_serialization(self):
+
+         self.options.setdefault("allow_unicode", True)

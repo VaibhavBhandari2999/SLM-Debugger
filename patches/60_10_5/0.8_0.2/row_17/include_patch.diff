@@ -1,0 +1,80 @@
+--- a/decoupled/60/0.8_0.2/17/django_django/django/urls/conf.py
++++ b/decoupled/60/0.8_0.2/17/django_django/django/urls/conf.py
+@@ -8,6 +8,11 @@
+     LocalePrefixPattern, RegexPattern, RoutePattern, URLPattern, URLResolver,
+
+ )
+
+ 
+
++
+
++from django.conf import settings
+
++from django.core.exceptions import ImproperlyConfigured
+
++from django.urls import LocalePrefixPattern
+
++from django.utils.importlib import import_module
+
+ 
+
+ def include(arg, namespace=None):
+
+     app_name = None
+
+@@ -38,8 +43,7 @@
+         raise ImproperlyConfigured(
+
+             'Specifying a namespace in include() without providing an app_name '
+
+             'is not supported. Set the app_name attribute in the included '
+
+-            'module, or pass a 2-tuple containing the list of patterns and '
+
+-            'app_name instead.',
+
++            'module, or pass a 2-tuple containing the list of patterns and app_name instead.',
+
+         )
+
+     namespace = namespace or app_name
+
+     # Make sure the patterns can be iterated through (without this, some
+
+@@ -51,6 +55,18 @@
+                 raise ImproperlyConfigured(
+
+                     'Using i18n_patterns in an included URLconf is not allowed.'
+
+                 )
+
++    
+
++    # Prepend SCRIPT_NAME to STATIC_URL and MEDIA_URL if it exists
+
++    if settings.USE_I18N:
+
++        from django.utils import translation
+
++        script_name = translation.get_language_from_request(None, check_path=True)
+
++    else:
+
++        script_name = settings.WSGI_APPLICATION.split('.')[-2] if settings.WSGI_APPLICATION else ''
+
++
+
++    if script_name:
+
++        settings.STATIC_URL = script_name + settings.STATIC_URL
+
++        settings.MEDIA_URL = script_name + settings.MEDIA_URL
+
++
+
+     return (urlconf_module, app_name, namespace)
+
+ 
+
+ 

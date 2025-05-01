@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/56/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/56/django_django/django/db/models/sql/query.py
+@@ -1740,7 +1740,7 @@
+                 reuse.update(join_list)
+
+             return self._get_col(targets[0], join_info.targets[0], join_list[-1])
+
+ 
+
+-    def split_exclude(self, filter_expr, can_reuse, names_with_path):
+
++def split_exclude(self, filter_expr, can_reuse, names_with_path):
+
+         """
+
+         When doing an exclude against any kind of N-to-many relation, we need
+
+         to use a subquery. This method constructs the nested query, given the

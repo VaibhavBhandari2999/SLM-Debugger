@@ -1,0 +1,60 @@
+--- a/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/solvers.py
++++ b/decoupled/60/0.8_0.2/272/sympy_sympy/sympy/matrices/solvers.py
+@@ -652,28 +652,7 @@
+     To determine which, check ``A * A.pinv() * B == B``.  It will be
+
+     True if exact solutions exist, and False if only a least-squares
+
+     solution exists.  Be aware that the left hand side of that equation
+
+-    may need to be simplified to correctly compare to the right hand
+
+-    side.
+
+-
+
+-    References
+
+-    ==========
+
+-
+
+-    .. [1] https://en.wikipedia.org/wiki/Moore-Penrose_pseudoinverse#Obtaining_all_solutions_of_a_linear_system
+
+-
+
+-    """
+
+-
+
+-    from sympy.matrices import eye
+
+-
+
+-    A      = M
+
+-    A_pinv = M.pinv()
+
+-
+
+-    if arbitrary_matrix is None:
+
+-        rows, cols       = A.cols, B.cols
+
+-        w                = symbols('w:{0}_:{1}'.format(rows, cols), cls=Dummy)
+
+-        arbitrary_matrix = M.__class__(cols, rows, w).T
+
+-
+
+-    return A_pinv.multiply(B) + (eye(A.cols) -
+
+-            A_pinv.multiply(A)).multiply(arbitrary_matrix)
+
++    may need to be simplified to correctly compare to
+
+ 
+
+ 
+
+ def _solve(M, rhs, method='GJ'):

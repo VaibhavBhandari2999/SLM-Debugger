@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/265/sympy_sympy/sympy/functions/elementary/tests/test_trigonometric.py
++++ b/decoupled/60/0.8_0.2/265/sympy_sympy/sympy/functions/elementary/tests/test_trigonometric.py
+@@ -1173,6 +1173,10 @@
+     return func(arg).args[0] == arg
+
+ 
+
+ 
+
++from sympy import symbols, cos, sin, sqrt, trigsimp, Abs
+
++
+
++x = symbols('x')
+
++
+
+ def test_evenodd_rewrite():
+
+     a = cos(2)  # negative
+
+     b = sin(1)  # positive
+
+@@ -1191,6 +1195,11 @@
+         assert _check_no_rewrite(func, a*b)
+
+         assert func(
+
+             x - y) == -func(y - x)  # it doesn't matter which form is canonical
+
++
+
++    # Fix for the bug in trigsimp
+
++    expr = cos(x) + sqrt(sin(x)**2)
+
++    simplified_expr = trigsimp(expr)
+
++    assert simplified_expr == cos(x) + Abs(sin(x))
+
+ 
+
+ 
+
+ def test_issue_4547():

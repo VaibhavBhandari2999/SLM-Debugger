@@ -1,0 +1,200 @@
+--- a/decoupled/60/0.8_0.2/249/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/249/sympy_sympy/sympy/matrices/dense.py
+@@ -166,40 +166,66 @@
+         return self._new(len(rowsList), len(colsList),
+
+                          list(mat[i] for i in indices), copy=False)
+
+ 
+
+-    def _eval_matrix_mul(self, other):
+
+-        from sympy import Add
+
+-        # cache attributes for faster access
+
+-        self_rows, self_cols = self.rows, self.cols
+
+-        other_rows, other_cols = other.rows, other.cols
+
+-        other_len = other_rows * other_cols
+
+-        new_mat_rows = self.rows
+
+-        new_mat_cols = other.cols
+
+-
+
+-        # preallocate the array
+
+-        new_mat = [S.Zero]*new_mat_rows*new_mat_cols
+
+-
+
+-        # if we multiply an n x 0 with a 0 x m, the
+
+-        # expected behavior is to produce an n x m matrix of zeros
+
+-        if self.cols != 0 and other.rows != 0:
+
+-            # cache self._mat and other._mat for performance
+
+-            mat = self._mat
+
+-            other_mat = other._mat
+
+-            for i in range(len(new_mat)):
+
+-                row, col = i // new_mat_cols, i % new_mat_cols
+
+-                row_indices = range(self_cols*row, self_cols*(row+1))
+
+-                col_indices = range(col, other_len, other_cols)
+
++import sympy as sy
+
++
+
++def _eval_matrix_mul(self, other):
+
++    from sympy import Add, S, reduce, lambdify, symbols, MatrixSymbol, dummify
+
++    # cache attributes for faster access
+
++    self_rows, self_cols = self.rows, self.cols
+
++    other_rows, other_cols = other.rows, other.cols
+
++    other_len = other_rows * other_cols
+
++    new_mat_rows = self.rows
+
++    new_mat_cols = other.cols
+
++
+
++    # preallocate the array
+
++    new_mat = [S.Zero]*new_mat_rows*new_mat_cols
+
++
+
++    # if we multiply an n x 0 with a 0 x m, the
+
++    # expected behavior is to produce an n x m matrix of zeros
+
++    if self.cols != 0 and other.rows != 0:
+
++        # cache self._mat and other._mat for performance
+
++        mat = self._mat
+
++        other_mat = other._mat
+
++        for i in range(len(new_mat)):
+
++            row, col = i // new_mat_cols, i % new_mat_cols
+
++            row_indices = range(self_cols*row, self_cols*(row+1))
+
++            col_indices = range(col, other_len, other_cols)
+
++            vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))
+
++            try:
+
++                new_mat[i] = Add(*vec)
+
++            except (TypeError, SympifyError):
+
++                # Block matrices don't work with `sum` or `Add` (ISSUE #11599)
+
++                # They don't work with `sum` because `sum` tries to add `0`
+
++                # initially, and for a matrix, that is a mix of a scalar and
+
++                # a matrix, which raises a TypeError. Fall back to a
+
++                # block-matrix-safe way to multiply if the `sum` fails.
+
+                 vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))
+
+-                try:
+
+-                    new_mat[i] = Add(*vec)
+
+-                except (TypeError, SympifyError):
+
+-                    # Block matrices don't work with `sum` or `Add` (ISSUE #11599)
+
+-                    # They don't work with `sum` because `sum` tries to add `0`
+
+-                    # initially, and for a matrix, that is a mix of a scalar and
+
+-                    # a matrix, which raises a TypeError. Fall back to a
+
+-                    # block-matrix-safe way to multiply if the `sum` fails.
+
+-                    vec = (mat[a]*other_mat[b] for a,b in zip(row_indices, col_indices))
+
+-                    new_mat[i] = reduce(lambda a,b: a + b, vec)
+
+-        return classof(self, other)._new(new_mat_rows, new_mat_cols, new_mat, copy=False)
+
++                new_mat[i] = reduce(lambda a,b: a + b, vec)
+
++    return classof(self, other)._new(new_mat_rows, new_mat_cols, new_mat, copy=False)
+
++
+
++# Define the MatrixSymbol with curly braces
+
++curlyv = sy.MatrixSymbol("{v}", 2, 1)
+
++
+
++# Create a custom lambdify function to handle the curly braces
+
++def custom_lambdify(expr, matrix_symbol):
+
++    # Strip curly braces from the matrix symbol name
+
++    base_name = matrix_symbol.name.strip('{}')
+
++    # Create dummy symbols for the matrix elements
+
++    dummy_symbols = symbols(f'{base_name}[{":".join(map(str, range(matrix_symbol.shape[0]*matrix_symbol.shape[1])))}]')
+
++    # Create a dictionary to map the dummy symbols to the matrix elements
+
++    dummy_dict = {f'{base_name}[{i}]': dummy_symbols[i] for i in range(len(dummy_symbols))}
+
++    # Substitute the dummy symbols into the expression
+
++    expr_substituted = expr.subs(dummy_dict)
+
++    # Create the lambdify function
+
++    lambdified_expr = lambdify(dummy_symbols, expr_substituted)
+
++    return lambdified_expr
+
++
+
++# Create the lambdify function for curlyv
+
++curlyVectorIdDummified = custom_lambdify(curlyv, curlyv)
+
++
+
++# Test the lambdify function
+
++test_matrix = sy.Matrix([[1, 2], [3, 4]])
+
++print(curlyVectorIdDummified(*test_matrix.flatten()))
+
+ 
+
+     def _eval_matrix_mul_elementwise(self, other):
+
+         mat = [a*b for a,b in zip(self._mat, other._mat)]

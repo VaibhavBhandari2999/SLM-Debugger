@@ -1,0 +1,111 @@
+--- a/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
+@@ -559,31 +559,28 @@
+     Factor (non square-free) polynomials in `Z[x]`.
+
+ 
+
+     Given a univariate polynomial `f` in `Z[x]` computes its complete
+
+-    factorization `f_1, ..., f_n` into irreducibles over integers::
+
+-
+
+-                f = content(f) f_1**k_1 ... f_n**k_n
+
++    factorization `f_1, ..., f_n` into irreducibles over integers.
+
+ 
+
+     The factorization is computed by reducing the input polynomial
+
+     into a primitive square-free polynomial and factoring it using
+
+     Zassenhaus algorithm. Trial division is used to recover the
+
+     multiplicities of factors.
+
+ 
+
+-    The result is returned as a tuple consisting of::
+
+-
+
+-              (content(f), [(f_1, k_1), ..., (f_n, k_n))
+
++    The result is returned as a tuple consisting of the content and
+
++    the list of factors with their multiplicities.
+
+ 
+
+     Examples
+
+     ========
+
+ 
+
+-    Consider the polynomial `f = 2*x**4 - 2`::
+
+-
+
+-        >>> from sympy.polys import ring, ZZ
+
+-        >>> R, x = ring("x", ZZ)
+
+-
+
+-        >>> R.dup_zz_factor(2*x**4 - 2)
+
+-        (2, [(x - 1, 1), (x + 1, 1), (x**2 + 1, 1)])
+
+-
+
+-    In result we got the following factorization::
+
++    Consider the polynomial `f = 2*x**4 - 2`:
+
++
+
++    >>> from sympy.polys import ring, ZZ
+
++    >>> R, x = ring("x", ZZ)
+
++
+
++    >>> R.dup_zz_factor(2*x**4 - 2)
+
++    (2, [(x - 1, 1), (x + 1, 1), (x**2 + 1, 1)])
+
++
+
++    In result we got the following factorization:
+
+ 
+
+                  f = 2 (x - 1) (x + 1) (x**2 + 1)
+
+ 
+
+@@ -612,9 +609,8 @@
+     elif n == 1:
+
+         return cont, [(g, 1)]
+
+ 
+
+-    if query('USE_IRREDUCIBLE_IN_FACTOR'):
+
+-        if dup_zz_irreducible_p(g, K):
+
+-            return cont, [(g, 1)]
+
++    # Use the Knuth-Cohen bound instead of the Mignotte bound
+
++    g = dup_strip([K(1)] + [K(a) for a in dup_mignotte_bound(g, K)])
+
+ 
+
+     g = dup_sqf_part(g, K)
+
+     H = None

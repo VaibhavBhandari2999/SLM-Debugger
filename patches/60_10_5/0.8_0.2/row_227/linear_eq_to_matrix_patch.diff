@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/227/sympy_sympy/sympy/solvers/solveset.py
++++ b/decoupled/60/0.8_0.2/227/sympy_sympy/sympy/solvers/solveset.py
+@@ -1056,7 +1056,7 @@
+     """
+
+ 
+
+     if not symbols:
+
+-        raise ValueError('Symbols must be given, for which coefficients \
+
++        raise ValueError('Symbols must be given, for additional coefficients \
+
+                          are to be found.')
+
+ 
+
+     if hasattr(symbols[0], '__iter__'):
+
+@@ -1088,6 +1088,15 @@
+     M.row_del(0)
+
+     A, b = M[:, :-1], M[:, -1:]
+
+     return A, b
+
++
+
++# Fix the apart issue by ensuring the expression is simplified before apart
+
++def fix_apart_issue(expr):
+
++    return simplify(expr).apart()
+
++
+
++# Example usage
+
++a, t = symbols('a t', real=True)
+
++bug = a * (-t + (-t + 1) * (2 * t - 1)) / (2 * t - 1)
+
++fixed_result = fix_apart_issue(bug.subs(a,
+
+ 
+
+ 
+
+ def linsolve(system, *symbols):

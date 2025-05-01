@@ -1,0 +1,67 @@
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/factortools.py
+@@ -1044,9 +1044,7 @@
+     Factor (non square-free) polynomials in `Z[X]`.
+
+ 
+
+     Given a multivariate polynomial `f` in `Z[x]` computes its complete
+
+-    factorization `f_1, ..., f_n` into irreducibles over integers::
+
+-
+
+-                 f = content(f) f_1**k_1 ... f_n**k_n
+
++    factorization `f_1**k_1 ... f_n**k_n` into irreducibles over integers.
+
+ 
+
+     The factorization is computed by reducing the input polynomial
+
+     into a primitive square-free polynomial and factoring it using
+
+@@ -1098,10 +1096,18 @@
+         H = dmp_zz_wang(g, u, K)
+
+         factors = dmp_trial_division(f, H, u, K)
+
+ 
+
+-    for g, k in dmp_zz_factor(G, u - 1, K)[1]:
+
+-        factors.insert(0, ([g], k))
+
+-
+
+-    return cont, _sort_factors(factors)
+
++    # Combine factors with their multiplicities
+
++    combined_factors = []
+
++    for g, k in factors:
+
++        if combined_factors and combined_factors[-1][0] == g:
+
++            combined_factors[-1][1] += k
+
++        else:
+
++            combined_factors.append([g, k])
+
++
+
++    # Sort factors by degree and then by factor
+
++    combined_factors.sort(key=lambda x: (dmp_degree(x[0], u), x[0]))
+
++
+
++    return cont, combined_factors
+
+ 
+
+ 
+
+ def dup_ext_factor(f, K):

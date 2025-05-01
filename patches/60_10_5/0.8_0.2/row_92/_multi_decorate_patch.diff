@@ -1,0 +1,32 @@
+--- a/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
+@@ -27,12 +27,9 @@
+     Decorate `method` with one or more function decorators. `decorators` can be
+
+     a single decorator or an iterable of decorators.
+
+     """
+
+-    if hasattr(decorators, "__iter__"):
+
+-        # Apply a list/tuple of decorators if 'decorators' is one. Decorator
+
+-        # functions are applied so that the call order is the same as the
+
+-        # order in which they appear in the iterable.
+
+-        decorators = decorators[::-1]
+
+-    else:
+
++    if decorators is None:
+
++        raise ValueError("decorators cannot be None")
+
++    if not hasattr(decorators, "__iter__"):
+
+         decorators = [decorators]
+
+ 
+
+     def _wrapper(self, *args, **kwargs):

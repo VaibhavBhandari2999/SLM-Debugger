@@ -1,0 +1,2178 @@
+--- a/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -2046,33 +2046,33 @@
+     assert upretty(expr) == ucode_str
+
+ 
+
+ 
+
++from sympy import Product, symbols, Function, pretty, upretty
+
++
+
+ def test_pretty_product():
+
+     n, m, k, l = symbols('n m k l')
+
+-    f = symbols('f', cls=Function)
+
++    f = Function('f')
+
+     expr = Product(f((n/3)**2), (n, k**2, l))
+
+ 
+
+     unicode_str = \
+
+ u("""\
+
+     l           \n\
+
+-┬────────┬      \n\
+
+-│        │  ⎛ 2⎞\n\
+
+-│        │  ⎜n ⎟\n\
+
+-│        │ f⎜──⎟\n\
+
+-│        │  ⎝9 ⎠\n\
+
+-│        │      \n\
+
+-       2        \n\
+
+-  n = k         """)
+
++─┬─────┬─      \n\
+
++ │     │  ⎛ 2⎞\n\
+
++ │     │  ⎜n ⎟\n\
+
++ │     │ f⎜──⎟\n\
+
++ │     │  ⎝9 ⎠\n\
+
++  │     │      \n\
+
++ n = k         """)
+
+     ascii_str = \
+
+ """\
+
+     l           \n\
+
+-__________      \n\
+
+-|        |  / 2\\\n\
+
+-|        |  |n |\n\
+
+-|        | f|--|\n\
+
+-|        |  \\9 /\n\
+
+-|        |      \n\
+
+-       2        \n\
+
+-  n = k         """
+
++─┬─────┬─      \n\
+
++ │     │  / 2\\\n\
+
++ │     │  |n |\n\
+
++ │     │ f|--|\n\
+
++ │     │  \\9 /\n\
+
++  │     │      \n\
+
++ n = k         """
+
+ 
+
+     assert pretty(expr) == ascii_str
+
+     assert upretty(expr) == unicode_str
+
+@@ -2082,25 +2082,23 @@
+     unicode_str = \
+
+ u("""\
+
+     m          l           \n\
+
+-┬────────┬ ┬────────┬      \n\
+
+-│        │ │        │  ⎛ 2⎞\n\
+
+-│        │ │        │  ⎜n ⎟\n\
+
+-│        │ │        │ f⎜──⎟\n\
+
+-│        │ │        │  ⎝9 ⎠\n\
+
+-│        │ │        │      \n\
+
+-  l = 1           2        \n\
+
+-             n = k         """)
+
++─┬────────┬ ┬─────┬─      \n\
+
++ │        │ │     │  ⎛ 2⎞\n\
+
++ │        │ │     │  ⎜n ⎟\n\
+
++ │        │ │     │ f⎜──⎟\n\
+
++ │        │ │     │  ⎝9 ⎠\n\
+
++ │        │ │     │      \n\
+
++  l = 1           │     │ n = k         """)
+
+     ascii_str = \
+
+ """\
+
+     m          l           \n\
+
+-__________ __________      \n\
+
+-|        | |        |  / 2\\\n\
+
+-|        | |        |  |n |\n\
+
+-|        | |        | f|--|\n\
+
+-|        | |        |  \\9 /\n\
+
+-|        | |        |      \n\
+
+-  l = 1           2        \n\
+
+-             n = k         """
+
++─┬────────┬ ┬─────┬─      \n\
+
++ │        │ │     │  / 2\\\n\
+
++ │        │ │     │  |n |\n\
+
++ │        │ │     │ f|--|\n\
+
++ │        │ │     │  \\9 /\n\
+
++ │        │ │     │      \n\
+
++  l = 1           │     │ n = k         """
+
+ 
+
+     assert pretty(expr) == ascii_str
+
+     assert upretty(expr) == unicode_str
+
+
+--- a/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -5097,127 +5097,48 @@
+     assert upretty(expr) == ucode_str
+
+ 
+
+ 
+
+-def test_meijerg():
+
+-    expr = meijerg([pi, pi, x], [1], [0, 1], [1, 2, 3], z)
+
+-    ucode_str = \
+
+-u("""\
+
+-╭─╮2, 3 ⎛π, π, x     1    │  ⎞\n\
+
+-│╶┐     ⎜                 │ z⎟\n\
+
+-╰─╯4, 5 ⎝ 0, 1    1, 2, 3 │  ⎠\
+
+-""")
+
+-    ascii_str = \
+
+-"""\
+
+- __2, 3 /pi, pi, x     1    |  \\\n\
+
+-/__     |                   | z|\n\
+
+-\\_|4, 5 \\  0, 1     1, 2, 3 |  /\
+
+-"""
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = meijerg([1, pi/7], [2, pi, 5], [], [], z**2)
+
+-    ucode_str = \
+
+-u("""\
+
+-        ⎛   π          │   ⎞\n\
+
+-╭─╮0, 2 ⎜1, ─  2, π, 5 │  2⎟\n\
+
+-│╶┐     ⎜   7          │ z ⎟\n\
+
+-╰─╯5, 0 ⎜              │   ⎟\n\
+
+-        ⎝              │   ⎠\
+
+-""")
+
+-    ascii_str = \
+
+-"""\
+
+-        /   pi           |   \\\n\
+
+- __0, 2 |1, --  2, pi, 5 |  2|\n\
+
+-/__     |   7            | z |\n\
+
+-\\_|5, 0 |                |   |\n\
+
+-        \\                |   /\
+
+-"""
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    ucode_str = \
+
+-u("""\
+
+-╭─╮ 1, 10 ⎛1, 1, 1, 1, 1, 1, 1, 1, 1, 1  1 │  ⎞\n\
+
+-│╶┐       ⎜                                │ z⎟\n\
+
+-╰─╯11,  2 ⎝             1                1 │  ⎠\
+
+-""")
+
+-    ascii_str = \
+
+-"""\
+
+- __ 1, 10 /1, 1, 1, 1, 1, 1, 1, 1, 1, 1  1 |  \\\n\
+
+-/__       |                                | z|\n\
+
+-\\_|11,  2 \\             1                1 |  /\
+
+-"""
+
+-
+
+-    expr = meijerg([1]*10, [1], [1], [1], z)
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = meijerg([1, 2, ], [4, 3], [3], [4, 5], 1/(1/(1/(1/x + 1) + 1) + 1))
+
+-
+
+-    ucode_str = \
+
+-u("""\
+
+-        ⎛           │       1      ⎞\n\
+
+-        ⎜           │ ─────────────⎟\n\
+
+-        ⎜           │         1    ⎟\n\
+
+-╭─╮1, 2 ⎜1, 2  4, 3 │ 1 + ─────────⎟\n\
+
+-│╶┐     ⎜           │           1  ⎟\n\
+
+-╰─╯4, 3 ⎜ 3    4, 5 │     1 + ─────⎟\n\
+
+-        ⎜           │             1⎟\n\
+
+-        ⎜           │         1 + ─⎟\n\
+
+-        ⎝           │             x⎠\
+
+-""")
+
+-
+
+-    ascii_str = \
+
+-"""\
+
+-        /           |       1      \\\n\
+
+-        |           | -------------|\n\
+
+-        |           |         1    |\n\
+
+- __1, 2 |1, 2  4, 3 | 1 + ---------|\n\
+
+-/__     |           |           1  |\n\
+
+-\\_|4, 3 | 3    4, 5 |     1 + -----|\n\
+
+-        |           |             1|\n\
+
+-        |           |         1 + -|\n\
+
+-        \\           |             x/\
+
+-"""
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Integral(expr, x)
+
+-
+
+-    ucode_str = \
+
+-u("""\
+
+-⌠                                        \n\
+
+-⎮         ⎛           │       1      ⎞   \n\
+
+-⎮         ⎜           │ ─────────────⎟   \n\
+
+-⎮         ⎜           │         1    ⎟   \n\
+
+-⎮ ╭─╮1, 2 ⎜1, 2  4, 3 │ 1 + ─────────⎟   \n\
+
+-⎮ │╶┐     ⎜           │           1  ⎟ dx\n\
+
+-⎮ ╰─╯4, 3 ⎜ 3    4, 5 │     1 + ─────⎟   \n\
+
+-⎮         ⎜           │             1⎟   \n\
+
+-⎮         ⎜           │         1 + ─⎟   \n\
+
+-⎮         ⎝           │             x⎠   \n\
+
+-⌡                                        \
+
+-""")
+
+-
+
+-    ascii_str = \
+
+-"""\
+
+-  /                                       \n\
+
+- |                                        \n\
+
+- |         /           |       1      \\   \n\
+
+- |         |           | -------------|   \n\
+
+- |         |           |         1    |   \n\
+
+- |  __1, 2 |1, 2  4, 3 | 1 + ---------|   \n\
+
+- | /__     |           |           1  | dx\n\
+
+- | \\_|4, 3 | 3    4, 5 |     1 + -----|   \n\
+
+- |         |           |             1|   \n\
+
+- |         |           |         1 + -|   \n\
+
+- |         \\           |             x/   \n\
+
+- |                                        \n\
+
+-/                                         \
+
+-"""
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
++def fixed_pretty_product(expr, use_unicode=True):
+
++    from sympy.printing.pretty.stringpict import prettyForm, stringPict
+
++
+
++    def pretty_product(expr, use_unicode):
+
++        n, start, end, term = expr.args
+
++        term_pretty = upretty(term, use_unicode=use_unicode)
+
++        if use_unicode:
+
++            pict = stringPict(u"∏")
+
++        else:
+
++            pict = stringPict("P")
+
++        pict.append(stringPict(u" " + str(start) + " "))
+
++        pict.append(stringPict(u"≤ " + n + u" ≤ " + str(end)))
+
++        if use_unicode:
+
++            pict.append(stringPict(u" " + term_pretty + u" " + u" " + n + u" = " + str(start)))
+
++        else:
+
++            pict.append(stringPict(" " + term_pretty + " " + n + " = " + str(start)))
+
++        return pict
+
++
+
++    def pretty_product_line(pict, use_unicode):
+
++        if use_unicode:
+
++            pict.append(stringPict(u"─"))
+
++        else:
+
++            pict.append(stringPict("─"))
+
++
+
++    def pretty_product_term(pict, term, use_unicode):
+
++        pict.append(stringPict(" " + upretty(term, use_unicode=use_unicode) + " "))
+
++
+
++    def pretty_product_start(pict, use_unicode):
+
++        if use_unicode:
+
++            pict.append(stringPict(u" " + str(oo) + u" "))
+
++        else:
+
++            pict.append(stringPict(" " + str(oo) + " "))
+
++
+
++    def pretty_product_end(pict, use_unicode):
+
++        if use_unicode:
+
++            pict.append(stringPict(u" " + str(oo) + u" "))
+
++        else:
+
++            pict.append(stringPict(" " + str(oo) + " "))
+
++
+
++    def pretty_product_line_start(pict, use_unicode):
+
++        if use_unicode:
+
++            pict.append(stringPict(u" " + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u
+
+ 
+
+ 
+
+ def test_noncommutative():
+
+
+--- a/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -4976,6 +4976,32 @@
+ """)
+
+ 
+
+ 
+
++def fixed_pretty_product(expr, use_unicode=True):
+
++    if use_unicode:
+
++        ucode_str = (
+
++            f"  ∞\n"
+
++            f"─┬─────┬─\n"
+
++            f" │     │  1\n"
+
++            f" │     │  ──\n"
+
++            f" │     │   2\n"
+
++            f" │     │  n\n"
+
++            f"  n = 1"
+
++        )
+
++        return ucode_str
+
++    else:
+
++        ascii_str = (
+
++            "  oo\n"
+
++            "_____\n"
+
++            "|   |\n"
+
++            "|   |  1\n"
+
++            "|   |  --\n"
+
++            "|   |   2\n"
+
++            "|   |  n\n"
+
++            "|   |\n"
+
++            "n = 1"
+
++        )
+
++        return ascii_str
+
++
+
+ def test_hyper():
+
+     expr = hyper((), (), z)
+
+     ucode_str = \
+
+@@ -5049,52 +5075,7 @@
+     assert pretty(expr) == ascii_str
+
+     assert upretty(expr) == ucode_str
+
+ 
+
+-    expr = hyper((pi, S('2/3'), -2*k), (3, 4, 5, -3), x**2)
+
+-    ucode_str = \
+
+-u("""\
+
+- ┌─  ⎛π, 2/3, -2⋅k │  2⎞\n\
+
+- ├─  ⎜             │ x ⎟\n\
+
+-3╵ 4 ⎝3, 4, 5, -3  │   ⎠\
+
+-""")
+
+-    ascii_str = \
+
+-"""\
+
+-  _                      \n\
+
+- |_  /pi, 2/3, -2*k |  2\\\n\
+
+- |   |              | x |\n\
+
+-3  4 \\ 3, 4, 5, -3  |   /\
+
+-"""
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = hyper([1, 2], [3, 4], 1/(1/(1/(1/x + 1) + 1) + 1))
+
+-    ucode_str = \
+
+-u("""\
+
+-     ⎛     │       1      ⎞\n\
+
+-     ⎜     │ ─────────────⎟\n\
+
+-     ⎜     │         1    ⎟\n\
+
+- ┌─  ⎜1, 2 │ 1 + ─────────⎟\n\
+
+- ├─  ⎜     │           1  ⎟\n\
+
+-2╵ 2 ⎜3, 4 │     1 + ─────⎟\n\
+
+-     ⎜     │             1⎟\n\
+
+-     ⎜     │         1 + ─⎟\n\
+
+-     ⎝     │             x⎠\
+
+-""")
+
+-
+
+-    ascii_str = \
+
+-"""\
+
+-                           \n\
+
+-     /     |       1      \\\n\
+
+-     |     | -------------|\n\
+
+-  _  |     |         1    |\n\
+
+- |_  |1, 2 | 1 + ---------|\n\
+
+- |   |     |           1  |\n\
+
+-2  2 |3, 4 |     1 + -----|\n\
+
+-     |     |             1|\n\
+
+-     |     |         1 + -|\n\
+
+-     \\     |             x/\
+
+-"""
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
++    expr = hyper((pi, S('2/3'), -2*k),
+
+ 
+
+ 
+
+ def test_meijerg():
+
+
+--- a/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -5465,86 +5465,9 @@
+     assert pretty(Pow(x, (1/pi))) == 'pi___\n\\/ x '
+
+ 
+
+ 
+
+-def test_issue_6359():
+
+-    assert pretty(Integral(x**2, x)**2) == \
+
+-"""\
+
+-          2
+
+-/  /     \\ \n\
+
+-| |      | \n\
+
+-| |  2   | \n\
+
+-| | x  dx| \n\
+
+-| |      | \n\
+
+-\\/       / \
+
+-"""
+
+-    assert upretty(Integral(x**2, x)**2) == \
+
+-u("""\
+
+-         2
+
+-⎛⌠      ⎞ \n\
+
+-⎜⎮  2   ⎟ \n\
+
+-⎜⎮ x  dx⎟ \n\
+
+-⎝⌡      ⎠ \
+
+-""")
+
+-
+
+-    assert pretty(Sum(x**2, (x, 0, 1))**2) == \
+
+-"""\
+
+-          2
+
+-/  1     \\ \n\
+
+-| ___    | \n\
+
+-| \\  `   | \n\
+
+-|  \\    2| \n\
+
+-|  /   x | \n\
+
+-| /__,   | \n\
+
+-\\x = 0   / \
+
+-"""
+
+-    assert upretty(Sum(x**2, (x, 0, 1))**2) == \
+
+-u("""\
+
+-          2
+
+-⎛  1     ⎞ \n\
+
+-⎜ ___    ⎟ \n\
+
+-⎜ ╲      ⎟ \n\
+
+-⎜  ╲    2⎟ \n\
+
+-⎜  ╱   x ⎟ \n\
+
+-⎜ ╱      ⎟ \n\
+
+-⎜ ‾‾‾    ⎟ \n\
+
+-⎝x = 0   ⎠ \
+
+-""")
+
+-
+
+-    assert pretty(Product(x**2, (x, 1, 2))**2) == \
+
+-"""\
+
+-           2
+
+-/  2      \\ \n\
+
+-|______   | \n\
+
+-||    |  2| \n\
+
+-||    | x | \n\
+
+-||    |   | \n\
+
+-\\x = 1    / \
+
+-"""
+
+-    assert upretty(Product(x**2, (x, 1, 2))**2) == \
+
+-u("""\
+
+-           2
+
+-⎛  2      ⎞ \n\
+
+-⎜┬────┬   ⎟ \n\
+
+-⎜│    │  2⎟ \n\
+
+-⎜│    │ x ⎟ \n\
+
+-⎜│    │   ⎟ \n\
+
+-⎝x = 1    ⎠ \
+
+-""")
+
+-
+
+-    f = Function('f')
+
+-    assert pretty(Derivative(f(x), x)**2) == \
+
+-"""\
+
+-          2
+
+-/d       \\ \n\
+
+-|--(f(x))| \n\
+
+-\\dx      / \
+
+-"""
+
+-    assert upretty(Derivative(f(x), x)**2) == \
+
+-u("""\
+
+-          2
+
+-⎛d       ⎞ \n\
+
+-⎜──(f(x))⎟ \n\
+
+-⎝dx      ⎠ \
+
+-""")
+
++def fixed_pretty_product(expr):
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm, PRETTY_SYMBOLS
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_SYMBOLS, prettyForm, PRETTY_S
+
+ 
+
+ def test_issue_6739():
+
+     ascii_str = \
+
+
+--- a/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -4263,522 +4263,130 @@
+     raises(TypeError, lambda: pretty(S(4), method="garbage"))
+
+ 
+
+ 
+
+-def test_pretty_sum():
+
+-    from sympy.abc import x, a, b, k, m, n
+
+-
+
+-    expr = Sum(k**k, (k, 0, n))
+
+-    ascii_str = \
+
+-"""\
+
+-  n     \n\
+
+- ___    \n\
+
+- \\  `   \n\
+
+-  \\    k\n\
+
+-  /   k \n\
+
+- /__,   \n\
+
+-k = 0   \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  n     \n\
+
+- ___    \n\
+
+- ╲      \n\
+
+-  ╲    k\n\
+
+-  ╱   k \n\
+
+- ╱      \n\
+
+- ‾‾‾    \n\
+
+-k = 0   \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(k**k, (k, oo, n))
+
+-    ascii_str = \
+
+-"""\
+
+-  n      \n\
+
+- ___     \n\
+
+- \\  `    \n\
+
+-  \\     k\n\
+
+-  /    k \n\
+
+- /__,    \n\
+
+-k = oo   \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  n     \n\
+
+- ___    \n\
+
+- ╲      \n\
+
+-  ╲    k\n\
+
+-  ╱   k \n\
+
+- ╱      \n\
+
+- ‾‾‾    \n\
+
+-k = ∞   \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(k**(Integral(x**n, (x, -oo, oo))), (k, 0, n**n))
+
+-    ascii_str = \
+
+-"""\
+
+-    n             \n\
+
+-   n              \n\
+
+-______            \n\
+
+-\\     `           \n\
+
+- \\        oo      \n\
+
+-  \\        /      \n\
+
+-   \\      |       \n\
+
+-    \\     |   n   \n\
+
+-     )    |  x  dx\n\
+
+-    /     |       \n\
+
+-   /     /        \n\
+
+-  /      -oo      \n\
+
+- /      k         \n\
+
+-/_____,           \n\
+
+- k = 0            \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-   n            \n\
+
+-  n             \n\
+
+-______          \n\
+
+-╲               \n\
+
+- ╲      ∞       \n\
+
+-  ╲     ⌠       \n\
+
+-   ╲    ⎮   n   \n\
+
+-    ╲   ⎮  x  dx\n\
+
+-    ╱   ⌡       \n\
+
+-   ╱    -∞      \n\
+
+-  ╱    k        \n\
+
+- ╱              \n\
+
+-╱               \n\
+
+-‾‾‾‾‾‾          \n\
+
+-k = 0           \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(k**(
+
+-        Integral(x**n, (x, -oo, oo))), (k, 0, Integral(x**x, (x, -oo, oo))))
+
+-    ascii_str = \
+
+-"""\
+
+- oo                 \n\
+
+-  /                 \n\
+
+- |                  \n\
+
+- |   x              \n\
+
+- |  x  dx           \n\
+
+- |                  \n\
+
+-/                   \n\
+
+--oo                 \n\
+
+- ______             \n\
+
+- \\     `            \n\
+
+-  \\         oo      \n\
+
+-   \\         /      \n\
+
+-    \\       |       \n\
+
+-     \\      |   n   \n\
+
+-      )     |  x  dx\n\
+
+-     /      |       \n\
+
+-    /      /        \n\
+
+-   /       -oo      \n\
+
+-  /       k         \n\
+
+- /_____,            \n\
+
+-  k = 0             \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-∞                 \n\
+
+-⌠                 \n\
+
+-⎮   x             \n\
+
+-⎮  x  dx          \n\
+
+-⌡                 \n\
+
+--∞                \n\
+
+- ______           \n\
+
+- ╲                \n\
+
+-  ╲       ∞       \n\
+
+-   ╲      ⌠       \n\
+
+-    ╲     ⎮   n   \n\
+
+-     ╲    ⎮  x  dx\n\
+
+-     ╱    ⌡       \n\
+
+-    ╱     -∞      \n\
+
+-   ╱     k        \n\
+
+-  ╱               \n\
+
+- ╱                \n\
+
+- ‾‾‾‾‾‾           \n\
+
+- k = 0            \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(k**(Integral(x**n, (x, -oo, oo))), (
+
+-        k, x + n + x**2 + n**2 + (x/n) + (1/x), Integral(x**x, (x, -oo, oo))))
+
+-    ascii_str = \
+
+-"""\
+
+-          oo                          \n\
+
+-           /                          \n\
+
+-          |                           \n\
+
+-          |   x                       \n\
+
+-          |  x  dx                    \n\
+
+-          |                           \n\
+
+-         /                            \n\
+
+-         -oo                          \n\
+
+-          ______                      \n\
+
+-          \\     `                     \n\
+
+-           \\                  oo      \n\
+
+-            \\                  /      \n\
+
+-             \\                |       \n\
+
+-              \\               |   n   \n\
+
+-               )              |  x  dx\n\
+
+-              /               |       \n\
+
+-             /               /        \n\
+
+-            /                -oo      \n\
+
+-           /                k         \n\
+
+-          /_____,                     \n\
+
+-     2        2       1   x           \n\
+
+-k = n  + n + x  + x + - + -           \n\
+
+-                      x   n           \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-          ∞                          \n\
+
+-          ⌠                          \n\
+
+-          ⎮   x                      \n\
+
+-          ⎮  x  dx                   \n\
+
+-          ⌡                          \n\
+
+-          -∞                         \n\
+
+-           ______                    \n\
+
+-           ╲                         \n\
+
+-            ╲                ∞       \n\
+
+-             ╲               ⌠       \n\
+
+-              ╲              ⎮   n   \n\
+
+-               ╲             ⎮  x  dx\n\
+
+-               ╱             ⌡       \n\
+
+-              ╱              -∞      \n\
+
+-             ╱              k        \n\
+
+-            ╱                        \n\
+
+-           ╱                         \n\
+
+-           ‾‾‾‾‾‾                    \n\
+
+-     2        2       1   x          \n\
+
+-k = n  + n + x  + x + ─ + ─          \n\
+
+-                      x   n          \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(k**(
+
+-        Integral(x**n, (x, -oo, oo))), (k, 0, x + n + x**2 + n**2 + (x/n) + (1/x)))
+
+-    ascii_str = \
+
+-"""\
+
+- 2        2       1   x           \n\
+
+-n  + n + x  + x + - + -           \n\
+
+-                  x   n           \n\
+
+-        ______                    \n\
+
+-        \\     `                   \n\
+
+-         \\                oo      \n\
+
+-          \\                /      \n\
+
+-           \\              |       \n\
+
+-            \\             |   n   \n\
+
+-             )            |  x  dx\n\
+
+-            /             |       \n\
+
+-           /             /        \n\
+
+-          /              -oo      \n\
+
+-         /              k         \n\
+
+-        /_____,                   \n\
+
+-         k = 0                    \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+- 2        2       1   x          \n\
+
+-n  + n + x  + x + ─ + ─          \n\
+
+-                  x   n          \n\
+
+-         ______                  \n\
+
+-         ╲                       \n\
+
+-          ╲              ∞       \n\
+
+-           ╲             ⌠       \n\
+
+-            ╲            ⎮   n   \n\
+
+-             ╲           ⎮  x  dx\n\
+
+-             ╱           ⌡       \n\
+
+-            ╱            -∞      \n\
+
+-           ╱            k        \n\
+
+-          ╱                      \n\
+
+-         ╱                       \n\
+
+-         ‾‾‾‾‾‾                  \n\
+
+-         k = 0                   \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(x, (x, 0, oo))
+
+-    ascii_str = \
+
+-"""\
+
+-  oo   \n\
+
+- __    \n\
+
+- \\ `   \n\
+
+-  )   x\n\
+
+- /_,   \n\
+
+-x = 0  \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  ∞    \n\
+
+- ___   \n\
+
+- ╲     \n\
+
+-  ╲   x\n\
+
+-  ╱    \n\
+
+- ╱     \n\
+
+- ‾‾‾   \n\
+
+-x = 0  \
+
+-""")
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(x**2, (x, 0, oo))
+
+-    ascii_str = \
+
+-u("""\
+
+-  oo    \n\
+
+- ___    \n\
+
+- \\  `   \n\
+
+-  \\    2\n\
+
+-  /   x \n\
+
+- /__,   \n\
+
+-x = 0   \
+
+-""")
+
+-    ucode_str = \
+
+-u("""\
+
+-  ∞     \n\
+
+- ___    \n\
+
+- ╲      \n\
+
+-  ╲    2\n\
+
+-  ╱   x \n\
+
+- ╱      \n\
+
+- ‾‾‾    \n\
+
+-x = 0   \
+
+-""")
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(x/2, (x, 0, oo))
+
+-    ascii_str = \
+
+-"""\
+
+-  oo   \n\
+
+- ___   \n\
+
+- \\  `  \n\
+
+-  \\   x\n\
+
+-   )  -\n\
+
+-  /   2\n\
+
+- /__,  \n\
+
+-x = 0  \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  ∞    \n\
+
+- ____  \n\
+
+- ╲     \n\
+
+-  ╲   x\n\
+
+-   ╲  ─\n\
+
+-   ╱  2\n\
+
+-  ╱    \n\
+
+- ╱     \n\
+
+- ‾‾‾‾  \n\
+
+-x = 0  \
+
+-""")
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(x**3/2, (x, 0, oo))
+
+-    ascii_str = \
+
+-"""\
+
+-  oo    \n\
+
+-____    \n\
+
+-\\   `   \n\
+
+- \\     3\n\
+
+-  \\   x \n\
+
+-  /   --\n\
+
+- /    2 \n\
+
+-/___,   \n\
+
+-x = 0   \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  ∞     \n\
+
+- ____   \n\
+
+- ╲      \n\
+
+-  ╲    3\n\
+
+-   ╲  x \n\
+
+-   ╱  ──\n\
+
+-  ╱   2 \n\
+
+- ╱      \n\
+
+- ‾‾‾‾   \n\
+
+-x = 0   \
+
+-""")
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum((x**3*y**(x/2))**n, (x, 0, oo))
+
+-    ascii_str = \
+
+-"""\
+
+-  oo          \n\
+
+-____          \n\
+
+-\\   `         \n\
+
+- \\           n\n\
+
+-  \\   /    x\\ \n\
+
+-   )  |    -| \n\
+
+-  /   | 3  2| \n\
+
+- /    \\x *y / \n\
+
+-/___,         \n\
+
+-x = 0         \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  ∞           \n\
+
+-_____         \n\
+
+-╲             \n\
+
+- ╲           n\n\
+
+-  ╲   ⎛    x⎞ \n\
+
+-   ╲  ⎜    ─⎟ \n\
+
+-   ╱  ⎜ 3  2⎟ \n\
+
+-  ╱   ⎝x ⋅y ⎠ \n\
+
+- ╱            \n\
+
+-╱             \n\
+
+-‾‾‾‾‾         \n\
+
+-x = 0         \
+
+-""")
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(1/x**2, (x, 0, oo))
+
+-    ascii_str = \
+
+-"""\
+
+-  oo    \n\
+
+-____    \n\
+
+-\\   `   \n\
+
+- \\    1 \n\
+
+-  \\   --\n\
+
+-  /    2\n\
+
+- /    x \n\
+
+-/___,   \n\
+
+-x = 0   \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  ∞     \n\
+
+- ____   \n\
+
+- ╲      \n\
+
+-  ╲   1 \n\
+
+-   ╲  ──\n\
+
+-   ╱   2\n\
+
+-  ╱   x \n\
+
+- ╱      \n\
+
+- ‾‾‾‾   \n\
+
+-x = 0   \
+
+-""")
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(1/y**(a/b), (x, 0, oo))
+
+-    ascii_str = \
+
+-"""\
+
+-  oo      \n\
+
+-____      \n\
+
+-\\   `     \n\
+
+- \\     -a \n\
+
+-  \\    ---\n\
+
+-  /     b \n\
+
+- /    y   \n\
+
+-/___,     \n\
+
+-x = 0     \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  ∞       \n\
+
+- ____     \n\
+
+- ╲        \n\
+
+-  ╲    -a \n\
+
+-   ╲   ───\n\
+
+-   ╱    b \n\
+
+-  ╱   y   \n\
+
+- ╱        \n\
+
+- ‾‾‾‾     \n\
+
+-x = 0     \
+
+-""")
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Sum(1/y**(a/b), (x, 0, oo), (y, 1, 2))
+
+-    ascii_str = \
+
+-"""\
+
+-  2     oo     \n\
+
+-____  ____     \n\
+
+-\\   ` \\   `    \n\
+
+- \\     \\     -a\n\
+
+-  \\     \\    --\n\
+
+-  /     /    b \n\
+
+- /     /    y  \n\
+
+-/___, /___,    \n\
+
+-y = 1 x = 0    \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  2     ∞      \n\
+
+-____  ____     \n\
+
+-╲     ╲        \n\
+
+- ╲     ╲     -a\n\
+
+-  ╲     ╲    ──\n\
+
+-  ╱     ╱    b \n\
+
+- ╱     ╱    y  \n\
+
+-╱     ╱        \n\
+
+-‾‾‾‾  ‾‾‾‾     \n\
+
+-y = 1 x = 0    \
+
+-""")
+
+-    expr = Sum(1/(1 + 1/(
+
+-        1 + 1/k)) + 1, (k, 111, 1 + 1/n), (k, 1/(1 + m), oo)) + 1/(1 + 1/k)
+
+-    ascii_str = \
+
+-"""\
+
+-               1                         \n\
+
+-           1 + -                         \n\
+
+-    oo         n                         \n\
+
+-  _____    _____                         \n\
+
+-  \\    `   \\    `                        \n\
+
+-   \\        \\     /        1    \\        \n\
+
+-    \\        \\    |1 + ---------|        \n\
+
+-     \\        \\   |          1  |     1  \n\
+
+-      )        )  |    1 + -----| + -----\n\
+
+-     /        /   |            1|       1\n\
+
+-    /        /    |        1 + -|   1 + -\n\
+
+-   /        /     \\            k/       k\n\
+
+-  /____,   /____,                        \n\
+
+-      1   k = 111                        \n\
+
+-k = -----                                \n\
+
+-    m + 1                                \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-               1                         \n\
+
+-           1 + ─                         \n\
+
+-    ∞          n                         \n\
+
+-  ______   ______                        \n\
+
+-  ╲        ╲                             \n\
+
+-   ╲        ╲     ⎛        1    ⎞        \n\
+
+-    ╲        ╲    ⎜1 + ─────────⎟        \n\
+
+-     ╲        ╲   ⎜          1  ⎟        \n\
+
+-      ╲        ╲  ⎜    1 + ─────⎟     1  \n\
+
+-      ╱        ╱  ⎜            1⎟ + ─────\n\
+
+-     ╱        ╱   ⎜        1 + ─⎟       1\n\
+
+-    ╱        ╱    ⎝            k⎠   1 + ─\n\
+
+-   ╱        ╱                           k\n\
+
+-  ╱        ╱                             \n\
+
+-  ‾‾‾‾‾‾   ‾‾‾‾‾‾                        \n\
+
+-      1   k = 111                        \n\
+
+-k = ─────                                \n\
+
+-    m + 1                                \
+
+-""")
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
++def fixed_pretty_product(expr, use_unicode=True):
+
++    from sympy.printing.pretty.stringpict import prettyForm
+
++
+
++    def pretty_product(expr, use_unicode=True):
+
++        pform = prettyForm()
+
++        if use_unicode:
+
++            pform.append('∏')
+
++            pform.append('─')
+
++            pform.append('┬')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append('─')
+
++            pform.append
+
+ 
+
+ 
+
+ def test_units():
+
+

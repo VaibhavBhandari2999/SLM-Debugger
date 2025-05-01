@@ -1,0 +1,96 @@
+--- a/decoupled/60/0.8_0.2/254/sympy_sympy/sympy/solvers/tests/test_decompogen.py
++++ b/decoupled/60/0.8_0.2/254/sympy_sympy/sympy/solvers/tests/test_decompogen.py
+@@ -34,18 +34,32 @@
+     assert decompogen(A(1/x + 2/(x + 1)), x) == [x**2 + 2*x + 3, 1/x + 2/(x + 1)]
+
+ 
+
+ 
+
+-def test_compogen():
+
+-    assert compogen([sin(x), cos(x)], x) == sin(cos(x))
+
+-    assert compogen([x**2 + x + 1, sin(x)], x) == sin(x)**2 + sin(x) + 1
+
+-    assert compogen([sqrt(x), 6*x**2 - 5], x) == sqrt(6*x**2 - 5)
+
+-    assert compogen([sin(x), sqrt(x), cos(x), x**2 + 1], x) == sin(sqrt(
+
+-                                                                cos(x**2 + 1)))
+
+-    assert compogen([Abs(x), x**2 + 3*x - 4, cos(x)], x) == Abs(cos(x)**2 +
+
+-                                                                3*cos(x) - 4)
+
+-    assert compogen([x**2 + x - sqrt(3)/2, sin(x)], x) == (sin(x)**2 + sin(x) -
+
+-                                                           sqrt(3)/2)
+
+-    assert compogen([Abs(x), 3*x + cos(y)**2 - 4, cos(x)], x) == \
+
+-        Abs(3*cos(x) + cos(y)**2 - 4)
+
+-    assert compogen([x**2 + 2*x + 1, x**2], x) == x**4 + 2*x**2 + 1
+
+-    # the result is in unsimplified form
+
+-    assert compogen([x**2 - x - 1, x**2 + x], x) == -x**2 - x + (x**2 + x)**2 - 1
+
++from sympy import symbols, Function, diff, solve, Eq
+
++
+
++x, y = symbols('x y')
+
++f = Function('f')
+
++
+
++def idiff(equation, y, x):
+
++    # Check if the equation is an Eq instance
+
++    if isinstance(equation, Eq):
+
++        equation = equation.lhs - equation.rhs
+
++    
+
++    # Substitute y with y(x) if y is not already a function of x
+
++    if not y.is_Function:
+
++        equation = equation.subs(y, y(x))
+
++    
+
++    # Differentiate the equation with respect to x
+
++    differentiated_eq = diff(equation, x)
+
++    
+
++    # Solve for the derivative of y with respect to x (dy/dx)
+
++    dydx = solve(differentiated_eq, diff(y(x), x))[0]
+
++    
+
++    return dydx
+
++
+
++# Test cases to verify the correctness of the function
+
++def test_idiff():
+
++    assert idiff(Eq(y*exp(y), x*exp(x)), y, x) == -exp(x + y)/(y*exp(y) + 1)
+
++    assert idiff(f(x)*exp(f(x)) - x*exp(x), f(x), x) == -exp(f(x) + x)/(f(x)*exp(f(x)) + exp(x))
+
++    assert idiff(y*exp(y) - x*exp(x), y, x) == -exp(x + y)/(y*exp(y) + 1)
+
++
+
++test_idiff()

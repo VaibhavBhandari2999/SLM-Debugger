@@ -1,0 +1,596 @@
+--- a/decoupled/60/0.8_0.2/90/django_django/django/core/checks/model_checks.py
++++ b/decoupled/60/0.8_0.2/90/django_django/django/core/checks/model_checks.py
+@@ -86,123 +86,29 @@
+     return errors
+
+ 
+
+ 
+
+-def _check_lazy_references(apps, ignore=None):
+
+-    """
+
+-    Ensure all lazy (i.e. string) model references have been resolved.
+
++from django.utils.encoding import force_text
+
++from django.utils.functional import Promise
+
+ 
+
+-    Lazy references are used in various places throughout Django, primarily in
+
+-    related fields and model signals. Identify those common cases and provide
+
+-    more helpful error messages for them.
+
++class MessageEncoder:
+
++    def encode(self, message):
+
++        return {
+
++            'level': message.level,
+
++            'message': force_text(message.message),
+
++            'tags': force_text(message.tags),
+
++            'extra_tags': force_text(message.extra_tags) if message.extra_tags else '',
+
++        }
+
+ 
+
+-    The ignore parameter is used by StateApps to exclude swappable models from
+
+-    this check.
+
+-    """
+
+-    pending_models = set(apps._pending_operations) - (ignore or set())
+
++    def encode_list(self, messages):
+
++        return [self.encode(message) for message in messages]
+
+ 
+
+-    # Short circuit if there aren't any errors.
+
+-    if not pending_models:
+
+-        return []
+
+-
+
+-    from django.db.models import signals
+
+-    model_signals = {
+
+-        signal: name for name, signal in vars(signals).items()
+
+-        if isinstance(signal, signals.ModelSignal)
+
+-    }
+
+-
+
+-    def extract_operation(obj):
+
+-        """
+
+-        Take a callable found in Apps._pending_operations and identify the
+
+-        original callable passed to Apps.lazy_model_operation(). If that
+
+-        callable was a partial, return the inner, non-partial function and
+
+-        any arguments and keyword arguments that were supplied with it.
+
+-
+
+-        obj is a callback defined locally in Apps.lazy_model_operation() and
+
+-        annotated there with a `func` attribute so as to imitate a partial.
+
+-        """
+
+-        operation, args, keywords = obj, [], {}
+
+-        while hasattr(operation, 'func'):
+
+-            args.extend(getattr(operation, 'args', []))
+
+-            keywords.update(getattr(operation, 'keywords', {}))
+
+-            operation = operation.func
+
+-        return operation, args, keywords
+
+-
+
+-    def app_model_error(model_key):
+
+-        try:
+
+-            apps.get_app_config(model_key[0])
+
+-            model_error = "app '%s' doesn't provide model '%s'" % model_key
+
+-        except LookupError:
+
+-            model_error = "app '%s' isn't installed" % model_key[0]
+
+-        return model_error
+
+-
+
+-    # Here are several functions which return CheckMessage instances for the
+
+-    # most common usages of lazy operations throughout Django. These functions
+
+-    # take the model that was being waited on as an (app_label, modelname)
+
+-    # pair, the original lazy function, and its positional and keyword args as
+
+-    # determined by extract_operation().
+
+-
+
+-    def field_error(model_key, func, args, keywords):
+
+-        error_msg = (
+
+-            "The field %(field)s was declared with a lazy reference "
+
+-            "to '%(model)s', but %(model_error)s."
+
++class MessageDecoder:
+
++    def decode(self, encoded_message):
+
++        return Message(
+
++            level=encoded_message['level'],
+
++            message=encoded_message['message'],
+
++            tags=encoded_message['tags'],
+
++            extra_tags=encoded_message.get('extra_tags', ''),
+
+         )
+
+-        params = {
+
+-            'model': '.'.join(model_key),
+
+-            'field': keywords['field'],
+
+-            'model_error': app_model_error(model_key),
+
+-        }
+
+-        return Error(error_msg % params, obj=keywords['field'], id='fields.E307')
+
+-
+
+-    def signal_connect_error(model_key, func, args, keywords):
+
+-        error_msg = (
+
+-            "%(receiver)s was connected to the '%(signal)s' signal with a "
+
+-            "lazy reference to the sender '%(model)s', but %(model_error)s."
+
+-        )
+
+-        receiver = args[0]
+
+-        # The receiver is either a function or an instance of class
+
+-        # defining a `__call__` method.
+
+-        if isinstance(receiver, types.FunctionType):
+
+-            description = "The function '%s'" % receiver.__name__
+
+-        elif isinstance(receiver, types.MethodType):
+
+-            description = "Bound method '%s.%s'" % (receiver.__self__.__class__.__name__, receiver.__name__)
+
+-        else:
+
+-            description = "An instance of class '%s'" % receiver.__class__.__name__
+
+-        signal_name = model_signals.get(func.__self__, 'unknown')
+
+-        params = {
+
+-            'model': '.'.join(model_key),
+
+-            'receiver': description,
+
+-            'signal': signal_name,
+
+-            'model_error': app_model_error(model_key),
+
+-        }
+
+-        return Error(error_msg % params, obj=receiver.__module__, id='signals.E001')
+
+-
+
+-    def default_error(model_key, func, args, keywords):
+
+-        error_msg = "%(op)s contains a lazy reference to %(model)s, but %(model_error)s."
+
+-        params = {
+
+-            'op': func,
+
+-            'model': '.'.join(model_key),
+
+-            'model_error': app_model_error(model_key),
+
+-        }
+
+-        return Error(error_msg % params, obj=func, id='models.E022')
+
+-
+
+-    # Maps common uses of lazy operations to corresponding error functions
+
+-    # defined above. If a key maps to None, no error will be produced.
+
+-    # default_error() will be used for usages that don't appear in this dict.
+
+-    known_lazy = {
+
+-        ('django.db.models.fields.related', 'resolve_related_class'): field_error,
+
+-        ('django.db.models.fields.related', 'set_managed'): None,
+
+-        ('django.dispatch.dispatcher', 'connect'): signal_connect_error,
+
+-    }
+
+-
+
+-    def build_error(model_key, func, args, keywords):
+
+-        key = (func.__module__, func.__name__)
+
+-        error_fn = known_lazy.get(key, default_error)
+
+-        return error_fn(model_key, func, args, keywords) if error_fn else None
+
+-
+
+-    return sorted(filter(None, (
+
+-        build_error(model_key, *extract_operation(func))
+
+-        for model_key in pending_models
+
+-        for func in apps._pending_operations[model_key]
+
+-    )), key=lambda error: error.msg)
+
+ 
+
+ 
+
+ @register(Tags.models)
+
+
+--- a/decoupled/60/0.8_0.2/90/django_django/django/core/checks/model_checks.py
++++ b/decoupled/60/0.8_0.2/90/django_django/django/core/checks/model_checks.py
+@@ -152,28 +152,33 @@
+         }
+
+         return Error(error_msg % params, obj=keywords['field'], id='fields.E307')
+
+ 
+
+-    def signal_connect_error(model_key, func, args, keywords):
+
+-        error_msg = (
+
+-            "%(receiver)s was connected to the '%(signal)s' signal with a "
+
+-            "lazy reference to the sender '%(model)s', but %(model_error)s."
+
+-        )
+
+-        receiver = args[0]
+
+-        # The receiver is either a function or an instance of class
+
+-        # defining a `__call__` method.
+
+-        if isinstance(receiver, types.FunctionType):
+
+-            description = "The function '%s'" % receiver.__name__
+
+-        elif isinstance(receiver, types.MethodType):
+
+-            description = "Bound method '%s.%s'" % (receiver.__self__.__class__.__name__, receiver.__name__)
+
+-        else:
+
+-            description = "An instance of class '%s'" % receiver.__class__.__name__
+
+-        signal_name = model_signals.get(func.__self__, 'unknown')
+
+-        params = {
+
+-            'model': '.'.join(model_key),
+
+-            'receiver': description,
+
+-            'signal': signal_name,
+
+-            'model_error': app_model_error(model_key),
+
++import json
+
++
+
++class MessageEncoder:
+
++    def encode(self, message):
+
++        data = {
+
++            'level': message.level,
+
++            'message': message.message,
+
++            'extra_tags': message.extra_tags or '',
+
+         }
+
+-        return Error(error_msg % params, obj=receiver.__module__, id='signals.E001')
+
++        return json.dumps(data)
+
++
+
++    def decode(self, encoded_message):
+
++        data = json.loads(encoded_message)
+
++        return Message(
+
++            level=data['level'],
+
++            message=data['message'],
+
++            extra_tags=data.get('extra_tags', ''),
+
++        )
+
++
+
++class MessageDecoder:
+
++    def decode(self, encoded_message):
+
++        data = json.loads(encoded_message)
+
++        return Message(
+
++            level=data['level'],
+
++            message=data['message'],
+
++            extra_tags=data.get('extra_tags', ''),
+
++        )
+
+ 
+
+     def default_error(model_key, func, args, keywords):
+
+         error_msg = "%(op)s contains a lazy reference to %(model)s, but %(model_error)s."
+
+
+--- a/decoupled/60/0.8_0.2/90/django_django/django/template/smartif.py
++++ b/decoupled/60/0.8_0.2/90/django_django/django/template/smartif.py
+@@ -186,13 +186,29 @@
+             self.pos += 1
+
+             return retval
+
+ 
+
+-    def parse(self):
+
+-        retval = self.expression()
+
+-        # Check that we have exhausted all the tokens
+
+-        if self.current_token is not EndToken:
+
+-            raise self.error_class("Unused '%s' at end of if expression." %
+
+-                                   self.current_token.display())
+
+-        return retval
+
++from django.contrib.messages.storage.base import Message
+
++from django.core.serializers.json import DjangoJSONEncoder
+
++
+
++class MessageEncoder:
+
++    def encode(self, message):
+
++        data = {
+
++            'level': message.level,
+
++            'message': message.message,
+
++            'extra_tags': message.extra_tags or '',
+
++        }
+
++        return DjangoJSONEncoder().encode(data)
+
++
+
++    def encode_message(self, message):
+
++        return self.encode(message)
+
++
+
++class MessageDecoder:
+
++    def decode(self, encoded_message):
+
++        data = DjangoJSONEncoder().decode(encoded_message)
+
++        return Message(
+
++            level=data['level'],
+
++            message=data['message'],
+
++            extra_tags=data['extra_tags'] or '',
+
++        )
+
+ 
+
+     def expression(self, rbp=0):
+
+         t = self.current_token
+
+
+--- a/decoupled/60/0.8_0.2/90/django_django/django/core/checks/model_checks.py
++++ b/decoupled/60/0.8_0.2/90/django_django/django/core/checks/model_checks.py
+@@ -109,7 +109,7 @@
+         if isinstance(signal, signals.ModelSignal)
+
+     }
+
+ 
+
+-    def extract_operation(obj):
+
++def extract_operation(obj):
+
+         """
+
+         Take a callable found in Apps._pending_operations and identify the
+
+         original callable passed to Apps.lazy_model_operation(). If that
+
+@@ -121,9 +121,13 @@
+         """
+
+         operation, args, keywords = obj, [], {}
+
+         while hasattr(operation, 'func'):
+
+-            args.extend(getattr(operation, 'args', []))
+
+-            keywords.update(getattr(operation, 'keywords', {}))
+
+-            operation = operation.func
+
++            # Check if the operation is a string and if it is, ensure it remains an empty string
+
++            if isinstance(operation, str) and operation == "":
+
++                operation = ""
+
++            else:
+
++                args.extend(getattr(operation, 'args', []))
+
++                keywords.update(getattr(operation, 'keywords', {}))
+
++                operation = operation.func
+
+         return operation, args, keywords
+
+ 
+
+     def app_model_error(model_key):
+
+
+--- a/decoupled/60/0.8_0.2/90/django_django/django/core/checks/security/csrf.py
++++ b/decoupled/60/0.8_0.2/90/django_django/django/core/checks/security/csrf.py
+@@ -45,6 +45,7 @@
+ @register(Tags.security)
+
+ def check_csrf_failure_view(app_configs, **kwargs):
+
+     from django.middleware.csrf import _get_failure_view
+
++    from inspect import isfunction
+
+ 
+
+     errors = []
+
+     try:
+
+@@ -56,12 +57,19 @@
+         )
+
+         errors.append(Error(msg, id='security.E102'))
+
+     else:
+
+-        try:
+
+-            inspect.signature(view).bind(None, reason=None)
+
+-        except TypeError:
+
++        if not isfunction(view):
+
+             msg = (
+
+-                "The CSRF failure view '%s' does not take the correct number of arguments." %
+
++                "The CSRF failure view '%s' is not a callable function." %
+
+                 settings.CSRF_FAILURE_VIEW
+
+             )
+
+-            errors.append(Error(msg, id='security.E101'))
+
++            errors.append(Error(msg, id='security.E103'))
+
++        else:
+
++            try:
+
++                inspect.signature(view).bind(None, reason=None)
+
++            except TypeError:
+
++                msg = (
+
++                    "The CSRF failure view '%s' does not take the correct number of arguments." %
+
++                    settings.CSRF_FAILURE_VIEW
+
++                )
+
++                errors.append(Error(msg, id='security.E101'))
+
+     return errors
+
+

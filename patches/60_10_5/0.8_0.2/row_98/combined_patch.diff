@@ -1,0 +1,584 @@
+--- a/decoupled/60/0.8_0.2/98/django_django/django/template/loaders/cached.py
++++ b/decoupled/60/0.8_0.2/98/django_django/django/template/loaders/cached.py
+@@ -25,45 +25,45 @@
+     def get_contents(self, origin):
+
+         return origin.loader.get_contents(origin)
+
+ 
+
+-    def get_template(self, template_name, skip=None):
+
+-        """
+
+-        Perform the caching that gives this loader its name. Often many of the
+
+-        templates attempted will be missing, so memory use is of concern here.
+
+-        To keep it in check, caching behavior is a little complicated when a
+
+-        template is not found. See ticket #26306 for more details.
+
++def get_template(self, template_name, skip=None):
+
++    """
+
++    Perform the caching that gives this loader its name. Often many of the
+
++    templates attempted will be missing, so memory use is of concern here.
+
++    To keep it in check, caching behavior is a little complicated when a
+
++    template is not found. See ticket #26306 for more details.
+
+ 
+
+-        With template debugging disabled, cache the TemplateDoesNotExist class
+
+-        for every missing template and raise a new instance of it after
+
+-        fetching it from the cache.
+
++    With template debugging disabled, cache the TemplateDoesNotExist class
+
++    for every missing template and raise a new instance of it after
+
++    fetching it from the cache.
+
+ 
+
+-        With template debugging enabled, a unique TemplateDoesNotExist object
+
+-        is cached for each missing template to preserve debug data. When
+
+-        raising an exception, Python sets __traceback__, __context__, and
+
+-        __cause__ attributes on it. Those attributes can contain references to
+
+-        all sorts of objects up the call chain and caching them creates a
+
+-        memory leak. Thus, unraised copies of the exceptions are cached and
+
+-        copies of those copies are raised after they're fetched from the cache.
+
+-        """
+
+-        key = self.cache_key(template_name, skip)
+
+-        cached = self.get_template_cache.get(key)
+
+-        if cached:
+
+-            if isinstance(cached, type) and issubclass(cached, TemplateDoesNotExist):
+
+-                raise cached(template_name)
+
+-            elif isinstance(cached, TemplateDoesNotExist):
+
+-                raise copy_exception(cached)
+
+-            return cached
+
++    With template debugging enabled, a unique TemplateDoesNotExist object
+
++    is cached for each missing template to preserve debug data. When
+
++    raising an exception, Python sets __traceback__, __context__, and
+
++    __cause__ attributes on it. Those attributes can contain references to
+
++    all sorts of objects up the call chain and caching them creates a
+
++    memory leak. Thus, unraised copies of the exceptions are cached and
+
++    copies of those copies are raised after they're fetched from the cache.
+
++    """
+
++    key = self.cache_key(template_name, skip)
+
++    cached = self.get_template_cache.get(key)
+
++    if cached:
+
++        if isinstance(cached, type) and issubclass(cached, TemplateDoesNotExist):
+
++            raise cached(template_name)
+
++        elif isinstance(cached, TemplateDoesNotExist):
+
++            raise copy_exception(cached)
+
++        return cached
+
+ 
+
+-        try:
+
+-            template = super().get_template(template_name, skip)
+
+-        except TemplateDoesNotExist as e:
+
+-            self.get_template_cache[key] = (
+
+-                copy_exception(e) if self.engine.debug else TemplateDoesNotExist
+
+-            )
+
+-            raise
+
+-        else:
+
+-            self.get_template_cache[key] = template
+
++    try:
+
++        template = super().get_template(template_name, skip)
+
++    except TemplateDoesNotExist as e:
+
++        self.get_template_cache[key] = (
+
++            copy_exception(e) if self.engine.debug else TemplateDoesNotExist
+
++        )
+
++        raise
+
++    else:
+
++        self.get_template_cache[key] = template
+
+ 
+
+-        return template
+
++    return template
+
+ 
+
+     def get_template_sources(self, template_name):
+
+         for loader in self.loaders:
+
+
+--- a/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
+@@ -292,28 +292,58 @@
+ 
+
+ 
+
+ class Token:
+
+-    def __init__(self, token_type, contents, position=None, lineno=None):
+
+-        """
+
+-        A token representing a string from the template.
+
+-
+
+-        token_type
+
+-            A TokenType, either .TEXT, .VAR, .BLOCK, or .COMMENT.
+
+-
+
+-        contents
+
+-            The token source string.
+
+-
+
+-        position
+
+-            An optional tuple containing the start and end index of the token
+
+-            in the template source. This is used for traceback information
+
+-            when debug is on.
+
+-
+
+-        lineno
+
+-            The line number the token appears on in the template source.
+
+-            This is used for traceback information and gettext files.
+
+-        """
+
+-        self.token_type, self.contents = token_type, contents
+
+-        self.lineno = lineno
+
+-        self.position = position
+
++def check_for_template_tags_with_the_same_name(templates_config):
+
++    """
+
++    Check for duplicate template tag libraries in the TEMPLATES configuration.
+
++
+
++    :param templates_config: A dictionary representing the TEMPLATES configuration.
+
++    :return: A list of duplicate template tag library names.
+
++    """
+
++    libraries = {}
+
++    for config in templates_config:
+
++        libraries.setdefault(config['OPTIONS'].get('libraries', []), []).append(config['NAME'])
+
++    
+
++    duplicates = [lib for lib, configs in libraries.items() if len(configs) > 1]
+
++    return duplicates
+
++
+
++# Example usage:
+
++TEMPLATES = [
+
++    {
+
++        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
++        'DIRS': [],
+
++        'APP_DIRS': True,
+
++        'OPTIONS': {
+
++            'context_processors': [
+
++                'django.template.context_processors.debug',
+
++                'django.template.context_processors.request',
+
++                'django.contrib.auth.context_processors.auth',
+
++                'django.contrib.messages.context_processors.messages',
+
++            ],
+
++            'libraries': {
+
++                'my_tags': 'someapp.templatetags.my_tags',
+
++            },
+
++        },
+
++    },
+
++    {
+
++        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
++        'DIRS': [],
+
++        'APP_DIRS': True,
+
++        'OPTIONS': {
+
++            'context_processors': [
+
++                'django.template.context_processors.debug',
+
++                'django.template.context_processors.request',
+
++                'django.contrib.auth.context_processors.auth',
+
++                'django.contrib.messages.context_processors.messages',
+
++            ],
+
++            'libraries': {
+
++                'my_tags': 'someapp.templatetags.my_tags',  # This is the duplicate entry
+
++            },
+
++        },
+
++    },
+
++]
+
++
+
++duplicates = check_for_template_tags_with_the_same_name(TEMPLATES)
+
++print(duplicates)  # Output: ['my_tags']
+
+ 
+
+     def __repr__(self):
+
+         token_name = self.token_type.name.capitalize()
+
+
+--- a/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
+@@ -540,18 +540,21 @@
+         node.origin = self.origin
+
+         nodelist.append(node)
+
+ 
+
+-    def error(self, token, e):
+
+-        """
+
+-        Return an exception annotated with the originating token. Since the
+
+-        parser can be called recursively, check if a token is already set. This
+
+-        ensures the innermost token is highlighted if an exception occurs,
+
+-        e.g. a compile error within the body of an if statement.
+
+-        """
+
+-        if not isinstance(e, Exception):
+
+-            e = TemplateSyntaxError(e)
+
+-        if not hasattr(e, "token"):
+
+-            e.token = token
+
+-        return e
+
++def check_for_template_tags_with_the_same_name(templates_config):
+
++    """
+
++    Check for duplicate template tag library names in the TEMPLATES configuration.
+
++    """
+
++    tag_libraries = {}
+
++    for template_config in templates_config:
+
++        libraries = template_config.get('OPTIONS', {}).get('libraries', [])
+
++        for library in libraries:
+
++            if library['name'] in tag_libraries:
+
++                raise TemplateConfigurationError(
+
++                    f"'{library['name']}' is used for multiple template tag modules: "
+
++                    f"{', '.join(library['module'] for library in tag_libraries[library['name']])}"
+
++                )
+
++            tag_libraries[library['name']] = [library]
+
++    return True
+
+ 
+
+     def invalid_block_tag(self, token, command, parse_until=None):
+
+         if parse_until:
+
+
+--- a/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
+@@ -553,23 +553,22 @@
+             e.token = token
+
+         return e
+
+ 
+
+-    def invalid_block_tag(self, token, command, parse_until=None):
+
+-        if parse_until:
+
+-            raise self.error(
+
+-                token,
+
+-                "Invalid block tag on line %d: '%s', expected %s. Did you "
+
+-                "forget to register or load this tag?"
+
+-                % (
+
+-                    token.lineno,
+
+-                    command,
+
+-                    get_text_list(["'%s'" % p for p in parse_until], "or"),
+
+-                ),
+
+-            )
+
+-        raise self.error(
+
+-            token,
+
+-            "Invalid block tag on line %d: '%s'. Did you forget to register "
+
+-            "or load this tag?" % (token.lineno, command),
+
+-        )
+
++TEMPLATES = [
+
++    {
+
++        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
++        'DIRS': [],
+
++        'APP_DIRS': True,
+
++        'OPTIONS': {
+
++            'context_processors': [
+
++                # ... other context processors ...
+
++            ],
+
++            'libraries': {
+
++                'my_tags': 'someapp.templatetags.my_tags',
+
++                # ... other libraries ...
+
++            },
+
++        },
+
++    },
+
++]
+
+ 
+
+     def unclosed_block_tag(self, parse_until):
+
+         command, token = self.command_stack.pop()
+
+
+--- a/decoupled/60/0.8_0.2/98/django_django/django/template/loaders/base.py
++++ b/decoupled/60/0.8_0.2/98/django_django/django/template/loaders/base.py
+@@ -5,34 +5,22 @@
+     def __init__(self, engine):
+
+         self.engine = engine
+
+ 
+
+-    def get_template(self, template_name, skip=None):
+
+-        """
+
+-        Call self.get_template_sources() and return a Template object for
+
+-        the first template matching template_name. If skip is provided, ignore
+
+-        template origins in skip. This is used to avoid recursion during
+
+-        template extending.
+
+-        """
+
+-        tried = []
+
+-
+
+-        for origin in self.get_template_sources(template_name):
+
+-            if skip is not None and origin in skip:
+
+-                tried.append((origin, "Skipped to avoid recursion"))
+
+-                continue
+
+-
+
+-            try:
+
+-                contents = self.get_contents(origin)
+
+-            except TemplateDoesNotExist:
+
+-                tried.append((origin, "Source does not exist"))
+
+-                continue
+
+-            else:
+
+-                return Template(
+
+-                    contents,
+
+-                    origin,
+
+-                    origin.template_name,
+
+-                    self.engine,
+
+-                )
+
+-
+
+-        raise TemplateDoesNotExist(template_name, tried=tried)
+
++TEMPLATES = [
+
++    {
+
++        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
++        'DIRS': [],
+
++        'APP_DIRS': True,
+
++        'OPTIONS': {
+
++            'context_processors': [
+
++                # ... other context processors ...
+
++            ],
+
++            'libraries': {
+
++                'my_tags': 'someapp.templatetags.my_tags',
+
++                'another_tags': 'someapp.templatetags.another_tags',  # Ensure unique names
+
++            },
+
++        },
+
++    },
+
++]
+
+ 
+
+     def get_template_sources(self, template_name):
+
+         """
+
+

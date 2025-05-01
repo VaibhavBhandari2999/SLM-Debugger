@@ -1,0 +1,81 @@
+--- a/decoupled/60/0.8_0.2/94/django_django/tests/backends/postgresql/test_creation.py
++++ b/decoupled/60/0.8_0.2/94/django_django/tests/backends/postgresql/test_creation.py
+@@ -21,7 +21,7 @@
+ @unittest.skipUnless(connection.vendor == "postgresql", "PostgreSQL tests")
+
+ class DatabaseCreationTests(SimpleTestCase):
+
+     @contextmanager
+
+-    def changed_test_settings(self, **kwargs):
+
++def changed_test_settings(self, **kwargs):
+
+         settings = connection.settings_dict["TEST"]
+
+         saved_values = {}
+
+         for name in kwargs:
+
+@@ -38,6 +38,31 @@
+                     settings[name] = saved_values[name]
+
+                 else:
+
+                     del settings[name]
+
++
+
++        # Ensure the old index name is restored when reapplying RenameIndex
+
++        def restore_old_index_name(operation, app_label, editor, project_state, new_state):
+
++            if isinstance(operation, RenameIndex):
+
++                old_name = operation.old_name
+
++                new_name = operation.new_name
+
++                if not old_name and new_name:  # Check if the index was unnamed and is now named
+
++                    # Find the old index name
+
++                    table_name = operation.model._meta.db_table
+
++                    old_index_name = f"{table_name}_idx"
+
++                    # Rename the index back to its old name
+
++                    editor.rename_index(table_name, new_name, old_index_name)
+
++
+
++        # Apply the restore function before reapplying the RenameIndex operation
+
++        def database_forwards(self, app_label, schema_editor, from_state, to_state):
+
++            restore_old_index_name(self, app_label, schema_editor, from_state, to_state)
+
++            return super().database_forwards(app_label, schema_editor, from_state, to_state)
+
++
+
++        def database_backwards(self, app_label, schema_editor, from_state, to_state):
+
++            restore_old_index_name(self, app_label, schema_editor, from_state, to_state)
+
++            return super().database_backwards(app_label, schema_editor, from_state, to_state)
+
++
+
++        # Monkey patch the methods
+
++        connection.schema_editor.database_forwards = database_forwards
+
++        connection.schema_editor.database_backwards = database_backwards
+
+ 
+
+     def check_sql_table_creation_suffix(self, settings, expected):
+
+         with self.changed_test_settings(**settings):

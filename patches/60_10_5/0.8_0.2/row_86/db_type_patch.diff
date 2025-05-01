@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_custom_fields.py
++++ b/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_custom_fields.py
+@@ -8,9 +8,18 @@
+ 
+
+     def test_none_column(self):
+
+         class NoColumnField(models.AutoField):
+
+-            def db_type(self, connection):
+
+-                # None indicates not to create a column in the database.
+
+-                return None
+
++from django.core.exceptions import ValidationError
+
++from django.utils.translation import ugettext as _
+
++
+
++def db_type(self, connection):
+
++    # None indicates not to create a column in the database.
+
++    return None
+
++
+
++def clean(self, value):
+
++    try:
+
++        return super().clean(value)
+
++    except ValueError as e:
+
++        raise ValidationError(_('Enter a valid URL.'), code='invalid')
+
+ 
+
+         class Model(models.Model):
+
+             field = NoColumnField(primary_key=True, db_column="other_field")

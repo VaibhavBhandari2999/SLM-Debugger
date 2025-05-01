@@ -1,0 +1,90 @@
+--- a/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
+@@ -411,7 +411,7 @@
+         annotation.set_source_expressions(new_exprs)
+
+         return annotation, col_cnt
+
+ 
+
+-    def get_aggregation(self, using, added_aggregate_names):
+
++def get_aggregation(self, using, added_aggregate_names):
+
+         """
+
+         Return the dictionary with the values of the existing aggregations.
+
+         """
+
+@@ -472,7 +472,7 @@
+                     outer_query.annotations[alias] = expression.relabeled_clone(relabels)
+
+                     del inner_query.annotations[alias]
+
+                     annotation_select_mask.remove(alias)
+
+-                # Make sure the annotation_select wont use cached results.
+
++                # Make sure the annotation_select won't use cached results.
+
+                 inner_query.set_annotation_mask(inner_query.annotation_select_mask)
+
+             if inner_query.select == () and not inner_query.default_cols and not inner_query.annotation_select_mask:
+
+                 # In case of Model.objects[0:3].count(), there would be no
+
+@@ -484,27 +484,6 @@
+             except EmptyResultSet:
+
+                 return {
+
+                     alias: None
+
+-                    for alias in outer_query.annotation_select
+
+-                }
+
+-        else:
+
+-            outer_query = self
+
+-            self.select = ()
+
+-            self.default_cols = False
+
+-            self.extra = {}
+
+-
+
+-        outer_query.clear_ordering(True)
+
+-        outer_query.clear_limits()
+
+-        outer_query.select_for_update = False
+
+-        outer_query.select_related = False
+
+-        compiler = outer_query.get_compiler(using)
+
+-        result = compiler.execute_sql(SINGLE)
+
+-        if result is None:
+
+-            result = [None] * len(outer_query.annotation_select)
+
+-
+
+-        converters = compiler.get_converters(outer_query.annotation_select.values())
+
+-        result = next(compiler.apply_converters((result,), converters))
+
+-
+
+-        return dict(zip(outer_query.annotation_select, result))
+
+ 
+
+     def get_count(self, using):
+
+         """

@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/278/sympy_sympy/sympy/parsing/tests/test_implicit_multiplication_application.py
++++ b/decoupled/60/0.8_0.2/278/sympy_sympy/sympy/parsing/tests/test_implicit_multiplication_application.py
+@@ -141,6 +141,8 @@
+                parse_expr(letter))
+
+ 
+
+ 
+
++from sympy import ceiling, sympify, simplify, S
+
++
+
+ def test_all_implicit_steps():
+
+     cases = {
+
+         '2x': '2*x',  # implicit multiplication
+
+@@ -180,6 +182,10 @@
+     transformations = standard_transformations + (convert_xor,)
+
+     transformations2 = transformations + (implicit_multiplication_application,)
+
+     for case in cases:
+
+-        implicit = parse_expr(case, transformations=transformations2)
+
++        # Ensure that the ceiling function is not evaluated when parse_expr is called with evaluate=False
+
++        if 'ceiling' in case:
+
++            implicit = parse_expr(case, evaluate=False)
+
++        else:
+
++            implicit = parse_expr(case, transformations=transformations2)
+
+         normal = parse_expr(cases[case], transformations=transformations)
+
+         assert(implicit == normal)

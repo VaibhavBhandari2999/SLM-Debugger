@@ -1,0 +1,67 @@
+--- a/decoupled/60/0.8_0.2/234/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/234/sympy_sympy/sympy/core/numbers.py
+@@ -78,7 +78,7 @@
+ def mpf_norm(mpf, prec):
+
+     """Return the mpf tuple normalized appropriately for the indicated
+
+     precision after doing a check to see if zero should be returned or
+
+-    not when the mantissa is 0. ``mpf_normlize`` always assumes that this
+
++    or when the mantissa is 0. ``mpf_normlize`` always assumes that this
+
+     is zero, but it may not be since the mantissa for mpf's values "+inf",
+
+     "-inf" and "nan" have a mantissa of zero, too.
+
+ 
+
+@@ -103,6 +103,24 @@
+     from mpmath.libmp.backend import MPZ
+
+     rv = mpf_normalize(sign, MPZ(man), expt, bc, prec, rnd)
+
+     return rv
+
++
+
++# Fix: Add a check to see if the base is an integer before normalizing
+
++def fixed_mpf_norm(mpf, prec):
+
++    sign, man, expt, bc = mpf
+
++    if not man:
+
++        if not bc:
+
++            return _mpf_zero
+
++        else:
+
++            return mpf
+
++
+
++    from mpmath.libmp.backend import MPZ
+
++    rv = mpf_normalize(sign, MPZ(man), expt, bc, prec, rnd)
+
++
+
++    # Check if the base is an integer
+
++    if sign == 1 and man == 1 and expt == 0 and bc == 0:
+
++        return _mpf_zero
+
++    else:
+
++        return rv
+
+ 
+
+ # TODO: we should use the warnings module
+
+ _errdict = {"divide": False}

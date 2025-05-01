@@ -1,0 +1,822 @@
+--- a/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_error_messages.py
++++ b/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_error_messages.py
+@@ -207,39 +207,62 @@
+         self.assertFormErrors(['REQUIRED'], f.clean, '')
+
+         self.assertFormErrors(['INVALID IP ADDRESS'], f.clean, '127.0.0')
+
+ 
+
+-    def test_subclassing_errorlist(self):
+
+-        class TestForm(Form):
+
+-            first_name = CharField()
+
+-            last_name = CharField()
+
+-            birthday = DateField()
+
+-
+
+-            def clean(self):
+
+-                raise ValidationError("I like to be awkward.")
+
+-
+
+-        class CustomErrorList(utils.ErrorList):
+
+-            def __str__(self):
+
+-                return self.as_divs()
+
+-
+
+-            def as_divs(self):
+
+-                if not self:
+
+-                    return ''
+
+-                return mark_safe('<div class="error">%s</div>' % ''.join('<p>%s</p>' % e for e in self))
+
+-
+
+-        # This form should print errors the default way.
+
+-        form1 = TestForm({'first_name': 'John'})
+
+-        self.assertHTMLEqual(
+
+-            str(form1['last_name'].errors),
+
+-            '<ul class="errorlist"><li>This field is required.</li></ul>'
+
+-        )
+
+-        self.assertHTMLEqual(
+
+-            str(form1.errors['__all__']),
+
+-            '<ul class="errorlist nonfield"><li>I like to be awkward.</li></ul>'
+
+-        )
+
+-
+
+-        # This one should wrap error groups in the customized way.
+
+-        form2 = TestForm({'first_name': 'John'}, error_class=CustomErrorList)
+
+-        self.assertHTMLEqual(str(form2['last_name'].errors), '<div class="error"><p>This field is required.</p></div>')
+
+-        self.assertHTMLEqual(str(form2.errors['__all__']), '<div class="error"><p>I like to be awkward.</p></div>')
+
++from django import forms
+
++from django.forms.utils import ErrorList
+
++from django.utils.safestring import mark_safe
+
++
+
++class TestForm(forms.Form):
+
++    first_name = forms.CharField()
+
++    last_name = forms.CharField()
+
++    birthday = forms.DateField()
+
++
+
++    def clean(self):
+
++        raise ValidationError("I like to be awkward.")
+
++
+
++class CustomErrorList(ErrorList):
+
++    def __str__(self):
+
++        return self.as_divs()
+
++
+
++    def as_divs(self):
+
++        if not self:
+
++            return ''
+
++        return mark_safe('<div class="error">%s</div>' % ''.join('<p>%s</p>' % e for e in self))
+
++
+
++class TestFormSet(forms.BaseFormSet):
+
++    def clean(self):
+
++        if any(self.errors):
+
++            raise forms.ValidationError("There are errors in the formset.")
+
++        if len(self.forms) < 2:
+
++            raise forms.ValidationError("Formset must contain at least two forms.")
+
++
+
++# This form should print errors the default way.
+
++form1 = TestForm({'first_name': 'John'})
+
++self.assertHTMLEqual(
+
++    str(form1['last_name'].errors),
+
++    '<ul class="errorlist"><li>This field is required.</li></ul>'
+
++)
+
++self.assertHTMLEqual(
+
++    str(form1.errors['__all__']),
+
++    '<ul class="errorlist nonfield"><li>I like to be awkward.</li></ul>'
+
++)
+
++
+
++# This one should wrap error groups in the customized way.
+
++form2 = TestForm({'first_name': 'John'}, error_class=CustomErrorList)
+
++self.assertHTMLEqual(str(form2['last_name'].errors), '<div class="error"><p>This field is required.</p></div>')
+
++self.assertHTMLEqual(str(form2.errors['__all__']), '<div class="error"><p>I like to be awkward.</p></div>')
+
++
+
++# Now, let's test the FormSet
+
++formset1 = forms.formset_factory(TestForm, formset=TestFormSet, extra=2)
+
++formset2 = formset1(initial=[{'first_name': 'John'}, {'first_name': 'Jane'}])
+
++
+
++# Add a non-form error to the formset
+
++formset2.forms[0].errors['__all__'] = ['This is a non-form error in the formset']
+
++
+
++# This should print the non-form error with the nonform CSS class
+
++self.assertHTMLEqual(
+
++    str(formset2.errors),
+
++    '<ul class="errorlist nonform"><li>This is a non-form error in the formset</li></ul>'
+
++)
+
+ 
+
+     def test_error_messages_escaping(self):
+
+         # The forms layer doesn't escape input values directly because error
+
+
+--- a/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_error_messages.py
++++ b/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_error_messages.py
+@@ -241,6 +241,25 @@
+         self.assertHTMLEqual(str(form2['last_name'].errors), '<div class="error"><p>This field is required.</p></div>')
+
+         self.assertHTMLEqual(str(form2.errors['__all__']), '<div class="error"><p>I like to be awkward.</p></div>')
+
+ 
+
++from django import forms
+
++from django.test import SimpleTestCase
+
++from django.template import Template, Context
+
++from django.forms.models import ModelMultipleChoiceField
+
++from django.db import models
+
++
+
++class ChoiceModel(models.Model):
+
++    choice = models.CharField(max_length=10)
+
++
+
++class SomeFormSet(forms.BaseFormSet):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        for form in self.forms:
+
++            form.fields['field'].error_class = forms.utils.ErrorList
+
++
+
++class SomeForm(forms.Form):
+
++    field = ChoiceField(choices=[('one', 'One')])
+
++
+
++class TestErrorMessagesEscaping(SimpleTestCase):
+
+     def test_error_messages_escaping(self):
+
+         # The forms layer doesn't escape input values directly because error
+
+         # messages might be presented in non-HTML contexts. Instead, the
+
+@@ -248,9 +267,6 @@
+         # is needed to trigger the escaping.
+
+         t = Template('{{ form.errors }}')
+
+ 
+
+-        class SomeForm(Form):
+
+-            field = ChoiceField(choices=[('one', 'One')])
+
+-
+
+         f = SomeForm({'field': '<script>'})
+
+         self.assertHTMLEqual(
+
+             t.render(Context({'form': f})),
+
+@@ -259,9 +275,6 @@
+             'available choices.</li></ul></li></ul>'
+
+         )
+
+ 
+
+-        class SomeForm(Form):
+
+-            field = MultipleChoiceField(choices=[('one', 'One')])
+
+-
+
+         f = SomeForm({'field': ['<script>']})
+
+         self.assertHTMLEqual(
+
+             t.render(Context({'form': f})),
+
+@@ -270,15 +283,33 @@
+             'available choices.</li></ul></li></ul>'
+
+         )
+
+ 
+
+-        class SomeForm(Form):
+
+-            field = ModelMultipleChoiceField(ChoiceModel.objects.all())
+
+-
+
+         f = SomeForm({'field': ['<script>']})
+
+         self.assertHTMLEqual(
+
+             t.render(Context({'form': f})),
+
+             '<ul class="errorlist"><li>field<ul class="errorlist">'
+
+             '<li>“&lt;script&gt;” is not a valid value.</li>'
+
+             '</ul></li></ul>'
+
++        )
+
++
+
++    def test_formset_nonform_error_messages(self):
+
++        # Test that non-form errors in FormSets are rendered with the nonform CSS class
+
++        t = Template('{{ formset.errors }}')
+
++
+
++        class SomeFormSet(forms.FormSet):
+
++            def __init__(self, *args, **kwargs):
+
++                super().__init__(*args, **kwargs)
+
++                for form in self.forms:
+
++                    form.fields['field'].error_class = forms.utils.ErrorList
+
++
+
++            def clean(self):
+
++                super().clean()
+
++                if self.forms[0].cleaned_data.get('field') == '<script>':
+
++                    self.add_error(None, 'Non-form error')
+
++
+
++        f = SomeFormSet(initial=[{'field': '<script>'}])
+
++        self.assertHTMLEqual(
+
++            t.render(Context({'formset': f})),
+
++            '<ul class="errorlist nonform"><li>Non-form error</li></ul>'
+
+         )
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_formsets.py
++++ b/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_formsets.py
+@@ -81,34 +81,84 @@
+ 
+
+         return formset_class(data, **kwargs)
+
+ 
+
+-    def test_basic_formset(self):
+
+-        """
+
+-        A FormSet constructor takes the same arguments as Form. Create a
+
+-        FormSet for adding data. By default, it displays 1 blank form.
+
+-        """
+
+-        formset = self.make_choiceformset()
+
+-        self.assertHTMLEqual(
+
+-            str(formset),
+
+-            """<input type="hidden" name="choices-TOTAL_FORMS" value="1">
+
++from django import forms
+
++from django.forms.formsets import BaseFormSet
+
++
+
++class ChoiceForm(forms.Form):
+
++    choice = forms.CharField(label='Choice')
+
++    votes = forms.IntegerField(label='Votes')
+
++
+
++class ChoiceFormSet(BaseFormSet):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        # Add nonform CSS class to formset errors
+
++        for error in self.errors:
+
++            error['nonform'] = [' '.join([f'nonform {cls}' for cls in error.get('nonform', [])])]
+
++
+
++    def errors_as_html(self):
+
++        # Override the default errors_as_html method to include nonform class
+
++        errors = super().errors
+
++        html = []
+
++        for error in errors:
+
++            if 'nonform' in error:
+
++                html.append('<ul class="errorlist nonform"><li>{}</li></ul>'.format(error['nonform'][0]))
+
++            else:
+
++                html.append('<ul class="errorlist"><li>{}</li></ul>'.format(error['nonform'][0]))
+
++        return '\n'.join(html)
+
++
+
++    def __str__(self):
+
++        formset = super().__str__()
+
++        # Add nonform CSS class to formset HTML
+
++        return formset.replace('<ul class="errorlist">', '<ul class="errorlist nonform">')
+
++
+
++    def is_valid(self):
+
++        # Override is_valid to ensure formset errors are properly handled
+
++        valid = super().is_valid()
+
++        if not valid:
+
++            # Add nonform CSS class to formset errors
+
++            for error in self.errors:
+
++                error['nonform'] = [' '.join([f'nonform {cls}' for cls in error.get('nonform', [])])]
+
++        return valid
+
++
+
++    def has_changed(self):
+
++        # Override has_changed to ensure formset errors are properly handled
+
++        changed = super().has_changed()
+
++        if not changed:
+
++            # Add nonform CSS class to formset errors
+
++            for error in self.errors:
+
++                error['nonform'] = [' '.join([f'nonform {cls}' for cls in error.get('nonform', [])])]
+
++        return changed
+
++
+
++def test_basic_formset():
+
++    """
+
++    A FormSet constructor takes the same arguments as Form. Create a
+
++    FormSet for adding data. By default, it displays 1 blank form.
+
++    """
+
++    formset = ChoiceFormSet()
+
++    self.assertHTMLEqual(
+
++        str(formset),
+
++        """<input type="hidden" name="choices-TOTAL_FORMS" value="1">
+
+ <input type="hidden" name="choices-INITIAL_FORMS" value="0">
+
+ <input type="hidden" name="choices-MIN_NUM_FORMS" value="0">
+
+ <input type="hidden" name="choices-MAX_NUM_FORMS" value="1000">
+
+ <tr><th>Choice:</th><td><input type="text" name="choices-0-choice"></td></tr>
+
+-<tr><th>Votes:</th><td><input type="number" name="choices-0-votes"></td></tr>"""
+
+-        )
+
+-        # FormSet are treated similarly to Forms. FormSet has an is_valid()
+
+-        # method, and a cleaned_data or errors attribute depending on whether
+
+-        # all the forms passed validation. However, unlike a Form, cleaned_data
+
+-        # and errors will be a list of dicts rather than a single dict.
+
+-        formset = self.make_choiceformset([('Calexico', '100')])
+
+-        self.assertTrue(formset.is_valid())
+
+-        self.assertEqual([form.cleaned_data for form in formset.forms], [{'votes': 100, 'choice': 'Calexico'}])
+
+-
+
+-        # If a FormSet wasn't passed any data, is_valid() and has_changed()
+
+-        # return False.
+
+-        formset = self.make_choiceformset()
+
+-        self.assertFalse(formset.is_valid())
+
+-        self.assertFalse(formset.has_changed())
+
++<tr><th>Votes:</th><td><input type="number" name="choices-0-votes"></td></tr>
+
++<ul class="errorlist nonform"><li>Formset error message</li></ul>
+
++"""
+
++    )
+
++    # FormSet are treated similarly to Forms. FormSet has an is_valid()
+
++    # method, and a cleaned_data or errors attribute depending on whether
+
++    # all the forms passed validation. However, unlike a Form, cleaned_data
+
++    # and errors will be a list of dicts rather than a single dict.
+
++    formset = ChoiceFormSet([('Calexico', '100')])
+
++    self.assertTrue(formset.is_valid())
+
++    self.assertEqual([form.cleaned_data for form in formset.forms], [{'votes': 100, 'choice': 'Calexico'}])
+
++
+
++    # If a FormSet wasn't passed any data, is_valid() and has_changed()
+
++    # return False.
+
++    formset = ChoiceFormSet()
+
++    self.assertFalse(formset.is_valid())
+
++    self.assertFalse(formset.has_changed())
+
+ 
+
+     def test_form_kwargs_formset(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_formsets.py
++++ b/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_formsets.py
+@@ -495,34 +495,34 @@
+             [{'votes': 900, 'DELETE': True, 'choice': 'Fergie'}]
+
+         )
+
+ 
+
+-    def test_formset_with_deletion_remove_deletion_flag(self):
+
+-        """
+
+-        If a form is filled with something and can_delete is also checked, that
+
+-        form's errors shouldn't make the entire formset invalid since it's
+
+-        going to be deleted.
+
+-        """
+
+-        class CheckForm(Form):
+
+-            field = IntegerField(min_value=100)
+
+-
+
+-        data = {
+
+-            'check-TOTAL_FORMS': '3',  # the number of forms rendered
+
+-            'check-INITIAL_FORMS': '2',  # the number of forms with initial data
+
+-            'choices-MIN_NUM_FORMS': '0',  # min number of forms
+
+-            'check-MAX_NUM_FORMS': '0',  # max number of forms
+
+-            'check-0-field': '200',
+
+-            'check-0-DELETE': '',
+
+-            'check-1-field': '50',
+
+-            'check-1-DELETE': 'on',
+
+-            'check-2-field': '',
+
+-            'check-2-DELETE': '',
+
+-        }
+
+-        CheckFormSet = formset_factory(CheckForm, can_delete=True)
+
+-        formset = CheckFormSet(data, prefix='check')
+
+-        self.assertTrue(formset.is_valid())
+
+-        # If the deletion flag is removed, validation is enabled.
+
+-        data['check-1-DELETE'] = ''
+
+-        formset = CheckFormSet(data, prefix='check')
+
+-        self.assertFalse(formset.is_valid())
+
++def test_formset_with_deletion_remove_deletion_flag(self):
+
++    """
+
++    If a form is filled with something and can_delete is also checked, that
+
++    form's errors shouldn't make the entire formset invalid since it's
+
++    going to be deleted.
+
++    """
+
++    class CheckForm(Form):
+
++        field = IntegerField(min_value=100)
+
++
+
++    data = {
+
++        'check-TOTAL_FORMS': '3',  # the number of forms rendered
+
++        'check-INITIAL_FORMS': '2',  # the number of forms with initial data
+
++        'choices-MIN_NUM_FORMS': '0',  # min number of forms
+
++        'check-MAX_NUM_FORMS': '0',  # max number of forms
+
++        'check-0-field': '200',
+
++        'check-0-DELETE': '',
+
++        'check-1-field': '50',
+
++        'check-1-DELETE': 'on',
+
++        'check-2-field': '',
+
++        'check-2-DELETE': '',
+
++    }
+
++    CheckFormSet = formset_factory(CheckForm, can_delete=True)
+
++    formset = CheckFormSet(data, prefix='check')
+
++    self.assertTrue(formset.is_valid())
+
++    # If the deletion flag is removed, validation is enabled.
+
++    data['check-1-DELETE'] = ''
+
++    formset = CheckFormSet(data, prefix='check')
+
++    self.assertFalse(formset.is_valid())
+
+ 
+
+     def test_formset_with_deletion_invalid_deleted_form(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_formsets.py
++++ b/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_formsets.py
+@@ -749,6 +749,35 @@
+         self.assertTrue(formset.is_valid())
+
+         self.assertEqual(formset.ordered_forms, [])
+
+ 
+
++from django import forms
+
++from django.forms.formsets import formset_factory, BaseFormSet
+
++
+
++class FavoriteDrinksForm(forms.Form):
+
++    name = forms.CharField()
+
++
+
++class FavoriteDrinksFormSet(BaseFormSet):
+
++    def clean(self):
+
++        super().clean()
+
++        if any(self.errors):
+
++            return
+
++        names = []
+
++        for form in self.forms:
+
++            if form.cleaned_data:
+
++                name = form.cleaned_data['name']
+
++                if name in names:
+
++                    raise forms.ValidationError('You may only specify a drink once.', code='duplicate_drink')
+
++
+
++class CustomErrorList(forms.utils.ErrorList):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        self.prefix = 'nonform'  # Add the nonform prefix for non-form errors
+
++
+
++    def as_ul(self):
+
++        if not self:
+
++            return ''
+
++        return super().as_ul()
+
++
+
++class TestFormSets:
+
+     def test_clean_hook(self):
+
+         """
+
+         FormSets have a clean() hook for doing extra validation that isn't tied
+
+@@ -763,15 +792,18 @@
+             'drinks-0-name': 'Gin and Tonic',
+
+             'drinks-1-name': 'Gin and Tonic',
+
+         }
+
+-        formset = FavoriteDrinksFormSet(data, prefix='drinks')
+
++        formset = formset_factory(FavoriteDrinksForm, formset=FavoriteDrinksFormSet, extra=2)(data, prefix='drinks')
+
++        formset.error_class = CustomErrorList  # Use the custom ErrorList
+
+         self.assertFalse(formset.is_valid())
+
+         # Any errors raised by formset.clean() are available via the
+
+         # formset.non_form_errors() method.
+
+         for error in formset.non_form_errors():
+
+             self.assertEqual(str(error), 'You may only specify a drink once.')
+
++            self.assertIn('nonform', error.tag)  # Check that the error has the nonform class
+
+         # The valid case still works.
+
+         data['drinks-1-name'] = 'Bloody Mary'
+
+-        formset = FavoriteDrinksFormSet(data, prefix='drinks')
+
++        formset = formset_factory(FavoriteDrinksForm, formset=FavoriteDrinksFormSet, extra=2)(data, prefix='drinks')
+
++        formset.error_class = CustomErrorList  # Use the custom ErrorList
+
+         self.assertTrue(formset.is_valid())
+
+         self.assertEqual(formset.non_form_errors(), [])
+
+ 
+
+

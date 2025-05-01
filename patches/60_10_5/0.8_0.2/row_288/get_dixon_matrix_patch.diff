@@ -1,0 +1,124 @@
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -156,33 +156,36 @@
+ 
+
+         return max_degrees
+
+ 
+
+-    def get_dixon_matrix(self, polynomial):
+
+-        r"""
+
+-        Construct the Dixon matrix from the coefficients of polynomial
+
+-        \alpha. Each coefficient is viewed as a polynomial of x_1, ...,
+
+-        x_n.
+
+-        """
+
+-
+
+-        max_degrees = self.get_max_degrees(polynomial)
+
+-
+
+-        # list of column headers of the Dixon matrix.
+
+-        monomials = itermonomials(self.variables, max_degrees)
+
+-        monomials = sorted(monomials, reverse=True,
+
+-                           key=monomial_key('lex', self.variables))
+
+-
+
+-        dixon_matrix = Matrix([[Poly(c, *self.variables).coeff_monomial(m)
+
+-                                for m in monomials]
+
+-                                for c in polynomial.coeffs()])
+
+-
+
+-        # remove columns if needed
+
+-        if dixon_matrix.shape[0] != dixon_matrix.shape[1]:
+
+-            keep = [column for column in range(dixon_matrix.shape[-1])
+
+-                    if any([element != 0 for element
+
++from sympy import Poly, Matrix, symbols, monomial_key, itermonomials, sorted
+
++
+
++def get_dixon_matrix(self, polynomial):
+
++    r"""
+
++    Construct the Dixon matrix from the coefficients of polynomial
+
++    \alpha. Each coefficient is viewed as a polynomial of x_1, ...,
+
++    x_n.
+
++    """
+
++
+
++    max_degrees = self.get_max_degrees(polynomial)
+
++
+
++    # list of column headers of the Dixon matrix.
+
++    # Include min_degrees explicitly in the iteration
+
++    min_degrees = 3  # Example minimum degree
+
++    monomials = sorted(itermonomials(self.variables, max_degrees, min_degrees=min_degrees),
+
++                       key=monomial_key('lex', self.variables), reverse=True)
+
++
+
++    dixon_matrix = Matrix([[Poly(c, *self.variables).coeff_monomial(m)
+
++                            for m in monomials]
+
++                            for c in polynomial.coeffs()])
+
++
+
++    # remove columns if needed
+
++    if dixon_matrix.shape[0] != dixon_matrix.shape[1]:
+
++        keep = [column for column in range(dixon_matrix.shape[-1])
+
++                if any([element != 0 for element
+
+                         in dixon_matrix[:, column]])]
+
+ 
+
+-            dixon_matrix = dixon_matrix[:, keep]
+
+-
+
+-        return dixon_matrix
+
++        dixon_matrix = dixon_matrix[:, keep]
+
++
+
++    return dixon_matrix
+
+ 
+
+     def KSY_precondition(self, matrix):
+
+         """

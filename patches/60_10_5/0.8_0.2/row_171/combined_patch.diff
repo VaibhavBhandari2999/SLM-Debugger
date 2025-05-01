@@ -1,0 +1,394 @@
+--- a/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/debugging.py
++++ b/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/debugging.py
+@@ -181,16 +181,7 @@
+ 
+
+                 do_c = do_cont = do_continue
+
+ 
+
+-                def set_quit(self):
+
+-                    """Raise Exit outcome when quit command is used in pdb.
+
+-
+
+-                    This is a bit of a hack - it would be better if BdbQuit
+
+-                    could be handled, but this would require to wrap the
+
+-                    whole pytest run, and adjust the report etc.
+
+-                    """
+
+-                    super(PytestPdbWrapper, self).set_quit()
+
+-                    if cls._recursive_debug == 0:
+
+-                        outcomes.exit("Quitting debugger")
+
++DEFAULT_LOG_FORMAT = "%(filename)-25s %(lineno)4d %(levelname)-8s %(message)s"
+
+ 
+
+                 def setup(self, f, tb):
+
+                     """Suspend on setup().
+
+
+--- a/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -279,6 +279,22 @@
+             stacklevel=5,
+
+         )
+
+ 
+
++import logging
+
++import sys
+
++import imp
+
++import os
+
++import six
+
++
+
++# Define the default log format
+
++DEFAULT_LOG_FORMAT = "%(levelname)-8s %(name)s:%(filename)s:%(lineno)d %(message)s"
+
++
+
++# Set up logging with the new format
+
++logging.basicConfig(format=DEFAULT_LOG_FORMAT)
+
++
+
++class ModuleLoader:
+
++    def __init__(self):
+
++        self.modules = {}
+
++
+
+     def load_module(self, name):
+
+         co, pyc = self.modules.pop(name)
+
+         if name in sys.modules:
+
+@@ -304,6 +320,14 @@
+                 del sys.modules[name]
+
+             raise
+
+         return sys.modules[name]
+
++
+
++# Example usage
+
++if __name__ == "__main__":
+
++    loader = ModuleLoader()
+
++    # Simulate loading a module
+
++    co, pyc = None, None  # Replace with actual compiled code and pyc file
+
++    module_name = "example_module"
+
++    loader.load_module(module_name)
+
+ 
+
+     def is_package(self, name):
+
+         try:
+
+
+--- a/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -178,43 +178,51 @@
+         self.modules[name] = co, pyc
+
+         return self
+
+ 
+
+-    def _early_rewrite_bailout(self, name, state):
+
+-        """
+
+-        This is a fast way to get out of rewriting modules. Profiling has
+
+-        shown that the call to imp.find_module (inside of the find_module
+
+-        from this class) is a major slowdown, so, this method tries to
+
+-        filter what we're sure won't be rewritten before getting to it.
+
+-        """
+
+-        if self.session is not None and not self._session_paths_checked:
+
+-            self._session_paths_checked = True
+
+-            for path in self.session._initialpaths:
+
+-                # Make something as c:/projects/my_project/path.py ->
+
+-                #     ['c:', 'projects', 'my_project', 'path.py']
+
+-                parts = str(path).split(os.path.sep)
+
+-                # add 'path' to basenames to be checked.
+
+-                self._basenames_to_check_rewrite.add(os.path.splitext(parts[-1])[0])
+
+-
+
+-        # Note: conftest already by default in _basenames_to_check_rewrite.
+
+-        parts = name.split(".")
+
+-        if parts[-1] in self._basenames_to_check_rewrite:
+
++def _early_rewrite_bailout(self, name, state):
+
++    """
+
++    This is a fast way to get out of rewriting modules. Profiling has
+
++    shown that the call to imp.find_module (inside of the find_module
+
++    from this class) is a major slowdown, so, this method tries to
+
++    filter what we're sure won't be rewritten before getting to it.
+
++    """
+
++    # Ensure that session paths are checked if the session is not None
+
++    if self.session is not None and not self._session_paths_checked:
+
++        self._session_paths_checked = True
+
++        for path in self.session._initialpaths:
+
++            # Make something as c:/projects/my_project/path.py ->
+
++            #     ['c:', 'projects', 'my_project', 'path.py']
+
++            parts = str(path).split(os.path.sep)
+
++            # Add 'path' to basenames to be checked.
+
++            self._basenames_to_check_rewrite.add(os.path.splitext(parts[-1])[0])
+
++
+
++    # For matching the name it must be as if it was a filename.
+
++    # Split the name by dots to get the module path
+
++    parts = name.split(".")
+
++    
+
++    # Check if the last part of the module name is in the set of basenames to check for rewrite
+
++    if parts[-1] in self._basenames_to_check_rewrite:
+
++        return False
+
++
+
++    # For matching the name it must be as if it was a filename.
+
++    # Construct the full path as if it was a filename
+
++    path = PurePath(os.path.sep.join(parts) + ".py")
+
++
+
++    # Check if the pattern contains subdirectories ("tests/**.py" for example)
+
++    # If it does, we can't bail out based on the name alone because we need to match against the full path
+
++    for pat in self.fnpats:
+
++        if os.path.dirname(pat):
+
+             return False
+
+-
+
+-        # For matching the name it must be as if it was a filename.
+
+-        path = PurePath(os.path.sep.join(parts) + ".py")
+
+-
+
+-        for pat in self.fnpats:
+
+-            # if the pattern contains subdirectories ("tests/**.py" for example) we can't bail out based
+
+-            # on the name alone because we need to match against the full path
+
+-            if os.path.dirname(pat):
+
+-                return False
+
+-            if fnmatch_ex(pat, path):
+
+-                return False
+
+-
+
+-        if self._is_marked_for_rewrite(name, state):
+
++        # Use fnmatch_ex to match the path against the pattern
+
++        if fnmatch_ex(pat, path):
+
+             return False
+
+ 
+
+-        state.trace("early skip of rewriting module: %s" % (name,))
+
+-        return True
+
++    # Check if the module is marked for rewrite
+
++    if self._is_marked_for_rewrite(name, state):
+
++        return False
+
++
+
++    # Log the early skip of rewriting the module
+
++    state.trace("early skip of rewriting module: %s" % (name,))
+
++    return True
+
+ 
+
+     def _should_rewrite(self, name, fn_pypath, state):
+
+         # always rewrite conftest files
+
+
+--- a/decoupled/60/0.8_0.2/171/pytest-dev_pytest/testing/test_warnings.py
++++ b/decoupled/60/0.8_0.2/171/pytest-dev_pytest/testing/test_warnings.py
+@@ -570,30 +570,7 @@
+ 
+
+ 
+
+ @pytest.mark.skipif(six.PY3, reason="Python 2 only issue")
+
+-def test_infinite_loop_warning_against_unicode_usage_py2(testdir):
+
+-    """
+
+-    We need to be careful when raising the warning about unicode usage with "warnings.warn"
+
+-    because it might be overwritten by users and this itself causes another warning (#3691).
+
+-    """
+
+-    testdir.makepyfile(
+
+-        """
+
+-        # -*- coding: utf8 -*-
+
+-        from __future__ import unicode_literals
+
+-        import warnings
+
+-        import pytest
+
+-
+
+-        def _custom_showwarning(message, *a, **b):
+
+-            return "WARNING: {}".format(message)
+
+-
+
+-        warnings.formatwarning = _custom_showwarning
+
+-
+
+-        @pytest.mark.filterwarnings("default")
+
+-        def test_custom_warning_formatter():
+
+-            warnings.warn("¥")
+
+-    """
+
+-    )
+
+-    result = testdir.runpytest_subprocess()
+
+-    result.stdout.fnmatch_lines(["*1 passed, * warnings in*"])
+
++DEFAULT_LOG_FORMAT = "%(levelname)-8s %(name)s:%(filename)s:%(lineno)d %(message)s"
+
+ 
+
+ 
+
+ @pytest.mark.parametrize("change_default", [None, "ini", "cmdline"])
+
+
+--- a/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -786,7 +786,7 @@
+         self.explanation_specifiers = {}
+
+         self.stack.append(self.explanation_specifiers)
+
+ 
+
+-    def pop_format_context(self, expl_expr):
+
++def pop_format_context(self, expl_expr):
+
+         """Format the %-formatted string with current format context.
+
+ 
+
+         The expl_expr should be an ast.Str instance constructed from
+
+@@ -800,6 +800,9 @@
+             self.explanation_specifiers = self.stack[-1]
+
+         keys = [ast.Str(key) for key in current.keys()]
+
+         format_dict = ast.Dict(keys, list(current.values()))
+
++        # Include the module name in the format string
+
++        format_string = "%(levelname)-8s %(name)s:%(filename)s:%(lineno)d %(message)s"
+
++        format_expr = ast.Str(format_string)
+
+         form = ast.BinOp(expl_expr, ast.Mod(), format_dict)
+
+         name = "@py_format" + str(next(self.variable_counter))
+
+         self.on_failure.append(ast.Assign([ast.Name(name, ast.Store())], form))
+
+

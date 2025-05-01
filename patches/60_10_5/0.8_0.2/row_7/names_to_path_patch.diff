@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
+@@ -1387,7 +1387,7 @@
+                 )
+
+         self._filtered_relations[filtered_relation.alias] = filtered_relation
+
+ 
+
+-    def names_to_path(self, names, opts, allow_many=True, fail_on_missing=False):
+
++def names_to_path(self, names, opts, allow_many=True, fail_on_missing=False):
+
+         """
+
+         Walk the list of names and turns them into PathInfo tuples. A single
+
+         name in 'names' can generate multiple PathInfos (m2m, for example).
+
+@@ -1478,10 +1478,7 @@
+                 targets = (field,)
+
+                 if fail_on_missing and pos + 1 != len(names):
+
+                     raise FieldError(
+
+-                        "Cannot resolve keyword %r into field. Join on '%s'"
+
+-                        " not permitted." % (names[pos + 1], name))
+
+-                break
+
+-        return path, final_field, targets, names[pos + 1:]
+
++                        "Cannot resolve keyword %r into field
+
+ 
+
+     def setup_joins(self, names, opts, alias, can_reuse=None, allow_many=True,
+
+                     reuse_with_filtered_relation=False):

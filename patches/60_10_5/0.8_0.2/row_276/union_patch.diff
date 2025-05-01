@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/276/sympy_sympy/sympy/sets/sets.py
+@@ -85,7 +85,7 @@
+             infimum = S.Infinity
+
+         return infimum
+
+ 
+
+-    def union(self, other):
+
++def union(self, other):
+
+         """
+
+         Returns the union of 'self' and 'other'.
+
+ 

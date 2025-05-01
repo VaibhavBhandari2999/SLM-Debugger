@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/183/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/183/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -596,7 +596,7 @@
+                 # multi-line assert with message
+
+                 elif lineno in seen_lines:
+
+                     lines[-1] = lines[-1][:offset]
+
+-                # multi line assert with escapd newline before message
+
++                # multi line assert with escaped newline before message
+
+                 else:
+
+                     lines.append(line[:offset])
+
+                 _write_and_reset()

@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/196/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/196/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -853,6 +853,10 @@
+     test : array-like
+
+         This is the value of the test parameter
+
+     """
+
++    # Check if estimator is None
+
++    if estimator is None:
+
++        raise ValueError("Estimator cannot be None")
+
++
+
+     # Adjust length of sample weights
+
+     fit_params = fit_params if fit_params is not None else {}
+
+     fit_params = {k: _index_param_value(X, v, train)

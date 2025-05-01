@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -1040,6 +1040,8 @@
+                 to resolve this is to name the decorated function
+
+                 ``fixture_<fixturename>`` and then use
+
+                 ``@pytest.fixture(name='<fixturename>')``.
+
++
+
++    This version of the function includes the `scope` parameter, which is used to set the scope of the fixture. This information is necessary for `pytest --fixtures` to display the scope of the fixtures.
+
+     """
+
+     if callable(scope) and params is None and autouse is False:
+
+         # direct decoration

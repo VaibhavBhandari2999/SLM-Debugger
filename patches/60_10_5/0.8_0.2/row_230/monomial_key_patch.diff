@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/polys/orderings.py
++++ b/decoupled/60/0.8_0.2/230/sympy_sympy/sympy/polys/orderings.py
+@@ -201,8 +201,7 @@
+     Return a function defining admissible order on monomials.
+
+ 
+
+     The result of a call to :func:`monomial_key` is a function which should
+
+-    be used as a key to :func:`sorted` built-in function, to provide order
+
+-    in a set of monomials of the same length.
+
++    be used as a key to :func:`sorted` built-in function, to provide order in a set of monomials of the same length.
+
+ 
+
+     Currently supported monomial orderings are:
+
+ 

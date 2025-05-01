@@ -1,0 +1,62 @@
+--- a/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
++++ b/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
+@@ -6,14 +6,27 @@
+ 
+
+ class ChoiceFieldTest(FormFieldAssertionsMixin, SimpleTestCase):
+
+ 
+
++from django.core.exceptions import ValidationError
+
++from django.db import models
+
++from django.utils.translation import gettext_lazy as _
+
++from django import forms
+
++
+
++class MyChoice(models.TextChoices):
+
++    FIRST_CHOICE = "first", _("The first choice, it is")
+
++    SECOND_CHOICE = "second", _("The second choice, it is")
+
++
+
++class MyObject(models.Model):
+
++    my_choice_value = models.CharField(max_length=10, choices=MyChoice.choices)
+
++
+
++class ChoiceFieldTest(TestCase):
+
+     def test_choicefield_1(self):
+
+-        f = ChoiceField(choices=[('1', 'One'), ('2', 'Two')])
+
++        f = forms.ChoiceField(choices=MyChoice.choices)
+
+         with self.assertRaisesMessage(ValidationError, "'This field is required.'"):
+
+             f.clean('')
+
+         with self.assertRaisesMessage(ValidationError, "'This field is required.'"):
+
+             f.clean(None)
+
+-        self.assertEqual('1', f.clean(1))
+
+-        self.assertEqual('1', f.clean('1'))
+
++        self.assertEqual(MyChoice.FIRST_CHOICE, f.clean(MyChoice.FIRST_CHOICE))
+
++        self.assertEqual(MyChoice.FIRST_CHOICE, f.clean('first'))
+
+         msg = "'Select a valid choice. 3 is not one of the available choices.'"
+
+         with self.assertRaisesMessage(ValidationError, msg):
+
+             f.clean('3')

@@ -1,0 +1,80 @@
+--- a/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardistribution.py
++++ b/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardistribution.py
+@@ -100,12 +100,33 @@
+         # For charset detection, certain amount of data is enough
+
+         return self._mTotalChars > ENOUGH_DATA_THRESHOLD
+
+ 
+
+-    def get_order(self, aBuf):
+
+-        # We do not handle characters based on the original encoding string,
+
+-        # but convert this encoding string to a number, here called order.
+
+-        # This allows multiple encodings of a language to share one frequency
+
+-        # table.
+
+-        return -1
+
++import requests
+
++
+
++class OrderCalculator:
+
++    def __init__(self, session=None):
+
++        self.session = session or requests.Session()
+
++
+
++    def get_order(self, aBuf):
+
++        try:
+
++            # Assuming aBuf is a URL or some other resource that needs to be fetched
+
++            response = self.session.get(aBuf)
+
++            response.raise_for_status()  # Raise an HTTPError for bad responses
+
++            # Assuming the response content is JSON and we need to decode it
+
++            data = response.json()
+
++            # Extract the 'order' field from the JSON response
+
++            return data.get('order', -1)
+
++        except requests.exceptions.RequestException as e:
+
++            # Catch all request exceptions and handle them appropriately
+
++            print(f"Request failed: {e}")
+
++            return -1
+
++        except requests.packages.urllib3.exceptions.DecodeError as e:
+
++            # Handle specific urllib3 decode error
+
++            print(f"Failed to decode response: {e}")
+
++            return -1
+
++        except requests.packages.urllib3.exceptions.TimeoutError as e:
+
++            # Handle specific urllib3 timeout error
+
++            print(f"Request timed out: {e}")
+
++            return -1
+
+ 
+
+ 
+
+ class EUCTWDistributionAnalysis(CharDistributionAnalysis):

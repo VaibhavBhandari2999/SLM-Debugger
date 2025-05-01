@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/17/django_django/django/urls/utils.py
++++ b/decoupled/60/0.8_0.2/17/django_django/django/urls/utils.py
+@@ -6,7 +6,7 @@
+ 
+
+ 
+
+ @functools.lru_cache(maxsize=None)
+
+-def get_callable(lookup_view):
+
++def get_callable(lookup_view, request=None):
+
+     """
+
+     Return a callable corresponding to lookup_view.
+
+     * If lookup_view is already a callable, return it.
+
+@@ -51,6 +51,14 @@
+                 )
+
+             return view_func
+
+ 
+
++    # If we have a request, update STATIC_URL and MEDIA_URL with SCRIPT_NAME
+
++    if request and hasattr(request, 'META') and 'SCRIPT_NAME' in request.META:
+
++        from django.conf import settings
+
++        settings.STATIC_URL = request.META['SCRIPT_NAME'] + settings.STATIC_URL
+
++        settings.MEDIA_URL = request.META['SCRIPT_NAME'] + settings.MEDIA_URL
+
++
+
++    return view_func
+
++
+
+ 
+
+ def get_mod_func(callback):
+
+     # Convert 'django.views.news.stories.story_detail' to

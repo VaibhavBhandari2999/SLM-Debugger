@@ -1,0 +1,36 @@
+--- a/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
++++ b/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
+@@ -374,12 +374,17 @@
+                 break
+
+         parser.add_argument(*args, **kwargs)
+
+ 
+
++import argparse
+
++
+
++class CustomCommand(BaseCommand):
+
+     def print_help(self, prog_name, subcommand):
+
+         """
+
+         Print the help message for this command, derived from
+
+         ``self.usage()``.
+
+         """
+
+         parser = self.create_parser(prog_name, subcommand)
+
++        # Add the example usage to the help message
+
++        parser.epilog = self.usage().split('\n')[1]  # Extract the example usage
+
+         parser.print_help()
+
+ 
+
+     def run_from_argv(self, argv):

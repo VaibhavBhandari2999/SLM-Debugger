@@ -1,0 +1,876 @@
+--- a/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -1406,35 +1406,34 @@
+         3.7.  In the future these artist lists may be replaced by tuples. Use
+
+         as if this is a tuple already.
+
+         """
+
+-        def __init__(self, axes, prop_name,
+
+-                     valid_types=None, invalid_types=None):
+
+-            """
+
+-            Parameters
+
+-            ----------
+
+-            axes : `~matplotlib.axes.Axes`
+
+-                The Axes from which this sublist will pull the children
+
+-                Artists.
+
+-            prop_name : str
+
+-                The property name used to access this sublist from the Axes;
+
+-                used to generate deprecation warnings.
+
+-            valid_types : list of type, optional
+
+-                A list of types that determine which children will be returned
+
+-                by this sublist. If specified, then the Artists in the sublist
+
+-                must be instances of any of these types. If unspecified, then
+
+-                any type of Artist is valid (unless limited by
+
+-                *invalid_types*.)
+
+-            invalid_types : tuple, optional
+
+-                A list of types that determine which children will *not* be
+
+-                returned by this sublist. If specified, then Artists in the
+
+-                sublist will never be an instance of these types. Otherwise, no
+
+-                types will be excluded.
+
+-            """
+
+-            self._axes = axes
+
+-            self._prop_name = prop_name
+
+-            self._type_check = lambda artist: (
+
+-                (not valid_types or isinstance(artist, valid_types)) and
+
+-                (not invalid_types or not isinstance(artist, invalid_types))
+
+-            )
+
++def __init__(self, axes, prop_name,
+
++             valid_types=None, invalid_types=None):
+
++    """
+
++    Parameters
+
++    ----------
+
++    axes : `~matplotlib.axes.Axes` or callable
+
++        The Axes or axis accessor from which this sublist will pull the children
+
++        Artists. For `GeoAxes`, this should be the callable `axes.axis`.
+
++    prop_name : str
+
++        The property name used to access this sublist from the Axes;
+
++        used to generate deprecation warnings.
+
++    valid_types : list of type, optional
+
++        A list of types that determine which children will be returned
+
++        by this sublist. If specified, then the Artists in the sublist
+
++        must be instances of any of these types. If unspecified, then
+
++        any type of Artist is valid (unless limited by *invalid_types*.)
+
++    invalid_types : tuple, optional
+
++        A list of types that determine which children will *not* be
+
++        returned by this sublist. If specified, then Artists in the
+
++        sublist will never be an instance of these types. Otherwise, no
+
++        types will be excluded.
+
++    """
+
++    self._axes = axes
+
++    self._prop_name = prop_name
+
++    self._type_check = lambda artist: (
+
++        (not valid_types or isinstance(artist, valid_types)) and
+
++        (not invalid_types or not isinstance(artist, invalid_types))
+
++    )
+
+ 
+
+         def __repr__(self):
+
+             return f'<Axes.ArtistList of {len(self)} {self._prop_name}>'
+
+
+--- a/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/cm.py
++++ b/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/cm.py
+@@ -100,57 +100,67 @@
+         """
+
+         return list(self)
+
+ 
+
+-    def register(self, cmap, *, name=None, force=False):
+
+-        """
+
+-        Register a new colormap.
+
+-
+
+-        The colormap name can then be used as a string argument to any ``cmap``
+
+-        parameter in Matplotlib. It is also available in ``pyplot.get_cmap``.
+
+-
+
+-        The colormap registry stores a copy of the given colormap, so that
+
+-        future changes to the original colormap instance do not affect the
+
+-        registered colormap. Think of this as the registry taking a snapshot
+
+-        of the colormap at registration.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        cmap : matplotlib.colors.Colormap
+
+-            The colormap to register.
+
+-
+
+-        name : str, optional
+
+-            The name for the colormap. If not given, ``cmap.name`` is used.
+
+-
+
+-        force : bool, default: False
+
+-            If False, a ValueError is raised if trying to overwrite an already
+
+-            registered name. True supports overwriting registered colormaps
+
+-            other than the builtin colormaps.
+
+-        """
+
+-        _api.check_isinstance(colors.Colormap, cmap=cmap)
+
+-
+
+-        name = name or cmap.name
+
+-        if name in self:
+
+-            if not force:
+
+-                # don't allow registering an already existing cmap
+
+-                # unless explicitly asked to
+
+-                raise ValueError(
+
+-                    f'A colormap named "{name}" is already registered.')
+
+-            elif (name in self._builtin_cmaps
+
+-                    and not self._allow_override_builtin):
+
+-                # We don't allow overriding a builtin unless privately
+
+-                # coming from register_cmap()
+
+-                raise ValueError("Re-registering the builtin cmap "
+
+-                                 f"{name!r} is not allowed.")
+
+-
+
+-            # Warn that we are updating an already existing colormap
+
+-            _api.warn_external(f"Overwriting the cmap {name!r} "
+
+-                               "that was already in the registry.")
+
+-
+
+-        self._cmaps[name] = cmap.copy()
+
+-        # Someone may set the extremes of a builtin colormap and want to register it
+
+-        # with a different name for future lookups. The object would still have the
+
+-        # builtin name, so we should update it to the registered name
+
+-        if self._cmaps[name].name != name:
+
+-            self._cmaps[name].name = name
+
++def register(self, cmap, *, name=None, force=False):
+
++    """
+
++    Register a new colormap.
+
++
+
++    The colormap name can then be used as a string argument to any ``cmap``
+
++    parameter in Matplotlib. It is also available in ``pyplot.get_cmap``.
+
++
+
++    The colormap registry stores a copy of the given colormap, so that
+
++    future changes to the original colormap instance do not affect the
+
++    registered colormap. Think of this as the registry taking a snapshot
+
++    of the given colormap at registration.
+
++
+
++    Parameters
+
++    ----------
+
++    cmap : matplotlib.colors.Colormap
+
++        The colormap to register.
+
++
+
++    name : str, optional
+
++        The name for the colormap. If not given, ``cmap.name`` is used.
+
++
+
++    force : bool, default: False
+
++        If False, a ValueError is raised if trying to overwrite an already
+
++        registered name. True supports overwriting registered colormaps
+
++        other than the builtin colormaps.
+
++    """
+
++    _api.check_isinstance(colors.Colormap, cmap=cmap)
+
++
+
++    name = name or cmap.name
+
++    if name in self:
+
++        if not force:
+
++            # don't allow registering an already existing cmap
+
++            # unless explicitly asked to
+
++            raise ValueError(
+
++                f'A colormap named "{name}" is already registered.')
+
++        elif (name in self._builtin_cmaps
+
++              and not self._allow_override_builtin):
+
++            # We don't allow overriding a builtin unless privately
+
++            # coming from register_cmap()
+
++            raise ValueError("Re-registering the builtin cmap "
+
++                             f"{name!r} is not allowed.")
+
++
+
++        # Warn that we are updating an already existing colormap
+
++        _api.warn_external(f"Overwriting the cmap {name!r} "
+
++                           "that was already in the registry.")
+
++
+
++    self._cmaps[name] = cmap.copy()
+
++    # Someone may set the extremes of a builtin colormap and want to register it
+
++    # with a different name for future lookups. The object would still have the
+
++    # builtin name, so we should update it to the registered name
+
++    if self._cmaps[name].name != name:
+
++        self._cmaps[name].name = name
+
++
+
++    # Ensure the axis attribute is handled correctly
+
++    if hasattr(self, 'axis') and callable(getattr(self, 'axis')):
+
++        # For GeoAxes, axis is a callable, so we need to access it as a method
+
++        self.axis["bottom"].toggle(ticklabels=False, label=False)
+
++        self.axis["left"].toggle(ticklabels=False, label=False)
+
++    else:
+
++        # For mpl_toolkits.axes_grid1.mpl_axes.Axes, axis is a method, so we access it directly
+
++        self.axis["bottom"].toggle(ticklabels=False, label=False)
+
++        self.axis["left"].toggle(ticklabels=False, label=False)
+
+ 
+
+     def unregister(self, name):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/cm.py
++++ b/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/cm.py
+@@ -225,47 +225,34 @@
+ 
+
+ 
+
+ @_api.deprecated("3.7", alternative="``matplotlib.colormaps.register(name)``")
+
+-def register_cmap(name=None, cmap=None, *, override_builtin=False):
+
+-    """
+
+-    Add a colormap to the set recognized by :func:`get_cmap`.
+
+-
+
+-    Register a new colormap to be accessed by name ::
+
+-
+
+-        LinearSegmentedColormap('swirly', data, lut)
+
+-        register_cmap(cmap=swirly_cmap)
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    name : str, optional
+
+-       The name that can be used in :func:`get_cmap` or :rc:`image.cmap`
+
+-
+
+-       If absent, the name will be the :attr:`~matplotlib.colors.Colormap.name`
+
+-       attribute of the *cmap*.
+
+-
+
+-    cmap : matplotlib.colors.Colormap
+
+-       Despite being the second argument and having a default value, this
+
+-       is a required argument.
+
+-
+
+-    override_builtin : bool
+
+-
+
+-        Allow built-in colormaps to be overridden by a user-supplied
+
+-        colormap.
+
+-
+
+-        Please do not use this unless you are sure you need it.
+
+-    """
+
+-    _api.check_isinstance((str, None), name=name)
+
+-    if name is None:
+
+-        try:
+
+-            name = cmap.name
+
+-        except AttributeError as err:
+
+-            raise ValueError("Arguments must include a name or a "
+
+-                             "Colormap") from err
+
+-    # override_builtin is allowed here for backward compatibility
+
+-    # this is just a shim to enable that to work privately in
+
+-    # the global ColormapRegistry
+
+-    _colormaps._allow_override_builtin = override_builtin
+
+-    _colormaps.register(cmap, name=name, force=override_builtin)
+
+-    _colormaps._allow_override_builtin = False
+
++import matplotlib.pyplot as plt
+
++from cartopy.crs import PlateCarree
+
++from cartopy.mpl.geoaxes import GeoAxes
+
++from mpl_toolkits.axes_grid1 import AxesGrid
+
++
+
++# Fix the _tick_only method in AxesGrid
+
++def _tick_only(ax, bottom_on=False, left_on=False):
+
++    # Check if axis is a method (callable)
+
++    if callable(ax.axis):
+
++        # Call the method and get the axis instance
+
++        ax = ax.axis()
+
++    # Proceed with the original logic
+
++    if bottom_on:
+
++        ax.axis["bottom"].toggle(ticklabels=True, label=True)
+
++    else:
+
++        ax.axis["bottom"].toggle(ticklabels=False, label=False)
+
++    if left_on:
+
++        ax.axis["left"].toggle(ticklabels=True, label=True)
+
++    else:
+
++        ax.axis["left"].toggle(ticklabels=False, label=False)
+
++
+
++# Monkey patch the _tick_only method in AxesGrid
+
++AxesGrid._tick_only = _tick_only
+
++
+
++fig = plt.figure()
+
++axes_class = (GeoAxes, dict(map_projection=PlateCarree()))
+
++gr = AxesGrid(fig, 111, nrows_ncols=(1,1),
+
++              axes_class=axes_class)
+
+ 
+
+ 
+
+ def _get_cmap(name=None, lut=None):
+
+
+--- a/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -4594,4 +4594,6 @@
+             for a in self.artists:
+
+                 a.draw(renderer)
+
+ 
+
+-    return _MinimalArtist(figure, artists).draw(renderer)
+
++    # Create an instance of _MinimalArtist and draw the artists
+
++    minimal_artist = _MinimalArtist(figure, artists)
+
++    minimal_artist.draw(renderer)
+
+
+--- a/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -3188,80 +3188,97 @@
+         if axis in ['y', 'both']:
+
+             self.yaxis.grid(visible, which=which, **kwargs)
+
+ 
+
+-    def ticklabel_format(self, *, axis='both', style='', scilimits=None,
+
+-                         useOffset=None, useLocale=None, useMathText=None):
+
+-        r"""
+
+-        Configure the `.ScalarFormatter` used by default for linear Axes.
+
+-
+
+-        If a parameter is not set, the corresponding property of the formatter
+
+-        is left unchanged.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        axis : {'x', 'y', 'both'}, default: 'both'
+
+-            The axis to configure.  Only major ticks are affected.
+
+-
+
+-        style : {'sci', 'scientific', 'plain'}
+
+-            Whether to use scientific notation.
+
+-            The formatter default is to use scientific notation.
+
+-
+
+-        scilimits : pair of ints (m, n)
+
+-            Scientific notation is used only for numbers outside the range
+
+-            10\ :sup:`m` to 10\ :sup:`n` (and only if the formatter is
+
+-            configured to use scientific notation at all).  Use (0, 0) to
+
+-            include all numbers.  Use (m, m) where m != 0 to fix the order of
+
+-            magnitude to 10\ :sup:`m`.
+
+-            The formatter default is :rc:`axes.formatter.limits`.
+
+-
+
+-        useOffset : bool or float
+
+-            If True, the offset is calculated as needed.
+
+-            If False, no offset is used.
+
+-            If a numeric value, it sets the offset.
+
+-            The formatter default is :rc:`axes.formatter.useoffset`.
+
+-
+
+-        useLocale : bool
+
+-            Whether to format the number using the current locale or using the
+
+-            C (English) locale.  This affects e.g. the decimal separator.  The
+
+-            formatter default is :rc:`axes.formatter.use_locale`.
+
+-
+
+-        useMathText : bool
+
+-            Render the offset and scientific notation in mathtext.
+
+-            The formatter default is :rc:`axes.formatter.use_mathtext`.
+
+-
+
+-        Raises
+
+-        ------
+
+-        AttributeError
+
+-            If the current formatter is not a `.ScalarFormatter`.
+
+-        """
+
+-        style = style.lower()
+
+-        axis = axis.lower()
+
+-        if scilimits is not None:
+
+-            try:
+
+-                m, n = scilimits
+
+-                m + n + 1  # check that both are numbers
+
+-            except (ValueError, TypeError) as err:
+
+-                raise ValueError("scilimits must be a sequence of 2 integers"
+
+-                                 ) from err
+
+-        STYLES = {'sci': True, 'scientific': True, 'plain': False, '': None}
+
+-        is_sci_style = _api.check_getitem(STYLES, style=style)
+
+-        axis_map = {**{k: [v] for k, v in self._axis_map.items()},
+
+-                    'both': list(self._axis_map.values())}
+
+-        axises = _api.check_getitem(axis_map, axis=axis)
+
++def ticklabel_format(self, *, axis='both', style='', scilimits=None,
+
++                     useOffset=None, useLocale=None, useMathText=None):
+
++    r"""
+
++    Configure the `.ScalarFormatter` used by default for linear Axes.
+
++
+
++    If a parameter is not set, the corresponding property of the formatter
+
++    is left unchanged.
+
++
+
++    Parameters
+
++    ----------
+
++    axis : {'x', 'y', 'both'}, default: 'both'
+
++        The axis to configure.  Only major ticks are affected.
+
++
+
++    style : {'sci', 'scientific', 'plain'}
+
++        Whether to use scientific notation.
+
++        The formatter default is to use scientific notation.
+
++
+
++    scilimits : pair of ints (m, n)
+
++        Scientific notation is used only for numbers outside the range
+
++        10\ :sup:`m` to 10\ :sup:`n` (and only if the formatter is
+
++        configured to use scientific notation at all).  Use (0, 0) to
+
++        include all numbers.  Use (m, m) where m != 0 to fix the order of
+
++        magnitude to 10\ :sup:`m`.
+
++        The formatter default is :rc:`axes.formatter.limits`.
+
++
+
++    useOffset : bool or float
+
++        If True, the offset is calculated as needed.
+
++        If False, no offset is used.
+
++        If a numeric value, it sets the offset.
+
++        The formatter default is :rc:`axes.formatter.useoffset`.
+
++
+
++    useLocale : bool
+
++        Whether to format the number using the current locale or using the
+
++        C (English) locale.  This affects e.g. the decimal separator.  The
+
++        formatter default is :rc:`axes.formatter.use_locale`.
+
++
+
++    useMathText : bool
+
++        Render the offset and scientific notation in mathtext.
+
++        The formatter default is :rc:`axes.formatter.use_mathtext`.
+
++
+
++    Raises
+
++    ------
+
++    AttributeError
+
++        If the current formatter is not a `.ScalarFormatter`.
+
++    """
+
++    style = style.lower()
+
++    axis = axis.lower()
+
++    if scilimits is not None:
+
+         try:
+
+-            for axis in axises:
+
+-                if is_sci_style is not None:
+
++            m, n = scilimits
+
++            m + n + 1  # check that both are numbers
+
++        except (ValueError, TypeError) as err:
+
++            raise ValueError("scilimits must be a sequence of 2 integers"
+
++                             ) from err
+
++    STYLES = {'sci': True, 'scientific': True, 'plain': False, '': None}
+
++    is_sci_style = _api.check_getitem(STYLES, style=style)
+
++    axis_map = {**{k: [v] for k, v in self._axis_map.items()},
+
++                'both': list(self._axis_map.values())}
+
++    axises = _api.check_getitem(axis_map, axis=axis)
+
++    try:
+
++        for axis in axises:
+
++            if is_sci_style is not None:
+
++                # Check if axis is a dictionary-like object before accessing keys
+
++                if hasattr(axis, 'keys'):
+
+                     axis.major.formatter.set_scientific(is_sci_style)
+
+-                if scilimits is not None:
+
++                else:
+
++                    # If axis is a callable, set the formatter directly
+
++                    axis.major.formatter = ScalarFormatter(useOffset=is_sci_style)
+
++            if scilimits is not None:
+
++                if hasattr(axis, 'keys'):
+
+                     axis.major.formatter.set_powerlimits(scilimits)
+
+-                if useOffset is not None:
+
++                else:
+
++                    # If axis is a callable, set the powerlimits directly
+
++                    axis.major.formatter.powerlimits = scilimits
+
++            if useOffset is not None:
+
++                if hasattr(axis, 'keys'):
+
+                     axis.major.formatter.set_useOffset(useOffset)
+
+-                if useLocale is not None:
+
++                else:
+
++                    # If axis is a callable, set the useOffset directly
+
++                    axis.major.formatter.useOffset = useOffset
+
++            if useLocale is not None:
+
++                if hasattr(axis, 'keys'):
+
+                     axis.major.formatter.set_useLocale(useLocale)
+
+-                if useMathText is not None:
+
++                else:
+
++                    # If axis is a callable, set the useLocale directly
+
++                    axis.major.formatter.useLocale = useLocale
+
++            if useMathText is not None:
+
++                if hasattr(axis, 'keys'):
+
+                     axis.major.formatter.set_useMathText(useMathText)
+
+-        except AttributeError as err:
+
+-            raise AttributeError(
+
+-                "This method only works with the ScalarFormatter") from err
+
++                else:
+
++                    # If axis
+
+ 
+
+     def locator_params(self, axis='both', tight=None, **kwargs):
+
+         """
+
+

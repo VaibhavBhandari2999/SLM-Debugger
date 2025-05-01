@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
++++ b/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
+@@ -291,7 +291,7 @@
+                 self.storage.delete(prefixed_path)
+
+         return True
+
+ 
+
+-    def link_file(self, path, prefixed_path, source_storage):
+
++def link_file(self, path, prefixed_path, source_storage):
+
+         """
+
+         Attempt to link ``path``
+
+         """
+
+@@ -313,7 +313,8 @@
+             try:
+
+                 if os.path.lexists(full_path):
+
+                     os.unlink(full_path)
+
+-                os.symlink(source_path, full_path)
+
++                # Use os.path.abspath to ensure we have a clean path
+
++                os.symlink(os.path.abspath(source_path), full_path)
+
+             except AttributeError:
+
+                 import platform
+
+                 raise CommandError("Symlinking is not supported by Python %s." %

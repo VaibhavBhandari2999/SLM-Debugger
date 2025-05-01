@@ -1,0 +1,820 @@
+--- a/decoupled/60/0.8_0.2/39/django_django/django/core/checks/model_checks.py
++++ b/decoupled/60/0.8_0.2/39/django_django/django/core/checks/model_checks.py
+@@ -185,24 +185,7 @@
+         return Error(error_msg % params, obj=func, id='models.E022')
+
+ 
+
+     # Maps common uses of lazy operations to corresponding error functions
+
+-    # defined above. If a key maps to None, no error will be produced.
+
+-    # default_error() will be used for usages that don't appear in this dict.
+
+-    known_lazy = {
+
+-        ('django.db.models.fields.related', 'resolve_related_class'): field_error,
+
+-        ('django.db.models.fields.related', 'set_managed'): None,
+
+-        ('django.dispatch.dispatcher', 'connect'): signal_connect_error,
+
+-    }
+
+-
+
+-    def build_error(model_key, func, args, keywords):
+
+-        key = (func.__module__, func.__name__)
+
+-        error_fn = known_lazy.get(key, default_error)
+
+-        return error_fn(model_key, func, args, keywords) if error_fn else None
+
+-
+
+-    return sorted(filter(None, (
+
+-        build_error(model_key, *extract_operation(func))
+
+-        for model_key in pending_models
+
+-        for func in apps._pending_operations[model_key]
+
+-    )), key=lambda error: error.msg)
+
++    # defined above. If
+
+ 
+
+ 
+
+ @register(Tags.models)
+
+
+--- a/decoupled/60/0.8_0.2/39/django_django/django/contrib/contenttypes/admin.py
++++ b/decoupled/60/0.8_0.2/39/django_django/django/contrib/contenttypes/admin.py
+@@ -17,67 +17,84 @@
+         # There's no FK to exclude, so no exclusion checks are required.
+
+         return []
+
+ 
+
+-    def _check_relation(self, obj, parent_model):
+
+-        # There's no FK, but we do need to confirm that the ct_field and ct_fk_field are valid,
+
+-        # and that they are part of a GenericForeignKey.
+
++def _check_relation(self, obj, parent_model):
+
++    # There's no FK, but we do need to confirm that the ct_field and ct_fk_field are valid,
+
++    # and that they are part of a GenericForeignKey.
+
+ 
+
+-        gfks = [
+
+-            f for f in obj.model._meta.private_fields
+
+-            if isinstance(f, GenericForeignKey)
+
++    gfks = [
+
++        f for f in obj.model._meta.private_fields
+
++        if isinstance(f, GenericForeignKey)
+
++    ]
+
++    if not gfks:
+
++        return [
+
++            checks.Error(
+
++                "'%s.%s' has no GenericForeignKey." % (
+
++                    obj.model._meta.app_label, obj.model._meta.object_name
+
++                ),
+
++                obj=obj.__class__,
+
++                id='admin.E301'
+
++            )
+
+         ]
+
+-        if not gfks:
+
++    else:
+
++        # Check that the ct_field and ct_fk_fields exist
+
++        try:
+
++            obj.model._meta.get_field(obj.ct_field)
+
++        except FieldDoesNotExist:
+
+             return [
+
+                 checks.Error(
+
+-                    "'%s.%s' has no GenericForeignKey." % (
+
+-                        obj.model._meta.app_label, obj.model._meta.object_name
+
++                    "'ct_field' references '%s', which is not a field on '%s.%s'." % (
+
++                        obj.ct_field, obj.model._meta.app_label, obj.model._meta.object_name
+
+                     ),
+
+                     obj=obj.__class__,
+
+-                    id='admin.E301'
+
++                    id='admin.E302'
+
+                 )
+
+             ]
+
+-        else:
+
+-            # Check that the ct_field and ct_fk_fields exist
+
+-            try:
+
+-                obj.model._meta.get_field(obj.ct_field)
+
+-            except FieldDoesNotExist:
+
+-                return [
+
+-                    checks.Error(
+
+-                        "'ct_field' references '%s', which is not a field on '%s.%s'." % (
+
+-                            obj.ct_field, obj.model._meta.app_label, obj.model._meta.object_name
+
+-                        ),
+
+-                        obj=obj.__class__,
+
+-                        id='admin.E302'
+
+-                    )
+
+-                ]
+
+ 
+
+-            try:
+
+-                obj.model._meta.get_field(obj.ct_fk_field)
+
+-            except FieldDoesNotExist:
+
+-                return [
+
+-                    checks.Error(
+
+-                        "'ct_fk_field' references '%s', which is not a field on '%s.%s'." % (
+
+-                            obj.ct_fk_field, obj.model._meta.app_label, obj.model._meta.object_name
+
+-                        ),
+
+-                        obj=obj.__class__,
+
+-                        id='admin.E303'
+
+-                    )
+
+-                ]
+
+-
+
+-            # There's one or more GenericForeignKeys; make sure that one of them
+
+-            # uses the right ct_field and ct_fk_field.
+
+-            for gfk in gfks:
+
+-                if gfk.ct_field == obj.ct_field and gfk.fk_field == obj.ct_fk_field:
+
+-                    return []
+
+-
+
++        try:
+
++            obj.model._meta.get_field(obj.ct_fk_field)
+
++        except FieldDoesNotExist:
+
+             return [
+
+                 checks.Error(
+
+-                    "'%s.%s' has no GenericForeignKey using content type field '%s' and object ID field '%s'." % (
+
+-                        obj.model._meta.app_label, obj.model._meta.object_name, obj.ct_field, obj.ct_fk_field
+
++                    "'ct_fk_field' references '%s', which is not a field on '%s.%s'." % (
+
++                        obj.ct_fk_field, obj.model._meta.app_label, obj.model._meta.object_name
+
+                     ),
+
+                     obj=obj.__class__,
+
+-                    id='admin.E304'
+
++                    id='admin.E303'
+
+                 )
+
+             ]
+
++
+
++        # There's one or more GenericForeignKeys; make sure that one of them
+
++        # uses the right ct_field and ct_fk_field.
+
++        for gfk in gfks:
+
++            if gfk.ct_field == obj.ct_field and gfk.fk_field == obj.ct_fk_field:
+
++                return []
+
++
+
++        return [
+
++            checks.Error(
+
++                "'%s.%s' has no GenericForeignKey using content type field '%s' and object ID field '%s'." % (
+
++                    obj.model._meta.app_label, obj.model._meta.object_name, obj.ct_field, obj.ct_fk_field
+
++                ),
+
++                obj=obj.__class__,
+
++                id='admin.E304'
+
++            )
+
++        ]
+
++
+
++    # Cleanse sensitive information from the settings
+
++    def cleanse_setting(key, value):
+
++        if isinstance(value, dict):
+
++            return {k: self.cleanse_setting(f"{key}.{k}", v) for k, v in value.items()}
+
++        elif isinstance(value, list):
+
++            return [self.cleanse_setting(f"{key}[{i}]", v) for i, v in enumerate(value)]
+
++        else:
+
++            return value
+
++
+
++    def get_safe_settings():
+
++        settings_dict = cleanse_setting("MY_SETTING", MY_SETTING)
+
++        return settings_dict
+
++
+
++    # Example usage
+
++    settings_dict = get_safe_settings()
+
++    pprint.pprint(settings_dict)
+
+ 
+
+ 
+
+ class GenericInlineModelAdmin(InlineModelAdmin):
+
+
+--- a/decoupled/60/0.8_0.2/39/django_django/django/contrib/contenttypes/admin.py
++++ b/decoupled/60/0.8_0.2/39/django_django/django/contrib/contenttypes/admin.py
+@@ -87,38 +87,48 @@
+ 
+
+     checks_class = GenericInlineModelAdminChecks
+
+ 
+
+-    def get_formset(self, request, obj=None, **kwargs):
+
+-        if 'fields' in kwargs:
+
+-            fields = kwargs.pop('fields')
+
++def get_formset(self, request, obj=None, **kwargs):
+
++    if 'fields' in kwargs:
+
++        fields = kwargs.pop('fields')
+
++    else:
+
++        fields = flatten_fieldsets(self.get_fieldsets(request, obj))
+
++    exclude = [*(self.exclude or []), *self.get_readonly_fields(request, obj)]
+
++    if self.exclude is None and hasattr(self.form, '_meta') and self.form._meta.exclude:
+
++        # Take the custom ModelForm's Meta.exclude into account only if the
+
++        # GenericInlineModelAdmin doesn't define its own.
+
++        exclude.extend(self.form._meta.exclude)
+
++    exclude = exclude or None
+
++    can_delete = self.can_delete and self.has_delete_permission(request, obj)
+
++    defaults = {
+
++        'ct_field': self.ct_field,
+
++        'fk_field': self.ct_fk_field,
+
++        'form': self.form,
+
++        'formfield_callback': partial(self.formfield_for_dbfield, request=request),
+
++        'formset': self.formset,
+
++        'extra': self.get_extra(request, obj),
+
++        'can_delete': can_delete,
+
++        'can_order': False,
+
++        'fields': fields,
+
++        'min_num': self.get_min_num(request, obj),
+
++        'max_num': self.get_max_num(request, obj),
+
++        'exclude': exclude,
+
++        **kwargs,
+
++    }
+
++
+
++    if defaults['fields'] is None and not modelform_defines_fields(defaults['form']):
+
++        defaults['fields'] = ALL_FIELDS
+
++
+
++    # Fix: Ensure that all settings are cleaned, including those that are not dictionaries
+
++    cleaned_defaults = {}
+
++    for key, value in defaults.items():
+
++        if isinstance(value, dict):
+
++            cleaned_defaults[key] = cleanse_setting(None, key, value)
+
++        elif isinstance(value, (list, tuple)):
+
++            cleaned_defaults[key] = [cleanse_setting(None, key, item) for item in value]
+
+         else:
+
+-            fields = flatten_fieldsets(self.get_fieldsets(request, obj))
+
+-        exclude = [*(self.exclude or []), *self.get_readonly_fields(request, obj)]
+
+-        if self.exclude is None and hasattr(self.form, '_meta') and self.form._meta.exclude:
+
+-            # Take the custom ModelForm's Meta.exclude into account only if the
+
+-            # GenericInlineModelAdmin doesn't define its own.
+
+-            exclude.extend(self.form._meta.exclude)
+
+-        exclude = exclude or None
+
+-        can_delete = self.can_delete and self.has_delete_permission(request, obj)
+
+-        defaults = {
+
+-            'ct_field': self.ct_field,
+
+-            'fk_field': self.ct_fk_field,
+
+-            'form': self.form,
+
+-            'formfield_callback': partial(self.formfield_for_dbfield, request=request),
+
+-            'formset': self.formset,
+
+-            'extra': self.get_extra(request, obj),
+
+-            'can_delete': can_delete,
+
+-            'can_order': False,
+
+-            'fields': fields,
+
+-            'min_num': self.get_min_num(request, obj),
+
+-            'max_num': self.get_max_num(request, obj),
+
+-            'exclude': exclude,
+
+-            **kwargs,
+
+-        }
+
++            cleaned_defaults[key] = value
+
+ 
+
+-        if defaults['fields'] is None and not modelform_defines_fields(defaults['form']):
+
+-            defaults['fields'] = ALL_FIELDS
+
+-
+
+-        return generic_inlineformset_factory(self.model, **defaults)
+
++    return generic_inlineformset_factory(self.model, **cleaned_defaults)
+
+ 
+
+ 
+
+ class GenericStackedInline(GenericInlineModelAdmin):
+
+
+--- a/decoupled/60/0.8_0.2/39/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/39/django_django/django/contrib/admin/checks.py
+@@ -445,21 +445,42 @@
+             else:
+
+                 return []
+
+ 
+
+-    def _check_radio_fields_value(self, obj, val, label):
+
+-        """ Check type of a value of `radio_fields` dictionary. """
+
+-
+
+-        from django.contrib.admin.options import HORIZONTAL, VERTICAL
+
+-
+
+-        if val not in (HORIZONTAL, VERTICAL):
+
+-            return [
+
+-                checks.Error(
+
+-                    "The value of '%s' must be either admin.HORIZONTAL or admin.VERTICAL." % label,
+
+-                    obj=obj.__class__,
+
+-                    id='admin.E024',
+
+-                )
+
+-            ]
+
+-        else:
+
+-            return []
+
++def _check_radio_fields_value(self, obj, val, label):
+
++    """ Check type of a value of `radio_fields` dictionary. """
+
++
+
++    from django.contrib.admin.options import HORIZONTAL, VERTICAL
+
++
+
++    if not isinstance(val, (dict, list, tuple)):
+
++        return [
+
++            checks.Error(
+
++                "The value of '%s' must be a dictionary, list, or tuple." % label,
+
++                obj=obj.__class__,
+
++                id='admin.E025',
+
++            )
+
++        ]
+
++    else:
+
++        errors = []
+
++        if isinstance(val, dict):
+
++            for key, field in val.items():
+
++                if field not in (HORIZONTAL, VERTICAL):
+
++                    errors.append(
+
++                        checks.Error(
+
++                            "The value of '%s' must be either admin.HORIZONTAL or admin.VERTICAL." % key,
+
++                            obj=obj.__class__,
+
++                            id='admin.E024',
+
++                        )
+
++                    )
+
++        elif isinstance(val, (list, tuple)):
+
++            for field in val:
+
++                if not isinstance(field, dict) or any(f not in (HORIZONTAL, VERTICAL) for f in field.values()):
+
++                    errors.append(
+
++                        checks.Error(
+
++                            "Each item in the list or tuple must be a dictionary with values either admin.HORIZONTAL or admin.VERTICAL." % label,
+
++                            obj=obj.__class__,
+
++                            id='admin.E026',
+
++                        )
+
++                    )
+
++        return errors if errors else []
+
+ 
+
+     def _check_view_on_site_url(self, obj):
+
+         if not callable(obj.view_on_site) and not isinstance(obj.view_on_site, bool):
+
+
+--- a/decoupled/60/0.8_0.2/39/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/39/django_django/django/contrib/admin/checks.py
+@@ -790,57 +790,59 @@
+                 for index, item in enumerate(obj.list_filter)
+
+             ))
+
+ 
+
+-    def _check_list_filter_item(self, obj, item, label):
+
+-        """
+
+-        Check one item of `list_filter`, i.e. check if it is one of three options:
+
+-        1. 'field' -- a basic field filter, possibly w/ relationships (e.g.
+
+-           'field__rel')
+
+-        2. ('field', SomeFieldListFilter) - a field-based list filter class
+
+-        3. SomeListFilter - a non-field list filter class
+
+-        """
+
+-
+
+-        from django.contrib.admin import ListFilter, FieldListFilter
+
+-
+
+-        if callable(item) and not isinstance(item, models.Field):
+
+-            # If item is option 3, it should be a ListFilter...
+
+-            if not _issubclass(item, ListFilter):
+
+-                return must_inherit_from(parent='ListFilter', option=label,
+
+-                                         obj=obj, id='admin.E113')
+
+-            # ...  but not a FieldListFilter.
+
+-            elif issubclass(item, FieldListFilter):
+
+-                return [
+
+-                    checks.Error(
+
+-                        "The value of '%s' must not inherit from 'FieldListFilter'." % label,
+
+-                        obj=obj.__class__,
+
+-                        id='admin.E114',
+
+-                    )
+
+-                ]
+
+-            else:
+
+-                return []
+
+-        elif isinstance(item, (tuple, list)):
+
+-            # item is option #2
+
+-            field, list_filter_class = item
+
+-            if not _issubclass(list_filter_class, FieldListFilter):
+
+-                return must_inherit_from(parent='FieldListFilter', option='%s[1]' % label, obj=obj, id='admin.E115')
+
+-            else:
+
+-                return []
+
+-        else:
+
+-            # item is option #1
+
+-            field = item
+
+-
+
+-            # Validate the field string
+
+-            try:
+
+-                get_fields_from_path(obj.model, field)
+
+-            except (NotRelationField, FieldDoesNotExist):
+
+-                return [
+
+-                    checks.Error(
+
+-                        "The value of '%s' refers to '%s', which does not refer to a Field." % (label, field),
+
+-                        obj=obj.__class__,
+
+-                        id='admin.E116',
+
+-                    )
+
+-                ]
+
+-            else:
+
+-                return []
+
++def _check_list_filter_item(self, obj, item, label):
+
++    """
+
++    Check one item of `list_filter`, i.e. check if it is one of three options:
+
++    1. 'field' -- a basic field filter, possibly w/ relationships (e.g.
+
++       'field__rel')
+
++    2. ('field', SomeFieldListFilter) - a field-based list filter class
+
++    3. SomeListFilter - a non-field list filter class
+
++    """
+
++
+
++    from django.contrib.admin import ListFilter, FieldListFilter
+
++
+
++    if callable(item) and not isinstance(item, models.Field):
+
++        # If item is option 3, it should be a ListFilter...
+
++        if not _issubclass(item, ListFilter):
+
++            return must_inherit_from(parent='ListFilter', option=label,
+
++                                     obj=obj, id='admin.E113')
+
++        # ...  but not a FieldListFilter.
+
++        elif issubclass(item, FieldListFilter):
+
++            return [
+
++                checks.Error(
+
++                    "The value of '%s' must not inherit from 'FieldListFilter'." % label,
+
++                    obj=obj.__class__,
+
++                    id='admin.E114',
+
++                )
+
++            ]
+
++        else:
+
++            return []
+
++    elif isinstance(item, (tuple, list, dict)):
+
++        # item is option #2 or #3, or a dict (which needs to be cleansed)
+
++        if isinstance(item, dict):
+
++            # Cleanse the dictionary
+
++            cleansed_item = cleanse_setting(obj, label, item)
+
++        else:
+
++            # Cleanse each item in the list or tuple
+
++            cleansed_item = [self._check_list_filter_item(obj, sub_item, f"{label}[{i}]") for i, sub_item in enumerate(item)]
+
++        return cleansed_item
+
++    else:
+
++        # item is option #1
+
++        field = item
+
++
+
++        # Validate the field string
+
++        try:
+
++            get_fields_from_path(obj.model, field)
+
++        except (NotRelationField, FieldDoesNotExist):
+
++            return [
+
++                checks.Error(
+
++                    "The value of '%s' refers to '%s', which does not refer to a Field." % (label, field),
+
++                    obj=obj.__class__,
+
++                    id='admin.E116',
+
++                )
+
++            ]
+
++        else:
+
++            return []
+
+ 
+
+     def _check_list_select_related(self, obj):
+
+         """ Check that list_select_related is a boolean, a list or a tuple. """
+
+

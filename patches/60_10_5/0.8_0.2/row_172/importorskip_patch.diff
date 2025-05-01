@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/outcomes.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/outcomes.py
+@@ -135,6 +135,10 @@
+ xfail.Exception = XFailed
+
+ 
+
+ 
+
++import sys
+
++from packaging.version import Version
+
++from pytest import Skipped
+
++
+
+ def importorskip(modname, minversion=None, reason=None):
+
+     """Imports and returns the requested module ``modname``, or skip the current test
+
+     if the module cannot be imported.
+
+@@ -163,7 +167,7 @@
+             import_exc = exc
+
+     if import_exc:
+
+         if reason is None:
+
+-            reason = "could not import {!r}: {}".format(modname, import_exc)
+
++            reason = "could not import {!r}: {}".format(modname, str(import_exc))
+
+         raise Skipped(reason, allow_module_level=True)
+
+     mod = sys.modules[modname]
+
+     if minversion is None:

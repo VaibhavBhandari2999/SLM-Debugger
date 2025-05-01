@@ -1,0 +1,298 @@
+--- a/decoupled/60/0.8_0.2/283/sympy_sympy/sympy/physics/secondquant.py
++++ b/decoupled/60/0.8_0.2/283/sympy_sympy/sympy/physics/secondquant.py
+@@ -1839,78 +1839,78 @@
+     """
+
+     is_commutative = False
+
+ 
+
+-    def __new__(cls, arg):
+
+-        """
+
+-        Use anticommutation to get canonical form of operators.
+
+-
+
+-        Explanation
+
+-        ===========
+
+-
+
+-        Employ associativity of normal ordered product: {ab{cd}} = {abcd}
+
+-        but note that {ab}{cd} /= {abcd}.
+
+-
+
+-        We also employ distributivity: {ab + cd} = {ab} + {cd}.
+
+-
+
+-        Canonical form also implies expand() {ab(c+d)} = {abc} + {abd}.
+
+-
+
+-        """
+
+-
+
+-        # {ab + cd} = {ab} + {cd}
+
+-        arg = sympify(arg)
+
+-        arg = arg.expand()
+
+-        if arg.is_Add:
+
+-            return Add(*[ cls(term) for term in arg.args])
+
+-
+
+-        if arg.is_Mul:
+
+-
+
+-            # take coefficient outside of normal ordering brackets
+
+-            c_part, seq = arg.args_cnc()
+
+-            if c_part:
+
+-                coeff = Mul(*c_part)
+
+-                if not seq:
+
+-                    return coeff
+
++def __new__(cls, arg):
+
++    """
+
++    Use anticommutation to get canonical form of operators.
+
++
+
++    Explanation
+
++    ===========
+
++
+
++    Employ associativity of normal ordered product: {ab{cd}} = {abcd}
+
++    but note that {ab}{cd} /= {abcd}.
+
++
+
++    We also employ distributivity: {ab + cd} = {ab} + {cd}.
+
++
+
++    Canonical form also implies expand() {ab(c+d)} = {abc} + {abd}.
+
++
+
++    """
+
++
+
++    # {ab + cd} = {ab} + {cd}
+
++    arg = sympify(arg)
+
++    arg = arg.expand()
+
++    if arg.is_Add:
+
++        return Add(*[cls(term) for term in arg.args])
+
++
+
++    if arg.is_Mul:
+
++
+
++        # take coefficient outside of normal ordering brackets
+
++        c_part, seq = arg.args_cnc()
+
++        if c_part:
+
++            coeff = Mul(*c_part)
+
++            if not seq:
+
++                return coeff
+
++        else:
+
++            coeff = S.One
+
++
+
++        # {ab{cd}} = {abcd}
+
++        newseq = []
+
++        foundit = False
+
++        for fac in seq:
+
++            if isinstance(fac, NO):
+
++                newseq.extend(fac.args)
+
++                foundit = True
+
+             else:
+
+-                coeff = S.One
+
+-
+
+-            # {ab{cd}} = {abcd}
+
+-            newseq = []
+
+-            foundit = False
+
+-            for fac in seq:
+
+-                if isinstance(fac, NO):
+
+-                    newseq.extend(fac.args)
+
+-                    foundit = True
+
+-                else:
+
+-                    newseq.append(fac)
+
+-            if foundit:
+
+-                return coeff*cls(Mul(*newseq))
+
+-
+
+-            # We assume that the user don't mix B and F operators
+
+-            if isinstance(seq[0], BosonicOperator):
+
+-                raise NotImplementedError
+
+-
+
+-            try:
+
+-                newseq, sign = _sort_anticommuting_fermions(seq)
+
+-            except ViolationOfPauliPrinciple:
+
+-                return S.Zero
+
+-
+
+-            if sign % 2:
+
+-                return (S.NegativeOne*coeff)*cls(Mul(*newseq))
+
+-            elif sign:
+
+-                return coeff*cls(Mul(*newseq))
+
+-            else:
+
+-                pass  # since sign==0, no permutations was necessary
+
+-
+
+-            # if we couldn't do anything with Mul object, we just
+
+-            # mark it as normal ordered
+
+-            if coeff != S.One:
+
+-                return coeff*cls(Mul(*newseq))
+
+-            return Expr.__new__(cls, Mul(*newseq))
+
+-
+
+-        if isinstance(arg, NO):
+
+-            return arg
+
+-
+
+-        # if object was not Mul or Add, normal ordering does not apply
+
++                newseq.append(fac)
+
++        if foundit:
+
++            return coeff * cls(Mul(*newseq))
+
++
+
++        # We assume that the user don't mix B and F operators
+
++        if isinstance(seq[0], BosonicOperator):
+
++            raise NotImplementedError
+
++
+
++        try:
+
++            newseq, sign = _sort_anticommuting_fermions(seq)
+
++        except ViolationOfPauliPrinciple:
+
++            return S.Zero
+
++
+
++        if sign % 2:
+
++            return (S.NegativeOne * coeff) * cls(Mul(*newseq))
+
++        elif sign:
+
++            return coeff * cls(Mul(*newseq))
+
++        else:
+
++            pass  # since sign==0, no permutations was necessary
+
++
+
++        # if we couldn't do anything with Mul object, we just
+
++        # mark it as normal ordered
+
++        if coeff != S.One:
+
++            return coeff * cls(Mul(*newseq))
+
+         return arg
+
++
+
++    if isinstance(arg, NO):
+
++        return arg
+
++
+
++    # if object was not Mul or Add, normal ordering does not apply
+
++    return arg
+
+ 
+
+     @property
+
+     def has_q_creators(self):

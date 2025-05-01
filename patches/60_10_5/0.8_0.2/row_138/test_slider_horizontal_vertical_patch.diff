@@ -1,0 +1,116 @@
+--- a/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/tests/test_widgets.py
++++ b/decoupled/60/0.8_0.2/138/matplotlib_matplotlib/lib/matplotlib/tests/test_widgets.py
+@@ -1244,24 +1244,39 @@
+     assert slider.val == 5.5
+
+ 
+
+ 
+
+-def test_slider_horizontal_vertical():
+
+-    fig, ax = plt.subplots()
+
+-    slider = widgets.Slider(ax=ax, label='', valmin=0, valmax=24,
+
+-                            valinit=12, orientation='horizontal')
+
+-    slider.set_val(10)
+
+-    assert slider.val == 10
+
+-    # check the dimension of the slider patch in axes units
+
+-    box = slider.poly.get_extents().transformed(ax.transAxes.inverted())
+
+-    assert_allclose(box.bounds, [0, .25, 10/24, .5])
+
+-
+
+-    fig, ax = plt.subplots()
+
+-    slider = widgets.Slider(ax=ax, label='', valmin=0, valmax=24,
+
+-                            valinit=12, orientation='vertical')
+
+-    slider.set_val(10)
+
+-    assert slider.val == 10
+
+-    # check the dimension of the slider patch in axes units
+
+-    box = slider.poly.get_extents().transformed(ax.transAxes.inverted())
+
+-    assert_allclose(box.bounds, [.25, 0, .5, 10/24])
+
++import matplotlib.pyplot as pyplot
+
++import matplotlib.widgets as widgets
+
++
+
++def onchanged(values):
+
++    print("on changed")
+
++    print(values)
+
++    pyplot.clf()
+
++    addElements()
+
++    pyplot.tight_layout()  # Adjust subplot params to give specified padding
+
++    pyplot.pause(0.001)    # Give the GUI a chance to process events
+
++    pyplot.draw()
+
++
+
++def onclick(e):
+
++    print("on click")
+
++    pyplot.clf()
+
++    addElements()
+
++    pyplot.tight_layout()  # Adjust subplot params to give specified padding
+
++    pyplot.pause(0.001)    # Give the GUI a chance to process events
+
++    pyplot.draw()
+
++
+
++def addElements():
+
++    ax = pyplot.axes([0.1, 0.45, 0.8, 0.1])
+
++    global slider
+
++    slider = widgets.RangeSlider(ax, "Test", valmin=1, valmax=10, valinit=(1, 10))
+
++    slider.on_changed(onchanged)
+
++    ax = pyplot.axes([0.1, 0.30, 0.8, 0.1])
+
++    global button
+
++    button = widgets.Button(ax, "Test")
+
++    button.on_clicked(onclick)
+
++
+
++addElements()
+
++
+
++pyplot.show()
+
+ 
+
+ 
+
+ def test_slider_reset():

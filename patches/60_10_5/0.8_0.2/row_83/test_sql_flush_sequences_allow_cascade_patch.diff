@@ -1,0 +1,162 @@
+--- a/decoupled/60/0.8_0.2/83/django_django/tests/backends/sqlite/test_operations.py
++++ b/decoupled/60/0.8_0.2/83/django_django/tests/backends/sqlite/test_operations.py
+@@ -54,32 +54,52 @@
+             ],
+
+         )
+
+ 
+
+-    def test_sql_flush_sequences_allow_cascade(self):
+
+-        statements = connection.ops.sql_flush(
+
+-            no_style(),
+
+-            [Person._meta.db_table, Tag._meta.db_table],
+
+-            reset_sequences=True,
+
+-            allow_cascade=True,
+
+-        )
+
+-        self.assertEqual(
+
+-            # The tables are processed in an unordered set.
+
+-            sorted(statements[:-1]),
+
+-            [
+
+-                'DELETE FROM "backends_person";',
+
+-                'DELETE FROM "backends_tag";',
+
+-                'DELETE FROM "backends_verylongmodelnamezzzzzzzzzzzzzzzzzzzzzz'
+
+-                'zzzzzzzzzzzzzzzzzzzz_m2m_also_quite_long_zzzzzzzzzzzzzzzzzzzz'
+
+-                'zzzzzzzzzzzzzzzzzzzzzzz";',
+
++from django.db import models, migrations
+
++
+
++class Tag(models.Model):
+
++    name = models.SlugField(help_text="The tag key.")
+
++    value = models.CharField(max_length=150, help_text="The tag value.")
+
++    class Meta:
+
++        ordering = ["name", "value"]
+
++        constraints = [
+
++            models.UniqueConstraint(
+
++                fields=['name', 'value'],
+
++                name='unique_name_value',
+
++            )
+
++        ]
+
++    def __str__(self):
+
++        return f"{self.name}={self.value}"
+
++
+
++class Migration(migrations.Migration):
+
++    initial = True
+
++    dependencies = [
+
++    ]
+
++    operations = [
+
++        migrations.CreateModel(
+
++            name='Tag',
+
++            fields=[
+
++                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+
++                ('name', models.SlugField(help_text='The tag key.')),
+
++                ('value', models.CharField(help_text='The tag value.', max_length=150)),
+
+             ],
+
+-        )
+
+-        self.assertIs(statements[-1].startswith(
+
+-            'UPDATE "sqlite_sequence" SET "seq" = 0 WHERE "name" IN ('
+
+-        ), True)
+
+-        self.assertIn("'backends_person'", statements[-1])
+
+-        self.assertIn("'backends_tag'", statements[-1])
+
+-        self.assertIn(
+
+-            "'backends_verylongmodelnamezzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+
+-            "zzzz_m2m_also_quite_long_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+
+-            "zzz'",
+
+-            statements[-1],
+
+-        )
+
++            options={
+
++                'ordering': ['name', 'value'],
+
++            },
+
++        ),
+
++        migrations.RunSQL(
+
++            sql="CREATE UNIQUE INDEX unique_name_value ON tag (name, value);",
+
++            reverse_sql="DROP INDEX unique_name_value;",
+
++        ),
+
++    ]
+
++
+
++class Migration(migrations.Migration):
+
++    dependencies = [
+
++        ('myapp', '0001_initial'),
+
++    ]
+
++    operations = [
+
++        migrations.AlterField(
+
++            model_name='tag',
+
++            name='value',
+
++            field=models.CharField(help_text='The tag value.', max_length=150),
+
++        ),
+
++    ]

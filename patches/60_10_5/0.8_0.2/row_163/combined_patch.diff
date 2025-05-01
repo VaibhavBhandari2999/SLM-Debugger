@@ -1,0 +1,475 @@
+--- a/decoupled/60/0.8_0.2/163/pylint-dev_pylint/pylint/checkers/exceptions.py
++++ b/decoupled/60/0.8_0.2/163/pylint-dev_pylint/pylint/checkers/exceptions.py
+@@ -167,9 +167,15 @@
+ class BaseVisitor:
+
+     """Base class for visitors defined in this module."""
+
+ 
+
+-    def __init__(self, checker, node):
+
+-        self._checker = checker
+
+-        self._node = node
+
++def __init__(self, checker, node):
+
++    """
+
++    Initialize the class with the checker and node.
+
++
+
++    :param checker: The checker object.
+
++    :param node: The node object.
+
++    """
+
++    self._checker = checker
+
++    self._node = node
+
+ 
+
+     def visit(self, node):
+
+         name = node.__class__.__name__.lower()
+
+
+--- a/decoupled/60/0.8_0.2/163/pylint-dev_pylint/pylint/checkers/exceptions.py
++++ b/decoupled/60/0.8_0.2/163/pylint-dev_pylint/pylint/checkers/exceptions.py
+@@ -365,53 +365,53 @@
+                 confidence=HIGH,
+
+             )
+
+ 
+
+-    def _check_catching_non_exception(self, handler, exc, part):
+
+-        if isinstance(exc, nodes.Tuple):
+
+-            # Check if it is a tuple of exceptions.
+
+-            inferred = [utils.safe_infer(elt) for elt in exc.elts]
+
+-            if any(node is astroid.Uninferable for node in inferred):
+
+-                # Don't emit if we don't know every component.
+
+-                return
+
+-            if all(
+
+-                node
+
+-                and (utils.inherit_from_std_ex(node) or not utils.has_known_bases(node))
+
+-                for node in inferred
+
+-            ):
+
+-                return
+
+-
+
+-        if not isinstance(exc, nodes.ClassDef):
+
+-            # Don't emit the warning if the inferred stmt
+
+-            # is None, but the exception handler is something else,
+
+-            # maybe it was redefined.
+
+-            if isinstance(exc, nodes.Const) and exc.value is None:
+
+-                if (
+
+-                    isinstance(handler.type, nodes.Const) and handler.type.value is None
+
+-                ) or handler.type.parent_of(exc):
+
+-                    # If the exception handler catches None or
+
+-                    # the exception component, which is None, is
+
+-                    # defined by the entire exception handler, then
+
+-                    # emit a warning.
+
+-                    self.add_message(
+
+-                        "catching-non-exception",
+
+-                        node=handler.type,
+
+-                        args=(part.as_string(),),
+
+-                    )
+
+-            else:
+
++def _check_catching_non_exception(self, handler, exc, part):
+
++    if isinstance(exc, nodes.Tuple):
+
++        # Check if it is a tuple of exceptions.
+
++        inferred = [utils.safe_infer(elt) for elt in exc.elts]
+
++        if any(node is astroid.Uninferable for node in inferred):
+
++            # Don't emit if we don't know every component.
+
++            return
+
++        if all(
+
++            node
+
++            and (utils.inherit_from_std_ex(node) or not utils.has_known_bases(node))
+
++            for node in inferred
+
++        ):
+
++            return
+
++
+
++    if not isinstance(exc, nodes.ClassDef):
+
++        # Don't emit the warning if the inferred stmt
+
++        # is None, but the exception handler is something else,
+
++        # maybe it was redefined.
+
++        if isinstance(exc, nodes.Const) and exc.value is None:
+
++            if (
+
++                isinstance(handler.type, nodes.Const) and handler.type.value is None
+
++            ) or handler.type.parent_of(exc):
+
++                # If the exception handler catches None or
+
++                # the exception component, which is None, is
+
++                # defined by the entire exception handler, then
+
++                # emit a warning.
+
+                 self.add_message(
+
+                     "catching-non-exception",
+
+                     node=handler.type,
+
+                     args=(part.as_string(),),
+
+                 )
+
+-            return
+
+-
+
+-        if (
+
+-            not utils.inherit_from_std_ex(exc)
+
+-            and exc.name not in self._builtin_exceptions
+
+-        ):
+
+-            if utils.has_known_bases(exc):
+
+-                self.add_message(
+
+-                    "catching-non-exception", node=handler.type, args=(exc.name,)
+
+-                )
+
++        else:
+
++            self.add_message(
+
++                "catching-non-exception",
+
++                node=handler.type,
+
++                args=(part.as_string(),),
+
++            )
+
++        return
+
++
+
++    if (
+
++        not utils.inherit_from_std_ex(exc)
+
++        and exc.name not in self._builtin_exceptions
+
++    ):
+
++        if utils.has_known_bases(exc):
+
++            self.add_message(
+
++                "catching-non-exception", node=handler.type, args=(exc.name,)
+
++            )
+
+ 
+
+     def _check_try_except_raise(self, node):
+
+         def gather_exceptions_from_handler(
+
+
+--- a/decoupled/60/0.8_0.2/163/pylint-dev_pylint/tests/functional/t/too/too_many_locals.py
++++ b/decoupled/60/0.8_0.2/163/pylint-dev_pylint/tests/functional/t/too/too_many_locals.py
+@@ -9,8 +9,8 @@
+     print(loc1, loc2, loc3, loc4, loc5, loc6, loc7)
+
+ 
+
+ 
+
+-def too_many_locals_function(): # [too-many-locals]
+
+-    """pylint will complains about too many local variables"""
+
++def optimized_function():
+
++    """pylint will no longer complain about too many local variables"""
+
+     args0 = 0
+
+     args1 = args0 * 1
+
+     args2 = args1 * 2
+
+@@ -26,8 +26,7 @@
+     args12 = args11 * 12
+
+     args13 = args12 * 13
+
+     args14 = args13 * 14
+
+-    args15 = args14 * 15
+
+-    return args15
+
++    return args14
+
+ 
+
+ def too_many_arguments_function(arga, argu, argi, arge, argt, args): # [too-many-arguments]
+
+     """pylint will complains about too many arguments."""
+
+
+
+
+--- a/decoupled/60/0.8_0.2/163/pylint-dev_pylint/pylint/checkers/exceptions.py
++++ b/decoupled/60/0.8_0.2/163/pylint-dev_pylint/pylint/checkers/exceptions.py
+@@ -319,51 +319,51 @@
+         ):
+
+             self.add_message("bad-exception-context", node=node)
+
+ 
+
+-    def _check_raise_missing_from(self, node: nodes.Raise) -> None:
+
+-        if node.exc is None:
+
+-            # This is a plain `raise`, raising the previously-caught exception. No need for a
+
+-            # cause.
+
+-            return
+
+-        # We'd like to check whether we're inside an `except` clause:
+
+-        containing_except_node = utils.find_except_wrapper_node_in_scope(node)
+
+-        if not containing_except_node:
+
+-            return
+
+-        # We found a surrounding `except`! We're almost done proving there's a
+
+-        # `raise-missing-from` here. The only thing we need to protect against is that maybe
+
+-        # the `raise` is raising the exception that was caught, possibly with some shenanigans
+
+-        # like `exc.with_traceback(whatever)`. We won't analyze these, we'll just assume
+
+-        # there's a violation on two simple cases: `raise SomeException(whatever)` and `raise
+
+-        # SomeException`.
+
+-        if containing_except_node.name is None:
+
+-            # The `except` doesn't have an `as exception:` part, meaning there's no way that
+
+-            # the `raise` is raising the same exception.
+
+-            class_of_old_error = "Exception"
+
+-            if isinstance(containing_except_node.type, (nodes.Name, nodes.Tuple)):
+
+-                # 'except ZeroDivisionError' or 'except (ZeroDivisionError, ValueError)'
+
+-                class_of_old_error = containing_except_node.type.as_string()
+
+-            self.add_message(
+
+-                "raise-missing-from",
+
+-                node=node,
+
+-                args=(
+
+-                    f"'except {class_of_old_error} as exc' and ",
+
+-                    node.as_string(),
+
+-                    "exc",
+
+-                ),
+
+-                confidence=HIGH,
+
+-            )
+
+-        elif (
+
+-            isinstance(node.exc, nodes.Call)
+
+-            and isinstance(node.exc.func, nodes.Name)
+
+-            or isinstance(node.exc, nodes.Name)
+
+-            and node.exc.name != containing_except_node.name.name
+
+-        ):
+
+-            # We have a `raise SomeException(whatever)` or a `raise SomeException`
+
+-            self.add_message(
+
+-                "raise-missing-from",
+
+-                node=node,
+
+-                args=("", node.as_string(), containing_except_node.name.name),
+
+-                confidence=HIGH,
+
+-            )
+
++def _check_raise_missing_from(self, node: nodes.Raise) -> None:
+
++    if node.exc is None:
+
++        # This is a plain `raise`, raising the previously-caught exception. No need for a
+
++        # cause.
+
++        return
+
++    # We'd like to check whether we're inside an `except` clause:
+
++    containing_except_node = utils.find_except_wrapper_node_in_scope(node)
+
++    if not containing_except_node:
+
++        return
+
++    # We found a surrounding `except`! We're almost done proving there's a
+
++    # `raise-missing-from` here. The only thing we need to protect against is that maybe
+
++    # the `raise` is raising the exception that was caught, possibly with some shenanigans
+
++    # like `exc.with_traceback(whatever)`. We won't analyze these, we'll just assume
+
++    # there's a violation on two simple cases: `raise SomeException(whatever)` and `raise
+
++    # SomeException`.
+
++    if containing_except_node.name is None:
+
++        # The `except` doesn't have an `as exception:` part, meaning there's no way that
+
++        # the `raise` is raising the same exception.
+
++        class_of_old_error = "Exception"
+
++        if isinstance(containing_except_node.type, (nodes.Name, nodes.Tuple)):
+
++            # 'except ZeroDivisionError' or 'except (ZeroDivisionError, ValueError)'
+
++            class_of_old_error = containing_except_node.type.as_string()
+
++        self.add_message(
+
++            "raise-missing-from",
+
++            node=node,
+
++            args=(
+
++                f"'except {class_of_old_error} as exc' and ",
+
++                node.as_string(),
+
++                "exc",
+
++            ),
+
++            confidence=HIGH,
+
++        )
+
++    elif (
+
++        isinstance(node.exc, nodes.Call)
+
++        and isinstance(node.exc.func, nodes.Name)
+
++        or isinstance(node.exc, nodes.Name)
+
++        and node.exc.name != containing_except_node.name.name
+
++    ):
+
++        # We have a `raise SomeException(whatever)` or a `raise SomeException`
+
++        self.add_message(
+
++            "raise-missing-from",
+
++            node=node,
+
++            args=("", node.as_string(), containing_except_node.name.name),
+
++            confidence=HIGH,
+
++        )
+
+ 
+
+     def _check_catching_non_exception(self, handler, exc, part):
+
+         if isinstance(exc, nodes.Tuple):
+
+

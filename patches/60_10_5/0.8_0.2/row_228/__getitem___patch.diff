@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
+@@ -45,7 +45,7 @@
+         except AttributeError:
+
+             return False
+
+ 
+
+-    def __getitem__(self, key):
+
++def __getitem__(self, key):
+
+         """Return portion of self defined by key. If the key involves a slice
+
+         then a list will be returned (if key is a single slice) or a matrix
+
+         (if key was a tuple involving a slice).
+
+@@ -114,6 +114,11 @@
+             if isinstance(key, slice):
+
+                 return self._mat[key]
+
+             return self._mat[a2idx(key)]
+
++
+
++    def sum_elements(self):
+
++        """Return the sum of the elements of the matrix."""
+
++        n = self.shape[0]
+
++        return Sum(self[i, j], (i, 0, n-1), (j, 0, n-1)).doit()
+
+ 
+
+     def __setitem__(self, key, value):
+
+         raise NotImplementedError()

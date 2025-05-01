@@ -1,0 +1,64 @@
+--- a/decoupled/60/0.8_0.2/63/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/63/django_django/django/template/base.py
+@@ -504,18 +504,19 @@
+         node.origin = self.origin
+
+         nodelist.append(node)
+
+ 
+
+-    def error(self, token, e):
+
+-        """
+
+-        Return an exception annotated with the originating token. Since the
+
+-        parser can be called recursively, check if a token is already set. This
+
+-        ensures the innermost token is highlighted if an exception occurs,
+
+-        e.g. a compile error within the body of an if statement.
+
+-        """
+
+-        if not isinstance(e, Exception):
+
+-            e = TemplateSyntaxError(e)
+
+-        if not hasattr(e, 'token'):
+
+-            e.token = token
+
+-        return e
+
++import logging
+
++
+
++logger = logging.getLogger(__name__)
+
++
+
++def send_robust(signal, sender, **kwargs):
+
++    """
+
++    Send a signal and handle exceptions robustly.
+
++    """
+
++    for receiver in signal.receivers:
+
++        try:
+
++            receiver(signal=signal, sender=sender, **kwargs)
+
++        except Exception as e:
+
++            logger.exception(f"Exception occurred in signal receiver: {e}")
+
+ 
+
+     def invalid_block_tag(self, token, command, parse_until=None):
+
+         if parse_until:

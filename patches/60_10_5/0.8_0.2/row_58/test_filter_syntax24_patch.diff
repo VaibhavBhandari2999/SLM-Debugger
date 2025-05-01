@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/58/django_django/tests/template_tests/syntax_tests/test_filter_syntax.py
++++ b/decoupled/60/0.8_0.2/58/django_django/tests/template_tests/syntax_tests/test_filter_syntax.py
+@@ -213,7 +213,7 @@
+             self.engine.render_to_string('filter-syntax23', {"var": SomeClass()})
+
+ 
+
+     @setup({'filter-syntax24': r'1{{ var.noisy_fail_attribute }}2'})
+
+-    def test_filter_syntax24(self):
+
++def test_filter_syntax24(self):
+
+         """
+
+         In attribute and dict lookups that raise an unexpected exception
+
+         without a `silent_variable_attribute` set to True, the exception

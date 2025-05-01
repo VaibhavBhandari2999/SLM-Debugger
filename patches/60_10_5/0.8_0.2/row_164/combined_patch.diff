@@ -1,0 +1,208 @@
+--- a/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/arguments_differ.py
++++ b/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/arguments_differ.py
+@@ -240,10 +240,7 @@
+ 
+
+ class ChildClass(ParentClass):
+
+ 
+
+-    def meth(self, _arg, dummy):
+
+-        # no error here, "dummy" and "_" are being ignored if
+
+-        # spotted in a variable name (declared in dummy_parameter_regex)
+
+-        pass
+
++# Your fixed function here
+
+ 
+
+ 
+
+ # https://github.com/PyCQA/pylint/issues/4443
+
+
+--- a/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/access/access_attr_before_def_false_positive.py
++++ b/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/access/access_attr_before_def_false_positive.py
+@@ -26,16 +26,16 @@
+         """
+
+         telnetlib.Telnet.__init__(self, host, port)
+
+ 
+
+-    def readUntilArray(self, matches, _=None):
+
+-        """
+
+-        Read until a given string is encountered or until timeout.
+
+-        ...
+
+-        """
+
+-        self.process_rawq()
+
+-        maxLength = 0
+
+-        for match in matches:
+
+-            if len(match) > maxLength:
+
+-                maxLength = len(match)
+
++def readUntilArray(self, matches, _=None):
+
++    """
+
++    Read until a given string is encountered or until timeout.
+
++    ...
+
++    """
+
++    self.process_rawq()
+
++    maxLength = 0
+
++    for match in matches:
+
++        if len(match) > maxLength:
+
++            maxLength = len(match)
+
+ 
+
+ class Base(object):
+
+     """bla bla"""
+
+
+--- a/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/access/access_member_before_definition.py
++++ b/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/access/access_member_before_definition.py
+@@ -32,11 +32,11 @@
+ 
+
+ 
+
+ class Mixin(object):
+
+-    def test_mixin(self):
+
+-        """Don't emit access-member-before-definition for mixin classes."""
+
+-        if self.already_defined:
+
+-            # pylint: disable=attribute-defined-outside-init
+
+-            self.already_defined = None
+
++def test_mixin(self):
+
++    """Don't emit access-member-before-definition for mixin classes."""
+
++    if self.already_defined:
+
++        # pylint: disable=attribute-defined-outside-init
+
++        self.already_defined = None
+
+ 
+
+ 
+
+ # Test for regression in bitbucket issue 164
+
+
+--- a/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/arguments_differ.py
++++ b/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/arguments_differ.py
+@@ -68,8 +68,10 @@
+     def has_kwargs(self, arg):  # [arguments-differ]
+
+         "Not okay to lose capabilities. Also, type has changed."
+
+ 
+
+-    def no_kwargs(self, arg, **kwargs):  # [arguments-renamed]
+
+-        "Addition of kwargs does not violate LSP, but first argument's name has changed."
+
++def no_kwargs(self, arg, **kwargs):  # [arguments-renamed]
+
++    """
+
++    Addition of kwargs does not violate LSP, but first argument's name has changed.
+
++    """
+
+ 
+
+ 
+
+ class Super(object):
+
+
+--- a/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/access/access_attr_before_def_false_positive.py
++++ b/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/access/access_attr_before_def_false_positive.py
+@@ -14,17 +14,18 @@
+     Extension of telnetlib.
+
+     """
+
+ 
+
+-    def __init__(self, host=None, port=0):
+
+-        """
+
+-        Constructor.
+
+-        When called without arguments, create an unconnected instance.
+
+-        With a hostname argument, it connects the instance; a port
+
+-        number is optional.
+
+-        Parameter:
+
+-        - host: IP address of the host
+
+-        - port: Port number
+
+-        """
+
+-        telnetlib.Telnet.__init__(self, host, port)
+
++def __init__(self, host=None, port=0):
+
++    """
+
++    Constructor.
+
++    When called without arguments, create an unconnected instance.
+
++    With a hostname argument, it connects the instance; a port
+
++    number is optional.
+
++    Parameter:
+
++    - host: IP address of the host
+
++    - port: Port number
+
++    """
+
++    # Your explanation and fix here
+
++    telnetlib.Telnet.__init__(self, host, port)
+
+ 
+
+     def readUntilArray(self, matches, _=None):
+
+         """
+
+

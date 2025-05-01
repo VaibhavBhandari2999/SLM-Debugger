@@ -1,0 +1,83 @@
+--- a/decoupled/60/0.8_0.2/58/django_django/django/db/migrations/optimizer.py
++++ b/decoupled/60/0.8_0.2/58/django_django/django/db/migrations/optimizer.py
+@@ -9,7 +9,7 @@
+     nothing.
+
+     """
+
+ 
+
+-    def optimize(self, operations, app_label):
+
++def optimize(self, operations, app_label):
+
+         """
+
+         Main optimization entry point. Pass in a list of Operation instances,
+
+         get out a new list of Operation instances.
+
+@@ -36,6 +36,32 @@
+             if result == operations:
+
+                 return result
+
+             operations = result
+
++
+
++    def optimize_inner(self, operations, app_label):
+
++        """
+
++        Inner optimization logic. This function is responsible for scanning
+
++        the operations and optimizing them. The key change here is to ensure
+
++        that named tuples are properly expanded when passed to the range function.
+
++        """
+
++        optimized_operations = []
+
++        i = 0
+
++        while i < len(operations):
+
++            op = operations[i]
+
++            if isinstance(op, RangeQueryOperation) and i + 1 < len(operations):
+
++                next_op = operations[i + 1]
+
++                if isinstance(next_op, RangeQueryOperation) and op.model == next_op.model:
+
++                    # Expand the named tuple to ensure it's not passed as an iterator
+
++                    start, end = op.range_args
+
++                    start_expanded = start._asdict() if isinstance(start, namedtuple) else start
+
++                    end_expanded = end._asdict() if isinstance(end, namedtuple) else end
+
++                    optimized_operations.append(RangeQueryOperation(op.model, start_expanded, end_expanded))
+
++                    i += 2
+
++                else:
+
++                    optimized_operations.append(op)
+
++            else:
+
++                optimized_operations.append(op)
+
++            i += 1
+
++        return optimized_operations
+
+ 
+
+     def optimize_inner(self, operations, app_label):
+
+         """Inner optimization loop."""

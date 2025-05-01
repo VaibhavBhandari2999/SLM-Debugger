@@ -1,0 +1,138 @@
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -285,29 +285,45 @@
+     .. [2] [Stiller96]_
+
+ 
+
+     """
+
+-    def __init__(self, polynomials, variables):
+
+-        """
+
+-        Parameters
+
+-        ==========
+
+-
+
+-        variables: list
+
+-            A list of all n variables
+
+-        polynomials : list of sympy polynomials
+
+-            A  list of m n-degree polynomials
+
+-        """
+
+-        self.polynomials = polynomials
+
+-        self.variables = variables
+
+-        self.n = len(variables)
+
+-
+
+-        # A list of the d_max of each polynomial.
+
+-        self.degrees = [total_degree(poly, *self.variables) for poly
+
+-                        in self.polynomials]
+
+-
+
+-        self.degree_m = self._get_degree_m()
+
+-        self.monomials_size = self.get_size()
+
+-
+
+-        # The set T of all possible monomials of degree degree_m
+
+-        self.monomial_set = self.get_monomials_of_certain_degree(self.degree_m)
+
++def get_monomials(self, min_degrees, max_degrees):
+
++    """
+
++    Generate all monomials within the specified degree range.
+
++
+
++    Parameters:
+
++    min_degrees (int): The minimum degree of the monomials.
+
++    max_degrees (int): The maximum degree of the monomials.
+
++
+
++    Returns:
+
++    list: A list of all monomials of degrees between min_degrees and max_degrees.
+
++    """
+
++    monomials = []
+
++    for degree in range(min_degrees, max_degrees + 1):
+
++        monomials.extend(sp.itermonomials(self.variables, degree))
+
++    return sorted(monomials, key=monomial_key('grlex', self.variables))
+
++
+
++def itermonomials(self, states, max_degree, min_degree=0):
+
++    """
+
++    Generate all monomials of degrees from min_degree to max_degree.
+
++
+
++    Parameters:
+
++    states (list): A list of symbolic variables.
+
++    max_degree (int): The maximum degree of the monomials.
+
++    min_degree (int, optional): The minimum degree of the monomials. Defaults to 0.
+
++
+
++    Yields:
+
++    tuple: A monomial of a given degree.
+
++    """
+
++    for degree in range(min_degree, max_degree + 1):
+
++        for monomial in sp.itermonomials(states, degree):
+
++            yield monomial
+
++
+
++# Example usage:
+
++x1, x2, x3 = sp.symbols('x1, x2, x3')
+
++states = [x1, x2, x3]
+
++max_degrees = 3
+
++min_degrees = 3
+
++monomials = list(self.itermonomials(states, max_degrees, min_degrees))
+
++print(monomials)
+
+ 
+
+     def _get_degree_m(self):
+
+         r"""

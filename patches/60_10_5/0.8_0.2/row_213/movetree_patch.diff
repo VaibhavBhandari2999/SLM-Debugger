@@ -1,0 +1,76 @@
+--- a/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
++++ b/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
+@@ -100,15 +100,28 @@
+         """
+
+         shutil.copytree(self, destination, symlinks=symlinks)
+
+ 
+
+-    def movetree(self, destination: str) -> None:
+
+-        """
+
+-        Recursively move the file or directory to the given `destination`
+
+-        similar to the  Unix "mv" command.
+
+-
+
+-        If the `destination` is a file it may be overwritten depending on the
+
+-        :func:`os.rename` semantics.
+
+-        """
+
+-        shutil.move(self, destination)
+
++import os
+
++import shutil
+
++
+
++def movetree(self, destination: str) -> None:
+
++    """
+
++    Recursively move the file or directory to the given `destination`
+
++    similar to the Unix "mv" command. This function now creates the necessary
+
++    section directories and moves the man pages into the appropriate section.
+
++
+
++    :param destination: The destination directory where man pages should be moved.
+
++    """
+
++    # Ensure the destination directory exists
+
++    os.makedirs(destination, exist_ok=True)
+
++
+
++    # Get the section number from the filename (assuming the filename is in the format <name>.<section>.<extension>)
+
++    section = self.split('.')[-2]
+
++
+
++    # Construct the full destination path for the man page
+
++    destination_path = os.path.join(destination, f'man/{section}/{self}')
+
++
+
++    # Move the man page to the appropriate section directory
+
++    shutil.move(self, destination_path)
+
+ 
+
+     move = movetree
+
+ 

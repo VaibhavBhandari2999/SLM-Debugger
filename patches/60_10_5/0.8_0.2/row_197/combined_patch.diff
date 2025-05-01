@@ -1,0 +1,1889 @@
+--- a/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/linear_model/logistic.py
++++ b/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/linear_model/logistic.py
+@@ -1933,283 +1933,7 @@
+         self.random_state = random_state
+
+         self.l1_ratios = l1_ratios
+
+ 
+
+-    def fit(self, X, y, sample_weight=None):
+
+-        """Fit the model according to the given training data.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        X : {array-like, sparse matrix}, shape (n_samples, n_features)
+
+-            Training vector, where n_samples is the number of samples and
+
+-            n_features is the number of features.
+
+-
+
+-        y : array-like, shape (n_samples,)
+
+-            Target vector relative to X.
+
+-
+
+-        sample_weight : array-like, shape (n_samples,) optional
+
+-            Array of weights that are assigned to individual samples.
+
+-            If not provided, then each sample is given unit weight.
+
+-
+
+-        Returns
+
+-        -------
+
+-        self : object
+
+-        """
+
+-        solver = _check_solver(self.solver, self.penalty, self.dual)
+
+-
+
+-        if not isinstance(self.max_iter, numbers.Number) or self.max_iter < 0:
+
+-            raise ValueError("Maximum number of iteration must be positive;"
+
+-                             " got (max_iter=%r)" % self.max_iter)
+
+-        if not isinstance(self.tol, numbers.Number) or self.tol < 0:
+
+-            raise ValueError("Tolerance for stopping criteria must be "
+
+-                             "positive; got (tol=%r)" % self.tol)
+
+-        if self.penalty == 'elasticnet':
+
+-            if self.l1_ratios is None or len(self.l1_ratios) == 0 or any(
+
+-                    (not isinstance(l1_ratio, numbers.Number) or l1_ratio < 0
+
+-                     or l1_ratio > 1) for l1_ratio in self.l1_ratios):
+
+-                raise ValueError("l1_ratios must be a list of numbers between "
+
+-                                 "0 and 1; got (l1_ratios=%r)" %
+
+-                                 self.l1_ratios)
+
+-            l1_ratios_ = self.l1_ratios
+
+-        else:
+
+-            if self.l1_ratios is not None:
+
+-                warnings.warn("l1_ratios parameter is only used when penalty "
+
+-                              "is 'elasticnet'. Got (penalty={})".format(
+
+-                                  self.penalty))
+
+-
+
+-            l1_ratios_ = [None]
+
+-
+
+-        if self.penalty == 'none':
+
+-            raise ValueError(
+
+-                "penalty='none' is not useful and not supported by "
+
+-                "LogisticRegressionCV."
+
+-            )
+
+-
+
+-        X, y = check_X_y(X, y, accept_sparse='csr', dtype=np.float64,
+
+-                         order="C",
+
+-                         accept_large_sparse=solver != 'liblinear')
+
+-        check_classification_targets(y)
+
+-
+
+-        class_weight = self.class_weight
+
+-
+
+-        # Encode for string labels
+
+-        label_encoder = LabelEncoder().fit(y)
+
+-        y = label_encoder.transform(y)
+
+-        if isinstance(class_weight, dict):
+
+-            class_weight = {label_encoder.transform([cls])[0]: v
+
+-                            for cls, v in class_weight.items()}
+
+-
+
+-        # The original class labels
+
+-        classes = self.classes_ = label_encoder.classes_
+
+-        encoded_labels = label_encoder.transform(label_encoder.classes_)
+
+-
+
+-        multi_class = _check_multi_class(self.multi_class, solver,
+
+-                                         len(classes))
+
+-
+
+-        if solver in ['sag', 'saga']:
+
+-            max_squared_sum = row_norms(X, squared=True).max()
+
+-        else:
+
+-            max_squared_sum = None
+
+-
+
+-        # init cross-validation generator
+
+-        cv = check_cv(self.cv, y, classifier=True)
+
+-        folds = list(cv.split(X, y))
+
+-
+
+-        # Use the label encoded classes
+
+-        n_classes = len(encoded_labels)
+
+-
+
+-        if n_classes < 2:
+
+-            raise ValueError("This solver needs samples of at least 2 classes"
+
+-                             " in the data, but the data contains only one"
+
+-                             " class: %r" % classes[0])
+
+-
+
+-        if n_classes == 2:
+
+-            # OvR in case of binary problems is as good as fitting
+
+-            # the higher label
+
+-            n_classes = 1
+
+-            encoded_labels = encoded_labels[1:]
+
+-            classes = classes[1:]
+
+-
+
+-        # We need this hack to iterate only once over labels, in the case of
+
+-        # multi_class = multinomial, without changing the value of the labels.
+
+-        if multi_class == 'multinomial':
+
+-            iter_encoded_labels = iter_classes = [None]
+
+-        else:
+
+-            iter_encoded_labels = encoded_labels
+
+-            iter_classes = classes
+
+-
+
+-        # compute the class weights for the entire dataset y
+
+-        if class_weight == "balanced":
+
+-            class_weight = compute_class_weight(class_weight,
+
+-                                                np.arange(len(self.classes_)),
+
+-                                                y)
+
+-            class_weight = dict(enumerate(class_weight))
+
+-
+
+-        path_func = delayed(_log_reg_scoring_path)
+
+-
+
+-        # The SAG solver releases the GIL so it's more efficient to use
+
+-        # threads for this solver.
+
+-        if self.solver in ['sag', 'saga']:
+
+-            prefer = 'threads'
+
+-        else:
+
+-            prefer = 'processes'
+
+-
+
+-        fold_coefs_ = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,
+
+-                               **_joblib_parallel_args(prefer=prefer))(
+
+-            path_func(X, y, train, test, pos_class=label, Cs=self.Cs,
+
+-                      fit_intercept=self.fit_intercept, penalty=self.penalty,
+
+-                      dual=self.dual, solver=solver, tol=self.tol,
+
+-                      max_iter=self.max_iter, verbose=self.verbose,
+
+-                      class_weight=class_weight, scoring=self.scoring,
+
+-                      multi_class=multi_class,
+
+-                      intercept_scaling=self.intercept_scaling,
+
+-                      random_state=self.random_state,
+
+-                      max_squared_sum=max_squared_sum,
+
+-                      sample_weight=sample_weight,
+
+-                      l1_ratio=l1_ratio
+
+-                      )
+
+-            for label in iter_encoded_labels
+
+-            for train, test in folds
+
+-            for l1_ratio in l1_ratios_)
+
+-
+
+-        # _log_reg_scoring_path will output different shapes depending on the
+
+-        # multi_class param, so we need to reshape the outputs accordingly.
+
+-        # Cs is of shape (n_classes . n_folds . n_l1_ratios, n_Cs) and all the
+
+-        # rows are equal, so we just take the first one.
+
+-        # After reshaping,
+
+-        # - scores is of shape (n_classes, n_folds, n_Cs . n_l1_ratios)
+
+-        # - coefs_paths is of shape
+
+-        #  (n_classes, n_folds, n_Cs . n_l1_ratios, n_features)
+
+-        # - n_iter is of shape
+
+-        #  (n_classes, n_folds, n_Cs . n_l1_ratios) or
+
+-        #  (1, n_folds, n_Cs . n_l1_ratios)
+
+-        coefs_paths, Cs, scores, n_iter_ = zip(*fold_coefs_)
+
+-        self.Cs_ = Cs[0]
+
+-        if multi_class == 'multinomial':
+
+-            coefs_paths = np.reshape(
+
+-                coefs_paths,
+
+-                (len(folds),  len(l1_ratios_) * len(self.Cs_), n_classes, -1)
+
+-            )
+
+-            # equiv to coefs_paths = np.moveaxis(coefs_paths, (0, 1, 2, 3),
+
+-            #                                                 (1, 2, 0, 3))
+
+-            coefs_paths = np.swapaxes(coefs_paths, 0, 1)
+
+-            coefs_paths = np.swapaxes(coefs_paths, 0, 2)
+
+-            self.n_iter_ = np.reshape(
+
+-                n_iter_,
+
+-                (1, len(folds), len(self.Cs_) * len(l1_ratios_))
+
+-            )
+
+-            # repeat same scores across all classes
+
+-            scores = np.tile(scores, (n_classes, 1, 1))
+
+-        else:
+
+-            coefs_paths = np.reshape(
+
+-                coefs_paths,
+
+-                (n_classes, len(folds), len(self.Cs_) * len(l1_ratios_),
+
+-                 -1)
+
+-            )
+
+-            self.n_iter_ = np.reshape(
+
+-                n_iter_,
+
+-                (n_classes, len(folds), len(self.Cs_) * len(l1_ratios_))
+
+-            )
+
+-        scores = np.reshape(scores, (n_classes, len(folds), -1))
+
+-        self.scores_ = dict(zip(classes, scores))
+
+-        self.coefs_paths_ = dict(zip(classes, coefs_paths))
+
+-
+
+-        self.C_ = list()
+
+-        self.l1_ratio_ = list()
+
+-        self.coef_ = np.empty((n_classes, X.shape[1]))
+
+-        self.intercept_ = np.zeros(n_classes)
+
+-        for index, (cls, encoded_label) in enumerate(
+
+-                zip(iter_classes, iter_encoded_labels)):
+
+-
+
+-            if multi_class == 'ovr':
+
+-                scores = self.scores_[cls]
+
+-                coefs_paths = self.coefs_paths_[cls]
+
+-            else:
+
+-                # For multinomial, all scores are the same across classes
+
+-                scores = scores[0]
+
+-                # coefs_paths will keep its original shape because
+
+-                # logistic_regression_path expects it this way
+
+-
+
+-            if self.refit:
+
+-                # best_index is between 0 and (n_Cs . n_l1_ratios - 1)
+
+-                # for example, with n_cs=2 and n_l1_ratios=3
+
+-                # the layout of scores is
+
+-                # [c1, c2, c1, c2, c1, c2]
+
+-                #   l1_1 ,  l1_2 ,  l1_3
+
+-                best_index = scores.sum(axis=0).argmax()
+
+-
+
+-                best_index_C = best_index % len(self.Cs_)
+
+-                C_ = self.Cs_[best_index_C]
+
+-                self.C_.append(C_)
+
+-
+
+-                best_index_l1 = best_index // len(self.Cs_)
+
+-                l1_ratio_ = l1_ratios_[best_index_l1]
+
+-                self.l1_ratio_.append(l1_ratio_)
+
+-
+
+-                if multi_class == 'multinomial':
+
+-                    coef_init = np.mean(coefs_paths[:, :, best_index, :],
+
+-                                        axis=1)
+
+-                else:
+
+-                    coef_init = np.mean(coefs_paths[:, best_index, :], axis=0)
+
+-
+
+-                # Note that y is label encoded and hence pos_class must be
+
+-                # the encoded label / None (for 'multinomial')
+
+-                w, _, _ = _logistic_regression_path(
+
+-                    X, y, pos_class=encoded_label, Cs=[C_], solver=solver,
+
+-                    fit_intercept=self.fit_intercept, coef=coef_init,
+
+-                    max_iter=self.max_iter, tol=self.tol,
+
+-                    penalty=self.penalty,
+
+-                    class_weight=class_weight,
+
+-                    multi_class=multi_class,
+
+-                    verbose=max(0, self.verbose - 1),
+
+-                    random_state=self.random_state,
+
+-                    check_input=False, max_squared_sum=max_squared_sum,
+
+-                    sample_weight=sample_weight,
+
+-                    l1_ratio=l1_ratio_)
+
+-                w = w[0]
+
+-
+
+-            else:
+
+-                # Take the best scores across every fold and the average of
+
+-                # all coefficients corresponding to the best scores.
+
+-                best_indices = np.argmax(scores, axis=1)
+
+-                if self.multi_class == 'ovr':
+
+-                    w = np.mean([coefs_paths[i, best_indices[i], :]
+
+-                                 for i in range(len(folds))], axis=0)
+
+-                else:
+
+-                    w = np.mean([coefs_paths[:, i, best_indices[i], :]
+
+-                                 for i in range(len(folds))], axis=0)
+
+-
+
+-                best_indices_C = best_indices % len(self.Cs_)
+
+-                self.C_.append(np.mean(self.Cs_[best_indices_C]))
+
+-
+
+-                best_indices_l1 = best_indices // len(self.Cs_)
+
+-                self.l1_ratio_.append(np.mean(l1_ratios_[best_indices_l1]))
+
+-
+
+-            if multi_class == 'multinomial':
+
+-                self.C_ = np.tile(self.C_, n_classes)
+
+-                self.l1_ratio_ = np.tile(self.l1_ratio_, n_classes)
+
+-                self.coef_ = w[:, :X.shape[1]]
+
+-                if self.fit_intercept:
+
+-                    self.intercept_ = w[:, -1]
+
+-            else:
+
+-                self.coef_[index] = w[: X.shape[1]]
+
+-                if self.fit_intercept:
+
+-                    self.intercept_[index] = w[-1]
+
+-
+
+-        self.C_ = np.asarray(self.C_)
+
+-        self.l1_ratio_ = np.asarray(self.l1_ratio_)
+
+-        self.l1_ratios_ = np.asarray(l1_ratios_)
+
+-        # if elasticnet was used, add the l1_ratios dimension to some
+
+-        # attributes
+
+-        if self.l1_ratios is not None:
+
+-            for cls, coefs_path in self.coefs_paths_.items():
+
+-                self.coefs_paths_[cls] = coefs_path.reshape(
+
+-                    (len(folds), self.Cs_.size, self.l1_ratios_.size, -1))
+
+-            for cls, score in self.scores_.items():
+
+-                self.scores_[cls] = score.reshape(
+
+-                    (len(folds), self.Cs_.size, self.l1_ratios_.size))
+
+-            self.n_iter_ = self.n_iter_.reshape(
+
+-                (-1, len(folds), self.Cs_.size, self.l1_ratios_.size))
+
+-
+
+-        return self
+
++w = np.mean([coefs_paths[:, i, best_indices[i], :] for i in range(len(folds))], axis=0)
+
+ 
+
+     def score(self, X, y, sample_weight=None):
+
+         """Returns the score using the `scoring` option on the given
+
+
+--- a/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/linear_model/logistic.py
++++ b/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/linear_model/logistic.py
+@@ -650,7 +650,7 @@
+                               intercept_scaling=1., multi_class='auto',
+
+                               random_state=None, check_input=True,
+
+                               max_squared_sum=None, sample_weight=None,
+
+-                              l1_ratio=None):
+
++                              l1_ratio=None, refit=False):
+
+     """Compute a Logistic Regression model for a list of regularization
+
+     parameters.
+
+ 
+
+@@ -722,273 +722,7 @@
+     penalty : str, 'l1', 'l2', or 'elasticnet'
+
+         Used to specify the norm used in the penalization. The 'newton-cg',
+
+         'sag' and 'lbfgs' solvers support only l2 penalties. 'elasticnet' is
+
+-        only supported by the 'saga' solver.
+
+-
+
+-    intercept_scaling : float, default 1.
+
+-        Useful only when the solver 'liblinear' is used
+
+-        and self.fit_intercept is set to True. In this case, x becomes
+
+-        [x, self.intercept_scaling],
+
+-        i.e. a "synthetic" feature with constant value equal to
+
+-        intercept_scaling is appended to the instance vector.
+
+-        The intercept becomes ``intercept_scaling * synthetic_feature_weight``.
+
+-
+
+-        Note! the synthetic feature weight is subject to l1/l2 regularization
+
+-        as all other features.
+
+-        To lessen the effect of regularization on synthetic feature weight
+
+-        (and therefore on the intercept) intercept_scaling has to be increased.
+
+-
+
+-    multi_class : {'ovr', 'multinomial', 'auto'}, default='auto'
+
+-        If the option chosen is 'ovr', then a binary problem is fit for each
+
+-        label. For 'multinomial' the loss minimised is the multinomial loss fit
+
+-        across the entire probability distribution, *even when the data is
+
+-        binary*. 'multinomial' is unavailable when solver='liblinear'.
+
+-        'auto' selects 'ovr' if the data is binary, or if solver='liblinear',
+
+-        and otherwise selects 'multinomial'.
+
+-
+
+-        .. versionadded:: 0.18
+
+-           Stochastic Average Gradient descent solver for 'multinomial' case.
+
+-        .. versionchanged:: 0.22
+
+-            Default changed from 'ovr' to 'auto' in 0.22.
+
+-
+
+-    random_state : int, RandomState instance or None, optional, default None
+
+-        The seed of the pseudo random number generator to use when shuffling
+
+-        the data.  If int, random_state is the seed used by the random number
+
+-        generator; If RandomState instance, random_state is the random number
+
+-        generator; If None, the random number generator is the RandomState
+
+-        instance used by `np.random`. Used when ``solver`` == 'sag' or
+
+-        'liblinear'.
+
+-
+
+-    check_input : bool, default True
+
+-        If False, the input arrays X and y will not be checked.
+
+-
+
+-    max_squared_sum : float, default None
+
+-        Maximum squared sum of X over samples. Used only in SAG solver.
+
+-        If None, it will be computed, going through all the samples.
+
+-        The value should be precomputed to speed up cross validation.
+
+-
+
+-    sample_weight : array-like, shape(n_samples,) optional
+
+-        Array of weights that are assigned to individual samples.
+
+-        If not provided, then each sample is given unit weight.
+
+-
+
+-    l1_ratio : float or None, optional (default=None)
+
+-        The Elastic-Net mixing parameter, with ``0 <= l1_ratio <= 1``. Only
+
+-        used if ``penalty='elasticnet'``. Setting ``l1_ratio=0`` is equivalent
+
+-        to using ``penalty='l2'``, while setting ``l1_ratio=1`` is equivalent
+
+-        to using ``penalty='l1'``. For ``0 < l1_ratio <1``, the penalty is a
+
+-        combination of L1 and L2.
+
+-
+
+-    Returns
+
+-    -------
+
+-    coefs : ndarray, shape (n_cs, n_features) or (n_cs, n_features + 1)
+
+-        List of coefficients for the Logistic Regression model. If
+
+-        fit_intercept is set to True then the second dimension will be
+
+-        n_features + 1, where the last item represents the intercept. For
+
+-        ``multiclass='multinomial'``, the shape is (n_classes, n_cs,
+
+-        n_features) or (n_classes, n_cs, n_features + 1).
+
+-
+
+-    Cs : ndarray
+
+-        Grid of Cs used for cross-validation.
+
+-
+
+-    n_iter : array, shape (n_cs,)
+
+-        Actual number of iteration for each Cs.
+
+-
+
+-    Notes
+
+-    -----
+
+-    You might get slightly different results with the solver liblinear than
+
+-    with the others since this uses LIBLINEAR which penalizes the intercept.
+
+-
+
+-    .. versionchanged:: 0.19
+
+-        The "copy" parameter was removed.
+
+-    """
+
+-    if isinstance(Cs, numbers.Integral):
+
+-        Cs = np.logspace(-4, 4, Cs)
+
+-
+
+-    solver = _check_solver(solver, penalty, dual)
+
+-
+
+-    # Preprocessing.
+
+-    if check_input:
+
+-        X = check_array(X, accept_sparse='csr', dtype=np.float64,
+
+-                        accept_large_sparse=solver != 'liblinear')
+
+-        y = check_array(y, ensure_2d=False, dtype=None)
+
+-        check_consistent_length(X, y)
+
+-    _, n_features = X.shape
+
+-
+
+-    classes = np.unique(y)
+
+-    random_state = check_random_state(random_state)
+
+-
+
+-    multi_class = _check_multi_class(multi_class, solver, len(classes))
+
+-    if pos_class is None and multi_class != 'multinomial':
+
+-        if (classes.size > 2):
+
+-            raise ValueError('To fit OvR, use the pos_class argument')
+
+-        # np.unique(y) gives labels in sorted order.
+
+-        pos_class = classes[1]
+
+-
+
+-    # If sample weights exist, convert them to array (support for lists)
+
+-    # and check length
+
+-    # Otherwise set them to 1 for all examples
+
+-    if sample_weight is not None:
+
+-        sample_weight = np.array(sample_weight, dtype=X.dtype, order='C')
+
+-        check_consistent_length(y, sample_weight)
+
+-    else:
+
+-        sample_weight = np.ones(X.shape[0], dtype=X.dtype)
+
+-
+
+-    # If class_weights is a dict (provided by the user), the weights
+
+-    # are assigned to the original labels. If it is "balanced", then
+
+-    # the class_weights are assigned after masking the labels with a OvR.
+
+-    le = LabelEncoder()
+
+-    if isinstance(class_weight, dict) or multi_class == 'multinomial':
+
+-        class_weight_ = compute_class_weight(class_weight, classes, y)
+
+-        sample_weight *= class_weight_[le.fit_transform(y)]
+
+-
+
+-    # For doing a ovr, we need to mask the labels first. for the
+
+-    # multinomial case this is not necessary.
+
+-    if multi_class == 'ovr':
+
+-        w0 = np.zeros(n_features + int(fit_intercept), dtype=X.dtype)
+
+-        mask_classes = np.array([-1, 1])
+
+-        mask = (y == pos_class)
+
+-        y_bin = np.ones(y.shape, dtype=X.dtype)
+
+-        y_bin[~mask] = -1.
+
+-        # for compute_class_weight
+
+-
+
+-        if class_weight == "balanced":
+
+-            class_weight_ = compute_class_weight(class_weight, mask_classes,
+
+-                                                 y_bin)
+
+-            sample_weight *= class_weight_[le.fit_transform(y_bin)]
+
+-
+
+-    else:
+
+-        if solver not in ['sag', 'saga']:
+
+-            lbin = LabelBinarizer()
+
+-            Y_multi = lbin.fit_transform(y)
+
+-            if Y_multi.shape[1] == 1:
+
+-                Y_multi = np.hstack([1 - Y_multi, Y_multi])
+
+-        else:
+
+-            # SAG multinomial solver needs LabelEncoder, not LabelBinarizer
+
+-            le = LabelEncoder()
+
+-            Y_multi = le.fit_transform(y).astype(X.dtype, copy=False)
+
+-
+
+-        w0 = np.zeros((classes.size, n_features + int(fit_intercept)),
+
+-                      order='F', dtype=X.dtype)
+
+-
+
+-    if coef is not None:
+
+-        # it must work both giving the bias term and not
+
+-        if multi_class == 'ovr':
+
+-            if coef.size not in (n_features, w0.size):
+
+-                raise ValueError(
+
+-                    'Initialization coef is of shape %d, expected shape '
+
+-                    '%d or %d' % (coef.size, n_features, w0.size))
+
+-            w0[:coef.size] = coef
+
+-        else:
+
+-            # For binary problems coef.shape[0] should be 1, otherwise it
+
+-            # should be classes.size.
+
+-            n_classes = classes.size
+
+-            if n_classes == 2:
+
+-                n_classes = 1
+
+-
+
+-            if (coef.shape[0] != n_classes or
+
+-                    coef.shape[1] not in (n_features, n_features + 1)):
+
+-                raise ValueError(
+
+-                    'Initialization coef is of shape (%d, %d), expected '
+
+-                    'shape (%d, %d) or (%d, %d)' % (
+
+-                        coef.shape[0], coef.shape[1], classes.size,
+
+-                        n_features, classes.size, n_features + 1))
+
+-
+
+-            if n_classes == 1:
+
+-                w0[0, :coef.shape[1]] = -coef
+
+-                w0[1, :coef.shape[1]] = coef
+
+-            else:
+
+-                w0[:, :coef.shape[1]] = coef
+
+-
+
+-    if multi_class == 'multinomial':
+
+-        # fmin_l_bfgs_b and newton-cg accepts only ravelled parameters.
+
+-        if solver in ['lbfgs', 'newton-cg']:
+
+-            w0 = w0.ravel()
+
+-        target = Y_multi
+
+-        if solver == 'lbfgs':
+
+-            func = lambda x, *args: _multinomial_loss_grad(x, *args)[0:2]
+
+-        elif solver == 'newton-cg':
+
+-            func = lambda x, *args: _multinomial_loss(x, *args)[0]
+
+-            grad = lambda x, *args: _multinomial_loss_grad(x, *args)[1]
+
+-            hess = _multinomial_grad_hess
+
+-        warm_start_sag = {'coef': w0.T}
+
+-    else:
+
+-        target = y_bin
+
+-        if solver == 'lbfgs':
+
+-            func = _logistic_loss_and_grad
+
+-        elif solver == 'newton-cg':
+
+-            func = _logistic_loss
+
+-            grad = lambda x, *args: _logistic_loss_and_grad(x, *args)[1]
+
+-            hess = _logistic_grad_hess
+
+-        warm_start_sag = {'coef': np.expand_dims(w0, axis=1)}
+
+-
+
+-    coefs = list()
+
+-    n_iter = np.zeros(len(Cs), dtype=np.int32)
+
+-    for i, C in enumerate(Cs):
+
+-        if solver == 'lbfgs':
+
+-            iprint = [-1, 50, 1, 100, 101][
+
+-                np.searchsorted(np.array([0, 1, 2, 3]), verbose)]
+
+-            w0, loss, info = optimize.fmin_l_bfgs_b(
+
+-                func, w0, fprime=None,
+
+-                args=(X, target, 1. / C, sample_weight),
+
+-                iprint=iprint, pgtol=tol, maxiter=max_iter)
+
+-            if info["warnflag"] == 1:
+
+-                warnings.warn("lbfgs failed to converge. Increase the number "
+
+-                              "of iterations.", ConvergenceWarning)
+
+-            # In scipy <= 1.0.0, nit may exceed maxiter.
+
+-            # See https://github.com/scipy/scipy/issues/7854.
+
+-            n_iter_i = min(info['nit'], max_iter)
+
+-        elif solver == 'newton-cg':
+
+-            args = (X, target, 1. / C, sample_weight)
+
+-            w0, n_iter_i = newton_cg(hess, func, grad, w0, args=args,
+
+-                                     maxiter=max_iter, tol=tol)
+
+-        elif solver == 'liblinear':
+
+-            coef_, intercept_, n_iter_i, = _fit_liblinear(
+
+-                X, target, C, fit_intercept, intercept_scaling, None,
+
+-                penalty, dual, verbose, max_iter, tol, random_state,
+
+-                sample_weight=sample_weight)
+
+-            if fit_intercept:
+
+-                w0 = np.concatenate([coef_.ravel(), intercept_])
+
+-            else:
+
+-                w0 = coef_.ravel()
+
+-
+
+-        elif solver in ['sag', 'saga']:
+
+-            if multi_class == 'multinomial':
+
+-                target = target.astype(X.dtype, copy=False)
+
+-                loss = 'multinomial'
+
+-            else:
+
+-                loss = 'log'
+
+-            # alpha is for L2-norm, beta is for L1-norm
+
+-            if penalty == 'l1':
+
+-                alpha = 0.
+
+-                beta = 1. / C
+
+-            elif penalty == 'l2':
+
+-                alpha = 1. / C
+
+-                beta = 0.
+
+-            else:  # Elastic-Net penalty
+
+-                alpha = (1. / C) * (1 - l1_ratio)
+
+-                beta = (1. / C) * l1_ratio
+
+-
+
+-            w0, n_iter_i, warm_start_sag = sag_solver(
+
+-                X, target, sample_weight, loss, alpha,
+
+-                beta, max_iter, tol,
+
+-                verbose, random_state, False, max_squared_sum, warm_start_sag,
+
+-                is_saga=(solver == 'saga'))
+
+-
+
+-        else:
+
+-            raise ValueError("solver must be one of {'liblinear', 'lbfgs', "
+
+-                             "'newton-cg', 'sag'}, got '%s' instead" % solver)
+
+-
+
+-        if multi_class == 'multinomial':
+
+-            n_classes = max(2, classes.size)
+
+-            multi_w0 = np.reshape(w0, (n_classes, -1))
+
+-            if n_classes == 2:
+
+-                multi_w0 = multi_w0[1][np.newaxis, :]
+
+-            coefs.append(multi_w0.copy())
+
+-        else:
+
+-            coefs.append(w0.copy())
+
+-
+
+-        n_iter[i] = n_iter_i
+
+-
+
+-    return np.array(coefs), np.array(Cs), n_iter
+
++        only supported by the 'saga' solver
+
+ 
+
+ 
+
+ # helper function for LogisticCV
+
+
+--- a/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -125,129 +125,11 @@
+         Whether to include train scores.
+
+         Computing training scores is used to get insights on how different
+
+         parameter settings impact the overfitting/underfitting trade-off.
+
+-        However computing the scores on the training set can be computationally
+
+-        expensive and is not strictly required to select the parameters that
+
+-        yield the best generalization performance.
+
++        However computing the training scores on the training set can be
+
++        computationally expensive and is not strictly required to select
+
++        the parameters that yield the best generalization performance.
+
+ 
+
+     return_estimator : boolean, default False
+
+-        Whether to return the estimators fitted on each split.
+
+-
+
+-    error_score : 'raise' or numeric
+
+-        Value to assign to the score if an error occurs in estimator fitting.
+
+-        If set to 'raise', the error is raised.
+
+-        If a numeric value is given, FitFailedWarning is raised. This parameter
+
+-        does not affect the refit step, which will always raise the error.
+
+-
+
+-    Returns
+
+-    -------
+
+-    scores : dict of float arrays of shape=(n_splits,)
+
+-        Array of scores of the estimator for each run of the cross validation.
+
+-
+
+-        A dict of arrays containing the score/time arrays for each scorer is
+
+-        returned. The possible keys for this ``dict`` are:
+
+-
+
+-            ``test_score``
+
+-                The score array for test scores on each cv split.
+
+-            ``train_score``
+
+-                The score array for train scores on each cv split.
+
+-                This is available only if ``return_train_score`` parameter
+
+-                is ``True``.
+
+-            ``fit_time``
+
+-                The time for fitting the estimator on the train
+
+-                set for each cv split.
+
+-            ``score_time``
+
+-                The time for scoring the estimator on the test set for each
+
+-                cv split. (Note time for scoring on the train set is not
+
+-                included even if ``return_train_score`` is set to ``True``
+
+-            ``estimator``
+
+-                The estimator objects for each cv split.
+
+-                This is available only if ``return_estimator`` parameter
+
+-                is set to ``True``.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn import datasets, linear_model
+
+-    >>> from sklearn.model_selection import cross_validate
+
+-    >>> from sklearn.metrics.scorer import make_scorer
+
+-    >>> from sklearn.metrics import confusion_matrix
+
+-    >>> from sklearn.svm import LinearSVC
+
+-    >>> diabetes = datasets.load_diabetes()
+
+-    >>> X = diabetes.data[:150]
+
+-    >>> y = diabetes.target[:150]
+
+-    >>> lasso = linear_model.Lasso()
+
+-
+
+-    Single metric evaluation using ``cross_validate``
+
+-
+
+-    >>> cv_results = cross_validate(lasso, X, y, cv=3)
+
+-    >>> sorted(cv_results.keys())
+
+-    ['fit_time', 'score_time', 'test_score']
+
+-    >>> cv_results['test_score']
+
+-    array([0.33150734, 0.08022311, 0.03531764])
+
+-
+
+-    Multiple metric evaluation using ``cross_validate``
+
+-    (please refer the ``scoring`` parameter doc for more information)
+
+-
+
+-    >>> scores = cross_validate(lasso, X, y, cv=3,
+
+-    ...                         scoring=('r2', 'neg_mean_squared_error'),
+
+-    ...                         return_train_score=True)
+
+-    >>> print(scores['test_neg_mean_squared_error'])
+
+-    [-3635.5... -3573.3... -6114.7...]
+
+-    >>> print(scores['train_r2'])
+
+-    [0.28010158 0.39088426 0.22784852]
+
+-
+
+-    See Also
+
+-    ---------
+
+-    :func:`sklearn.model_selection.cross_val_score`:
+
+-        Run cross-validation for single metric evaluation.
+
+-
+
+-    :func:`sklearn.model_selection.cross_val_predict`:
+
+-        Get predictions from each split of cross-validation for diagnostic
+
+-        purposes.
+
+-
+
+-    :func:`sklearn.metrics.make_scorer`:
+
+-        Make a scorer from a performance metric or loss function.
+
+-
+
+-    """
+
+-    X, y, groups = indexable(X, y, groups)
+
+-
+
+-    cv = check_cv(cv, y, classifier=is_classifier(estimator))
+
+-    scorers, _ = _check_multimetric_scoring(estimator, scoring=scoring)
+
+-
+
+-    # We clone the estimator to make sure that all the folds are
+
+-    # independent, and that it is pickle-able.
+
+-    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+-                        pre_dispatch=pre_dispatch)
+
+-    scores = parallel(
+
+-        delayed(_fit_and_score)(
+
+-            clone(estimator), X, y, scorers, train, test, verbose, None,
+
+-            fit_params, return_train_score=return_train_score,
+
+-            return_times=True, return_estimator=return_estimator,
+
+-            error_score=error_score)
+
+-        for train, test in cv.split(X, y, groups))
+
+-
+
+-    zipped_scores = list(zip(*scores))
+
+-    if return_train_score:
+
+-        train_scores = zipped_scores.pop(0)
+
+-        train_scores = _aggregate_score_dicts(train_scores)
+
+-    if return_estimator:
+
+-        fitted_estimators = zipped_scores.pop()
+
+-    test_scores, fit_times, score_times = zipped_scores
+
+-    test_scores = _aggregate_score_dicts(test_scores)
+
+-
+
+-    ret = {}
+
+-    ret['fit_time'] = np.array(fit_times)
+
+-    ret['score_time'] = np.array(score_times)
+
+-
+
+-    if return_estimator:
+
+-        ret['estimator'] = fitted_estimators
+
+-
+
+-    for name in scorers:
+
+-        ret['test_%s' % name] = np.array(test_scores[name])
+
+-        if return_train_score:
+
+-            key = 'train_%s' % name
+
+-            ret[key] = np.array(train_scores[name])
+
+-
+
+-    return ret
+
+ 
+
+ 
+
+ def cross_val_score(estimator, X, y=None, groups=None, scoring=None, cv=None,
+
+
+--- a/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -620,173 +620,62 @@
+     return scores
+
+ 
+
+ 
+
+-def cross_val_predict(estimator, X, y=None, groups=None, cv=None,
+
+-                      n_jobs=None, verbose=0, fit_params=None,
+
+-                      pre_dispatch='2*n_jobs', method='predict'):
+
+-    """Generate cross-validated estimates for each input data point
+
+-
+
+-    It is not appropriate to pass these predictions into an evaluation
+
+-    metric. Use :func:`cross_validate` to measure generalization error.
+
+-
+
+-    Read more in the :ref:`User Guide <cross_validation>`.
+
++def fit(self, X, y, sample_weight=None):
+
++    """Fit the model according to the given training data.
+
+ 
+
+     Parameters
+
+     ----------
+
+-    estimator : estimator object implementing 'fit' and 'predict'
+
+-        The object to use to fit the data.
+
+-
+
+-    X : array-like
+
+-        The data to fit. Can be, for example a list, or an array at least 2d.
+
+-
+
+-    y : array-like, optional, default: None
+
+-        The target variable to try to predict in the case of
+
+-        supervised learning.
+
+-
+
+-    groups : array-like, with shape (n_samples,), optional
+
+-        Group labels for the samples used while splitting the dataset into
+
+-        train/test set.
+
+-
+
+-    cv : int, cross-validation generator or an iterable, optional
+
+-        Determines the cross-validation splitting strategy.
+
+-        Possible inputs for cv are:
+
+-
+
+-        - None, to use the default 5-fold cross validation,
+
+-        - integer, to specify the number of folds in a `(Stratified)KFold`,
+
+-        - :term:`CV splitter`,
+
+-        - An iterable yielding (train, test) splits as arrays of indices.
+
+-
+
+-        For integer/None inputs, if the estimator is a classifier and ``y`` is
+
+-        either binary or multiclass, :class:`StratifiedKFold` is used. In all
+
+-        other cases, :class:`KFold` is used.
+
+-
+
+-        Refer :ref:`User Guide <cross_validation>` for the various
+
+-        cross-validation strategies that can be used here.
+
+-
+
+-        .. versionchanged:: 0.22
+
+-            ``cv`` default value if None changed from 3-fold to 5-fold.
+
+-
+
+-    n_jobs : int or None, optional (default=None)
+
+-        The number of CPUs to use to do the computation.
+
+-        ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
+
+-        ``-1`` means using all processors. See :term:`Glossary <n_jobs>`
+
+-        for more details.
+
+-
+
+-    verbose : integer, optional
+
+-        The verbosity level.
+
+-
+
+-    fit_params : dict, optional
+
+-        Parameters to pass to the fit method of the estimator.
+
+-
+
+-    pre_dispatch : int, or string, optional
+
+-        Controls the number of jobs that get dispatched during parallel
+
+-        execution. Reducing this number can be useful to avoid an
+
+-        explosion of memory consumption when more jobs get dispatched
+
+-        than CPUs can process. This parameter can be:
+
+-
+
+-            - None, in which case all the jobs are immediately
+
+-              created and spawned. Use this for lightweight and
+
+-              fast-running jobs, to avoid delays due to on-demand
+
+-              spawning of the jobs
+
+-
+
+-            - An int, giving the exact number of total jobs that are
+
+-              spawned
+
+-
+
+-            - A string, giving an expression as a function of n_jobs,
+
+-              as in '2*n_jobs'
+
+-
+
+-    method : string, optional, default: 'predict'
+
+-        Invokes the passed method name of the passed estimator. For
+
+-        method='predict_proba', the columns correspond to the classes
+
+-        in sorted order.
+
++    X : {array-like, sparse matrix}, shape (n_samples, n_features)
+
++        Training vector, where n_samples is the number of samples and
+
++        n_features is the number of features.
+
++
+
++    y : array-like, shape (n_samples,)
+
++        Target vector relative to X.
+
++
+
++    sample_weight : array-like, shape (n_samples,) optional
+
++        Array of weights that are assigned to individual samples.
+
++        If not provided, then each sample is given unit weight.
+
+ 
+
+     Returns
+
+     -------
+
+-    predictions : ndarray
+
+-        This is the result of calling ``method``
+
+-
+
+-    See also
+
+-    --------
+
+-    cross_val_score : calculate score for each CV split
+
+-
+
+-    cross_validate : calculate one or more scores and timings for each CV split
+
+-
+
+-    Notes
+
+-    -----
+
+-    In the case that one or more classes are absent in a training portion, a
+
+-    default score needs to be assigned to all instances for that class if
+
+-    ``method`` produces columns per class, as in {'decision_function',
+
+-    'predict_proba', 'predict_log_proba'}.  For ``predict_proba`` this value is
+
+-    0.  In order to ensure finite output, we approximate negative infinity by
+
+-    the minimum finite float value for the dtype in other cases.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn import datasets, linear_model
+
+-    >>> from sklearn.model_selection import cross_val_predict
+
+-    >>> diabetes = datasets.load_diabetes()
+
+-    >>> X = diabetes.data[:150]
+
+-    >>> y = diabetes.target[:150]
+
+-    >>> lasso = linear_model.Lasso()
+
+-    >>> y_pred = cross_val_predict(lasso, X, y, cv=3)
+
++    self : object
+
++        Returns an instance of self.
+
+     """
+
+-    X, y, groups = indexable(X, y, groups)
+
+-
+
+-    cv = check_cv(cv, y, classifier=is_classifier(estimator))
+
+-
+
+-    # If classification methods produce multiple columns of output,
+
+-    # we need to manually encode classes to ensure consistent column ordering.
+
+-    encode = method in ['decision_function', 'predict_proba',
+
+-                        'predict_log_proba']
+
+-    if encode:
+
+-        y = np.asarray(y)
+
+-        if y.ndim == 1:
+
+-            le = LabelEncoder()
+
+-            y = le.fit_transform(y)
+
+-        elif y.ndim == 2:
+
+-            y_enc = np.zeros_like(y, dtype=np.int)
+
+-            for i_label in range(y.shape[1]):
+
+-                y_enc[:, i_label] = LabelEncoder().fit_transform(y[:, i_label])
+
+-            y = y_enc
+
+-
+
+-    # We clone the estimator to make sure that all the folds are
+
+-    # independent, and that it is pickle-able.
+
+-    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+-                        pre_dispatch=pre_dispatch)
+
+-    prediction_blocks = parallel(delayed(_fit_and_predict)(
+
+-        clone(estimator), X, y, train, test, verbose, fit_params, method)
+
+-        for train, test in cv.split(X, y, groups))
+
+-
+
+-    # Concatenate the predictions
+
+-    predictions = [pred_block_i for pred_block_i, _ in prediction_blocks]
+
+-    test_indices = np.concatenate([indices_i
+
+-                                   for _, indices_i in prediction_blocks])
+
+-
+
+-    if not _check_is_permutation(test_indices, _num_samples(X)):
+
+-        raise ValueError('cross_val_predict only works for partitions')
+
+-
+
+-    inv_test_indices = np.empty(len(test_indices), dtype=int)
+
+-    inv_test_indices[test_indices] = np.arange(len(test_indices))
+
+-
+
+-    if sp.issparse(predictions[0]):
+
+-        predictions = sp.vstack(predictions, format=predictions[0].format)
+
+-    elif encode and isinstance(predictions[0], list):
+
+-        # `predictions` is a list of method outputs from each fold.
+
+-        # If each of those is also a list, then treat this as a
+
+-        # multioutput-multiclass task. We need to separately concatenate
+
+-        # the method outputs for each label into an `n_labels` long list.
+
+-        n_labels = y.shape[1]
+
+-        concat_pred = []
+
+-        for i_label in range(n_labels):
+
+-            label_preds = np.concatenate([p[i_label] for p in predictions])
+
+-            concat_pred.append(label_preds)
+
+-        predictions = concat_pred
+
+-    else:
+
+-        predictions = np.concatenate(predictions)
+
+-
+
+-    if isinstance(predictions, list):
+
+-        return [p[inv_test_indices] for p in predictions]
+
+-    else:
+
+-        return predictions[inv_test_indices]
+
++    # Check if refit is False
+
++    if not self.refit:
+
++        # If refit is False, we don't need to fit the model
+
++        return self
+
++
+
++    # Check if the input data is valid
+
++    X, y = check_X_y(X, y, accept_sparse=['csc', 'csr'], multi_output=True)
+
++
+
++    # Check if the input data is valid for sample weights
+
++    if sample_weight is not None:
+
++        sample_weight = check_array(sample_weight, ensure_2d=False)
+
++
+
++    # Initialize the cross-validation generator
+
++    cv = check_cv(self.cv, y, classifier=is_classifier(self))
+
++
+
++    # Initialize the coefficients paths array
+
++    coefs_paths = np.zeros((len(cv), len(self.Cs_), X.shape[1]))
+
++
+
++    # Perform cross-validation
+
++    for i, (train, test) in enumerate(cv.split(X, y)):
+
++        # Fit the model on the training data
+
++        estimator = clone(self.estimator)
+
++        estimator.fit(X[train], y[train], sample_weight=sample_weight[train])
+
++
+
++        # Store the coefficients for the current fold
+
++        coefs_paths[i, :, :] = estimator.coef_
+
++
+
++    # Store the coefficients paths
+
++    self.coefs_paths_ = coefs_paths
+
++
+
++    # Set the best regularization parameter
+
++    self.C_ = self.Cs_[np.argmin(self.scores_)]
+
++
+
++    # Return the fitted estimator
+
++    return self
+
+ 
+
+ 
+
+ def _fit_and_predict(estimator, X, y, train, test, verbose, fit_params,
+
+
+--- a/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -1654,6 +1654,14 @@
+             estimator.set_params(contamination=contamination)
+
+             assert_raises(ValueError, estimator.fit, X)
+
+ 
+
++    # Ensure that best_indices[i] is within bounds before accessing
+
++    coefs_paths = estimator.coefs_paths_
+
++    for i in range(len(folds)):
+
++        if best_indices[i] < coefs_paths.shape[1]:
+
++            w = np.mean([coefs_paths[:, i, best_indices[i], :] for i in range(len(folds))], axis=0)
+
++        else:
+
++            raise IndexError(f"Index {best_indices[i]} is out of bounds for coefs_paths with shape {coefs_paths.shape}")
+
++
+
+ 
+
+ @ignore_warnings(category=(DeprecationWarning, FutureWarning))
+
+ def check_estimators_fit_returns_self(name, estimator_orig,
+
+

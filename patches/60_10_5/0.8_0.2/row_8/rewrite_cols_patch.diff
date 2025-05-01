@@ -1,0 +1,214 @@
+--- a/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/8/django_django/django/db/models/sql/query.py
+@@ -355,57 +355,57 @@
+         clone.change_aliases(change_map)
+
+         return clone
+
+ 
+
+-    def rewrite_cols(self, annotation, col_cnt):
+
+-        # We must make sure the inner query has the referred columns in it.
+
+-        # If we are aggregating over an annotation, then Django uses Ref()
+
+-        # instances to note this. However, if we are annotating over a column
+
+-        # of a related model, then it might be that column isn't part of the
+
+-        # SELECT clause of the inner query, and we must manually make sure
+
+-        # the column is selected. An example case is:
+
+-        #    .aggregate(Sum('author__awards'))
+
+-        # Resolving this expression results in a join to author, but there
+
+-        # is no guarantee the awards column of author is in the select clause
+
+-        # of the query. Thus we must manually add the column to the inner
+
+-        # query.
+
+-        orig_exprs = annotation.get_source_expressions()
+
+-        new_exprs = []
+
+-        for expr in orig_exprs:
+
+-            # FIXME: These conditions are fairly arbitrary. Identify a better
+
+-            # method of having expressions decide which code path they should
+
+-            # take.
+
+-            if isinstance(expr, Ref):
+
+-                # Its already a Ref to subquery (see resolve_ref() for
+
+-                # details)
+
+-                new_exprs.append(expr)
+
+-            elif isinstance(expr, (WhereNode, Lookup)):
+
+-                # Decompose the subexpressions further. The code here is
+
+-                # copied from the else clause, but this condition must appear
+
+-                # before the contains_aggregate/is_summary condition below.
+
+-                new_expr, col_cnt = self.rewrite_cols(expr, col_cnt)
+
+-                new_exprs.append(new_expr)
+
++def rewrite_cols(self, annotation, col_cnt):
+
++    # We must make sure the inner query has the referred columns in it.
+
++    # If we are aggregating over an annotation, then Django uses Ref()
+
++    # instances to note this. However, if we are annotating over a column
+
++    # of a related model, then it might be that column isn't part of the
+
++    # SELECT clause of the inner query, and we must manually make sure
+
++    # the column is selected. An example case is:
+
++    #    .aggregate(Sum('author__awards'))
+
++    # Resolving this expression results in a join to author, but there
+
++    # is no guarantee the awards column of author is in the select clause
+
++    # of the query. Thus we must manually add the column to the inner
+
++    # query.
+
++    orig_exprs = annotation.get_source_expressions()
+
++    new_exprs = []
+
++    for expr in orig_exprs:
+
++        # FIXME: These conditions are fairly arbitrary. Identify a better
+
++        # method of having expressions decide which code path they should
+
++        # take.
+
++        if isinstance(expr, Ref):
+
++            # Its already a Ref to subquery (see resolve_ref() for
+
++            # details)
+
++            new_exprs.append(expr)
+
++        elif isinstance(expr, (WhereNode, Lookup)):
+
++            # Decompose the subexpressions further. The code here is
+
++            # copied from the else clause, but this condition must appear
+
++            # before the contains_aggregate/is_summary condition below.
+
++            new_expr, col_cnt = self.rewrite_cols(expr, col_cnt)
+
++            new_exprs.append(new_expr)
+
++        else:
+
++            # Reuse aliases of expressions already selected in subquery.
+
++            for col_alias, selected_annotation in self.annotation_select.items():
+
++                if selected_annotation == expr:
+
++                    new_expr = Ref(col_alias, expr)
+
++                    break
+
+             else:
+
+-                # Reuse aliases of expressions already selected in subquery.
+
+-                for col_alias, selected_annotation in self.annotation_select.items():
+
+-                    if selected_annotation == expr:
+
+-                        new_expr = Ref(col_alias, expr)
+
+-                        break
+
++                # An expression that is not selected the subquery.
+
++                if isinstance(expr, Col) or (expr.contains_aggregate and not expr.is_summary):
+
++                    # Reference column or another aggregate. Select it
+
++                    # under a non-conflicting alias.
+
++                    col_cnt += 1
+
++                    col_alias = '__col%d' % col_cnt
+
++                    self.annotations[col_alias] = expr
+
++                    self.append_annotation_mask([col_alias])
+
++                    new_expr = Ref(col_alias, expr)
+
+                 else:
+
+-                    # An expression that is not selected the subquery.
+
+-                    if isinstance(expr, Col) or (expr.contains_aggregate and not expr.is_summary):
+
+-                        # Reference column or another aggregate. Select it
+
+-                        # under a non-conflicting alias.
+
+-                        col_cnt += 1
+
+-                        col_alias = '__col%d' % col_cnt
+
+-                        self.annotations[col_alias] = expr
+
+-                        self.append_annotation_mask([col_alias])
+
+-                        new_expr = Ref(col_alias, expr)
+
+-                    else:
+
+-                        # Some other expression not referencing database values
+
+-                        # directly. Its subexpression might contain Cols.
+
+-                        new_expr, col_cnt = self.rewrite_cols(expr, col_cnt)
+
+-                new_exprs.append(new_expr)
+
+-        annotation.set_source_expressions(new_exprs)
+
+-        return annotation, col_cnt
+
++                    # Some other expression not referencing database values
+
++                    # directly. Its subexpression might contain Cols.
+
++                    new_expr, col_cnt = self.rewrite_cols(expr, col_cnt)
+
++            new_exprs.append(new_expr)
+
++    annotation.set_source_expressions(new_exprs)
+
++    return annotation, col_cnt
+
+ 
+
+     def get_aggregation(self, using, added_aggregate_names):
+
+         """

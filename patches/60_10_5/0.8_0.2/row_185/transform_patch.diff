@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/feature_extraction/text.py
++++ b/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/feature_extraction/text.py
+@@ -496,7 +496,7 @@
+         self._get_hasher().fit(X, y=y)
+
+         return self
+
+ 
+
+-    def transform(self, X):
+
++def transform(self, X):
+
+         """Transform a sequence of documents to a document-term matrix.
+
+ 
+
+         Parameters
+
+@@ -515,6 +515,10 @@
+             raise ValueError(
+
+                 "Iterable over raw text documents expected, "
+
+                 "string object received.")
+
++
+
++        # Check if X is an empty list
+
++        if not X:
+
++            return np.array([], dtype=int)
+
+ 
+
+         analyzer = self.build_analyzer()
+
+         X = self._get_hasher().transform(analyzer(doc) for doc in X)

@@ -1,0 +1,478 @@
+--- a/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
++++ b/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
+@@ -351,209 +351,43 @@
+             self._annotate_heatmap(ax, mesh)
+
+ 
+
+ 
+
+-def heatmap(
+
+-    data, *,
+
+-    vmin=None, vmax=None, cmap=None, center=None, robust=False,
+
+-    annot=None, fmt=".2g", annot_kws=None,
+
+-    linewidths=0, linecolor="white",
+
+-    cbar=True, cbar_kws=None, cbar_ax=None,
+
+-    square=False, xticklabels="auto", yticklabels="auto",
+
+-    mask=None, ax=None,
+
+-    **kwargs
+
+-):
+
+-    """Plot rectangular data as a color-encoded matrix.
+
+-
+
+-    This is an Axes-level function and will draw the heatmap into the
+
+-    currently-active Axes if none is provided to the ``ax`` argument.  Part of
+
+-    this Axes space will be taken and used to plot a colormap, unless ``cbar``
+
+-    is False or a separate Axes is provided to ``cbar_ax``.
+
++def pairplot(data, hue=None, hue_order=None, **kwargs):
+
++    """Plot pairwise relationships in a dataset.
+
++
+
++    This function creates a grid of Axes such that each pairwise relationship
+
++    between combination of the numerical variables is shown in a different
+
++    subplot. The diagonal plots are treated specially, showing the univariate
+
++    histograms or KDEs.
+
+ 
+
+     Parameters
+
+     ----------
+
+-    data : rectangular dataset
+
+-        2D dataset that can be coerced into an ndarray. If a Pandas DataFrame
+
+-        is provided, the index/column information will be used to label the
+
+-        columns and rows.
+
+-    vmin, vmax : floats, optional
+
+-        Values to anchor the colormap, otherwise they are inferred from the
+
+-        data and other keyword arguments.
+
+-    cmap : matplotlib colormap name or object, or list of colors, optional
+
+-        The mapping from data values to color space. If not provided, the
+
+-        default will depend on whether ``center`` is set.
+
+-    center : float, optional
+
+-        The value at which to center the colormap when plotting divergent data.
+
+-        Using this parameter will change the default ``cmap`` if none is
+
+-        specified.
+
+-    robust : bool, optional
+
+-        If True and ``vmin`` or ``vmax`` are absent, the colormap range is
+
+-        computed with robust quantiles instead of the extreme values.
+
+-    annot : bool or rectangular dataset, optional
+
+-        If True, write the data value in each cell. If an array-like with the
+
+-        same shape as ``data``, then use this to annotate the heatmap instead
+
+-        of the data. Note that DataFrames will match on position, not index.
+
+-    fmt : str, optional
+
+-        String formatting code to use when adding annotations.
+
+-    annot_kws : dict of key, value mappings, optional
+
+-        Keyword arguments for :meth:`matplotlib.axes.Axes.text` when ``annot``
+
+-        is True.
+
+-    linewidths : float, optional
+
+-        Width of the lines that will divide each cell.
+
+-    linecolor : color, optional
+
+-        Color of the lines that will divide each cell.
+
+-    cbar : bool, optional
+
+-        Whether to draw a colorbar.
+
+-    cbar_kws : dict of key, value mappings, optional
+
+-        Keyword arguments for :meth:`matplotlib.figure.Figure.colorbar`.
+
+-    cbar_ax : matplotlib Axes, optional
+
+-        Axes in which to draw the colorbar, otherwise take space from the
+
+-        main Axes.
+
+-    square : bool, optional
+
+-        If True, set the Axes aspect to "equal" so each cell will be
+
+-        square-shaped.
+
+-    xticklabels, yticklabels : "auto", bool, list-like, or int, optional
+
+-        If True, plot the column names of the dataframe. If False, don't plot
+
+-        the column names. If list-like, plot these alternate labels as the
+
+-        xticklabels. If an integer, use the column names but plot only every
+
+-        n label. If "auto", try to densely plot non-overlapping labels.
+
+-    mask : bool array or DataFrame, optional
+
+-        If passed, data will not be shown in cells where ``mask`` is True.
+
+-        Cells with missing values are automatically masked.
+
+-    ax : matplotlib Axes, optional
+
+-        Axes in which to draw the plot, otherwise use the currently-active
+
+-        Axes.
+
++    data : DataFrame
+
++        The DataFrame holding the data.
+
++    hue : string or column of DataFrame, optional
+
++        Map the hue semantic.
+
++    hue_order : list, optional
+
++        The order for the levels of the hue variable.
+
+     kwargs : other keyword arguments
+
+-        All other keyword arguments are passed to
+
+-        :meth:`matplotlib.axes.Axes.pcolormesh`.
+
++        All other keyword arguments are passed to the plotting functions.
+
+ 
+
+     Returns
+
+     -------
+
+-    ax : matplotlib Axes
+
+-        Axes object with the heatmap.
+
+-
+
+-    See Also
+
+-    --------
+
+-    clustermap : Plot a matrix using hierarchical clustering to arrange the
+
+-                 rows and columns.
+
+-
+
+-    Examples
+
+-    --------
+
+-
+
+-    Plot a heatmap for a numpy array:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> import numpy as np; np.random.seed(0)
+
+-        >>> import seaborn as sns; sns.set_theme()
+
+-        >>> uniform_data = np.random.rand(10, 12)
+
+-        >>> ax = sns.heatmap(uniform_data)
+
+-
+
+-    Change the limits of the colormap:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(uniform_data, vmin=0, vmax=1)
+
+-
+
+-    Plot a heatmap for data centered on 0 with a diverging colormap:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> normal_data = np.random.randn(10, 12)
+
+-        >>> ax = sns.heatmap(normal_data, center=0)
+
+-
+
+-    Plot a dataframe with meaningful row and column labels:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> flights = sns.load_dataset("flights")
+
+-        >>> flights = flights.pivot("month", "year", "passengers")
+
+-        >>> ax = sns.heatmap(flights)
+
+-
+
+-    Annotate each cell with the numeric value using integer formatting:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, annot=True, fmt="d")
+
+-
+
+-    Add lines between each cell:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, linewidths=.5)
+
+-
+
+-    Use a different colormap:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, cmap="YlGnBu")
+
+-
+
+-    Center the colormap at a specific value:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, center=flights.loc["Jan", 1955])
+
+-
+
+-    Plot every other column label and don't plot row labels:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> data = np.random.randn(50, 20)
+
+-        >>> ax = sns.heatmap(data, xticklabels=2, yticklabels=False)
+
+-
+
+-    Don't draw a colorbar:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, cbar=False)
+
+-
+
+-    Use different axes for the colorbar:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> grid_kws = {"height_ratios": (.9, .05), "hspace": .3}
+
+-        >>> f, (ax, cbar_ax) = plt.subplots(2, gridspec_kw=grid_kws)
+
+-        >>> ax = sns.heatmap(flights, ax=ax,
+
+-        ...                  cbar_ax=cbar_ax,
+
+-        ...                  cbar_kws={"orientation": "horizontal"})
+
+-
+
+-    Use a mask to plot only part of a matrix
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> corr = np.corrcoef(np.random.randn(10, 200))
+
+-        >>> mask = np.zeros_like(corr)
+
+-        >>> mask[np.triu_indices_from(mask)] = True
+
+-        >>> with sns.axes_style("white"):
+
+-        ...     f, ax = plt.subplots(figsize=(7, 5))
+
+-        ...     ax = sns.heatmap(corr, mask=mask, vmax=.3, square=True)
+
++    pairgrid : PairGrid
+
++        The PairGrid object with the plot elements drawn onto it.
+
+     """
+
+-    # Initialize the plotter object
+
+-    plotter = _HeatMapper(data, vmin, vmax, cmap, center, robust, annot, fmt,
+
+-                          annot_kws, cbar, cbar_kws, xticklabels,
+
+-                          yticklabels, mask)
+
+-
+
+-    # Add the pcolormesh kwargs here
+
+-    kwargs["linewidths"] = linewidths
+
+-    kwargs["edgecolor"] = linecolor
+
+-
+
+-    # Draw the plot and return the Axes
+
+-    if ax is None:
+
+-        ax = plt.gca()
+
+-    if square:
+
+-        ax.set_aspect("equal")
+
+-    plotter.plot(ax, cbar_ax, kwargs)
+
+-    return ax
+
++    # Filter the data to only include rows where the hue values are present in the hue_order list
+
++    if hue_order is not None:
+
++        data = data[data[hue].isin(hue_order)]
+
++
+
++    # Create the PairGrid object with the filtered data
+
++    pairgrid = PairGrid(data, **kwargs)
+
++
+
++    # Map the plot functions to the grid
+
++    pairgrid.map_offdiag(plt.scatter, **kwargs)
+
++    pairgrid.map_diag(plt.hist)
+
++
+
++    # Return the PairGrid object
+
++    return pairgrid
+
+ 
+
+ 
+
+ class _DendrogramPlotter:

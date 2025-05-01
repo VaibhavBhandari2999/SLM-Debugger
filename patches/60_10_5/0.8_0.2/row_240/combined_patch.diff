@@ -1,0 +1,520 @@
+
+
+--- a/decoupled/60/0.8_0.2/240/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/240/sympy_sympy/sympy/polys/densearith.py
+@@ -14,33 +14,31 @@
+ from sympy.polys.polyerrors import (ExactQuotientFailed, PolynomialDivisionFailed)
+
+ from sympy.core.compatibility import range
+
+ 
+
+-def dup_add_term(f, c, i, K):
+
+-    """
+
+-    Add ``c*x**i`` to ``f`` in ``K[x]``.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.polys import ring, ZZ
+
+-    >>> R, x = ring("x", ZZ)
+
+-
+
+-    >>> R.dup_add_term(x**2 - 1, ZZ(2), 4)
+
+-    2*x**4 + x**2 - 1
+
+-
+
+-    """
+
+-    if not c:
+
+-        return f
+
+-
+
+-    n = len(f)
+
+-    m = n - i - 1
+
+-
+
+-    if i == n - 1:
+
+-        return dup_strip([f[0] + c] + f[1:])
+
+-    else:
+
+-        if i >= n:
+
+-            return [c] + [K.zero]*(i - n) + f
+
+-        else:
+
+-            return f[:m] + [f[m] + c] + f[m + 1:]
+
++from sympy import *
+
++from sympy.abc import x
+
++
+
++def fix_simplification(expr):
+
++    # Expand the expression to get a more detailed form
+
++    expanded_expr = expand(expr)
+
++    # Simplify the expanded expression
+
++    simplified_expr = simplify(expanded_expr)
+
++    return simplified_expr
+
++
+
++# Test the function
+
++e = (-x/4 - S(1)/12)**x - 1
+
++fixed_e = fix_simplification(e)
+
++print(fixed_e)
+
++
+
++a = S(9)/5
+
++fixed_e_sub_a = fix_simplification(e.subs(x, a))
+
++print(fixed_e_sub_a)
+
++
+
++simplified_e = simplify(e)
+
++fixed_simplified_e = fix_simplification(simplified_e)
+
++print(fixed_simplified_e)
+
++
+
++fixed_f = fix_simplification(f)
+
++print(fixed_f)
+
+ 
+
+ 
+
+ def dmp_add_term(f, c, i, u, K):
+
+
+--- a/decoupled/60/0.8_0.2/240/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/240/sympy_sympy/sympy/polys/densearith.py
+@@ -106,38 +106,22 @@
+             return f[:m] + [f[m] - c] + f[m + 1:]
+
+ 
+
+ 
+
+-def dmp_sub_term(f, c, i, u, K):
+
+-    """
+
+-    Subtract ``c(x_2..x_u)*x_0**i`` from ``f`` in ``K[X]``.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.polys import ring, ZZ
+
+-    >>> R, x,y = ring("x,y", ZZ)
+
+-
+
+-    >>> R.dmp_sub_term(2*x**2 + x*y + 1, 2, 2)
+
+-    x*y + 1
+
+-
+
+-    """
+
+-    if not u:
+
+-        return dup_add_term(f, -c, i, K)
+
+-
+
+-    v = u - 1
+
+-
+
+-    if dmp_zero_p(c, v):
+
+-        return f
+
+-
+
+-    n = len(f)
+
+-    m = n - i - 1
+
+-
+
+-    if i == n - 1:
+
+-        return dmp_strip([dmp_sub(f[0], c, v, K)] + f[1:], u)
+
+-    else:
+
+-        if i >= n:
+
+-            return [dmp_neg(c, v, K)] + dmp_zeros(i - n, v, K) + f
+
+-        else:
+
+-            return f[:m] + [dmp_sub(f[m], c, v, K)] + f[m + 1:]
+
++from sympy import *
+
++from sympy.abc import x
+
++
+
++# Define the expression
+
++e = (-x/4 - S(1)/12)**x - 1
+
++
+
++# Simplify the expression
+
++f = simplify(e)
+
++
+
++# Substitute a specific value to check the result
+
++a = S(9)/5
+
++simplified_value = f.subs(x, a).evalf()
+
++original_value = e.subs(x, a).evalf()
+
++
+
++print(f"Simplified expression at x = {a}: {simplified_value}")
+
++print(f"Original expression at x = {a}: {original_value}")
+
+ 
+
+ 
+
+ def dup_mul_term(f, c, i, K):
+
+
+--- a/decoupled/60/0.8_0.2/240/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/240/sympy_sympy/sympy/polys/densearith.py
+@@ -43,38 +43,27 @@
+             return f[:m] + [f[m] + c] + f[m + 1:]
+
+ 
+
+ 
+
+-def dmp_add_term(f, c, i, u, K):
+
+-    """
+
+-    Add ``c(x_2..x_u)*x_0**i`` to ``f`` in ``K[X]``.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.polys import ring, ZZ
+
+-    >>> R, x,y = ring("x,y", ZZ)
+
+-
+
+-    >>> R.dmp_add_term(x*y + 1, 2, 2)
+
+-    2*x**2 + x*y + 1
+
+-
+
+-    """
+
+-    if not u:
+
+-        return dup_add_term(f, c, i, K)
+
+-
+
+-    v = u - 1
+
+-
+
+-    if dmp_zero_p(c, v):
+
+-        return f
+
+-
+
+-    n = len(f)
+
+-    m = n - i - 1
+
+-
+
+-    if i == n - 1:
+
+-        return dmp_strip([dmp_add(f[0], c, v, K)] + f[1:], u)
+
+-    else:
+
+-        if i >= n:
+
+-            return [c] + dmp_zeros(i - n, v, K) + f
+
+-        else:
+
+-            return f[:m] + [dmp_add(f[m], c, v, K)] + f[m + 1:]
+
++from sympy import *
+
++from sympy.abc import x
+
++
+
++# Define the expression
+
++e = (-x/4 - S(1)/12)**x - 1
+
++
+
++# Simplify the expression
+
++f = simplify(e)
+
++
+
++# Define a specific value for x
+
++a = S(9)/5
+
++
+
++# Simplify and evaluate the original expression at x = a
+
++original_value = simplify(e.subs(x, a)).evalf()
+
++
+
++# Simplify and evaluate the simplified expression at x = a
+
++simplified_value = simplify(f.subs(x, a)).evalf()
+
++
+
++# Print the results
+
++print("Original value:", original_value)
+
++print("Simplified value:", simplified_value)
+
+ 
+
+ 
+
+ def dup_sub_term(f, c, i, K):
+
+
+--- a/decoupled/60/0.8_0.2/240/sympy_sympy/sympy/solvers/decompogen.py
++++ b/decoupled/60/0.8_0.2/240/sympy_sympy/sympy/solvers/decompogen.py
+@@ -4,65 +4,24 @@
+ from sympy.utilities.misc import func_name
+
+ 
+
+ 
+
+-def decompogen(f, symbol):
+
++from sympy import *
+
++from sympy.abc import x
+
++
+
++def handle_expression(expr, value):
+
+     """
+
+-    Computes General functional decomposition of ``f``.
+
+-    Given an expression ``f``, returns a list ``[f_1, f_2, ..., f_n]``,
+
+-    where::
+
+-              f = f_1 o f_2 o ... f_n = f_1(f_2(... f_n))
+
++    Handle the expression by expanding it to avoid numerical issues.
+
++    """
+
++    expr_expanded = expr.expand(complex=True)
+
++    return expr_expanded.subs(x, value)
+
+ 
+
+-    Note: This is a General decomposition function. It also decomposes
+
+-    Polynomials. For only Polynomial decomposition see ``decompose`` in polys.
+
++# Example usage
+
++e = (-x/4 - S(1)/12)**x - 1
+
++a = S(9)/5
+
+ 
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.solvers.decompogen import decompogen
+
+-    >>> from sympy.abc import x
+
+-    >>> from sympy import sqrt, sin, cos
+
+-    >>> decompogen(sin(cos(x)), x)
+
+-    [sin(x), cos(x)]
+
+-    >>> decompogen(sin(x)**2 + sin(x) + 1, x)
+
+-    [x**2 + x + 1, sin(x)]
+
+-    >>> decompogen(sqrt(6*x**2 - 5), x)
+
+-    [sqrt(x), 6*x**2 - 5]
+
+-    >>> decompogen(sin(sqrt(cos(x**2 + 1))), x)
+
+-    [sin(x), sqrt(x), cos(x), x**2 + 1]
+
+-    >>> decompogen(x**4 + 2*x**3 - x - 1, x)
+
+-    [x**2 - x - 1, x**2 + x]
+
+-
+
+-    """
+
+-    f = sympify(f)
+
+-    if not isinstance(f, Expr) or isinstance(f, Relational):
+
+-        raise TypeError('expecting Expr but got: `%s`' % func_name(f))
+
+-    if symbol not in f.free_symbols:
+
+-        return [f]
+
+-
+
+-    result = []
+
+-
+
+-    # ===== Simple Functions ===== #
+
+-    if isinstance(f, (Function, Pow)):
+
+-        if f.args[0] == symbol:
+
+-            return [f]
+
+-        result += [f.subs(f.args[0], symbol)] + decompogen(f.args[0], symbol)
+
+-        return result
+
+-
+
+-    # ===== Convert to Polynomial ===== #
+
+-    fp = Poly(f)
+
+-    gens = list(filter(lambda x: symbol in x.free_symbols , fp.gens))
+
+-
+
+-    if len(gens) == 1 and gens[0] != symbol:
+
+-        f1 = f.subs(gens[0], symbol)
+
+-        f2 = gens[0]
+
+-        result += [f1] + decompogen(f2, symbol)
+
+-        return result
+
+-
+
+-    # ===== Polynomial decompose() ====== #
+
+-    try:
+
+-        result += decompose(f)
+
+-        return result
+
+-    except ValueError:
+
+-        return [f]
+
++# Simplify and handle the expression
+
++f = simplify(e)
+
++print(f.subs(x, a))  # This will give the complex result
+
++print(handle_expression(e, a))  # This will give the numerical result
+
+ 
+
+ 
+
+ def compogen(g_s, symbol):
+
+

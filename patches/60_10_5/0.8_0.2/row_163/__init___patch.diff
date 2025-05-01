@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/163/pylint-dev_pylint/pylint/checkers/exceptions.py
++++ b/decoupled/60/0.8_0.2/163/pylint-dev_pylint/pylint/checkers/exceptions.py
+@@ -167,9 +167,15 @@
+ class BaseVisitor:
+
+     """Base class for visitors defined in this module."""
+
+ 
+
+-    def __init__(self, checker, node):
+
+-        self._checker = checker
+
+-        self._node = node
+
++def __init__(self, checker, node):
+
++    """
+
++    Initialize the class with the checker and node.
+
++
+
++    :param checker: The checker object.
+
++    :param node: The node object.
+
++    """
+
++    self._checker = checker
+
++    self._node = node
+
+ 
+
+     def visit(self, node):
+
+         name = node.__class__.__name__.lower()

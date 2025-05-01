@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/28/django_django/django/db/models/sql/query.py
+@@ -2036,7 +2036,7 @@
+             # Replace any existing "immediate load" field names.
+
+             self.deferred_loading = frozenset(field_names), False
+
+ 
+
+-    def get_loaded_field_names(self):
+
++def get_loaded_field_names(self):
+
+         """
+
+         If any fields are marked to be deferred, return a dictionary mapping
+
+         models to a set of names in those fields that will be loaded. If a
+
+@@ -2050,8 +2050,10 @@
+         try:
+
+             return self._loaded_field_names_cache
+
+         except AttributeError:
+
++            # Initialize the cache to an empty dictionary if it doesn't exist
+
+             collection = {}
+
+             self.deferred_to_data(collection, self.get_loaded_field_names_cb)
+
++            # Set the cache to the computed collection
+
+             self._loaded_field_names_cache = collection
+
+             return collection
+
+ 

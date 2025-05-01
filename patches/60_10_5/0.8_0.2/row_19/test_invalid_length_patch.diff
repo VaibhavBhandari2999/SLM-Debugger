@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/19/django_django/tests/db_functions/text/test_right.py
++++ b/decoupled/60/0.8_0.2/19/django_django/tests/db_functions/text/test_right.py
+@@ -18,7 +18,7 @@
+         Author.objects.filter(alias__isnull=True).update(alias=Lower(Right('name', 2)))
+
+         self.assertQuerysetEqual(authors.order_by('name'), ['smithj', 'da'], lambda a: a.alias)
+
+ 
+
+-    def test_invalid_length(self):
+
++def test_invalid_length(self):
+
+         with self.assertRaisesMessage(ValueError, "'length' must be greater than 0"):
+
+             Author.objects.annotate(raises=Right('name', 0))
+
+ 

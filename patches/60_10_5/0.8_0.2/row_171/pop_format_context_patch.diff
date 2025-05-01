@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -786,7 +786,7 @@
+         self.explanation_specifiers = {}
+
+         self.stack.append(self.explanation_specifiers)
+
+ 
+
+-    def pop_format_context(self, expl_expr):
+
++def pop_format_context(self, expl_expr):
+
+         """Format the %-formatted string with current format context.
+
+ 
+
+         The expl_expr should be an ast.Str instance constructed from
+
+@@ -800,6 +800,9 @@
+             self.explanation_specifiers = self.stack[-1]
+
+         keys = [ast.Str(key) for key in current.keys()]
+
+         format_dict = ast.Dict(keys, list(current.values()))
+
++        # Include the module name in the format string
+
++        format_string = "%(levelname)-8s %(name)s:%(filename)s:%(lineno)d %(message)s"
+
++        format_expr = ast.Str(format_string)
+
+         form = ast.BinOp(expl_expr, ast.Mod(), format_dict)
+
+         name = "@py_format" + str(next(self.variable_counter))
+
+         self.on_failure.append(ast.Assign([ast.Name(name, ast.Store())], form))

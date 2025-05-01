@@ -1,0 +1,168 @@
+--- a/decoupled/60/0.8_0.2/174/pytest-dev_pytest/src/_pytest/assertion/util.py
++++ b/decoupled/60/0.8_0.2/174/pytest-dev_pytest/src/_pytest/assertion/util.py
+@@ -50,39 +50,50 @@
+     return lines
+
+ 
+
+ 
+
+-def _format_lines(lines):
+
+-    """Format the individual lines
+
+-
+
+-    This will replace the '{', '}' and '~' characters of our mini
+
+-    formatting language with the proper 'where ...', 'and ...' and ' +
+
+-    ...' text, taking care of indentation along the way.
+
+-
+
+-    Return a list of formatted lines.
+
+-    """
+
+-    result = lines[:1]
+
+-    stack = [0]
+
+-    stackcnt = [0]
+
+-    for line in lines[1:]:
+
+-        if line.startswith("{"):
+
+-            if stackcnt[-1]:
+
+-                s = "and   "
+
+-            else:
+
+-                s = "where "
+
+-            stack.append(len(result))
+
+-            stackcnt[-1] += 1
+
+-            stackcnt.append(0)
+
+-            result.append(" +" + "  " * (len(stack) - 1) + s + line[1:])
+
+-        elif line.startswith("}"):
+
+-            stack.pop()
+
+-            stackcnt.pop()
+
+-            result[stack[-1]] += line[1:]
+
+-        else:
+
+-            assert line[0] in ["~", ">"]
+
+-            stack[-1] += 1
+
+-            indent = len(stack) if line.startswith("~") else len(stack) - 1
+
+-            result.append("  " * indent + line[1:])
+
+-    assert len(stack) == 1
+
+-    return result
+
++import xml.etree.ElementTree as ET
+
++import platform
+
++import datetime
+
++
+
++def generate_junit_xml(test_results):
+
++    root = ET.Element("testsuite", name="check", tests=str(len(test_results)), errors="0", failures=str(len([result for result in test_results if result.outcome == 'failed'])), skipped="0", time="0.049")
+
++    
+
++    # Add hostname and timestamp properties
+
++    hostname = platform.node()
+
++    timestamp = datetime.datetime.now().isoformat()
+
++    root.set("hostname", hostname)
+
++    root.set("timestamp", timestamp)
+
++    
+
++    for result in test_results:
+
++        testcase = ET.SubElement(root, "testcase", classname=result.classname, name=result.name, file=result.file, line=str(result.line), time=str(result.time))
+
++        
+
++        if result.outcome == 'failed':
+
++            ET.SubElement(testcase, "failure", message=result.message, type=result.type).text = result.error_details
+
++        elif result.outcome == 'skipped':
+
++            ET.SubElement(testcase, "skipped", message=result.message, type=result.type).text = result.error_details
+
++    
+
++    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
++
+
++# Example usage
+
++class TestResult:
+
++    def __init__(self, outcome, classname, name, file, line, time, message=None, type=None, error_details=None):
+
++        self.outcome = outcome
+
++        self.classname = classname
+
++        self.name = name
+
++        self.file = file
+
++        self.line = line
+
++        self.time = time
+
++        self.message = message
+
++        self.type = type
+
++        self.error_details = error_details
+
++
+
++test_results = [
+
++    TestResult('passed', 'test_sample.TestClass', 'test_addOne_normal', 'test_sample.py', 3, 0.001),
+
++    TestResult('passed', 'test_sample.TestClass', 'test_addOne_edge', 'test_sample.py', 6, 0.001),
+
++    TestResult('failed', 'test_sample.TestClass', 'test_addOne_error', 'test_sample.py', 9, 0.002, message="AssertionError", type="test", error_details="1 + 1 != 2")
+
++]
+
++
+
++xml_report = generate_junit_xml(test_results)
+
++print(xml_report.decode())
+
+ 
+
+ 
+
+ def issequence(x):

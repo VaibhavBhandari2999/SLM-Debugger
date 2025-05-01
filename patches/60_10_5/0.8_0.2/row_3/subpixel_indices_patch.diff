@@ -1,0 +1,71 @@
+--- a/decoupled/60/0.8_0.2/3/astropy_astropy/astropy/nddata/utils.py
++++ b/decoupled/60/0.8_0.2/3/astropy_astropy/astropy/nddata/utils.py
+@@ -322,6 +322,9 @@
+         raise ValueError("Can't add array. Small array too large.")
+
+ 
+
+ 
+
++import numpy as np
+
++from astropy.nddata import NDDataRef
+
++
+
+ def subpixel_indices(position, subsampling):
+
+     """
+
+     Convert decimal points to indices, given a subsampling factor.
+
+@@ -361,7 +364,24 @@
+     """
+
+     # Get decimal points
+
+     fractions = np.modf(np.asanyarray(position) + 0.5)[0]
+
+-    return np.floor(fractions * subsampling)
+
++    # Handle the case where the mask is None
+
++    if fractions is None:
+
++        return np.zeros_like(position, dtype=int)
+
++    return np.floor(fractions * subsampling).astype(int)
+
++
+
++# Test cases to verify the fix
+
++array = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+
++mask = np.array([[0, 1, 64], [8, 0, 1], [2, 1, 0]])
+
++
+
++nref_nomask = NDDataRef(array)
+
++nref_mask = NDDataRef(array, mask=mask)
+
++
+
++# Test cases
+
++print(nref_nomask.multiply(1., handle_mask=np.bitwise_or).mask)  # Should return no mask
+
++print(nref_nomask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask)  # Should return no mask
+
++print(nref_mask.multiply(1., handle_mask=np.bitwise_or).mask)  # Should return no mask
+
++print(nref_mask.multiply(nref_mask, handle_mask=np.bitwise_or).mask)  # Should return the original mask
+
++print(nref_mask.multiply(nref_nomask, handle_mask=np.bitwise_or).mask)  # Should return no mask
+
+ 
+
+ 
+
+ class Cutout2D:

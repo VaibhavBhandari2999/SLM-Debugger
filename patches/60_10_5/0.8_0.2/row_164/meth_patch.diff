@@ -1,0 +1,24 @@
+--- a/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/arguments_differ.py
++++ b/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/arguments_differ.py
+@@ -240,10 +240,7 @@
+ 
+
+ class ChildClass(ParentClass):
+
+ 
+
+-    def meth(self, _arg, dummy):
+
+-        # no error here, "dummy" and "_" are being ignored if
+
+-        # spotted in a variable name (declared in dummy_parameter_regex)
+
+-        pass
+
++# Your fixed function here
+
+ 
+
+ 
+
+ # https://github.com/PyCQA/pylint/issues/4443

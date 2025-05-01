@@ -1,0 +1,483 @@
+--- a/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -1725,6 +1725,10 @@
+ 
+
+ 
+
+ @contextlib.contextmanager
+
++import matplotlib.pyplot as plt
+
++import pickle
+
++import contextlib
+
++
+
+ def _lock_path(path):
+
+     """
+
+     Context manager for locking a path.
+
+@@ -1761,6 +1765,35 @@
+         yield
+
+     finally:
+
+         lock_path.unlink()
+
++
+
++def pickle_figure(fig):
+
++    """
+
++    Pickle a figure with draggable legend.
+
++    """
+
++    with contextlib.suppress(AttributeError):
+
++        leg = fig.legends[0]
+
++        if leg.get_draggable():
+
++            leg.set_draggable(False)
+
++
+
++    pickled_fig = pickle.dumps(fig)
+
++    with contextlib.suppress(AttributeError):
+
++        leg.set_draggable(True)
+
++
+
++    return pickled_fig
+
++
+
++# Example usage
+
++fig = plt.figure()
+
++ax = fig.add_subplot(111)
+
++
+
++time = [0, 1, 2, 3, 4]
+
++speed = [40, 43, 45, 47, 48]
+
++
+
++ax.plot(time, speed, label="speed")
+
++leg = ax.legend()
+
++leg.set_draggable(True)
+
++
+
++pickled_fig = pickle_figure(fig)
+
++plt.show()
+
+ 
+
+ 
+
+ def _topmost_artist(
+
+
+--- a/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
++++ b/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
+@@ -124,8 +124,12 @@
+         return self._figure
+
+ 
+
+     @figure.setter
+
+-    def figure(self, figure):
+
+-        self._figure = figure
+
++def figure(self, figure):
+
++    # Ensure the draggable legend is set after unpickling
+
++    if hasattr(figure, 'canvas') and hasattr(figure.canvas, 'mpl_connect'):
+
++        legend = figure.legend()
+
++        legend.set_draggable(True)
+
++    self._figure = figure
+
+ 
+
+     set_figure = figure.fset
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
++++ b/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
+@@ -484,17 +484,25 @@
+         self.home_views = WeakKeyDictionary()
+
+         super().__init__(*args, **kwargs)
+
+ 
+
+-    def add_figure(self, figure):
+
+-        """Add the current figure to the stack of views and positions."""
+
+-
+
+-        if figure not in self.views:
+
+-            self.views[figure] = cbook.Stack()
+
+-            self.positions[figure] = cbook.Stack()
+
+-            self.home_views[figure] = WeakKeyDictionary()
+
+-            # Define Home
+
+-            self.push_current(figure)
+
+-            # Make sure we add a home view for new axes as they're added
+
+-            figure.add_axobserver(lambda fig: self.update_home_views(fig))
+
++import weakref
+
++import cbook
+
++import matplotlib.figure
+
++import matplotlib.backends.backend_qt4agg
+
++
+
++def add_figure(self, figure):
+
++    """Add the current figure to the stack of views and positions."""
+
++    
+
++    if figure not in self.views:
+
++        self.views[figure] = cbook.Stack()
+
++        self.positions[figure] = cbook.Stack()
+
++        self.home_views[figure] = weakref.WeakKeyDictionary()  # Use weak reference for home_views
+
++        
+
++        # Define Home
+
++        self.push_current(figure)
+
++        
+
++        # Make sure we add a home view for new axes as they're added
+
++        # Use a lambda function that does not capture the FigureCanvasQTAgg object by reference
+
++        figure.add_axobserver(lambda fig: self.update_home_views(fig))
+
+ 
+
+     def clear(self, figure):
+
+         """Reset the axes stack."""
+
+
+--- a/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
++++ b/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
+@@ -119,9 +119,16 @@
+         doc="The canvas of the figure affected by this tool, or None.")
+
+ 
+
+     @property
+
+-    def figure(self):
+
++def figure(self):
+
+         """The Figure affected by this tool, or None."""
+
+-        return self._figure
+
++        # Temporarily disable the draggable property before pickling
+
++        if self._figure is not None:
+
++            self._figure.legend().set_draggable(False)
+
++        result = self._figure
+
++        # Re-enable the draggable property after unpickling
+
++        if self._figure is not None:
+
++            self._figure.legend().set_draggable(True)
+
++        return result
+
+ 
+
+     @figure.setter
+
+     def figure(self, figure):
+
+
+--- a/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -594,46 +594,78 @@
+             transform = transform.frozen()
+
+         return _path.path_in_path(self, None, path, transform)
+
+ 
+
+-    def get_extents(self, transform=None, **kwargs):
+
+-        """
+
+-        Get Bbox of the path.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        transform : matplotlib.transforms.Transform, optional
+
+-            Transform to apply to path before computing extents, if any.
+
+-        **kwargs
+
+-            Forwarded to `.iter_bezier`.
+
+-
+
+-        Returns
+
+-        -------
+
+-        matplotlib.transforms.Bbox
+
+-            The extents of the path Bbox([[xmin, ymin], [xmax, ymax]])
+
+-        """
+
+-        from .transforms import Bbox
+
+-        if transform is not None:
+
+-            self = transform.transform_path(self)
+
+-        if self.codes is None:
+
+-            xys = self.vertices
+
+-        elif len(np.intersect1d(self.codes, [Path.CURVE3, Path.CURVE4])) == 0:
+
+-            # Optimization for the straight line case.
+
+-            # Instead of iterating through each curve, consider
+
+-            # each line segment's end-points
+
+-            # (recall that STOP and CLOSEPOLY vertices are ignored)
+
+-            xys = self.vertices[np.isin(self.codes,
+
+-                                        [Path.MOVETO, Path.LINETO])]
+
+-        else:
+
+-            xys = []
+
+-            for curve, code in self.iter_bezier(**kwargs):
+
+-                # places where the derivative is zero can be extrema
+
+-                _, dzeros = curve.axis_aligned_extrema()
+
+-                # as can the ends of the curve
+
+-                xys.append(curve([0, *dzeros, 1]))
+
+-            xys = np.concatenate(xys)
+
+-        if len(xys):
+
+-            return Bbox([xys.min(axis=0), xys.max(axis=0)])
+
+-        else:
+
+-            return Bbox.null()
+
++import matplotlib.pyplot as plt
+
++import pickle
+
++import numpy as np
+
++
+
++def get_extents(self, transform=None, **kwargs):
+
++    """
+
++    Get Bbox of the path.
+
++
+
++    Parameters
+
++    ----------
+
++    transform : matplotlib.transforms.Transform, optional
+
++        Transform to apply to path before computing extents, if any.
+
++    **kwargs
+
++        Forwarded to `.iter_bezier`.
+
++
+
++    Returns
+
++    -------
+
++    matplotlib.transforms.Bbox
+
++        The extents of the path Bbox([[xmin, ymin], [xmax, ymax]])
+
++    """
+
++    from .transforms import Bbox
+
++    if transform is not None:
+
++        self = transform.transform_path(self)
+
++    if self.codes is None:
+
++        xys = self.vertices
+
++    elif len(np.intersect1d(self.codes, [Path.CURVE3, Path.CURVE4])) == 0:
+
++        # Optimization for the straight line case.
+
++        # Instead of iterating through each curve, consider
+
++        # each line segment's end-points
+
++        # (recall that STOP and CLOSEPOLY vertices are ignored)
+
++        xys = self.vertices[np.isin(self.codes,
+
++                                    [Path.MOVETO, Path.LINETO])]
+
++    else:
+
++        xys = []
+
++        for curve, code in self.iter_bezier(**kwargs):
+
++            # places where the derivative is zero can be extrema
+
++            _, dzeros = curve.axis_aligned_extrema()
+
++            # as can the ends of the curve
+
++            xys.append(curve([0, *dzeros, 1]))
+
++        xys = np.concatenate(xys)
+
++    if len(xys):
+
++        return Bbox([xys.min(axis=0), xys.max(axis=0)])
+
++    else:
+
++        return Bbox.null()
+
++
+
++# Fix the draggable legend issue
+
++def fix_draggable_legend(fig):
+
++    # Disable draggable functionality before pickling
+
++    for ax in fig.axes:
+
++        for leg in ax.legend_:
+
++            leg.set_draggable(False)
+
++    # Pickle the figure
+
++    pickled_fig = pickle.dumps(fig)
+
++    # Re-enable draggable functionality after pickling
+
++    for ax in fig.axes:
+
++        for leg in ax.legend_:
+
++            leg.set_draggable(True)
+
++    return pickled_fig
+
++
+
++# Example usage
+
++fig = plt.figure()
+
++ax = fig.add_subplot(111)
+
++
+
++time = [0, 1, 2, 3, 4]
+
++speed = [40, 43, 45, 47, 48]
+
++
+
++ax.plot(time, speed, label="speed")
+
++leg = ax.legend()
+
++leg.set_draggable(True)
+
++
+
++pickled_fig = fix_draggable_legend(fig)
+
++plt.show()
+
+ 
+
+     def intersects_path(self, other, filled=True):
+
+         """
+
+

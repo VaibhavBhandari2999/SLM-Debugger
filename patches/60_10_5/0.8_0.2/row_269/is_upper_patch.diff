@@ -1,0 +1,190 @@
+--- a/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
+@@ -1579,47 +1579,53 @@
+         return self._eval_is_upper_hessenberg()
+
+ 
+
+     @property
+
+-    def is_upper(self):
+
+-        """Check if matrix is an upper triangular matrix. True can be returned
+
+-        even if the matrix is not square.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix
+
+-        >>> m = Matrix(2, 2, [1, 0, 0, 1])
+
+-        >>> m
+
+-        Matrix([
+
+-        [1, 0],
+
+-        [0, 1]])
+
+-        >>> m.is_upper
+
+-        True
+
+-
+
+-        >>> m = Matrix(4, 3, [5, 1, 9, 0, 4 , 6, 0, 0, 5, 0, 0, 0])
+
+-        >>> m
+
+-        Matrix([
+
+-        [5, 1, 9],
+
+-        [0, 4, 6],
+
+-        [0, 0, 5],
+
+-        [0, 0, 0]])
+
+-        >>> m.is_upper
+
+-        True
+
+-
+
+-        >>> m = Matrix(2, 3, [4, 2, 5, 6, 1, 1])
+
+-        >>> m
+
+-        Matrix([
+
+-        [4, 2, 5],
+
+-        [6, 1, 1]])
+
+-        >>> m.is_upper
+
+-        False
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        is_lower
+
+-        is_diagonal
+
+-        is_upper_hessenberg
+
+-        """
+
++from sympy.matrices.dense import Matrix
+
++from sympy.matrices.blockmatrix import BlockDiagMatrix
+
++
+
++def is_upper(self):
+
++    """Check if matrix is an upper triangular matrix. True can be returned
+
++    even if the matrix is not square.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix
+
++    >>> m = Matrix(2, 2, [1, 0, 0, 1])
+
++    >>> m
+
++    Matrix([
+
++    [1, 0],
+
++    [0, 1]])
+
++    >>> m.is_upper
+
++    True
+
++
+
++    >>> m = Matrix(4, 3, [5, 1, 9, 0, 4 , 6, 0, 0, 5, 0, 0, 0])
+
++    >>> m
+
++    Matrix([
+
++    [5, 1, 9],
+
++    [0, 4, 6],
+
++    [0, 0, 5],
+
++    [0, 0, 0]])
+
++    >>> m.is_upper
+
++    True
+
++
+
++    >>> m = Matrix(2, 3, [4, 2, 5, 6, 1, 1])
+
++    >>> m
+
++    Matrix([
+
++    [4, 2, 5],
+
++    [6, 1, 1]])
+
++    >>> m.is_upper
+
++    False
+
++
+
++    See Also
+
++    ========
+
++
+
++    is_lower
+
++    is_diagonal
+
++    is_upper_hessenberg
+
++    """
+
++    if isinstance(self, BlockDiagMatrix) and len(self.blocks) == 1:
+
++        return Matrix(self.blocks[0]).is_upper
+
++    else:
+
+         return all(self[i, j].is_zero
+
+                    for i in range(1, self.rows)
+
+                    for j in range(min(i, self.cols)))

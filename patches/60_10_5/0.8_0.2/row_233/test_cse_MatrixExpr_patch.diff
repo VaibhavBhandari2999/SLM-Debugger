@@ -1,0 +1,84 @@
+--- a/decoupled/60/0.8_0.2/233/sympy_sympy/sympy/simplify/tests/test_cse.py
++++ b/decoupled/60/0.8_0.2/233/sympy_sympy/sympy/simplify/tests/test_cse.py
+@@ -323,21 +323,33 @@
+     B = MatrixSymbol("B", n, n)
+
+     assert cse(B) == ([], [B])
+
+ 
+
++from sympy import MatrixSymbol, cse
+
++
+
+ def test_cse_MatrixExpr():
+
+-    from sympy import MatrixSymbol
+
++    # Define matrix symbols
+
+     A = MatrixSymbol('A', 3, 3)
+
+     y = MatrixSymbol('y', 3, 1)
+
+ 
+
++    # Test CSE with two expressions that share a common subexpression
+
+     expr1 = (A.T*A).I * A * y
+
+     expr2 = (A.T*A) * A * y
+
+     replacements, reduced_exprs = cse([expr1, expr2])
+
+-    assert len(replacements) > 0
+
+-
+
+-    replacements, reduced_exprs = cse([expr1 + expr2, expr1])
+
+-    assert replacements
+
+-
+
+-    replacements, reduced_exprs = cse([A**2, A + A**2])
+
+-    assert replacements
+
++    assert len(replacements) > 0, "No common subexpressions found"
+
++
+
++    # Test CSE with two expressions where the first is the sum of the second and the first
+
++    expr3 = expr1 + expr2
+
++    expr4 = expr1
+
++    replacements, reduced_exprs = cse([expr3, expr4])
+
++    assert replacements, "No common subexpressions found"
+
++
+
++    # Test CSE with two expressions that share a common subexpression
+
++    expr5 = A**2
+
++    expr6 = A + A**2
+
++    replacements, reduced_exprs = cse([expr5, expr6])
+
++    assert replacements, "No common subexpressions found"
+
++
+
++# Run the test function
+
++test_cse_MatrixExpr()
+
+ 
+
+ def test_Piecewise():
+
+     f = Piecewise((-z + x*y, Eq(y, 0)), (-z - x*y, True))

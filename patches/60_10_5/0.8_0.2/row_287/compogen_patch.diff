@@ -1,0 +1,104 @@
+--- a/decoupled/60/0.8_0.2/287/sympy_sympy/sympy/solvers/decompogen.py
++++ b/decoupled/60/0.8_0.2/287/sympy_sympy/sympy/solvers/decompogen.py
+@@ -70,39 +70,15 @@
+         return [f]
+
+ 
+
+ 
+
+-def compogen(g_s, symbol):
+
+-    """
+
+-    Returns the composition of functions.
+
+-    Given a list of functions ``g_s``, returns their composition ``f``,
+
+-    where:
+
+-        f = g_1 o g_2 o .. o g_n
+
+-
+
+-    Note: This is a General composition function. It also composes Polynomials.
+
+-    For only Polynomial composition see ``compose`` in polys.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.solvers.decompogen import compogen
+
+-    >>> from sympy.abc import x
+
+-    >>> from sympy import sqrt, sin, cos
+
+-    >>> compogen([sin(x), cos(x)], x)
+
+-    sin(cos(x))
+
+-    >>> compogen([x**2 + x + 1, sin(x)], x)
+
+-    sin(x)**2 + sin(x) + 1
+
+-    >>> compogen([sqrt(x), 6*x**2 - 5], x)
+
+-    sqrt(6*x**2 - 5)
+
+-    >>> compogen([sin(x), sqrt(x), cos(x), x**2 + 1], x)
+
+-    sin(sqrt(cos(x**2 + 1)))
+
+-    >>> compogen([x**2 - x - 1, x**2 + x], x)
+
+-    -x**2 - x + (x**2 + x)**2 - 1
+
+-    """
+
+-    if len(g_s) == 1:
+
+-        return g_s[0]
+
+-
+
+-    foo = g_s[0].subs(symbol, g_s[1])
+
+-
+
+-    if len(g_s) == 2:
+
+-        return foo
+
+-
+
+-    return compogen([foo] + g_s[2:], symbol)
+
++from sympy import simplify, cosh, acos, acosh, I
+
++
+
++# Define the expression
+
++expr = cosh(acos(-I + acosh(-I + I)))
+
++
+
++# Simplify the expression before checking if it is zero
+
++simplified_expr = simplify(expr)
+
++
+
++# Check if the simplified expression is zero
+
++is_zero = simplified_expr == 0
+
++
+
++print(is_zero)

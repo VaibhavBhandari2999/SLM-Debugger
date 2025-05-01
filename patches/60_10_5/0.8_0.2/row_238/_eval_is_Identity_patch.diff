@@ -1,0 +1,72 @@
+--- a/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
+@@ -931,14 +931,27 @@
+         mat = self._new(self.rows, self.cols, lambda i, j: simpfunc(self[i, j] - self[j, i].conjugate()))
+
+         return mat.is_zero
+
+ 
+
+-    def _eval_is_Identity(self):
+
+-        def dirac(i, j):
+
+-            if i == j:
+
+-                return 1
+
+-            return 0
+
+-
+
+-        return all(self[i, j] == dirac(i, j) for i in range(self.rows) for j in
+
+-                   range(self.cols))
+
++def col_insert(self, index, vector):
+
++    """
+
++    Insert a column vector at the specified index in the matrix.
+
++    
+
++    :param index: The index at which the column should be inserted.
+
++    :param vector: The column vector to insert.
+
++    """
+
++    if not vector.is_Matrix or vector.cols != 1:
+
++        raise ValueError("The argument must be a column vector.")
+
++    if index < 0 or index > self.cols:
+
++        raise ValueError("Index out of bounds.")
+
++    
+
++    # Convert the matrix to a list of rows for easier manipulation
+
++    rows = [list(row) for row in self.rows]
+
++    
+
++    # Insert the column vector into each row at the specified index
+
++    for row in rows:
+
++        row.insert(index, vector[row.index(0)])
+
++    
+
++    # Convert the list of rows back to a Matrix
+
++    return type(self)(rows)
+
+ 
+
+     def _eval_is_lower_hessenberg(self):
+
+         return all(self[i, j].is_zero

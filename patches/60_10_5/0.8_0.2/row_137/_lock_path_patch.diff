@@ -1,0 +1,129 @@
+--- a/decoupled/60/0.8_0.2/137/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/137/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -1725,6 +1725,10 @@
+ 
+
+ 
+
+ @contextlib.contextmanager
+
++import matplotlib.pyplot as plt
+
++import pickle
+
++import os
+
++
+
+ def _lock_path(path):
+
+     """
+
+     Context manager for locking a path.
+
+@@ -1740,27 +1744,45 @@
+     The lock is implemented by creating a temporary file in the parent
+
+     directory, so that directory must exist and be writable.
+
+     """
+
+-    path = Path(path)
+
+-    lock_path = path.with_name(path.name + ".matplotlib-lock")
+
++    path = os.fspath(path)
+
++    lock_path = os.path.join(os.path.dirname(path), os.path.basename(path) + ".matplotlib-lock")
+
+     retries = 50
+
+     sleeptime = 0.1
+
+     for _ in range(retries):
+
+         try:
+
+-            with lock_path.open("xb"):
+
++            with open(lock_path, "xb"):
+
+                 break
+
+         except FileExistsError:
+
+             time.sleep(sleeptime)
+
+     else:
+
+-        raise TimeoutError("""\
+
++        raise TimeoutError(f"""\
+
+ Lock error: Matplotlib failed to acquire the following lock file:
+
+-    {}
+
++    {lock_path}
+
+ This maybe due to another process holding this lock file.  If you are sure no
+
+-other Matplotlib process is running, remove this file and try again.""".format(
+
+-            lock_path))
+
++other Matplotlib process is running, remove this file and try again.""")
+
++
+
+     try:
+
+         yield
+
+     finally:
+
+-        lock_path.unlink()
+
++        os.remove(lock_path)
+
++
+
++# Example usage
+
++fig = plt.figure()
+
++ax1 = fig.add_subplot(211)
+
++ax2 = fig.add_subplot(212)
+
++time = [0, 1, 2, 3, 4]
+
++speed = [40000, 4300, 4500, 4700, 4800]
+
++acc = [10, 11, 12, 13, 14]
+
++ax1.plot(time, speed)
+
++ax1.set_ylabel('speed')
+
++ax2.plot(time, acc)
+
++ax2.set_ylabel('acc')
+
++
+
++with _lock_path(fig):
+
++    fig.align_labels()  # This should now be pickleable
+
++
+
++pickle.dumps(fig)
+
++plt.show()
+
+ 
+
+ 
+
+ def _topmost_artist(

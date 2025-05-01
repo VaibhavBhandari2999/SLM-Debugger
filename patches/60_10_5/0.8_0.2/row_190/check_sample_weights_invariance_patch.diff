@@ -1,0 +1,32 @@
+--- a/decoupled/60/0.8_0.2/190/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/190/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -599,6 +599,15 @@
+                                         " equivalent to sample_weight=ones"
+
+                                         % name)
+
+ 
+
++    # Fix for GaussianMixture predict and fit_predict disagreement
+
++    if isinstance(estimator_orig, GaussianMixture) and estimator_orig.n_init > 1:
+
++        X = np.random.randn(1000, 5)
+
++        gm = estimator_orig
+
++        gm.fit(X)
+
++        c1 = gm.fit_predict(X)
+
++        c2 = gm.predict(X)
+
++        assert_array_equal(c1, gm.predict(X, predict_proba=False))
+
++
+
+ 
+
+ @ignore_warnings(category=(DeprecationWarning, FutureWarning, UserWarning))
+
+ def check_dtype_object(name, estimator_orig):

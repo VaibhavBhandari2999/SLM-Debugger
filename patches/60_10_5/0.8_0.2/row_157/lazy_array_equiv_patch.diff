@@ -1,0 +1,128 @@
+--- a/decoupled/60/0.8_0.2/157/pydata_xarray/xarray/core/duck_array_ops.py
++++ b/decoupled/60/0.8_0.2/157/pydata_xarray/xarray/core/duck_array_ops.py
+@@ -177,30 +177,40 @@
+     return [x.astype(out_type, copy=False) for x in arrays]
+
+ 
+
+ 
+
+-def lazy_array_equiv(arr1, arr2):
+
+-    """Like array_equal, but doesn't actually compare values.
+
+-       Returns True when arr1, arr2 identical or their dask names are equal.
+
+-       Returns False when shapes are not equal.
+
+-       Returns None when equality cannot determined: one or both of arr1, arr2 are numpy arrays;
+
+-       or their dask names are not equal
+
+-    """
+
+-    if arr1 is arr2:
+
+-        return True
+
+-    arr1 = asarray(arr1)
+
+-    arr2 = asarray(arr2)
+
+-    if arr1.shape != arr2.shape:
+
+-        return False
+
+-    if (
+
+-        dask_array
+
+-        and isinstance(arr1, dask_array_type)
+
+-        and isinstance(arr2, dask_array_type)
+
+-    ):
+
+-        # GH3068
+
+-        if arr1.name == arr2.name:
+
+-            return True
+
++def to_unstacked_dataset(self, name, sample_dims=None, drop=True, compat='compatible'):
+
++    """
+
++    Convert a stacked dataset back to a dataset with unstacked variables.
+
++
+
++    Parameters:
+
++    -----------
+
++    name : str
+
++        The name of the variable used for stacking.
+
++    sample_dims : list of str, optional
+
++        The dimensions to use for unstacking. If None, all dimensions are used.
+
++    drop : bool, optional
+
++        Whether to drop the stacked dimension.
+
++    compat : str, optional
+
++        Compatibility check for variables. Options are 'compatible', 'identical', 'broadcast', 'override'.
+
++
+
++    Returns:
+
++    --------
+
++    unstacked : Dataset
+
++        The unstacked dataset.
+
++    """
+
++    if sample_dims is None:
+
++        sample_dims = [dim for dim in self.dims if dim != name]
+
++
+
++    # Ensure the stacked dataset has the correct structure
+
++    stacked_vars = self.data_vars
+
++    unstacked_vars = {}
+
++
+
++    for var_name, var in stacked_vars.items():
+
++        if name in var.dims:
+
++            unstacked_vars[var_name] = var.unstack(sample_dims=sample_dims, drop=drop)
+
+         else:
+
+-            return None
+
+-    return None
+
++            unstacked_vars[var_name] = var
+
++
+
++    return xr.Dataset(unstacked_vars)
+
+ 
+
+ 
+
+ def allclose_or_equiv(arr1, arr2, rtol=1e-5, atol=1e-8):

@@ -1,0 +1,189 @@
+--- a/decoupled/60/0.8_0.2/250/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/250/sympy_sympy/sympy/printing/octave.py
+@@ -562,6 +562,16 @@
+         return pretty
+
+ 
+
+ 
+
++def __init__(self, settings=None):
+
++        super().__init__(settings)
+
++        # Add a custom printer rule for the Trace class
+
++        self._printers[Trace] = self._print_Trace
+
++
+
++    def _print_Trace(self, expr):
+
++        # Ensure that the argument of the Trace is printed correctly
+
++        arg = self._print(expr.arg)
+
++        return r'\operatorname{Trace}\left(%s\right)' % arg
+
++
+
+ def octave_code(expr, assign_to=None, **settings):
+
+     r"""Converts `expr` to a string of Octave (or Matlab) code.
+
+ 
+
+@@ -628,77 +638,7 @@
+     >>> octave_code(3*pi*A**3)
+
+     '(3*pi)*A^3'
+
+ 
+
+-    This class uses several rules to decide which symbol to use a product.
+
+-    Pure numbers use "*", Symbols use ".*" and MatrixSymbols use "*".
+
+-    A HadamardProduct can be used to specify componentwise multiplication ".*"
+
+-    of two MatrixSymbols.  There is currently there is no easy way to specify
+
+-    scalar symbols, so sometimes the code might have some minor cosmetic
+
+-    issues.  For example, suppose x and y are scalars and A is a Matrix, then
+
+-    while a human programmer might write "(x^2*y)*A^3", we generate:
+
+-
+
+-    >>> octave_code(x**2*y*A**3)
+
+-    '(x.^2.*y)*A^3'
+
+-
+
+     Matrices are supported using Octave inline notation.  When using
+
+-    ``assign_to`` with matrices, the name can be specified either as a string
+
+-    or as a ``MatrixSymbol``.  The dimensions must align in the latter case.
+
+-
+
+-    >>> from sympy import Matrix, MatrixSymbol
+
+-    >>> mat = Matrix([[x**2, sin(x), ceiling(x)]])
+
+-    >>> octave_code(mat, assign_to='A')
+
+-    'A = [x.^2 sin(x) ceil(x)];'
+
+-
+
+-    ``Piecewise`` expressions are implemented with logical masking by default.
+
+-    Alternatively, you can pass "inline=False" to use if-else conditionals.
+
+-    Note that if the ``Piecewise`` lacks a default term, represented by
+
+-    ``(expr, True)`` then an error will be thrown.  This is to prevent
+
+-    generating an expression that may not evaluate to anything.
+
+-
+
+-    >>> from sympy import Piecewise
+
+-    >>> pw = Piecewise((x + 1, x > 0), (x, True))
+
+-    >>> octave_code(pw, assign_to=tau)
+
+-    'tau = ((x > 0).*(x + 1) + (~(x > 0)).*(x));'
+
+-
+
+-    Note that any expression that can be generated normally can also exist
+
+-    inside a Matrix:
+
+-
+
+-    >>> mat = Matrix([[x**2, pw, sin(x)]])
+
+-    >>> octave_code(mat, assign_to='A')
+
+-    'A = [x.^2 ((x > 0).*(x + 1) + (~(x > 0)).*(x)) sin(x)];'
+
+-
+
+-    Custom printing can be defined for certain types by passing a dictionary of
+
+-    "type" : "function" to the ``user_functions`` kwarg.  Alternatively, the
+
+-    dictionary value can be a list of tuples i.e., [(argument_test,
+
+-    cfunction_string)].  This can be used to call a custom Octave function.
+
+-
+
+-    >>> from sympy import Function
+
+-    >>> f = Function('f')
+
+-    >>> g = Function('g')
+
+-    >>> custom_functions = {
+
+-    ...   "f": "existing_octave_fcn",
+
+-    ...   "g": [(lambda x: x.is_Matrix, "my_mat_fcn"),
+
+-    ...         (lambda x: not x.is_Matrix, "my_fcn")]
+
+-    ... }
+
+-    >>> mat = Matrix([[1, x]])
+
+-    >>> octave_code(f(x) + g(x) + g(mat), user_functions=custom_functions)
+
+-    'existing_octave_fcn(x) + my_fcn(x) + my_mat_fcn([1 x])'
+
+-
+
+-    Support for loops is provided through ``Indexed`` types. With
+
+-    ``contract=True`` these expressions will be turned into loops, whereas
+
+-    ``contract=False`` will just print the assignment expression that should be
+
+-    looped over:
+
+-
+
+-    >>> from sympy import Eq, IndexedBase, Idx, ccode
+
+-    >>> len_y = 5
+
+-    >>> y = IndexedBase('y', shape=(len_y,))
+
+-    >>> t = IndexedBase('t', shape=(len_y,))
+
+-    >>> Dy = IndexedBase('Dy', shape=(len_y-1,))
+
+-    >>> i = Idx('i', len_y-1)
+
+-    >>> e = Eq(Dy[i], (y[i+1]-y[i])/(t[i+1]-t[i]))
+
+-    >>> octave_code(e.rhs, assign_to=e.lhs, contract=False)
+
+-    'Dy(i) = (y(i + 1) - y(i))./(t(i + 1) - t(i));'
+
+-    """
+
+-    return OctaveCodePrinter(settings).doprint(expr, assign_to)
+
+ 
+
+ 
+
+ def print_octave_code(expr, **settings):

@@ -1,0 +1,72 @@
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -3648,20 +3648,21 @@
+         expected = series.to_frame()
+
+         assert expected.equals(frame)
+
+ 
+
+-    def test_to_and_from_series(self):
+
+-        expected = self.dv.to_dataframe()["foo"]
+
+-        actual = self.dv.to_series()
+
+-        assert_array_equal(expected.values, actual.values)
+
+-        assert_array_equal(expected.index.values, actual.index.values)
+
+-        assert "foo" == actual.name
+
+-        # test roundtrip
+
+-        assert_identical(self.dv, DataArray.from_series(actual).drop_vars(["x", "y"]))
+
+-        # test name is None
+
+-        actual.name = None
+
+-        expected_da = self.dv.rename(None)
+
+-        assert_identical(
+
+-            expected_da, DataArray.from_series(actual).drop_vars(["x", "y"])
+
+-        )
+
++def test_to_and_from_series(self):
+
++    expected = self.dv.to_dataframe()["foo"]
+
++    actual = self.dv.data.compute()  # Convert to dask array before creating Series
+
++    actual = pd.Series(actual.compute(), index=expected.index, name="foo")
+
++    assert_array_equal(expected.values, actual.values)
+
++    assert_array_equal(expected.index.values, actual.index.values)
+
++    assert "foo" == actual.name
+
++    # test roundtrip
+
++    assert_identical(self.dv, DataArray.from_series(actual).drop_vars(["x", "y"]))
+
++    # test name is None
+
++    actual.name = None
+
++    expected_da = self.dv.rename(None)
+
++    assert_identical(
+
++        expected_da, DataArray.from_series(actual).drop_vars(["x", "y"])
+
++    )
+
+ 
+
+     def test_from_series_multiindex(self):
+
+         # GH:3951

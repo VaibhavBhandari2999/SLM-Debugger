@@ -1,0 +1,86 @@
+--- a/decoupled/60/0.8_0.2/151/psf_requests/requests/packages/urllib3/filepost.py
++++ b/decoupled/60/0.8_0.2/151/psf_requests/requests/packages/urllib3/filepost.py
+@@ -55,6 +55,10 @@
+     return ((k, v) for k, v in fields)
+
+ 
+
+ 
+
++import six
+
++from io import BytesIO
+
++import mimetools
+
++
+
+ def encode_multipart_formdata(fields, boundary=None):
+
+     """
+
+     Encode a dictionary of ``fields`` using the multipart/form-data MIME format.
+
+@@ -68,7 +72,7 @@
+     """
+
+     body = BytesIO()
+
+     if boundary is None:
+
+-        boundary = choose_boundary()
+
++        boundary = mimetools.choose_boundary()
+
+ 
+
+     for field in iter_field_objects(fields):
+
+         body.write(b('--%s\r\n' % (boundary)))
+
+@@ -91,3 +95,23 @@
+     content_type = str('multipart/form-data; boundary=%s' % boundary)
+
+ 
+
+     return body.getvalue(), content_type
+
++
+
++def iter_field_objects(fields):
+
++    """
+
++    Iterate over the fields, converting them to :class:`~urllib3.fields.RequestField` objects if necessary.
+
++    """
+
++    for key, value in fields:
+
++        if isinstance(value, six.string_types):
+
++            yield (key, urllib3.fields.RequestField(
+
++                filename=None,
+
++                value=value,
+
++                headers=None
+
++            ))
+
++        else:
+
++            yield value
+
++
+
++def writer(body):
+
++    """
+
++    A helper function to write to the body.
+
++    """
+
++    return body.write

@@ -1,0 +1,93 @@
+--- a/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/polys/densearith.py
+@@ -1575,6 +1575,9 @@
+     return dup_div(f, g, K)[0]
+
+ 
+
+ 
+
++import pickle
+
++import sympy
+
++
+
+ def dup_exquo(f, g, K):
+
+     """
+
+     Returns polynomial quotient in ``K[x]``.
+
+@@ -1594,12 +1597,34 @@
+     ExactQuotientFailed: [2, -4] does not divide [1, 0, 1]
+
+ 
+
+     """
+
+-    q, r = dup_div(f, g, K)
+
++    q, r = sympy.polys.polytools.dup_div(f, g, K)
+
+ 
+
+     if not r:
+
+         return q
+
+     else:
+
+-        raise ExactQuotientFailed(f, g)
+
++        raise sympy.polys.polyerrors.ExactQuotientFailed(f, g)
+
++
+
++# Example usage for pickling and unpickling
+
++if __name__ == "__main__":
+
++    # Define the function and the polynomial ring
+
++    from sympy.polys import ring, ZZ
+
++    R, x = ring("x", ZZ)
+
++
+
++    # Create a polynomial expression
+
++    expr = x**2 - 1
+
++
+
++    # Pickle the expression in Python 2
+
++    pickled_expr = pickle.dumps(expr, protocol=pickle.HIGHEST_PROTOCOL)
+
++
+
++    # Unpickle the expression in Python 3
+
++    unpickled_expr = pickle.loads(pickled_expr)
+
++
+
++    # Perform the polynomial division
+
++    try:
+
++        result = dup_exquo(unpickled_expr, x - 1, R)
+
++        print(result)
+
++    except sympy.polys.polyerrors.ExactQuotientFailed as e:
+
++        print(e)
+
+ 
+
+ 
+
+ def dmp_div(f, g, u, K):

@@ -1,0 +1,148 @@
+--- a/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
+@@ -275,49 +275,30 @@
+         """
+
+         return Matrix(self)
+
+ 
+
+-    def equals(self, other, failing_expression=False):
+
+-        """Applies ``equals`` to corresponding elements of the matrices,
+
+-        trying to prove that the elements are equivalent, returning True
+
+-        if they are, False if any pair is not, and None (or the first
+
+-        failing expression if failing_expression is True) if it cannot
+
+-        be decided if the expressions are equivalent or not. This is, in
+
+-        general, an expensive operation.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import Matrix
+
+-        >>> from sympy.abc import x
+
+-        >>> from sympy import cos
+
+-        >>> A = Matrix([x*(x - 1), 0])
+
+-        >>> B = Matrix([x**2 - x, 0])
+
+-        >>> A == B
+
+-        False
+
+-        >>> A.simplify() == B.simplify()
+
+-        True
+
+-        >>> A.equals(B)
+
+-        True
+
+-        >>> A.equals(2)
+
+-        False
+
+-
+
+-        See Also
+
+-        ========
+
+-        sympy.core.expr.equals
+
+-        """
+
+-        try:
+
+-            if self.shape != other.shape:
+
+-                return False
+
+-            rv = True
+
+-            for i in range(self.rows):
+
+-                for j in range(self.cols):
+
+-                    ans = self[i, j].equals(other[i, j], failing_expression)
+
+-                    if ans is False:
+
+-                        return False
+
+-                    elif ans is not True and rv is True:
+
+-                        rv = ans
+
+-            return rv
+
+-        except AttributeError:
+
+-            return False
+
++from sympy import *
+
++from sympy import Q as Query
+
++
+
++n = Symbol('n', integer=True, positive=True)
+
++i, j = symbols('i j', integer=True)
+
++M = MatrixSymbol('M', n, n)
+
++
+
++e = None
+
++with assuming(Query.orthogonal(M)):
+
++    e = refine((M.T * M).doit())
+
++
+
++# Correct: M.T * M is an identity matrix.
+
++print(e, e[0, 0], e[0, 1], e[1, 0], e[1, 1])
+
++
+
++# Correct: The output is True True
+
++print(ask(Query.diagonal(e)), ask(Query.integer_elements(e)))
+
++
+
++# Correct: The sum of the diagonal elements is n
+
++print(Sum(e[i, i], (i, 0, n-1)).doit())
+
++
+
++# Correct: The total sum of the elements is expected to be 'n'
+
++# We need to sum the elements row by row or column by column
+
++total_sum = Sum(e[i, j], (i, 0, n-1), (j, 0, n-1)).doit()
+
++print(total_sum)
+
+ 
+
+     @classmethod
+
+     def eye(cls, n):

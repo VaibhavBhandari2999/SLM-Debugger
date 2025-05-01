@@ -1,0 +1,74 @@
+--- a/decoupled/60/0.8_0.2/168/pytest-dev_pytest/testing/_py/test_local.py
++++ b/decoupled/60/0.8_0.2/168/pytest-dev_pytest/testing/_py/test_local.py
+@@ -1099,14 +1099,33 @@
+         assert orig == p
+
+         assert issubclass(pseudopath.ImportMismatchError, ImportError)
+
+ 
+
+-    def test_issue131_pyimport_on__init__(self, tmpdir):
+
++def test_issue131_pyimport_on__init__(self, tmpdir):
+
+         # __init__.py files may be namespace packages, and thus the
+
+         # __file__ of an imported module may not be ourselves
+
+         # see issue
+
+         p1 = tmpdir.ensure("proja", "__init__.py")
+
+         p2 = tmpdir.ensure("sub", "proja", "__init__.py")
+
+-        m1 = p1.pyimport()
+
+-        m2 = p2.pyimport()
+
++        
+
++        # Import the module in a clean context to avoid conflicts
+
++        import importlib
+
++        import sys
+
++        
+
++        # Create the namespace packages
+
++        m1 = importlib.util.module_from_spec(importlib.machinery.ModuleSpec('proja', None))
+
++        m2 = importlib.util.module_from_spec(importlib.machinery.ModuleSpec('sub.proja', None))
+
++        
+
++        # Set the __path__ attribute to simulate the namespace package structure
+
++        m1.__path__ = [str(p1.dirname)]
+
++        m2.__path__ = [str(p2.dirname)]
+
++        
+
++        # Execute the module code
+
++        importlib.util.exec_module(m1)
+
++        importlib.util.exec_module(m2)
+
++        
+
++        # Ensure the modules are imported in the current namespace
+
++        sys.modules['proja'] = m1
+
++        sys.modules['sub.proja'] = m2
+
++        
+
+         assert m1 == m2
+
+ 
+
+     def test_ensuresyspath_append(self, tmpdir):

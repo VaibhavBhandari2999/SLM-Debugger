@@ -1,0 +1,36 @@
+--- a/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/debugging.py
++++ b/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/debugging.py
+@@ -181,16 +181,7 @@
+ 
+
+                 do_c = do_cont = do_continue
+
+ 
+
+-                def set_quit(self):
+
+-                    """Raise Exit outcome when quit command is used in pdb.
+
+-
+
+-                    This is a bit of a hack - it would be better if BdbQuit
+
+-                    could be handled, but this would require to wrap the
+
+-                    whole pytest run, and adjust the report etc.
+
+-                    """
+
+-                    super(PytestPdbWrapper, self).set_quit()
+
+-                    if cls._recursive_debug == 0:
+
+-                        outcomes.exit("Quitting debugger")
+
++DEFAULT_LOG_FORMAT = "%(filename)-25s %(lineno)4d %(levelname)-8s %(message)s"
+
+ 
+
+                 def setup(self, f, tb):
+
+                     """Suspend on setup().

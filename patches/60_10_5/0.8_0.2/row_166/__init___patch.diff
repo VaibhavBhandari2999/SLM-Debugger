@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/interfaces.py
++++ b/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/interfaces.py
+@@ -52,7 +52,7 @@
+ class Interface:
+
+     """Base class for interfaces."""
+
+ 
+
+-    def __init__(self) -> None:
+
++def __init__(self) -> None:
+
+         warnings.warn(
+
+             "Interface and all of its subclasses have been deprecated "
+
+             "and will be removed in pylint 3.0.",

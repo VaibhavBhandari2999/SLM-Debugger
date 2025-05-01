@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/53/django_django/django/contrib/sessions/middleware.py
++++ b/decoupled/60/0.8_0.2/53/django_django/django/contrib/sessions/middleware.py
+@@ -23,7 +23,7 @@
+         session_key = request.COOKIES.get(settings.SESSION_COOKIE_NAME)
+
+         request.session = self.SessionStore(session_key)
+
+ 
+
+-    def process_response(self, request, response):
+
++def process_response(self, request, response):
+
+         """
+
+         If request.session was modified, or if the configuration is to save the
+
+         session every time, save the changes and set a session cookie or delete
+
+@@ -67,6 +67,15 @@
+                             "request completed. The user may have logged "
+
+                             "out in a concurrent request, for example."
+
+                         )
+
++                    try:
+
++                        session_data = request.session.session_key
+
++                        if session_data:
+
++                            # Attempt to decode the session data
+
++                            request.session.decode(session_data)
+
++                    except (BadSignature, binascii.Error):
+
++                        # Handle invalid session data gracefully
+
++                        request.session.flush()
+
++                        logger.warning("Invalid session data detected and flushed.")
+
+                     response.set_cookie(
+
+                         settings.SESSION_COOKIE_NAME,
+
+                         request.session.session_key, max_age=max_age,

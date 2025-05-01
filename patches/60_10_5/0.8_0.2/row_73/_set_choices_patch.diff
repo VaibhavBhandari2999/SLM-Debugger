@@ -1,0 +1,34 @@
+--- a/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
++++ b/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
+@@ -63,12 +63,10 @@
+         ]
+
+         super().__init__(widgets)
+
+ 
+
+-    def _set_choices(self, choices):
+
+-        """
+
+-        When choices are set for this widget, we want to pass those along to
+
+-        the Select widget.
+
+-        """
+
+-        self.widgets[0].choices = choices
+
++class BoundWidget:
+
++    def id_for_label(self):
+
++        # Use the 'id' attribute from self.data['attrs'] if it exists
+
++        return self.data.get('attrs', {}).get('id')
+
+ 
+
+     def _get_choices(self):
+
+         """

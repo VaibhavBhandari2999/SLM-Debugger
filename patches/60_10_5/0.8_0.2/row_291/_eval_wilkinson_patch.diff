@@ -1,0 +1,54 @@
+--- a/decoupled/60/0.8_0.2/291/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/291/sympy_sympy/sympy/matrices/common.py
+@@ -824,16 +824,16 @@
+         return cls._new(rows, cols, [cls.zero]*(rows*cols), copy=False)
+
+ 
+
+     @classmethod
+
+-    def _eval_wilkinson(cls, n):
+
+-        def entry(i, j):
+
+-            return cls.one if i + 1 == j else cls.zero
+
+-
+
+-        D = cls._new(2*n + 1, 2*n + 1, entry)
+
+-
+
+-        wminus = cls.diag([i for i in range(-n, n + 1)], unpack=True) + D + D.T
+
+-        wplus = abs(cls.diag([i for i in range(-n, n + 1)], unpack=True)) + D + D.T
+
+-
+
+-        return wminus, wplus
+
++def _eval_wilkinson(cls, n):
+
++    def entry(i, j):
+
++        return cls.one if i + 1 == j else cls.zero
+
++
+
++    D = cls._new(2*n + 1, 2*n + 1, entry)
+
++
+
++    wminus = cls.diag([i for i in range(-n, n + 1)], unpack=True) + D + D.T
+
++    wplus = abs(cls.diag([i for i in range(-n, n + 1)], unpack=True)) + D + D.T
+
++
+
++    return wminus, wplus
+
+ 
+
+     @classmethod
+
+     def diag(kls, *args, strict=False, unpack=True, rows=None, cols=None, **kwargs):

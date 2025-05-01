@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/189/scikit-learn_scikit-learn/sklearn/decomposition/dict_learning.py
++++ b/decoupled/60/0.8_0.2/189/scikit-learn_scikit-learn/sklearn/decomposition/dict_learning.py
+@@ -865,7 +865,7 @@
+         self.n_jobs = n_jobs
+
+         self.positive_code = positive_code
+
+ 
+
+-    def transform(self, X):
+
++def transform(self, X):
+
+         """Encode the data as a sparse combination of the dictionary atoms.
+
+ 
+
+         Coding method is determined by the object parameter
+
+@@ -884,6 +884,9 @@
+ 
+
+         """
+
+         check_is_fitted(self, 'components_')
+
++
+
++        # Ensure X is an object array to handle unknown strings safely
+
++        X = np.array(X, dtype=object)
+
+ 
+
+         X = check_array(X)
+
+ 

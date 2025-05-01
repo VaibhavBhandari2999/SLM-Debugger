@@ -1,0 +1,94 @@
+--- a/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
++++ b/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
+@@ -74,35 +74,20 @@
+         _json.dump(obj, fp, **kwargs)
+
+ 
+
+ 
+
+-def loads(s: str | bytes, **kwargs: t.Any) -> t.Any:
+
+-    """Deserialize data as JSON.
+
++def fixed_from_file(filename: str, load: t.Callable, mode: str = "r", **kwargs: t.Any) -> None:
+
++    """Load a configuration from a file.
+
+ 
+
+-    If :data:`~flask.current_app` is available, it will use its
+
+-    :meth:`app.json.loads() <flask.json.provider.JSONProvider.loads>`
+
+-    method, otherwise it will use :func:`json.loads`.
+
+-
+
+-    :param s: Text or UTF-8 bytes.
+
+-    :param kwargs: Arguments passed to the ``loads`` implementation.
+
+-
+
+-    .. versionchanged:: 2.3
+
+-        The ``app`` parameter was removed.
+
+-
+
+-    .. versionchanged:: 2.2
+
+-        Calls ``current_app.json.loads``, allowing an app to override
+
+-        the behavior.
+
+-
+
+-    .. versionchanged:: 2.0
+
+-        ``encoding`` will be removed in Flask 2.1. The data must be a
+
+-        string or UTF-8 bytes.
+
+-
+
+-    .. versionchanged:: 1.0.3
+
+-        ``app`` can be passed directly, rather than requiring an app
+
+-        context for configuration.
+
++    :param filename: The filename of the configuration file.
+
++    :param load: A callable to load the configuration data.
+
++    :param mode: The mode in which to open the file.
+
++    :param kwargs: Additional keyword arguments passed to the `load` callable.
+
+     """
+
+     if current_app:
+
+-        return current_app.json.loads(s, **kwargs)
+
+-
+
+-    return _json.loads(s, **kwargs)
+
++        with current_app.open_resource(filename, mode=mode) as config_file:
+
++            current_app.config.from_mapping(load(config_file, **kwargs))
+
++    else:
+
++        with open(os.path.join(current_app.root_path, filename), mode=mode) as config_file:
+
++            current_app.config.from_mapping(load(config_file, **kwargs))
+
+ 
+
+ 
+
+ def load(fp: t.IO[t.AnyStr], **kwargs: t.Any) -> t.Any:

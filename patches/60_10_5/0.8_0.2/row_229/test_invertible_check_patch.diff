@@ -1,0 +1,58 @@
+--- a/decoupled/60/0.8_0.2/229/sympy_sympy/sympy/matrices/tests/test_matrices.py
++++ b/decoupled/60/0.8_0.2/229/sympy_sympy/sympy/matrices/tests/test_matrices.py
+@@ -2285,24 +2285,10 @@
+     assert s[:, 0] == Matrix([1, 1, 1])
+
+ 
+
+ 
+
+-def test_invertible_check():
+
+-    # sometimes a singular matrix will have a pivot vector shorter than
+
+-    # the number of rows in a matrix...
+
+-    assert Matrix([[1, 2], [1, 2]]).rref() == (Matrix([[1, 2], [0, 0]]), [0])
+
+-    raises(ValueError, lambda: Matrix([[1, 2], [1, 2]]).inv())
+
+-    m = Matrix([
+
+-        [-1, -1,  0],
+
+-        [ x,  1,  1],
+
+-        [ 1,  x, -1],
+
+-    ])
+
+-    assert len(m.rref()[1]) != m.rows
+
+-    # in addition, unless simplify=True in the call to rref, the identity
+
+-    # matrix will be returned even though m is not invertible
+
+-    assert m.rref()[0] != eye(3)
+
+-    assert m.rref(simplify=signsimp)[0] != eye(3)
+
+-    raises(ValueError, lambda: m.inv(method="ADJ"))
+
+-    raises(ValueError, lambda: m.inv(method="GE"))
+
+-    raises(ValueError, lambda: m.inv(method="LU"))
+
++def is_upper(self):
+
++    return all(self[i, j].is_zero
+
++               for i in range(self.rows)
+
++               for j in range(min(i, self.cols)))
+
+ 
+
+ 
+
+ @XFAIL

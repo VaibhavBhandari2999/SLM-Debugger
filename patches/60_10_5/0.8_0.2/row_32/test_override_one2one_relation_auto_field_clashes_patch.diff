@@ -1,0 +1,114 @@
+--- a/decoupled/60/0.8_0.2/32/django_django/tests/model_inheritance/test_abstract_inheritance.py
++++ b/decoupled/60/0.8_0.2/32/django_django/tests/model_inheritance/test_abstract_inheritance.py
+@@ -275,24 +275,38 @@
+             )]
+
+         )
+
+ 
+
+-    def test_override_one2one_relation_auto_field_clashes(self):
+
+-        class ConcreteParent(models.Model):
+
+-            name = models.CharField(max_length=255)
+
+-
+
+-        class AbstractParent(models.Model):
+
+-            name = models.IntegerField()
+
+-
+
+-            class Meta:
+
+-                abstract = True
+
+-
+
+-        msg = (
+
+-            "Auto-generated field 'concreteparent_ptr' in class 'Descendant' "
+
+-            "for parent_link to base class 'ConcreteParent' clashes with "
+
+-            "declared field of the same name."
+
+-        )
+
+-        with self.assertRaisesMessage(FieldError, msg):
+
+-            class Descendant(ConcreteParent, AbstractParent):
+
+-                concreteparent_ptr = models.CharField(max_length=30)
+
++from django.db import models
+
++
+
++class A(models.Model):
+
++    foo_choice = [("A", "output1"), ("B", "output2")]
+
++    field_foo = models.CharField(max_length=254, choices=foo_choice)
+
++
+
++class B(A):
+
++    foo_choice = [("A", "output1"), ("B", "output2"), ("C", "output3")]
+
++    field_foo = models.CharField(max_length=254, choices=foo_choice)
+
++
+
++def test_get_field_display():
+
++    # Create an instance of B with field_foo set to 'C'
+
++    b_instance = B.objects.create(field_foo="C")
+
++    
+
++    # Check if get_field_foo_display() returns the correct output
+
++    display_value = b_instance.get_field_foo_display()
+
++    assert display_value == "output3", f"Expected 'output3', got '{display_value}'"
+
++    
+
++    # Check if get_field_foo_display() returns the correct output for 'A'
+
++    b_instance.field_foo = "A"
+
++    b_instance.save()
+
++    display_value = b_instance.get_field_foo_display()
+
++    assert display_value == "output1", f"Expected 'output1', got '{display_value}'"
+
++    
+
++    # Check if get_field_foo_display() returns the correct output for 'B'
+
++    b_instance.field_foo = "B"
+
++    b_instance.save()
+
++    display_value = b_instance.get_field_foo_display()
+
++    assert display_value == "output2", f"Expected 'output2', got '{display_value}'"
+
++
+
++# Run the test function
+
++test_get_field_display()
+
+ 
+
+     def test_abstract_model_with_regular_python_mixin_mro(self):
+
+         class AbstractModel(models.Model):

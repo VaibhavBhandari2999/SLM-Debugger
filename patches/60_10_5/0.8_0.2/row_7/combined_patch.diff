@@ -1,0 +1,478 @@
+--- a/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
+@@ -2095,7 +2095,7 @@
+         else:
+
+             return self.extra
+
+ 
+
+-    def trim_start(self, names_with_path):
+
++def trim_start(self, names_with_path):
+
+         """
+
+         Trim joins from the start of the join path. The candidates for trim
+
+         are the PathInfos in names_with_path structure that are m2m joins.
+
+@@ -2107,7 +2107,7 @@
+ 
+
+         Return a lookup usable for doing outerq.filter(lookup=self) and a
+
+         boolean indicating if the joins in the prefix contain a LEFT OUTER join.
+
+-        _"""
+
++        """
+
+         all_paths = []
+
+         for _, paths in names_with_path:
+
+             all_paths.extend(paths)
+
+@@ -2164,6 +2164,14 @@
+                 break
+
+         self.set_select([f.get_col(select_alias) for f in select_fields])
+
+         return trimmed_prefix, contains_louter
+
++
+
++    def set_path_as_callable(self, path):
+
++        """
+
++        Set the path to be a callable if it is not already.
+
++        """
+
++        if not callable(path):
+
++            path = lambda: path
+
++        return path
+
+ 
+
+     def is_nullable(self, field):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
+@@ -537,7 +537,7 @@
+         compiler = q.get_compiler(using=using)
+
+         return '\n'.join(compiler.explain_query())
+
+ 
+
+-    def combine(self, rhs, connector):
+
++def combine(self, rhs, connector):
+
+         """
+
+         Merge the 'rhs' query into the current one (with any 'rhs' effects
+
+         being applied *after* (that is, "to the right of") anything in the
+
+@@ -607,36 +607,7 @@
+ 
+
+         # Now relabel a copy of the rhs where-clause and add it to the current
+
+         # one.
+
+-        w = rhs.where.clone()
+
+-        w.relabel_aliases(change_map)
+
+-        self.where.add(w, connector)
+
+-
+
+-        # Selection columns and extra extensions are those provided by 'rhs'.
+
+-        if rhs.select:
+
+-            self.set_select([col.relabeled_clone(change_map) for col in rhs.select])
+
+-        else:
+
+-            self.select = ()
+
+-
+
+-        if connector == OR:
+
+-            # It would be nice to be able to handle this, but the queries don't
+
+-            # really make sense (or return consistent value sets). Not worth
+
+-            # the extra complexity when you can write a real query instead.
+
+-            if self.extra and rhs.extra:
+
+-                raise ValueError("When merging querysets using 'or', you cannot have extra(select=...) on both sides.")
+
+-        self.extra.update(rhs.extra)
+
+-        extra_select_mask = set()
+
+-        if self.extra_select_mask is not None:
+
+-            extra_select_mask.update(self.extra_select_mask)
+
+-        if rhs.extra_select_mask is not None:
+
+-            extra_select_mask.update(rhs.extra_select_mask)
+
+-        if extra_select_mask:
+
+-            self.set_extra_mask(extra_select_mask)
+
+-        self.extra_tables += rhs.extra_tables
+
+-
+
+-        # Ordering uses the 'rhs' ordering, unless it has none, in which case
+
+-        # the current ordering is used.
+
+-        self.order_by = rhs.order_by or self.order_by
+
+-        self.extra_order_by = rhs.extra_order_by or self.extra_order_by
+
++        w = rhs.where.clone
+
+ 
+
+     def deferred_to_data(self, target, callback):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
+@@ -1387,7 +1387,7 @@
+                 )
+
+         self._filtered_relations[filtered_relation.alias] = filtered_relation
+
+ 
+
+-    def names_to_path(self, names, opts, allow_many=True, fail_on_missing=False):
+
++def names_to_path(self, names, opts, allow_many=True, fail_on_missing=False):
+
+         """
+
+         Walk the list of names and turns them into PathInfo tuples. A single
+
+         name in 'names' can generate multiple PathInfos (m2m, for example).
+
+@@ -1478,10 +1478,7 @@
+                 targets = (field,)
+
+                 if fail_on_missing and pos + 1 != len(names):
+
+                     raise FieldError(
+
+-                        "Cannot resolve keyword %r into field. Join on '%s'"
+
+-                        " not permitted." % (names[pos + 1], name))
+
+-                break
+
+-        return path, final_field, targets, names[pos + 1:]
+
++                        "Cannot resolve keyword %r into field
+
+ 
+
+     def setup_joins(self, names, opts, alias, can_reuse=None, allow_many=True,
+
+                     reuse_with_filtered_relation=False):
+
+
+--- a/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/7/django_django/django/db/models/sql/query.py
+@@ -1936,25 +1936,13 @@
+         """Remove any fields from the deferred loading set."""
+
+         self.deferred_loading = (frozenset(), True)
+
+ 
+
+-    def add_deferred_loading(self, field_names):
+
+-        """
+
+-        Add the given list of model field names to the set of fields to
+
+-        exclude from loading from the database when automatic column selection
+
+-        is done. Add the new field names to any existing field names that
+
+-        are deferred (or removed from any existing field names that are marked
+
+-        as the only ones for immediate loading).
+
+-        """
+
+-        # Fields on related models are stored in the literal double-underscore
+
+-        # format, so that we can use a set datastructure. We do the foo__bar
+
+-        # splitting and handling when computing the SQL column names (as part of
+
+-        # get_columns()).
+
+-        existing, defer = self.deferred_loading
+
+-        if defer:
+
+-            # Add to existing deferred names.
+
+-            self.deferred_loading = existing.union(field_names), True
+
+-        else:
+
+-            # Remove names from the set of any existing "immediate load" names.
+
+-            self.deferred_loading = existing.difference(field_names), False
+
++from django.db import models
+
++import os
+
++from django.conf import settings
+
++
+
++class LocalFiles(models.Model):
+
++    name = models.CharField(max_length=255)
+
++    file = models.FilePathField(path=lambda: os.path.join(settings.LOCAL_FILE_DIR, 'example_dir'))
+
+ 
+
+     def add_immediate_loading(self, field_names):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/7/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/7/django_django/django/db/models/fields/related_descriptors.py
+@@ -144,52 +144,56 @@
+         # Assuming the database enforces foreign keys, this won't fail.
+
+         return qs.get(self.field.get_reverse_related_filter(instance))
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
+-        """
+
+-        Get the related instance through the forward relation.
+
+-
+
+-        With the example above, when getting ``child.parent``:
+
+-
+
+-        - ``self`` is the descriptor managing the ``parent`` attribute
+
+-        - ``instance`` is the ``child`` instance
+
+-        - ``cls`` is the ``Child`` class (we don't need it)
+
+-        """
+
+-        if instance is None:
+
+-            return self
+
+-
+
+-        # The related instance is loaded from the database and then cached
+
+-        # by the field on the model instance state. It can also be pre-cached
+
+-        # by the reverse accessor (ReverseOneToOneDescriptor).
+
+-        try:
+
+-            rel_obj = self.field.get_cached_value(instance)
+
+-        except KeyError:
+
+-            has_value = None not in self.field.get_local_related_value(instance)
+
+-            ancestor_link = instance._meta.get_ancestor_link(self.field.model) if has_value else None
+
+-            if ancestor_link and ancestor_link.is_cached(instance):
+
+-                # An ancestor link will exist if this field is defined on a
+
+-                # multi-table inheritance parent of the instance's class.
+
+-                ancestor = ancestor_link.get_cached_value(instance)
+
+-                # The value might be cached on an ancestor if the instance
+
+-                # originated from walking down the inheritance chain.
+
+-                rel_obj = self.field.get_cached_value(ancestor, default=None)
+
+-            else:
+
+-                rel_obj = None
+
+-            if rel_obj is None and has_value:
+
+-                rel_obj = self.get_object(instance)
+
+-                remote_field = self.field.remote_field
+
+-                # If this is a one-to-one relation, set the reverse accessor
+
+-                # cache on the related object to the current instance to avoid
+
+-                # an extra SQL query if it's accessed later on.
+
+-                if not remote_field.multiple:
+
+-                    remote_field.set_cached_value(rel_obj, instance)
+
+-            self.field.set_cached_value(instance, rel_obj)
+
+-
+
+-        if rel_obj is None and not self.field.null:
+
+-            raise self.RelatedObjectDoesNotExist(
+
+-                "%s has no %s." % (self.field.model.__name__, self.field.name)
+
+-            )
+
++def __get__(self, instance, cls=None):
+
++    """
+
++    Get the related instance through the forward relation.
+
++
+
++    With the example above, when getting ``child.parent``:
+
++
+
++    - ``self`` is the descriptor managing the ``parent`` attribute
+
++    - ``instance`` is the ``child`` instance
+
++    - ``cls`` is the ``Child`` class (we don't need it)
+
++    """
+
++    if instance is None:
+
++        return self
+
++
+
++    # The related instance is loaded from the database and then cached
+
++    # by the field on the model instance state. It can also be pre-cached
+
++    # by the reverse accessor (ReverseOneToOneDescriptor).
+
++    try:
+
++        rel_obj = self.field.get_cached_value(instance)
+
++    except KeyError:
+
++        has_value = None not in self.field.get_local_related_value(instance)
+
++        ancestor_link = instance._meta.get_ancestor_link(self.field.model) if has_value else None
+
++        if ancestor_link and ancestor_link.is_cached(instance):
+
++            # An ancestor link will exist if this field is defined on a
+
++            # multi-table inheritance parent of the instance's class.
+
++            ancestor = ancestor_link.get_cached_value(instance)
+
++            # The value might be cached on an ancestor if the instance
+
++            # originated from walking down the inheritance chain.
+
++            rel_obj = self.field.get_cached_value(ancestor, default=None)
+
+         else:
+
+-            return rel_obj
+
++            rel_obj = None
+
++        if rel_obj is None and has_value:
+
++            rel_obj = self.get_object(instance)
+
++            remote_field = self.field.remote_field
+
++            # If this is a one-to-one relation, set the reverse accessor
+
++            # cache on the related object to the current instance to avoid
+
++            # an extra SQL query if it's accessed later on.
+
++            if not remote_field.multiple:
+
++                remote_field.set_cached_value(rel_obj, instance)
+
++        self.field.set_cached_value(instance, rel_obj)
+
++
+
++    if rel_obj is None and not self.field.null:
+
++        raise self.RelatedObjectDoesNotExist(
+
++            "%s has no %s." % (self.field.model.__name__, self.field.name)
+
++        )
+
++    else:
+
++        return rel_obj
+
++
+
++    # Ensure the path is evaluated as a callable if necessary
+
++    if callable(self.field.path):
+
++        self.field.path = self.field.path()
+
+ 
+
+     def __set__(self, instance, value):
+
+         """
+
+

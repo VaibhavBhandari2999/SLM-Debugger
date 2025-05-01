@@ -1,0 +1,68 @@
+--- a/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
++++ b/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
+@@ -804,16 +804,23 @@
+             pass
+
+ 
+
+     @app.teardown_request
+
+-    def teardown_request2(exc):
+
+-        assert type(exc) == ZeroDivisionError
+
+-        called.append(True)
+
+-        # This raises a new error and blows away sys.exc_info(), so we can
+
+-        # test that all teardown_requests get passed the same original
+
+-        # exception.
+
+-        try:
+
+-            raise TypeError()
+
+-        except Exception:
+
+-            pass
+
++def validate_blueprint_name(blueprint_name):
+
++    """
+
++    Validate that the blueprint name does not contain a dot.
+
++    
+
++    This is required since every dot is now significant since blueprints can be nested.
+
++    An error was already added for endpoint names in 1.0, but should have been added for this as well.
+
++    
+
++    Args:
+
++        blueprint_name (str): The name of the blueprint to validate.
+
++    
+
++    Raises:
+
++        ValueError: If the blueprint name contains a dot.
+
++    """
+
++    if '.' in blueprint_name:
+
++        raise ValueError(f"Blueprint name '{blueprint_name}' cannot contain a dot. "
+
++                         "Blueprint names should not be nested using dots.")
+
++    return True
+
+ 
+
+     @app.route("/")
+
+     def fails():

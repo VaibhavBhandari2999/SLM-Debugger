@@ -1,0 +1,181 @@
+--- a/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -2046,33 +2046,33 @@
+     assert upretty(expr) == ucode_str
+
+ 
+
+ 
+
++from sympy import Product, symbols, Function, pretty, upretty
+
++
+
+ def test_pretty_product():
+
+     n, m, k, l = symbols('n m k l')
+
+-    f = symbols('f', cls=Function)
+
++    f = Function('f')
+
+     expr = Product(f((n/3)**2), (n, k**2, l))
+
+ 
+
+     unicode_str = \
+
+ u("""\
+
+     l           \n\
+
+-┬────────┬      \n\
+
+-│        │  ⎛ 2⎞\n\
+
+-│        │  ⎜n ⎟\n\
+
+-│        │ f⎜──⎟\n\
+
+-│        │  ⎝9 ⎠\n\
+
+-│        │      \n\
+
+-       2        \n\
+
+-  n = k         """)
+
++─┬─────┬─      \n\
+
++ │     │  ⎛ 2⎞\n\
+
++ │     │  ⎜n ⎟\n\
+
++ │     │ f⎜──⎟\n\
+
++ │     │  ⎝9 ⎠\n\
+
++  │     │      \n\
+
++ n = k         """)
+
+     ascii_str = \
+
+ """\
+
+     l           \n\
+
+-__________      \n\
+
+-|        |  / 2\\\n\
+
+-|        |  |n |\n\
+
+-|        | f|--|\n\
+
+-|        |  \\9 /\n\
+
+-|        |      \n\
+
+-       2        \n\
+
+-  n = k         """
+
++─┬─────┬─      \n\
+
++ │     │  / 2\\\n\
+
++ │     │  |n |\n\
+
++ │     │ f|--|\n\
+
++ │     │  \\9 /\n\
+
++  │     │      \n\
+
++ n = k         """
+
+ 
+
+     assert pretty(expr) == ascii_str
+
+     assert upretty(expr) == unicode_str
+
+@@ -2082,25 +2082,23 @@
+     unicode_str = \
+
+ u("""\
+
+     m          l           \n\
+
+-┬────────┬ ┬────────┬      \n\
+
+-│        │ │        │  ⎛ 2⎞\n\
+
+-│        │ │        │  ⎜n ⎟\n\
+
+-│        │ │        │ f⎜──⎟\n\
+
+-│        │ │        │  ⎝9 ⎠\n\
+
+-│        │ │        │      \n\
+
+-  l = 1           2        \n\
+
+-             n = k         """)
+
++─┬────────┬ ┬─────┬─      \n\
+
++ │        │ │     │  ⎛ 2⎞\n\
+
++ │        │ │     │  ⎜n ⎟\n\
+
++ │        │ │     │ f⎜──⎟\n\
+
++ │        │ │     │  ⎝9 ⎠\n\
+
++ │        │ │     │      \n\
+
++  l = 1           │     │ n = k         """)
+
+     ascii_str = \
+
+ """\
+
+     m          l           \n\
+
+-__________ __________      \n\
+
+-|        | |        |  / 2\\\n\
+
+-|        | |        |  |n |\n\
+
+-|        | |        | f|--|\n\
+
+-|        | |        |  \\9 /\n\
+
+-|        | |        |      \n\
+
+-  l = 1           2        \n\
+
+-             n = k         """
+
++─┬────────┬ ┬─────┬─      \n\
+
++ │        │ │     │  / 2\\\n\
+
++ │        │ │     │  |n |\n\
+
++ │        │ │     │ f|--|\n\
+
++ │        │ │     │  \\9 /\n\
+
++ │        │ │     │      \n\
+
++  l = 1           │     │ n = k         """
+
+ 
+
+     assert pretty(expr) == ascii_str
+
+     assert upretty(expr) == unicode_str

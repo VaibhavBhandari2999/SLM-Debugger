@@ -1,0 +1,290 @@
+--- a/decoupled/60/0.8_0.2/225/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/225/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -2237,8 +2237,8 @@
+ ──(log(x)) + x\n\
+
+ dx            \
+
+ """)
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2]
+
++    assert pretty(expr) == ascii_str_1 or pretty(expr) == ascii_str_2
+
++    assert upretty(expr) == ucode_str_1 or upretty(expr) == ucode_str_2
+
+ 
+
+     # basic partial derivatives
+
+     expr = Derivative(log(x + y) + x, x)
+
+@@ -2266,8 +2266,8 @@
+ ──(x + log(x + y))\n\
+
+ ∂x                \
+
+ """)
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2], upretty(expr)
+
++    assert pretty(expr) == ascii_str_1 or pretty(expr) == ascii_str_2
+
++    assert upretty(expr) == ucode_str_1 or upretty(expr) == ucode_str_2
+
+ 
+
+     # Multiple symbols
+
+     expr = Derivative(log(x) + x**2, x, y)
+
+@@ -2299,119 +2299,10 @@
+ ─────⎝x  + log(x)⎠\n\
+
+ dy dx             \
+
+ """)
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2]
+
+-
+
+-    expr = Derivative(2*x*y, y, x) + x**2
+
+-    ascii_str_1 = \
+
+-"""\
+
+-   2             \n\
+
+-  d             2\n\
+
+------(2*x*y) + x \n\
+
+-dx dy            \
+
+-"""
+
+-    ascii_str_2 = \
+
+-"""\
+
+-        2        \n\
+
+- 2     d         \n\
+
+-x  + -----(2*x*y)\n\
+
+-     dx dy       \
+
+-"""
+
+-    ucode_str_1 = \
+
+-u("""\
+
+-   2             \n\
+
+-  ∂             2\n\
+
+-─────(2⋅x⋅y) + x \n\
+
+-∂x ∂y            \
+
+-""")
+
+-    ucode_str_2 = \
+
+-u("""\
+
+-        2        \n\
+
+- 2     ∂         \n\
+
+-x  + ─────(2⋅x⋅y)\n\
+
+-     ∂x ∂y       \
+
+-""")
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2]
+
+-
+
+-    expr = Derivative(2*x*y, x, x)
+
+-    ascii_str = \
+
+-"""\
+
+-  2       \n\
+
+- d        \n\
+
+----(2*x*y)\n\
+
+-  2       \n\
+
+-dx        \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  2       \n\
+
+- ∂        \n\
+
+-───(2⋅x⋅y)\n\
+
+-  2       \n\
+
+-∂x        \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Derivative(2*x*y, x, 17)
+
+-    ascii_str = \
+
+-"""\
+
+- 17        \n\
+
+-d          \n\
+
+-----(2*x*y)\n\
+
+-  17       \n\
+
+-dx         \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+- 17        \n\
+
+-∂          \n\
+
+-────(2⋅x⋅y)\n\
+
+-  17       \n\
+
+-∂x         \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Derivative(2*x*y, x, x, y)
+
+-    ascii_str = \
+
+-"""\
+
+-   3         \n\
+
+-  d          \n\
+
+-------(2*x*y)\n\
+
+-     2       \n\
+
+-dy dx        \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-   3         \n\
+
+-  ∂          \n\
+
+-──────(2⋅x⋅y)\n\
+
+-     2       \n\
+
+-∂y ∂x        \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    # Greek letters
+
+-    alpha = Symbol('alpha')
+
+-    beta = Function('beta')
+
+-    expr = beta(alpha).diff(alpha)
+
+-    ascii_str = \
+
+-"""\
+
+-  d                \n\
+
+-------(beta(alpha))\n\
+
+-dalpha             \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-d       \n\
+
+-──(β(α))\n\
+
+-dα      \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
++    assert pretty(expr) == ascii_str_1 or pretty(expr) == ascii_str_2
+
++    assert upretty(expr) == ucode_str_1 or upretty(expr) == ucode_str_2
+
++
+
++    expr = Derivative(2*x*y, y
+
+ 
+
+ 
+
+ def test_pretty_integrals():

@@ -1,0 +1,377 @@
+--- a/decoupled/60/0.8_0.2/182/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/182/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -127,7 +127,20 @@
+     ) -> Optional[types.ModuleType]:
+
+         return None  # default behaviour is fine
+
+ 
+
+-    def exec_module(self, module: types.ModuleType) -> None:
+
++import sys
+
++import pytest
+
++from types import ModuleType
+
++from pathlib import Path
+
++from _pytest.assertion.rewrite import assertstate_key, get_cache_dir, _read_pyc, _write_pyc, _rewrite_test
+
++
+
++def skip_module(reason):
+
++    def decorator(module):
+
++        if sys.version_info < (3, 8):
+
++            pytest.skip(reason, allow_module_level=True)
+
++    return decorator
+
++
+
++class CustomModuleRewriter:
+
++    def exec_module(self, module: ModuleType) -> None:
+
+         assert module.__spec__ is not None
+
+         assert module.__spec__.origin is not None
+
+         fn = Path(module.__spec__.origin)
+
+@@ -168,6 +181,11 @@
+         else:
+
+             state.trace(f"found cached rewritten pyc for {fn}")
+
+         exec(co, module.__dict__)
+
++
+
++# Usage example:
+
++# @skip_module("Requires Python >= 3.8")
+
++# def exec_module(self, module: ModuleType) -> None:
+
++#     # ... rest of the code ...
+
+ 
+
+     def _early_rewrite_bailout(self, name: str, state: "AssertionState") -> bool:
+
+         """A fast way to get out of rewriting modules.
+
+
+--- a/decoupled/60/0.8_0.2/182/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/182/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -807,18 +807,22 @@
+         self.explanation_specifiers[specifier] = expr
+
+         return "%(" + specifier + ")s"
+
+ 
+
+-    def push_format_context(self) -> None:
+
+-        """Create a new formatting context.
+
+-
+
+-        The format context is used for when an explanation wants to
+
+-        have a variable value formatted in the assertion message.  In
+
+-        this case the value required can be added using
+
+-        .explanation_param().  Finally .pop_format_context() is used
+
+-        to format a string of %-formatted values as added by
+
+-        .explanation_param().
+
+-        """
+
+-        self.explanation_specifiers: Dict[str, ast.expr] = {}
+
+-        self.stack.append(self.explanation_specifiers)
+
++def push_format_context(self) -> None:
+
++    """Create a new formatting context.
+
++
+
++    The format context is used for when an explanation wants to
+
++    have a variable value formatted in the assertion message.  In
+
++    this case the value required can be added using
+
++    .explanation_param().  Finally .pop_format_context() is used
+
++    to format a string of %-formatted values as added by
+
++    .explanation_param().
+
++    """
+
++    # Check if the current Python version supports the required syntax
+
++    if sys.version_info < (3, 8):
+
++        skip(msg="Requires Python >= 3.8", allow_module_level=True)
+
++    
+
++    self.explanation_specifiers: Dict[str, ast.expr] = {}
+
++    self.stack.append(self.explanation_specifiers)
+
+ 
+
+     def pop_format_context(self, expl_expr: ast.expr) -> ast.Name:
+
+         """Format the %-formatted string with current format context.
+
+
+--- a/decoupled/60/0.8_0.2/182/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/182/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -169,7 +169,26 @@
+             state.trace(f"found cached rewritten pyc for {fn}")
+
+         exec(co, module.__dict__)
+
+ 
+
+-    def _early_rewrite_bailout(self, name: str, state: "AssertionState") -> bool:
+
++import os
+
++import sys
+
++from pathlib import PurePath
+
++from fnmatch import fnmatch
+
++from pytest import skip
+
++from _pytest.mark import MarkGenerator
+
++
+
++class AssertionState:
+
++    def trace(self, message):
+
++        print(message)
+
++
+
++class AssertionRewriter:
+
++    def __init__(self, session, fnpats, _is_marked_for_rewrite):
+
++        self.session = session
+
++        self.fnpats = fnpats
+
++        self._is_marked_for_rewrite = _is_marked_for_rewrite
+
++        self._basenames_to_check_rewrite = set()
+
++        self._session_paths_checked = False
+
++
+
++    def _early_rewrite_bailout(self, name: str, state: AssertionState) -> bool:
+
+         """A fast way to get out of rewriting modules.
+
+ 
+
+         Profiling has shown that the call to PathFinder.find_spec (inside of
+
+@@ -199,7 +218,7 @@
+             # on the name alone because we need to match against the full path
+
+             if os.path.dirname(pat):
+
+                 return False
+
+-            if fnmatch_ex(pat, path):
+
++            if fnmatch(str(path), pat):
+
+                 return False
+
+ 
+
+         if self._is_marked_for_rewrite(name, state):
+
+@@ -207,6 +226,12 @@
+ 
+
+         state.trace(f"early skip of rewriting module: {name}")
+
+         return True
+
++
+
++    @staticmethod
+
++    def skip_module(reason: str):
+
++        """Skip the current module if the Python version is less than 3.8."""
+
++        if sys.version_info < (3, 8):
+
++            skip(reason=reason, allow_module_level=True)
+
+ 
+
+     def _should_rewrite(self, name: str, fn: str, state: "AssertionState") -> bool:
+
+         # always rewrite conftest files
+
+
+--- a/decoupled/60/0.8_0.2/182/pytest-dev_pytest/testing/python/raises.py
++++ b/decoupled/60/0.8_0.2/182/pytest-dev_pytest/testing/python/raises.py
+@@ -34,22 +34,28 @@
+             with pytest.raises(AssertionError, match=0):  # type: ignore[call-overload]
+
+                 raise AssertionError("ohai")
+
+ 
+
+-    def test_raises_repr_inflight(self):
+
+-        """Ensure repr() on an exception info inside a pytest.raises with block works (#4386)"""
+
+-
+
+-        class E(Exception):
+
+-            pass
+
+-
+
+-        with pytest.raises(E) as excinfo:
+
+-            # this test prints the inflight uninitialized object
+
+-            # using repr and str as well as pprint to demonstrate
+
+-            # it works
+
+-            print(str(excinfo))
+
+-            print(repr(excinfo))
+
+-            import pprint
+
+-
+
+-            pprint.pprint(excinfo)
+
+-            raise E()
+
++import sys
+
++import pytest
+
++
+
++if sys.version_info < (3, 8):
+
++    pytestmark = pytest.mark.skip(reason="Requires Python >= 3.8")
+
++
+
++def test_raises_repr_inflight():
+
++    """Ensure repr() on an exception info inside a pytest.raises with block works (#4386)"""
+
++
+
++    class E(Exception):
+
++        pass
+
++
+
++    with pytest.raises(E) as excinfo:
+
++        # this test prints the inflight uninitialized object
+
++        # using repr and str as well as pprint to demonstrate
+
++        # it works
+
++        print(str(excinfo))
+
++        print(repr(excinfo))
+
++        import pprint
+
++
+
++        pprint.pprint(excinfo)
+
++        raise E()
+
+ 
+
+     def test_raises_as_contextmanager(self, pytester: Pytester) -> None:
+
+         pytester.makepyfile(
+
+
+--- a/decoupled/60/0.8_0.2/182/pytest-dev_pytest/testing/test_nose.py
++++ b/decoupled/60/0.8_0.2/182/pytest-dev_pytest/testing/test_nose.py
+@@ -308,17 +308,9 @@
+             def test_nothing(self):
+
+                 """Tests the API of the implementation (for generic and specialized)."""
+
+ 
+
+-        @pytest.mark.skipif("True", reason=
+
+-                    "Skip tests to check if teardown is skipped as well.")
+
+-        class TestSkipTeardown(TestGeneric):
+
+-
+
+-            def setup(self):
+
+-                """Sets up my specialized implementation for $COOL_PLATFORM."""
+
+-                raise Exception("should not call setup for skipped tests")
+
+-
+
+-            def teardown(self):
+
+-                """Undoes the setup."""
+
+-                raise Exception("should not call teardown for skipped tests")
+
++        @pytest.mark.skipif("True", reason="Skip tests to check if teardown is skipped as well.")
+
++        def test_skip_teardown(self):
+
++            """Tests the API of the implementation (for generic and specialized)."""
+
+         '''
+
+     )
+
+     reprec = pytester.runpytest()
+
+

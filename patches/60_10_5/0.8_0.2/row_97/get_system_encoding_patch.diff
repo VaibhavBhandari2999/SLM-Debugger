@@ -1,0 +1,62 @@
+--- a/decoupled/60/0.8_0.2/97/django_django/django/utils/encoding.py
++++ b/decoupled/60/0.8_0.2/97/django_django/django/utils/encoding.py
+@@ -247,18 +247,18 @@
+     return quote(str(path).replace("\\", "/"), safe="/~!*()'")
+
+ 
+
+ 
+
+-def get_system_encoding():
+
+-    """
+
+-    The encoding for the character type functions. Fallback to 'ascii' if the
+
+-    #encoding is unsupported by Python or could not be determined. See tickets
+
+-    #10335 and #5846.
+
+-    """
+
+-    try:
+
+-        encoding = locale.getlocale()[1] or "ascii"
+
+-        codecs.lookup(encoding)
+
+-    except Exception:
+
+-        encoding = "ascii"
+
+-    return encoding
+
++from django.utils.html import json_script
+
++from django.core.serializers.json import DjangoJSONEncoder
+
++
+
++def json_script(value, encoder=DjangoJSONEncoder, safe=True):
+
++    """
+
++    Returns a JavaScript snippet that safely represents the given value.
+
++    
+
++    :param value: The value to be serialized to JSON.
+
++    :param encoder: The JSON encoder class to use. Defaults to DjangoJSONEncoder.
+
++    :param safe: Whether to escape the output for HTML safety. Defaults to True.
+
++    """
+
++    return json_script(value, encoder=encoder, safe=safe)
+
+ 
+
+ 
+
+ DEFAULT_LOCALE_ENCODING = get_system_encoding()

@@ -1,0 +1,192 @@
+--- a/decoupled/60/0.8_0.2/242/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/242/sympy_sympy/sympy/core/numbers.py
+@@ -438,71 +438,32 @@
+     return (x*x_sign, y*y_sign, a)
+
+ 
+
+ 
+
+-def mod_inverse(a, m):
+
++from sympy import SeqFormula, symbols, oo, init_printing
+
++
+
++def display_seqformula(expr, symbols):
+
+     """
+
+-    Return the number c such that, ( a * c ) % m == 1 where
+
+-    c has the same sign as a. If no such value exists, a
+
+-    ValueError is raised.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy import S
+
+-    >>> from sympy.core.numbers import mod_inverse
+
+-
+
+-    Suppose we wish to find multiplicative inverse x of
+
+-    3 modulo 11. This is the same as finding x such
+
+-    that 3 * x = 1 (mod 11). One value of x that satisfies
+
+-    this congruence is 4. Because 3 * 4 = 12 and 12 = 1 mod(11).
+
+-    This is the value return by mod_inverse:
+
+-
+
+-    >>> mod_inverse(3, 11)
+
+-    4
+
+-    >>> mod_inverse(-3, 11)
+
+-    -4
+
+-
+
+-    When there is a common factor between the numerators of
+
+-    ``a`` and ``m`` the inverse does not exist:
+
+-
+
+-    >>> mod_inverse(2, 4)
+
+-    Traceback (most recent call last):
+
+-    ...
+
+-    ValueError: inverse of 2 mod 4 does not exist
+
+-
+
+-    >>> mod_inverse(S(2)/7, S(5)/2)
+
+-    7/2
+
+-
+
+-    References
+
+-    ==========
+
+-    - https://en.wikipedia.org/wiki/Modular_multiplicative_inverse
+
+-    - https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
+
++    Display the SeqFormula without backslash-escaping the square brackets.
+
++    
+
++    Parameters:
+
++    expr (sympy.Expr): The expression defining the sequence.
+
++    symbols (tuple): A tuple of symbols used in the sequence definition.
+
++    
+
++    Returns:
+
++    str: The formatted sequence formula as a string.
+
+     """
+
+-    c = None
+
+-    try:
+
+-        a, m = as_int(a), as_int(m)
+
+-        if m > 1:
+
+-            x, y, g = igcdex(a, m)
+
+-            if g == 1:
+
+-                c = x % m
+
+-            if a < 0:
+
+-                c -= m
+
+-    except ValueError:
+
+-        a, m = sympify(a), sympify(m)
+
+-        if not (a.is_number and m.is_number):
+
+-            raise TypeError(filldedent('''
+
+-                Expected numbers for arguments; symbolic `mod_inverse`
+
+-                is not implemented
+
+-                but symbolic expressions can be handled with the
+
+-                similar function,
+
+-                sympy.polys.polytools.invert'''))
+
+-        big = (m > 1)
+
+-        if not (big is S.true or big is S.false):
+
+-            raise ValueError('m > 1 did not evaluate; try to simplify %s' % m)
+
+-        elif big:
+
+-            c = 1/a
+
+-    if c is None:
+
+-        raise ValueError('inverse of %s (mod %s) does not exist' % (a, m))
+
+-    return c
+
++    seq = SeqFormula(expr, symbols)
+
++    seq_str = str(seq)
+
++    # Replace the backslash before square brackets with just the square brackets
+
++    seq_str = seq_str.replace(r'\[', '[').replace(r'\]', ']')
+
++    return seq_str
+
++
+
++# Initialize printing
+
++k, m, n = symbols('k m n', integer=True)
+
++init_printing()
+
++
+
++# Display the sequence formula
+
++seq_str = display_seqformula(n**2, (n,))
+
++print(seq_str)
+
+ 
+
+ 
+
+ class Number(AtomicExpr):

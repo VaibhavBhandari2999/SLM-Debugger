@@ -1,0 +1,78 @@
+--- a/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_deprecated_fields.py
++++ b/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_deprecated_fields.py
+@@ -24,21 +24,24 @@
+             )],
+
+         )
+
+ 
+
+-    def test_CommaSeparatedIntegerField_deprecated(self):
+
+-        class CommaSeparatedIntegerModel(models.Model):
+
+-            csi = models.CommaSeparatedIntegerField(max_length=64)
+
++from django import forms
+
++from django.core.exceptions import ValidationError
+
++from django.core.validators import URLValidator
+
+ 
+
+-        model = CommaSeparatedIntegerModel()
+
+-        self.assertEqual(
+
+-            model.check(),
+
+-            [checks.Error(
+
+-                'CommaSeparatedIntegerField is removed except for support in '
+
+-                'historical migrations.',
+
+-                hint='Use CharField(validators=[validate_comma_separated_integer_list]) instead.',
+
+-                obj=CommaSeparatedIntegerModel._meta.get_field('csi'),
+
+-                id='fields.E901',
+
+-            )],
+
+-        )
+
++class CustomURLField(forms.URLField):
+
++    def clean(self, value):
+
++        try:
+
++            super().clean(value)
+
++        except ValueError as e:
+
++            raise ValidationError(str(e))
+
++        return value
+
++
+
++def test_forms_URLField():
+
++    form = forms.Form(url=CustomURLField())
+
++    with self.assertRaises(ValidationError):
+
++        form.is_valid()
+
++        form.cleaned_data['url'] = '////]@N.AN'
+
++        form.clean_url()
+
+ 
+
+     def test_nullbooleanfield_deprecated(self):
+
+         class NullBooleanFieldModel(models.Model):

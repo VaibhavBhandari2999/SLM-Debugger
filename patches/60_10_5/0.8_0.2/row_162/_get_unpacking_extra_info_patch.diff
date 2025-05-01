@@ -1,0 +1,57 @@
+--- a/decoupled/60/0.8_0.2/162/pylint-dev_pylint/pylint/checkers/variables.py
++++ b/decoupled/60/0.8_0.2/162/pylint-dev_pylint/pylint/checkers/variables.py
+@@ -150,6 +150,9 @@
+     return None
+
+ 
+
+ 
+
++import sys
+
++from pylint.config.exceptions import _UnrecognizedOptionError
+
++
+
+ def _get_unpacking_extra_info(node, inferred):
+
+     """Return extra information to add to the message for unpacking-non-sequence
+
+     and unbalanced-tuple-unpacking errors.
+
+@@ -164,6 +167,18 @@
+     elif inferred.lineno:
+
+         more = f" defined at line {inferred.lineno} of {inferred_module}"
+
+     return more
+
++
+
++def handle_unrecognized_option_error():
+
++    try:
+
++        # Simulate running pylint with an unrecognized option
+
++        pylint_result = pylint.run_pylint(["-Q"])
+
++    except _UnrecognizedOptionError as e:
+
++        # Provide a more user-friendly error message
+
++        unrecognized_options = e.options
+
++        usage_message = "usage: pylint [-h] [-v] [-V] [more options; see below]\n" \
+
++                        "pylint: error: unrecognized arguments: " + " ".join(unrecognized_options)
+
++        print(usage_message)
+
++        sys.exit(2)
+
+ 
+
+ 
+
+ def _detect_global_scope(node, frame, defframe):

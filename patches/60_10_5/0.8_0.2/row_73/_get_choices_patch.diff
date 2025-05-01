@@ -1,0 +1,40 @@
+--- a/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
++++ b/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_multiwidget.py
+@@ -70,11 +70,14 @@
+         """
+
+         self.widgets[0].choices = choices
+
+ 
+
+-    def _get_choices(self):
+
+-        """
+
+-        The choices for this widget are the Select widget's choices.
+
+-        """
+
+-        return self.widgets[0].choices
+
++class BoundWidget:
+
++    def id_for_label(self):
+
++        # Check if the 'id' attribute is present in the widget's attributes
+
++        if 'id' in self.data['attrs']:
+
++            return self.data['attrs']['id']
+
++        else:
+
++            # Fallback to the default format if 'id' is not present
+
++            return 'id_%s_%s' % (self.data['name'], self.data['index'])
+
+     choices = property(_get_choices, _set_choices)
+
+ 
+
+ 

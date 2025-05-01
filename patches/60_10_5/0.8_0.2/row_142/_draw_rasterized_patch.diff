@@ -1,0 +1,16 @@
+--- a/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -4594,4 +4594,6 @@
+             for a in self.artists:
+
+                 a.draw(renderer)
+
+ 
+
+-    return _MinimalArtist(figure, artists).draw(renderer)
+
++    # Create an instance of _MinimalArtist and draw the artists
+
++    minimal_artist = _MinimalArtist(figure, artists)
+
++    minimal_artist.draw(renderer)

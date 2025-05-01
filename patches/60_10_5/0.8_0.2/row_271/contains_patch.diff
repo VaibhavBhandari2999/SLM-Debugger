@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
+@@ -286,7 +286,7 @@
+     def _sup(self):
+
+         raise NotImplementedError("(%s)._sup" % self)
+
+ 
+
+-    def contains(self, other):
+
++def contains(self, other):
+
+         """
+
+         Returns a SymPy value indicating whether ``other`` is contained
+
+         in ``self``: ``true`` if it is, ``false`` if it isn't, else

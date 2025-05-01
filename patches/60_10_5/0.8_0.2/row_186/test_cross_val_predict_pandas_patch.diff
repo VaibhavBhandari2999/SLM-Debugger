@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
++++ b/decoupled/60/0.8_0.2/186/scikit-learn_scikit-learn/sklearn/model_selection/tests/test_validation.py
+@@ -947,6 +947,18 @@
+     assert_array_equal(predictions.shape, (150,))
+
+ 
+
+ 
+
++from sklearn.utils.validation import check_array, DataConversionWarning
+
++import pandas as pd
+
++
+
++def check_array_with_pandas_support(X, warn_on_dtype=True, **kwargs):
+
++    if isinstance(X, pd.DataFrame):
+
++        # Convert DataFrame to numpy array and trigger warning if necessary
+
++        X = X.values
+
++        if warn_on_dtype and X.dtype != object:
+
++            message = "Data with input dtype {} was converted to float64.".format(X.dtype)
+
++            warnings.warn(message, DataConversionWarning)
+
++    return check_array(X, warn_on_dtype=warn_on_dtype, **kwargs)
+
++
+
+ def test_cross_val_predict_pandas():
+
+     # check cross_val_score doesn't destroy pandas dataframe
+
+     types = [(MockDataFrame, MockDataFrame)]
+
+@@ -961,7 +973,7 @@
+         check_df = lambda x: isinstance(x, InputFeatureType)
+
+         check_series = lambda x: isinstance(x, TargetType)
+
+         clf = CheckingClassifier(check_X=check_df, check_y=check_series)
+
+-        cross_val_predict(clf, X_df, y_ser)
+
++        cross_val_predict(clf, X_df, y_ser, check_array=check_array_with_pandas_support)
+
+ 
+
+ 
+
+ def test_cross_val_score_sparse_fit_params():

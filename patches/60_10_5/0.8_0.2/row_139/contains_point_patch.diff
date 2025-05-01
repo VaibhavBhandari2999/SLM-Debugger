@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -489,7 +489,7 @@
+         return Path(transform.transform(self.vertices), self.codes,
+
+                     self._interpolation_steps)
+
+ 
+
+-    def contains_point(self, point, transform=None, radius=0.0):
+
++def contains_point(self, point, transform=None, radius=0.0):
+
+         """
+
+         Return whether the area enclosed by the path contains the given point.
+
+ 
+
+@@ -537,7 +537,13 @@
+         if transform and not transform.is_affine:
+
+             self = transform.transform_path(self)
+
+             transform = None
+
+-        return _path.point_in_path(point[0], point[1], radius, self, transform)
+
++
+
++        # Ensure the canvas is not None before accessing its methods
+
++        if self.ref_artist and self.ref_artist.figure and self.ref_artist.figure.canvas:
+
++            return _path.point_in_path(point[0], point[1], radius, self, transform)
+
++        else:
+
++            # Return a default value or handle the case where canvas is None
+
++            return False
+
+ 
+
+     def contains_points(self, points, transform=None, radius=0.0):
+
+         """

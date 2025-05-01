@@ -1,0 +1,174 @@
+--- a/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/tensor_functions.py
++++ b/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/tensor_functions.py
+@@ -369,43 +369,49 @@
+         return self.is_below_fermi and self.is_above_fermi
+
+ 
+
+     @property
+
+-    def preferred_index(self):
+
+-        """
+
+-        Returns the index which is preferred to keep in the final expression.
+
+-
+
+-        Explanation
+
+-        ===========
+
+-
+
+-        The preferred index is the index with more information regarding fermi
+
+-        level. If indices contain the same information, 'a' is preferred before
+
+-        'b'.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.functions.special.tensor_functions import KroneckerDelta
+
+-        >>> from sympy import Symbol
+
+-        >>> a = Symbol('a', above_fermi=True)
+
+-        >>> i = Symbol('i', below_fermi=True)
+
+-        >>> j = Symbol('j', below_fermi=True)
+
+-        >>> p = Symbol('p')
+
+-        >>> KroneckerDelta(p, i).preferred_index
+
+-        i
+
+-        >>> KroneckerDelta(p, a).preferred_index
+
+-        a
+
+-        >>> KroneckerDelta(i, j).preferred_index
+
+-        i
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        killable_index
+
+-
+
+-        """
+
+-        if self._get_preferred_index():
+
+-            return self.args[1]
+
+-        else:
+
+-            return self.args[0]
+
++def preferred_index(self):
+
++    """
+
++    Returns the index which is preferred to keep in the final expression.
+
++
+
++    Explanation
+
++    ===========
+
++
+
++    The preferred index is the index with more information regarding fermi
+
++    level. If indices contain the same information, 'a' is preferred before
+
++    'b'.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.functions.special.tensor_functions import KroneckerDelta
+
++    >>> from sympy import Symbol
+
++    >>> a = Symbol('a', above_fermi=True)
+
++    >>> i = Symbol('i', below_fermi=True)
+
++    >>> j = Symbol('j', below_fermi=True)
+
++    >>> p = Symbol('p')
+
++    >>> KroneckerDelta(p, i).preferred_index
+
++    i
+
++    >>> KroneckerDelta(p, a).preferred_index
+
++    a
+
++    >>> KroneckerDelta(i, j).preferred_index
+
++    i
+
++
+
++    See Also
+
++    ========
+
++
+
++    killable_index
+
++
+
++    """
+
++    if self.args[1].above_fermi and not self.args[0].above_fermi:
+
++        return self.args[1]
+
++    elif not self.args[1].above_fermi and self.args[0].above_fermi:
+
++        return self.args[0]
+
++    elif self.args[1].below_fermi and not self.args[0].below_fermi:
+
++        return self.args[1]
+
++    elif not self.args[1].below_fermi and self.args[0].below_fermi:
+
++        return self.args[0]
+
++    else:
+
++        return self.args[0] if self.args[0].name < self.args[1].name else self.args[1]
+
+ 
+
+     @property
+
+     def killable_index(self):

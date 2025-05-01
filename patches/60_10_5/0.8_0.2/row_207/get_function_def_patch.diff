@@ -1,0 +1,90 @@
+--- a/decoupled/60/0.8_0.2/207/sphinx-doc_sphinx/sphinx/ext/autodoc/preserve_defaults.py
++++ b/decoupled/60/0.8_0.2/207/sphinx-doc_sphinx/sphinx/ext/autodoc/preserve_defaults.py
+@@ -26,23 +26,27 @@
+         return self.name
+
+ 
+
+ 
+
+-def get_function_def(obj: Any) -> ast.FunctionDef:
+
+-    """Get FunctionDef object from living object.
+
+-    This tries to parse original code for living object and returns
+
+-    AST node for given *obj*.
+
+-    """
+
+-    try:
+
+-        source = inspect.getsource(obj)
+
+-        if source.startswith((' ', r'\t')):
+
+-            # subject is placed inside class or block.  To read its docstring,
+
+-            # this adds if-block before the declaration.
+
+-            module = ast_parse('if True:\n' + source)
+
+-            return module.body[0].body[0]  # type: ignore
+
+-        else:
+
+-            module = ast_parse(source)
+
+-            return module.body[0]  # type: ignore
+
+-    except (OSError, TypeError):  # failed to load source code
+
+-        return None
+
++from sphinx.ext.autodoc import Documenter, between, OptionSpec
+
++
+
++class CustomDocumenter(Documenter):
+
++    objtype = 'custom'
+
++    option_spec = {
+
++        'inherited-members': OptionSpec(list),
+
++    }
+
++
+
++    def add_inherited_members(self):
+
++        inherited_members = self.options.get('inherited-members', [])
+
++        for base_class in inherited_members:
+
++            if base_class not in self.ignored_bases:
+
++                self.document_inherited_members(base_class)
+
++
+
++    def document_inherited_members(self, base_class):
+
++        # Implement logic to document members from base_class
+
++        pass
+
++
+
++def setup(app):
+
++    app.add_autodocumenter(CustomDocumenter)
+
++    app.add_config_value('ignored_bases', [], 'env')
+
+ 
+
+ 
+
+ def get_default_value(lines: List[str], position: ast.AST) -> Optional[str]:

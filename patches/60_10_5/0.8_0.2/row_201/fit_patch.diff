@@ -1,0 +1,79 @@
+--- a/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
++++ b/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
+@@ -453,7 +453,7 @@
+         self.kernel_params = kernel_params
+
+         self.n_jobs = n_jobs
+
+ 
+
+-    def fit(self, X, y=None):
+
++def fit(self, X, y=None):
+
+         """Perform spectral clustering from features, or affinity matrix.
+
+ 
+
+         Parameters
+
+@@ -510,14 +510,22 @@
+                                                      **params)
+
+ 
+
+         random_state = check_random_state(self.random_state)
+
+-        self.labels_ = spectral_clustering(self.affinity_matrix_,
+
+-                                           n_clusters=self.n_clusters,
+
+-                                           n_components=self.n_components,
+
+-                                           eigen_solver=self.eigen_solver,
+
+-                                           random_state=random_state,
+
+-                                           n_init=self.n_init,
+
+-                                           eigen_tol=self.eigen_tol,
+
+-                                           assign_labels=self.assign_labels)
+
++        labels = spectral_clustering(self.affinity_matrix_,
+
++                                     n_clusters=self.n_clusters,
+
++                                     n_components=self.n_components,
+
++                                     eigen_solver=self.eigen_solver,
+
++                                     random_state=random_state,
+
++                                     n_init=self.n_init,
+
++                                     eigen_tol=self.eigen_tol,
+
++                                     assign_labels=self.assign_labels)
+
++        # Check if the clustering converged
+
++        if not hasattr(labels, 'shape') or labels.shape == (0,):
+
++            self.cluster_centers_indices_ = np.array([], dtype=int)
+
++            self.labels_ = np.full(X.shape[0], -1, dtype=int)
+
++        else:
+
++            self.labels_ = labels
+
++            self.cluster_centers_indices_ = np.unique(labels[labels != -1])
+
++
+
+         return self
+
+ 
+
+     def fit_predict(self, X, y=None):

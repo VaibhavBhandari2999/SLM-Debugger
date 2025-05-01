@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/87/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/87/django_django/django/db/models/query_utils.py
+@@ -188,14 +188,14 @@
+         return lookup
+
+ 
+
+     @classmethod
+
+-    def _unregister_lookup(cls, lookup, lookup_name=None):
+
+-        """
+
+-        Remove given lookup from cls lookups. For use in tests only as it's
+
+-        not thread-safe.
+
+-        """
+
+-        if lookup_name is None:
+
+-            lookup_name = lookup.lookup_name
+
+-        del cls.class_lookups[lookup_name]
+
++def _unregister_lookup(cls, lookup, lookup_name=None):
+
++    """
+
++    Remove given lookup from cls lookups. For use in tests only as it's
+
++    not thread-safe.
+
++    """
+
++    if lookup_name is None:
+
++        lookup_name = lookup.lookup_name
+
++    del cls.class_lookups[lookup_name]
+
+ 
+
+ 
+
+ def select_related_descend(field, restricted, requested, load_fields, reverse=False):

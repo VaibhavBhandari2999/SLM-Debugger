@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/257/sympy_sympy/sympy/solvers/diophantine.py
++++ b/decoupled/60/0.8_0.2/257/sympy_sympy/sympy/solvers/diophantine.py
+@@ -3220,6 +3220,9 @@
+                     yield t
+
+ 
+
+ 
+
++from sympy import Sum, oo, pprint
+
++from sympy.abc import x
+
++
+
+ def sum_of_squares(n, k, zeros=False):
+
+     """Return a generator that yields the k-tuples of nonnegative
+
+     values, the squares of which sum to n. If zeros is False (default)
+
+@@ -3266,6 +3269,13 @@
+     """
+
+     for t in power_representation(n, 2, k, zeros):
+
+         yield t
+
++
+
++# Example usage to demonstrate the fixed pretty-printing
+
++def example_usage():
+
++    expr = Sum(x, (x, 1, oo)) + 3
+
++    pprint(expr)
+
++
+
++example_usage()
+
+ 
+
+ 
+
+ def _can_do_sum_of_squares(n, k):

@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
++++ b/decoupled/60/0.8_0.2/136/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
+@@ -119,9 +119,16 @@
+         doc="The canvas of the figure affected by this tool, or None.")
+
+ 
+
+     @property
+
+-    def figure(self):
+
++def figure(self):
+
+         """The Figure affected by this tool, or None."""
+
+-        return self._figure
+
++        # Temporarily disable the draggable property before pickling
+
++        if self._figure is not None:
+
++            self._figure.legend().set_draggable(False)
+
++        result = self._figure
+
++        # Re-enable the draggable property after unpickling
+
++        if self._figure is not None:
+
++            self._figure.legend().set_draggable(True)
+
++        return result
+
+ 
+
+     @figure.setter
+
+     def figure(self, figure):

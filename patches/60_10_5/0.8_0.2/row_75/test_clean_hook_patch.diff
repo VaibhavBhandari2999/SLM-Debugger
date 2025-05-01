@@ -1,0 +1,113 @@
+--- a/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_formsets.py
++++ b/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_formsets.py
+@@ -749,6 +749,35 @@
+         self.assertTrue(formset.is_valid())
+
+         self.assertEqual(formset.ordered_forms, [])
+
+ 
+
++from django import forms
+
++from django.forms.formsets import formset_factory, BaseFormSet
+
++
+
++class FavoriteDrinksForm(forms.Form):
+
++    name = forms.CharField()
+
++
+
++class FavoriteDrinksFormSet(BaseFormSet):
+
++    def clean(self):
+
++        super().clean()
+
++        if any(self.errors):
+
++            return
+
++        names = []
+
++        for form in self.forms:
+
++            if form.cleaned_data:
+
++                name = form.cleaned_data['name']
+
++                if name in names:
+
++                    raise forms.ValidationError('You may only specify a drink once.', code='duplicate_drink')
+
++
+
++class CustomErrorList(forms.utils.ErrorList):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        self.prefix = 'nonform'  # Add the nonform prefix for non-form errors
+
++
+
++    def as_ul(self):
+
++        if not self:
+
++            return ''
+
++        return super().as_ul()
+
++
+
++class TestFormSets:
+
+     def test_clean_hook(self):
+
+         """
+
+         FormSets have a clean() hook for doing extra validation that isn't tied
+
+@@ -763,15 +792,18 @@
+             'drinks-0-name': 'Gin and Tonic',
+
+             'drinks-1-name': 'Gin and Tonic',
+
+         }
+
+-        formset = FavoriteDrinksFormSet(data, prefix='drinks')
+
++        formset = formset_factory(FavoriteDrinksForm, formset=FavoriteDrinksFormSet, extra=2)(data, prefix='drinks')
+
++        formset.error_class = CustomErrorList  # Use the custom ErrorList
+
+         self.assertFalse(formset.is_valid())
+
+         # Any errors raised by formset.clean() are available via the
+
+         # formset.non_form_errors() method.
+
+         for error in formset.non_form_errors():
+
+             self.assertEqual(str(error), 'You may only specify a drink once.')
+
++            self.assertIn('nonform', error.tag)  # Check that the error has the nonform class
+
+         # The valid case still works.
+
+         data['drinks-1-name'] = 'Bloody Mary'
+
+-        formset = FavoriteDrinksFormSet(data, prefix='drinks')
+
++        formset = formset_factory(FavoriteDrinksForm, formset=FavoriteDrinksFormSet, extra=2)(data, prefix='drinks')
+
++        formset.error_class = CustomErrorList  # Use the custom ErrorList
+
+         self.assertTrue(formset.is_valid())
+
+         self.assertEqual(formset.non_form_errors(), [])
+
+ 

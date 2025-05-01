@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/82/django_django/django/forms/forms.py
++++ b/decoupled/60/0.8_0.2/82/django_django/django/forms/forms.py
+@@ -24,7 +24,7 @@
+ 
+
+ class DeclarativeFieldsMetaclass(MediaDefiningClass):
+
+     """Collect Fields declared on the base classes."""
+
+-    def __new__(mcs, name, bases, attrs):
+
++def __new__(mcs, name, bases, attrs):
+
+         # Collect fields from current class and remove them from attrs.
+
+         attrs['declared_fields'] = {
+
+             key: attrs.pop(key) for key, value in list(attrs.items())
+
+@@ -38,7 +38,13 @@
+         for base in reversed(new_class.__mro__):
+
+             # Collect fields from base class.
+
+             if hasattr(base, 'declared_fields'):
+
+-                declared_fields.update(base.declared_fields)
+
++                for key, field in base.declared_fields.items():
+
++                    # Use the model instance's primary key as the key in the dictionary
+
++                    if isinstance(field, ModelChoiceField):
+
++                        # Assuming the model has a primary key 'id'
+
++                        declared_fields[field.queryset.model._meta.pk.name] = field
+
++                    else:
+
++                        declared_fields[key] = field
+
+ 
+
+             # Field shadowing.
+
+             for attr, value in base.__dict__.items():

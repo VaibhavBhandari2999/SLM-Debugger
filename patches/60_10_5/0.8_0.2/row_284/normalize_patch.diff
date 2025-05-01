@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/284/sympy_sympy/sympy/matrices/expressions/slice.py
++++ b/decoupled/60/0.8_0.2/284/sympy_sympy/sympy/matrices/expressions/slice.py
+@@ -24,6 +24,12 @@
+ 
+
+     if ((stop - start) * step < 1) == True:
+
+         raise IndexError()
+
++
+
++    # Explicitly handle assumptions and Piecewise structure
+
++    if isinstance(start, Expr) and isinstance(stop, Expr) and isinstance(step, Expr):
+
++        start = start.subs({1: 1.0})
+
++        stop = stop.subs({1: 1.0})
+
++        step = step.subs({1: 1.0})
+
+ 
+
+     return (start, stop, step)
+
+ 

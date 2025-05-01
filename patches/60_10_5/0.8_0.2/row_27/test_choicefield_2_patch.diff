@@ -1,0 +1,50 @@
+--- a/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
++++ b/decoupled/60/0.8_0.2/27/django_django/tests/forms_tests/field_tests/test_choicefield.py
+@@ -18,12 +18,20 @@
+         with self.assertRaisesMessage(ValidationError, msg):
+
+             f.clean('3')
+
+ 
+
+-    def test_choicefield_2(self):
+
+-        f = ChoiceField(choices=[('1', 'One'), ('2', 'Two')], required=False)
+
++def test_choicefield_2(self):
+
++        from django.db import models
+
++        from django.utils.translation import gettext_lazy as _
+
++        from django.core.exceptions import ValidationError
+
++
+
++        class MyChoice(models.TextChoices):
+
++            FIRST_CHOICE = "first", _("The first choice, it is")
+
++            SECOND_CHOICE = "second", _("The second choice, it is")
+
++
+
++        f = ChoiceField(choices=MyChoice.choices, required=False)
+
+         self.assertEqual('', f.clean(''))
+
+         self.assertEqual('', f.clean(None))
+
+-        self.assertEqual('1', f.clean(1))
+
+-        self.assertEqual('1', f.clean('1'))
+
++        self.assertEqual(MyChoice.FIRST_CHOICE, f.clean('first'))
+
++        self.assertEqual(MyChoice.FIRST_CHOICE, f.clean(MyChoice.FIRST_CHOICE))
+
+         msg = "'Select a valid choice. 3 is not one of the available choices.'"
+
+         with self.assertRaisesMessage(ValidationError, msg):
+
+             f.clean('3')

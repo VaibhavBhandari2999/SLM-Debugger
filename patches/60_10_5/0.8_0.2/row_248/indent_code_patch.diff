@@ -1,0 +1,112 @@
+--- a/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/printing/octave.py
++++ b/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/printing/octave.py
+@@ -494,36 +494,25 @@
+             return "\n".join(lines)
+
+ 
+
+ 
+
+-    def indent_code(self, code):
+
+-        """Accepts a string of code or a list of code lines"""
+
+-
+
+-        # code mostly copied from ccode
+
+-        if isinstance(code, string_types):
+
+-            code_lines = self.indent_code(code.splitlines(True))
+
+-            return ''.join(code_lines)
+
+-
+
+-        tab = "  "
+
+-        inc_regex = ('^function ', '^if ', '^elseif ', '^else$', '^for ')
+
+-        dec_regex = ('^end$', '^elseif ', '^else$')
+
+-
+
+-        # pre-strip left-space from the code
+
+-        code = [ line.lstrip(' \t') for line in code ]
+
+-
+
+-        increase = [ int(any([search(re, line) for re in inc_regex]))
+
+-                     for line in code ]
+
+-        decrease = [ int(any([search(re, line) for re in dec_regex]))
+
+-                     for line in code ]
+
+-
+
+-        pretty = []
+
+-        level = 0
+
+-        for n, line in enumerate(code):
+
+-            if line == '' or line == '\n':
+
+-                pretty.append(line)
+
+-                continue
+
+-            level -= decrease[n]
+
+-            pretty.append("%s%s" % (tab*level, line))
+
+-            level += increase[n]
+
+-        return pretty
+
++from sympy.printing.pretty.pretty import PrettyPrinter
+
++
+
++class CustomPrettyPrinter(PrettyPrinter):
+
++    def _print_MatAdd(self, expr):
+
++        # Get the arguments of the MatAdd expression
+
++        args = expr.args
+
++        
+
++        # Determine the number of lines needed for the expression
+
++        lines_needed = 1 + max(self._print(arg) for arg in args).count('\n')
+
++        
+
++        # Start with the first argument
+
++        result = self._print(args[0])
+
++        
+
++        # Add the rest of the arguments, ensuring proper indentation
+
++        for arg in args[1:]:
+
++            result += '\n' + ' ' * (len(result) - len(result.lstrip()))
+
++            result += self._print(arg)
+
++        
+
++        return result
+
+ 
+
+ 
+
+ def octave_code(expr, assign_to=None, **settings):

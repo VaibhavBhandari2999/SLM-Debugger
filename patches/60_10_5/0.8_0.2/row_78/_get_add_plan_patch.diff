@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/78/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/78/django_django/django/db/models/fields/related_descriptors.py
+@@ -1085,7 +1085,7 @@
+             })
+
+             return target_ids.difference(vals)
+
+ 
+
+-        def _get_add_plan(self, db, source_field_name):
+
++def _get_add_plan(self, db, source_field_name):
+
+             """
+
+             Return a boolean triple of the way the add should be performed.
+
+ 
+
+@@ -1094,6 +1094,10 @@
+             the third element is whether or not the immediate bulk insertion
+
+             with conflicts ignored can be performed.
+
+             """
+
++            # Check if the field is symmetrical or self-referential
+
++            if self.symmetrical or (self.model is self.model._meta.proxy_for_model and self.remote_field.model is self.model):
+
++                raise ValueError("Cannot define a related_name on symmetrical ManyToManyFields or self-referential ManyToManyFields.")
+
++            
+
+             # Conflicts can be ignored when the intermediary model is
+
+             # auto-created as the only possible collision is on the
+
+             # (source_id, target_id) tuple. The same assertion doesn't hold for

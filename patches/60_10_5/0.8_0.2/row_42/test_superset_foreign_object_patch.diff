@@ -1,0 +1,192 @@
+--- a/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -1580,41 +1580,60 @@
+             ),
+
+         ])
+
+ 
+
+-    def test_superset_foreign_object(self):
+
+-        class Parent(models.Model):
+
+-            a = models.PositiveIntegerField()
+
+-            b = models.PositiveIntegerField()
+
+-            c = models.PositiveIntegerField()
+
+-
+
+-            class Meta:
+
+-                unique_together = (('a', 'b', 'c'),)
+
+-
+
+-        class Child(models.Model):
+
+-            a = models.PositiveIntegerField()
+
+-            b = models.PositiveIntegerField()
+
+-            value = models.CharField(max_length=255)
+
+-            parent = models.ForeignObject(
+
+-                Parent,
+
+-                on_delete=models.SET_NULL,
+
+-                from_fields=('a', 'b'),
+
+-                to_fields=('a', 'b'),
+
+-                related_name='children',
+
+-            )
+
+-
+
+-        field = Child._meta.get_field('parent')
+
+-        self.assertEqual(field.check(from_model=Child), [
+
+-            Error(
+
+-                "No subset of the fields 'a', 'b' on model 'Parent' is unique.",
+
+-                hint=(
+
+-                    'Mark a single field as unique=True or add a set of '
+
+-                    'fields to a unique constraint (via unique_together or a '
+
+-                    'UniqueConstraint (without condition) in the model '
+
+-                    'Meta.constraints).'
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E310',
+
+-            ),
+
+-        ])
+
++def test_superset_foreign_object(self):
+
++    class Parent(models.Model):
+
++        a = models.PositiveIntegerField()
+
++        b = models.PositiveIntegerField()
+
++        c = models.PositiveIntegerField()
+
++
+
++        class Meta:
+
++            unique_together = (('a', 'b', 'c'),)
+
++
+
++    class Child(models.Model):
+
++        a = models.PositiveIntegerField()
+
++        b = models.PositiveIntegerField()
+
++        value = models.CharField(max_length=255)
+
++        parent = models.ForeignObject(
+
++            Parent,
+
++            on_delete=models.SET_NULL,
+
++            from_fields=('a', 'b'),
+
++            to_fields=('a', 'b'),
+
++            related_name='children',
+
++        )
+
++
+
++    field = Child._meta.get_field('parent')
+
++    # Check for the existence of fields in the UniqueConstraint
+
++    unique_constraint_fields = Parent._meta.unique_constraints[0].fields
+
++    errors = []
+
++    for field_name in unique_constraint_fields:
+
++        if not hasattr(Parent, field_name):
+
++            errors.append(
+
++                Error(
+
++                    f"No field named '{field_name}' on model 'Parent'.",
+
++                    hint=(
+
++                        'Ensure that the field names in the UniqueConstraint '
+
++                        'exist on the related model.'
+
++                    ),
+
++                    obj=field,
+
++                    id='fields.E012',
+
++                )
+
++            )
+
++    if errors:
+
++        return errors
+
++
+
++    self.assertEqual(field.check(from_model=Child), [
+
++        Error(
+
++            "No subset of the fields 'a', 'b' on model 'Parent' is unique.",
+
++            hint=(
+
++                'Mark a single field as unique=True or add a set of '
+
++                'fields to a unique constraint (via unique_together or a '
+
++                'UniqueConstraint (without condition) in the model '
+
++                'Meta.constraints).'
+
++            ),
+
++            obj=field,
+
++            id='fields.E310',
+
++        ),
+
++    ])
+
+ 
+
+     def test_intersection_foreign_object(self):
+
+         class Parent(models.Model):

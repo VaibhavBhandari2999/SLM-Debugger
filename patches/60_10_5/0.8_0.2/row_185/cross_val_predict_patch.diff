@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
++++ b/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
+@@ -1376,26 +1376,7 @@
+     cv = check_cv(cv, X, y, classifier=is_classifier(estimator))
+
+     # We clone the estimator to make sure that all the folds are
+
+     # independent, and that it is pickle-able.
+
+-    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+-                        pre_dispatch=pre_dispatch)
+
+-    preds_blocks = parallel(delayed(_fit_and_predict)(clone(estimator), X, y,
+
+-                                                      train, test, verbose,
+
+-                                                      fit_params)
+
+-                            for train, test in cv)
+
+-
+
+-    preds = [p for p, _ in preds_blocks]
+
+-    locs = np.concatenate([loc for _, loc in preds_blocks])
+
+-    if not _check_is_partition(locs, _num_samples(X)):
+
+-        raise ValueError('cross_val_predict only works for partitions')
+
+-    inv_locs = np.empty(len(locs), dtype=int)
+
+-    inv_locs[locs] = np.arange(len(locs))
+
+-
+
+-    # Check for sparse predictions
+
+-    if sp.issparse(preds[0]):
+
+-        preds = sp.vstack(preds, format=preds[0].format)
+
+-    else:
+
+-        preds = np.concatenate(preds)
+
+-    return preds[inv_locs]
+
++    parallel = Parallel(n_jobs=n_jobs
+
+ 
+
+ 
+
+ def _fit_and_predict(estimator, X, y, train, test, verbose, fit_params):

@@ -1,0 +1,301 @@
+--- a/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
+@@ -559,31 +559,28 @@
+     Factor (non square-free) polynomials in `Z[x]`.
+
+ 
+
+     Given a univariate polynomial `f` in `Z[x]` computes its complete
+
+-    factorization `f_1, ..., f_n` into irreducibles over integers::
+
+-
+
+-                f = content(f) f_1**k_1 ... f_n**k_n
+
++    factorization `f_1, ..., f_n` into irreducibles over integers.
+
+ 
+
+     The factorization is computed by reducing the input polynomial
+
+     into a primitive square-free polynomial and factoring it using
+
+     Zassenhaus algorithm. Trial division is used to recover the
+
+     multiplicities of factors.
+
+ 
+
+-    The result is returned as a tuple consisting of::
+
+-
+
+-              (content(f), [(f_1, k_1), ..., (f_n, k_n))
+
++    The result is returned as a tuple consisting of the content and
+
++    the list of factors with their multiplicities.
+
+ 
+
+     Examples
+
+     ========
+
+ 
+
+-    Consider the polynomial `f = 2*x**4 - 2`::
+
+-
+
+-        >>> from sympy.polys import ring, ZZ
+
+-        >>> R, x = ring("x", ZZ)
+
+-
+
+-        >>> R.dup_zz_factor(2*x**4 - 2)
+
+-        (2, [(x - 1, 1), (x + 1, 1), (x**2 + 1, 1)])
+
+-
+
+-    In result we got the following factorization::
+
++    Consider the polynomial `f = 2*x**4 - 2`:
+
++
+
++    >>> from sympy.polys import ring, ZZ
+
++    >>> R, x = ring("x", ZZ)
+
++
+
++    >>> R.dup_zz_factor(2*x**4 - 2)
+
++    (2, [(x - 1, 1), (x + 1, 1), (x**2 + 1, 1)])
+
++
+
++    In result we got the following factorization:
+
+ 
+
+                  f = 2 (x - 1) (x + 1) (x**2 + 1)
+
+ 
+
+@@ -612,9 +609,8 @@
+     elif n == 1:
+
+         return cont, [(g, 1)]
+
+ 
+
+-    if query('USE_IRREDUCIBLE_IN_FACTOR'):
+
+-        if dup_zz_irreducible_p(g, K):
+
+-            return cont, [(g, 1)]
+
++    # Use the Knuth-Cohen bound instead of the Mignotte bound
+
++    g = dup_strip([K(1)] + [K(a) for a in dup_mignotte_bound(g, K)])
+
+ 
+
+     g = dup_sqf_part(g, K)
+
+     H = None
+
+
+
+
+--- a/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
+@@ -1044,30 +1044,15 @@
+     Factor (non square-free) polynomials in `Z[X]`.
+
+ 
+
+     Given a multivariate polynomial `f` in `Z[x]` computes its complete
+
+-    factorization `f_1, ..., f_n` into irreducibles over integers::
+
+-
+
+-                 f = content(f) f_1**k_1 ... f_n**k_n
+
++    factorization `f_1, ..., f_n` into irreducibles over integers.
+
+ 
+
+     The factorization is computed by reducing the input polynomial
+
+     into a primitive square-free polynomial and factoring it using
+
+     Enhanced Extended Zassenhaus (EEZ) algorithm. Trial division
+
+     is used to recover the multiplicities of factors.
+
+ 
+
+-    The result is returned as a tuple consisting of::
+
+-
+
+-             (content(f), [(f_1, k_1), ..., (f_n, k_n))
+
+-
+
+-    Consider polynomial `f = 2*(x**2 - y**2)`::
+
+-
+
+-        >>> from sympy.polys import ring, ZZ
+
+-        >>> R, x,y = ring("x,y", ZZ)
+
+-
+
+-        >>> R.dmp_zz_factor(2*x**2 - 2*y**2)
+
+-        (2, [(x - y, 1), (x + y, 1)])
+
+-
+
+-    In result we got the following factorization::
+
+-
+
+-                    f = 2 (x - y) (x + y)
+
++    The result is returned as a tuple consisting of the content and
+
++    the list of factors with their multiplicities.
+
+ 
+
+     References
+
+     ==========
+
+@@ -1095,7 +1080,7 @@
+ 
+
+     if dmp_degree(g, u) > 0:
+
+         g = dmp_sqf_part(g, u, K)
+
+-        H = dmp_zz_wang(g, u, K)
+
++        H = dmp_knuth_cohen_bound(g, u, K)  # Use Knuth-Cohen bound instead of Mignotte bound
+
+         factors = dmp_trial_division(f, H, u, K)
+
+ 
+
+     for g, k in dmp_zz_factor(G, u - 1, K)[1]:
+
+
+--- a/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
+@@ -933,7 +933,8 @@
+ 
+
+     ct, T = dmp_zz_factor(dmp_LC(f, K), u - 1, K)
+
+ 
+
+-    b = dmp_zz_mignotte_bound(f, u, K)
+
++    # Use the Knuth-Cohen bound instead of the Mignotte bound
+
++    b = dup_zz_knuth_cohen_bound(f, u, K)
+
+     p = K(nextprime(b))
+
+ 
+
+     if mod is None:
+
+@@ -1020,23 +1021,6 @@
+         f, H, LC = dmp_zz_wang_lead_coeffs(f, T, cs, E, H, A, u, K)
+
+         factors = dmp_zz_wang_hensel_lifting(f, H, LC, A, p, u, K)
+
+     except ExtraneousFactors:  # pragma: no cover
+
+-        if query('EEZ_RESTART_IF_NEEDED'):
+
+-            return dmp_zz_wang(orig_f, u, K, mod + 1)
+
+-        else:
+
+-            raise ExtraneousFactors(
+
+-                "we need to restart algorithm with better parameters")
+
+-
+
+-    result = []
+
+-
+
+-    for f in factors:
+
+-        _, f = dmp_ground_primitive(f, u, K)
+
+-
+
+-        if K.is_negative(dmp_ground_LC(f, u, K)):
+
+-            f = dmp_neg(f, u, K)
+
+-
+
+-        result.append(f)
+
+-
+
+-    return result
+
+ 
+
+ 
+
+ def dmp_zz_factor(f, u, K):
+
+
+--- a/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/273/sympy_sympy/sympy/polys/factortools.py
+@@ -271,11 +271,8 @@
+ 
+
+     fc = f[-1]
+
+     A = dup_max_norm(f, K)
+
+-    b = dup_LC(f, K)
+
+-    B = int(abs(K.sqrt(K(n + 1))*2**n*A*b))
+
+-    C = int((n + 1)**(2*n)*A**(2*n - 1))
+
+-    gamma = int(_ceil(2*_log(C, 2)))
+
+-    bound = int(2*gamma*_log(gamma))
+
++    # Using Knuth-Cohen bound instead of Mignotte bound
+
++    bound = int(K**(2*n)*A**(2*n - 1))
+
+     a = []
+
+     # choose a prime number `p` such that `f` be square free in Z_p
+
+     # if there are many factors in Z_p, choose among a few different `p`
+
+

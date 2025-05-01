@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/93/django_django/tests/contenttypes_tests/operations_migrations/0002_rename_foo.py
++++ b/decoupled/60/0.8_0.2/93/django_django/tests/contenttypes_tests/operations_migrations/0002_rename_foo.py
+@@ -1,7 +1,7 @@
+ from django.db import migrations
+
+ 
+
+ 
+
+-def assert_foo_contenttype_not_cached(apps, schema_editor):
+
++def process_http_request(request, apps, schema_editor):
+
+     ContentType = apps.get_model("contenttypes", "ContentType")
+
+     try:
+
+         content_type = ContentType.objects.get_by_natural_key(
+
+@@ -22,6 +22,12 @@
+                 "its model set to 'foo'."
+
+             )
+
+ 
+
++    # Process the If-Modified-Since header
+
++    if 'If-Modified-Since' in request.headers:
+
++        if request.headers['If-Modified-Since'] == '':
+
++            # Ignore empty If-Modified-Since header
+
++            request.headers['If-Modified-Since'] = None
+
++
+
+ 
+
+ class Migration(migrations.Migration):
+
+ 

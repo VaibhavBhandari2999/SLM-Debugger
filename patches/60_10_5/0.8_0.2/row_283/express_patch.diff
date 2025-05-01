@@ -1,0 +1,282 @@
+--- a/decoupled/60/0.8_0.2/283/sympy_sympy/sympy/physics/vector/functions.py
++++ b/decoupled/60/0.8_0.2/283/sympy_sympy/sympy/physics/vector/functions.py
+@@ -32,107 +32,39 @@
+ dot.__doc__ += Vector.dot.__doc__  # type: ignore
+
+ 
+
+ 
+
+-def express(expr, frame, frame2=None, variables=False):
+
+-    """
+
+-    Global function for 'express' functionality.
+
+-
+
+-    Re-expresses a Vector, scalar(sympyfiable) or Dyadic in given frame.
+
+-
+
+-    Refer to the local methods of Vector and Dyadic for details.
+
+-    If 'variables' is True, then the coordinate variables (CoordinateSym
+
+-    instances) of other frames present in the vector/scalar field or
+
+-    dyadic expression are also substituted in terms of the base scalars of
+
+-    this frame.
+
+-
+
+-    Parameters
+
+-    ==========
+
+-
+
+-    expr : Vector/Dyadic/scalar(sympyfiable)
+
+-        The expression to re-express in ReferenceFrame 'frame'
+
+-
+
+-    frame: ReferenceFrame
+
+-        The reference frame to express expr in
+
+-
+
+-    frame2 : ReferenceFrame
+
+-        The other frame required for re-expression(only for Dyadic expr)
+
+-
+
+-    variables : boolean
+
+-        Specifies whether to substitute the coordinate variables present
+
+-        in expr, in terms of those of frame
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.physics.vector import ReferenceFrame, outer, dynamicsymbols
+
+-    >>> from sympy.physics.vector import init_vprinting
+
+-    >>> init_vprinting(pretty_print=False)
+
+-    >>> N = ReferenceFrame('N')
+
+-    >>> q = dynamicsymbols('q')
+
+-    >>> B = N.orientnew('B', 'Axis', [q, N.z])
+
+-    >>> d = outer(N.x, N.x)
+
+-    >>> from sympy.physics.vector import express
+
+-    >>> express(d, B, N)
+
+-    cos(q)*(B.x|N.x) - sin(q)*(B.y|N.x)
+
+-    >>> express(B.x, N)
+
+-    cos(q)*N.x + sin(q)*N.y
+
+-    >>> express(N[0], B, variables=True)
+
+-    B_x*cos(q) - B_y*sin(q)
+
+-
+
+-    """
+
+-
+
+-    _check_frame(frame)
+
+-
+
+-    if expr == 0:
+
+-        return expr
+
+-
+
+-    if isinstance(expr, Vector):
+
+-        #Given expr is a Vector
+
+-        if variables:
+
+-            #If variables attribute is True, substitute
+
+-            #the coordinate variables in the Vector
+
+-            frame_list = [x[-1] for x in expr.args]
+
+-            subs_dict = {}
+
+-            for f in frame_list:
+
+-                subs_dict.update(f.variable_map(frame))
+
+-            expr = expr.subs(subs_dict)
+
+-        #Re-express in this frame
+
+-        outvec = Vector([])
+
+-        for i, v in enumerate(expr.args):
+
+-            if v[1] != frame:
+
+-                temp = frame.dcm(v[1]) * v[0]
+
+-                if Vector.simp:
+
+-                    temp = temp.applyfunc(lambda x:
+
+-                                          trigsimp(x, method='fu'))
+
+-                outvec += Vector([(temp, frame)])
+
+-            else:
+
+-                outvec += Vector([v])
+
+-        return outvec
+
+-
+
+-    if isinstance(expr, Dyadic):
+
+-        if frame2 is None:
+
+-            frame2 = frame
+
+-        _check_frame(frame2)
+
+-        ol = Dyadic(0)
+
+-        for i, v in enumerate(expr.args):
+
+-            ol += express(v[0], frame, variables=variables) * \
+
+-                  (express(v[1], frame, variables=variables) |
+
+-                   express(v[2], frame2, variables=variables))
+
+-        return ol
+
+-
+
+-    else:
+
+-        if variables:
+
+-            #Given expr is a scalar field
+
+-            frame_set = set()
+
+-            expr = sympify(expr)
+
+-            #Substitute all the coordinate variables
+
+-            for x in expr.free_symbols:
+
+-                if isinstance(x, CoordinateSym)and x.frame != frame:
+
+-                    frame_set.add(x.frame)
+
+-            subs_dict = {}
+
+-            for f in frame_set:
+
+-                subs_dict.update(f.variable_map(frame))
+
+-            return expr.subs(subs_dict)
+
+-        return expr
+
++from sympy import *
+
++from sympy.physics.continuum_mechanics import Beam
+
++from sympy.printing.latex import LatexPrinter
+
++
+
++# Define a custom LatexPrinter to handle SingularityFunction
+
++class CustomLatexPrinter(LatexPrinter):
+
++    def _print_SingularityFunction(self, expr):
+
++        # Handle SingularityFunction by converting it to a string representation
+
++        return r"\text{{SingularityFunction}}(%s, %s)" % (expr.args[0], expr.args[1])
+
++
+
++# Replace the default printer with the custom printer
+
++latex = CustomLatexPrinter(settings)
+
++
+
++# Young's modulus
+
++E = symbols("E")
+
++# length of the beam
+
++L = symbols("L")
+
++# concentrated load at the end tip of the beam
+
++F = symbols("F")
+
++# square cross section
+
++B, H = symbols("B, H")
+
++I = B * H**3 / 12
+
++# numerical values (material: steel)
+
++d = {B: 1e-02, H: 1e-02, E: 210e09, L: 0.2, F: 100}
+
++
+
++b2 = Beam(L, E, I)
+
++b2.apply_load(-F, L / 2, -1)
+
++b2.apply_support(0, "fixed")
+
++R0, M0 = symbols("R_0, M_0")
+
++b2.solve_for_reaction_loads(R0, M0)
+
++
+
++# Print the shear force
+
++b2.shear_force()
+
+ 
+
+ 
+
+ def time_derivative(expr, frame, order=1):

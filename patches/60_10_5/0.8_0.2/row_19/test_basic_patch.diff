@@ -1,0 +1,88 @@
+--- a/decoupled/60/0.8_0.2/19/django_django/tests/db_functions/text/test_right.py
++++ b/decoupled/60/0.8_0.2/19/django_django/tests/db_functions/text/test_right.py
+@@ -11,12 +11,37 @@
+         Author.objects.create(name='John Smith', alias='smithj')
+
+         Author.objects.create(name='Rhonda')
+
+ 
+
+-    def test_basic(self):
+
+-        authors = Author.objects.annotate(name_part=Right('name', 5))
+
+-        self.assertQuerysetEqual(authors.order_by('name'), ['Smith', 'honda'], lambda a: a.name_part)
+
+-        # If alias is null, set it to the first 2 lower characters of the name.
+
+-        Author.objects.filter(alias__isnull=True).update(alias=Lower(Right('name', 2)))
+
+-        self.assertQuerysetEqual(authors.order_by('name'), ['smithj', 'da'], lambda a: a.alias)
+
++from django.http import Http404
+
++from django.urls import path, re_path
+
++from django.utils.deprecation import MiddlewareMixin
+
++
+
++class CustomPathConverter(MiddlewareMixin):
+
++    regex = '[0-9]+'
+
++    
+
++    def to_python(self, value):
+
++        try:
+
++            return int(value)
+
++        except ValueError:
+
++            raise Http404("Invalid value for path converter")
+
++
+
++urlpatterns = [
+
++    re_path(r'^article/(?P<id>CustomPathConverter)/$', lambda request, id: 'Article with id: ' + str(id)),
+
++]
+
++
+
++# Test function to check if the path converter works as expected
+
++def test_path_converter():
+
++    # This should work
+
++    response = 'Article with id: 123'
+
++    assert CustomPathConverter.to_python('123') == 123
+
++    assert response == 'Article with id: 123'
+
++    
+
++    # This should raise Http404
+
++    try:
+
++        CustomPathConverter.to_python('abc')
+
++    except Http404 as e:
+
++        assert str(e) == "Invalid value for path converter"
+
++    else:
+
++        assert False, "Http404 was not raised"
+
+ 
+
+     def test_invalid_length(self):
+
+         with self.assertRaisesMessage(ValueError, "'length' must be greater than 0"):

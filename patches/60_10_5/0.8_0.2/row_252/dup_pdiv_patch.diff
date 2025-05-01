@@ -1,0 +1,64 @@
+--- a/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/252/sympy_sympy/sympy/polys/densearith.py
+@@ -1052,6 +1052,31 @@
+ 
+
+     return q, r
+
+ 
+
++# Test cases
+
++from sympy.polys.domains import ZZ
+
++from sympy.polys.rings import ring
+
++
+
++# Test case 1
+
++R, x = ring("x", ZZ)
+
++f = x**2 + 1
+
++g = 2*x - 4
+
++q, r = dup_pdiv(f, g, R)
+
++print(f"Test case 1: q = {q}, r = {r}")
+
++
+
++# Test case 2
+
++R, x = ring("x", ZZ)
+
++f = x**3 + 2*x**2 + 3*x + 4
+
++g = x + 1
+
++q, r = dup_pdiv(f, g, R)
+
++print(f"Test case 2: q = {q}, r = {r}")
+
++
+
++# Test case 3
+
++R, x = ring("x", ZZ)
+
++f = x**2 + 1
+
++g = x**2 - 1
+
++q, r = dup_pdiv(f, g, R)
+
++print(f"Test case 3: q = {q}, r = {r}")
+
++
+
+ 
+
+ def dup_prem(f, g, K):
+
+     """

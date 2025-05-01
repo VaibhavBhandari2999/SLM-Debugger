@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/14/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/14/django_django/tests/delete/tests.py
+@@ -511,14 +511,24 @@
+         self.assertNumQueries(2, a.delete)
+
+         self.assertEqual(User.objects.count(), 0)
+
+ 
+
+-    def test_fast_delete_empty_no_update_can_self_select(self):
+
++def test_fast_delete_empty_no_update_can_self_select(self):
+
+         """
+
+         #25932 - Fast deleting on backends that don't have the
+
+         `no_update_can_self_select` feature should work even if the specified
+
+         filter doesn't match any row.
+
+         """
+
+         with self.assertNumQueries(1):
+
++            # Delete instances that match the filter
+
++            deleted_count, model_deletions = User.objects.filter(avatar__desc='missing').delete()
+
++            # Ensure that the PKs are set to None after deletion
+
++            for model_name, count in model_deletions.items():
+
++                for model_instance in model_deletions[model_name]:
+
++                    self.assertIsNone(model_instance.pk)
+
+             self.assertEqual(
+
+-                User.objects.filter(avatar__desc='missing').delete(),
+
+-                (0, {'delete.User': 0})
+
++                deleted_count, 0,
+
++                msg=f"Expected 0 deletions, but {deleted_count} were performed."
+
+             )
+
++            self.assertEqual(
+
++                model_deletions, {'delete.User': 0},
+
++                msg=f"Expected {'delete.User': 0} deletions, but {model_deletions} were performed."
+
++            )

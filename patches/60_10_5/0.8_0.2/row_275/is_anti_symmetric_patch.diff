@@ -1,0 +1,224 @@
+--- a/decoupled/60/0.8_0.2/275/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/275/sympy_sympy/sympy/matrices/common.py
+@@ -1355,76 +1355,41 @@
+         """
+
+         return self._eval_has(*patterns)
+
+ 
+
+-    def is_anti_symmetric(self, simplify=True):
+
+-        """Check if matrix M is an antisymmetric matrix,
+
+-        that is, M is a square matrix with all M[i, j] == -M[j, i].
+
+-
+
+-        When ``simplify=True`` (default), the sum M[i, j] + M[j, i] is
+
+-        simplified before testing to see if it is zero. By default,
+
+-        the SymPy simplify function is used. To use a custom function
+
+-        set simplify to a function that accepts a single argument which
+
+-        returns a simplified expression. To skip simplification, set
+
+-        simplify to False but note that although this will be faster,
+
+-        it may induce false negatives.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, symbols
+
+-        >>> m = Matrix(2, 2, [0, 1, -1, 0])
+
+-        >>> m
+
+-        Matrix([
+
+-        [ 0, 1],
+
+-        [-1, 0]])
+
+-        >>> m.is_anti_symmetric()
+
+-        True
+
+-        >>> x, y = symbols('x y')
+
+-        >>> m = Matrix(2, 3, [0, 0, x, -y, 0, 0])
+
+-        >>> m
+
+-        Matrix([
+
+-        [ 0, 0, x],
+
+-        [-y, 0, 0]])
+
+-        >>> m.is_anti_symmetric()
+
+-        False
+
+-
+
+-        >>> from sympy.abc import x, y
+
+-        >>> m = Matrix(3, 3, [0, x**2 + 2*x + 1, y,
+
+-        ...                   -(x + 1)**2 , 0, x*y,
+
+-        ...                   -y, -x*y, 0])
+
+-
+
+-        Simplification of matrix elements is done by default so even
+
+-        though two elements which should be equal and opposite wouldn't
+
+-        pass an equality test, the matrix is still reported as
+
+-        anti-symmetric:
+
+-
+
+-        >>> m[0, 1] == -m[1, 0]
+
+-        False
+
+-        >>> m.is_anti_symmetric()
+
+-        True
+
+-
+
+-        If 'simplify=False' is used for the case when a Matrix is already
+
+-        simplified, this will speed things up. Here, we see that without
+
+-        simplification the matrix does not appear anti-symmetric:
+
+-
+
+-        >>> m.is_anti_symmetric(simplify=False)
+
+-        False
+
+-
+
+-        But if the matrix were already expanded, then it would appear
+
+-        anti-symmetric and simplification in the is_anti_symmetric routine
+
+-        is not needed:
+
+-
+
+-        >>> m = m.expand()
+
+-        >>> m.is_anti_symmetric(simplify=False)
+
+-        True
+
+-        """
+
+-        # accept custom simplification
+
+-        simpfunc = simplify
+
+-        if not isfunction(simplify):
+
+-            simpfunc = _simplify if simplify else lambda x: x
+
+-
+
+-        if not self.is_square:
+
+-            return False
+
+-        return self._eval_is_anti_symmetric(simpfunc)
+
++def vel(self, frame, time=None):
+
++    """Calculate the velocity of the point in the given reference frame.
+
++
+
++    If the position of the point is defined, the velocity is calculated
+
++    as the time derivative of the position with respect to the given
+
++    reference frame.
+
++
+
++    Parameters:
+
++    -----------
+
++    frame : ReferenceFrame
+
++        The reference frame in which the velocity is to be calculated.
+
++    time : Symbol, optional
+
++        The time symbol with respect to which the derivative is taken.
+
++        If not provided, the default time symbol from the mechanics module
+
++        is used.
+
++
+
++    Returns:
+
++    --------
+
++    velocity : Vector
+
++        The velocity of the point in the given reference frame.
+
++
+
++    Examples
+
++    --------
+
++    >>> from sympy import symbols
+
++    >>> from sympy.physics.mechanics import ReferenceFrame, Point
+
++    >>> q = symbols('q')
+
++    >>> A = ReferenceFrame('A')
+
++    >>> P = Point('P')
+
++    >>> Q = P.locatenew('Q', q * A.x)
+
++    >>> Q.vel(A)
+
++    q*A.x.diff()
+
++    """
+
++    if time is None:
+
++        time = sm.symbols('t')
+
++    return self.pos_from(self.parent, frame).diff(time)
+
+ 
+
+     def is_diagonal(self):
+
+         """Check if matrix is diagonal,

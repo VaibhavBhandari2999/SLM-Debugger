@@ -1,0 +1,36 @@
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/factortools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/factortools.py
+@@ -626,7 +626,16 @@
+         H = dup_zz_zassenhaus(g, K)
+
+ 
+
+     factors = dup_trial_division(f, H, K)
+
+-    return cont, factors
+
++
+
++    # Aggregate factors and their multiplicities
+
++    aggregated_factors = []
+
++    for factor, multiplicity in factors:
+
++        if aggregated_factors and aggregated_factors[-1][0] == factor:
+
++            aggregated_factors[-1][1] += multiplicity
+
++        else:
+
++            aggregated_factors.append([factor, multiplicity])
+
++
+
++    return cont, aggregated_factors
+
+ 
+
+ 
+
+ def dmp_zz_wang_non_divisors(E, cs, ct, K):

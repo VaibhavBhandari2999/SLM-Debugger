@@ -1,0 +1,333 @@
+--- a/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -493,6 +493,11 @@
+     return isinstance(val, str) or not np.iterable(val)
+
+ 
+
+ 
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++import mplcursors as mpl
+
++import matplotlib.offsetbox as offsetbox
+
++
+
+ def get_sample_data(fname, asfileobj=True, *, np_load=False):
+
+     """
+
+     Return a sample data file.  *fname* is a path relative to the
+
+@@ -529,6 +534,21 @@
+             return path.open('rb')
+
+     else:
+
+         return str(path)
+
++
+
++def fix_mplcursor_issue():
+
++    x = np.arange(1, 11)    
+
++    y1 = x
+
++
+
++    fig, ax = plt.subplots()
+
++    scatter = ax.scatter(x, y1)
+
++
+
++    # Ensure the cursor is created after the scatter plot is added to the figure
+
++    mpl.cursor(scatter)
+
++
+
++    plt.show()
+
++
+
++# Test the fix
+
++fix_mplcursor_issue()
+
+ 
+
+ 
+
+ def _get_data_path(*args):
+
+
+--- a/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -1728,6 +1728,14 @@
+ 
+
+ 
+
+ @contextlib.contextmanager
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++import mplcursors as mpl
+
++import contextlib
+
++import time
+
++from pathlib import Path
+
++
+
++@contextlib.contextmanager
+
+ def _lock_path(path):
+
+     """
+
+     Context manager for locking a path.
+
+@@ -1764,6 +1772,20 @@
+         yield
+
+     finally:
+
+         lock_path.unlink()
+
++
+
++def plot_with_cursor():
+
++    x = np.arange(1, 11)    
+
++    y1 = x
+
++
+
++    with plt.ioff():  # Turn off interactive mode to ensure the figure is fully initialized
+
++        fig, ax = plt.subplots()
+
++        ax.scatter(x, y1)
+
++
+
++        with mpl.cursor(ax):  # Ensure the cursor is added to the correct axis
+
++            plt.ion()  # Turn on interactive mode
+
++            plt.show()
+
++
+
++plot_with_cursor()
+
+ 
+
+ 
+
+ def _topmost_artist(
+
+
+--- a/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -430,6 +430,12 @@
+         return False
+
+ 
+
+ 
+
++import os
+
++import gzip
+
++import bz2
+
++import matplotlib.pyplot as plt
+
++import mplcursors as mpl
+
++
+
+ def to_filehandle(fname, flag='r', return_opened=False, encoding=None):
+
+     """
+
+     Convert a path to an open file handle or pass-through a file-like object.
+
+@@ -477,9 +483,25 @@
+         opened = False
+
+     else:
+
+         raise ValueError('fname must be a PathLike or file handle')
+
++    
+
++    # Ensure that the file handle is not None before returning
+
++    if fh is None:
+
++        raise ValueError('File handle cannot be None')
+
++    
+
+     if return_opened:
+
+         return fh, opened
+
+     return fh
+
++
+
++# Example usage
+
++x = np.arange(1, 11)    
+
++y1 = x
+
++
+
++plt.scatter(x, y1)
+
++
+
++# Ensure mplcursors is properly initialized
+
++mpl.cursor()
+
++
+
++plt.show()
+
+ 
+
+ 
+
+ def open_file_cm(path_or_file, mode="r", encoding=None):
+
+
+--- a/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -539,7 +539,7 @@
+             transform = None
+
+         return _path.point_in_path(point[0], point[1], radius, self, transform)
+
+ 
+
+-    def contains_points(self, points, transform=None, radius=0.0):
+
++def contains_points(self, points, transform=None, radius=0.0):
+
+         """
+
+         Return whether the area enclosed by the path contains the given points.
+
+ 
+
+@@ -580,6 +580,21 @@
+         """
+
+         if transform is not None:
+
+             transform = transform.frozen()
+
++        
+
++        # Ensure the canvas is correctly referenced
+
++        if self.ref_artist is not None and self.ref_artist.figure is not None:
+
++            canvas = self.ref_artist.figure.canvas
+
++            if canvas is not None:
+
++                self.disconnect()
+
++            else:
+
++                # If the canvas is None, we need to handle this case
+
++                # For example, we can raise an error or return a default value
+
++                raise ValueError("Figure canvas is None. Cannot disconnect.")
+
++        else:
+
++            # If ref_artist or its figure is None, we need to handle this case
+
++            # For example, we can raise an error or return a default value
+
++            raise ValueError("ref_artist or its figure is None. Cannot disconnect.")
+
++        
+
+         result = _path.points_in_path(points, radius, self, transform)
+
+         return result.astype('bool')
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -489,7 +489,7 @@
+         return Path(transform.transform(self.vertices), self.codes,
+
+                     self._interpolation_steps)
+
+ 
+
+-    def contains_point(self, point, transform=None, radius=0.0):
+
++def contains_point(self, point, transform=None, radius=0.0):
+
+         """
+
+         Return whether the area enclosed by the path contains the given point.
+
+ 
+
+@@ -537,7 +537,13 @@
+         if transform and not transform.is_affine:
+
+             self = transform.transform_path(self)
+
+             transform = None
+
+-        return _path.point_in_path(point[0], point[1], radius, self, transform)
+
++
+
++        # Ensure the canvas is not None before accessing its methods
+
++        if self.ref_artist and self.ref_artist.figure and self.ref_artist.figure.canvas:
+
++            return _path.point_in_path(point[0], point[1], radius, self, transform)
+
++        else:
+
++            # Return a default value or handle the case where canvas is None
+
++            return False
+
+ 
+
+     def contains_points(self, points, transform=None, radius=0.0):
+
+         """
+
+

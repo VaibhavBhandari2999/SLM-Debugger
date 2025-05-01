@@ -1,0 +1,53 @@
+--- a/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
++++ b/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/matrices/expressions/kronecker.py
+@@ -17,6 +17,16 @@
+ from .matmul import MatMul
+
+ from .matpow import MatPow
+
+ 
+
++
+
++from sympy.printing.mathml import MathMLPrinter
+
++from sympy.core.basic import Basic
+
++
+
++class CustomMathMLPrinter(MathMLPrinter):
+
++    def _print_Indexed(self, expr):
+
++        # Handle Indexed objects by printing the base and the indices separately
+
++        base = self._print(expr.base)
+
++        indices = ' '.join(self._print(index) for index in expr.indices)
+
++        return f'<ci>{base}</ci><apply><csymbol cd="set1">times</csymbol><ci>{indices}</ci></apply>'
+
+ 
+
+ def kronecker_product(*matrices):
+
+     """
+
+@@ -81,6 +91,9 @@
+         return matrices[0]
+
+     else:
+
+         return KroneckerProduct(*matrices).doit()
+
++
+
++# Register the custom printer
+
++MathMLPrinter = CustomMathMLPrinter
+
+ 
+
+ 
+
+ class KroneckerProduct(MatrixExpr):

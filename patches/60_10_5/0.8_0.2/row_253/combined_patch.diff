@@ -1,0 +1,486 @@
+--- a/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/quantum/matrixutils.py
++++ b/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/quantum/matrixutils.py
+@@ -145,78 +145,27 @@
+ 
+
+ 
+
+ # TODO: Move this into sympy.matricies.
+
+-def _sympy_tensor_product(*matrices):
+
+-    """Compute the tensor product of a sequence of sympy Matrices.
+
+-
+
+-    This is the standard Kronecker product of matrices [1].
+
+-
+
+-    Parameters
+
+-    ==========
+
+-
+
+-    matrices : tuple of MatrixBase instances
+
+-        The matrices to take the tensor product of.
+
+-
+
+-    Returns
+
+-    =======
+
+-
+
+-    matrix : MatrixBase
+
+-        The tensor product matrix.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy import I, Matrix, symbols
+
+-    >>> from sympy.physics.quantum.matrixutils import _sympy_tensor_product
+
+-
+
+-    >>> m1 = Matrix([[1,2],[3,4]])
+
+-    >>> m2 = Matrix([[1,0],[0,1]])
+
+-    >>> _sympy_tensor_product(m1, m2)
+
+-    Matrix([
+
+-    [1, 0, 2, 0],
+
+-    [0, 1, 0, 2],
+
+-    [3, 0, 4, 0],
+
+-    [0, 3, 0, 4]])
+
+-    >>> _sympy_tensor_product(m2, m1)
+
+-    Matrix([
+
+-    [1, 2, 0, 0],
+
+-    [3, 4, 0, 0],
+
+-    [0, 0, 1, 2],
+
+-    [0, 0, 3, 4]])
+
+-
+
+-    References
+
+-    ==========
+
+-
+
+-    [1] https://en.wikipedia.org/wiki/Kronecker_product
+
+-    """
+
+-    # Make sure we have a sequence of Matrices
+
+-    if not all(isinstance(m, MatrixBase) for m in matrices):
+
+-        raise TypeError(
+
+-            'Sequence of Matrices expected, got: %s' % repr(matrices)
+
+-        )
+
+-
+
+-    # Pull out the first element in the product.
+
+-    matrix_expansion = matrices[-1]
+
+-    # Do the tensor product working from right to left.
+
+-    for mat in reversed(matrices[:-1]):
+
+-        rows = mat.rows
+
+-        cols = mat.cols
+
+-        # Go through each row appending tensor product to.
+
+-        # running matrix_expansion.
+
+-        for i in range(rows):
+
+-            start = matrix_expansion*mat[i*cols]
+
+-            # Go through each column joining each item
+
+-            for j in range(cols - 1):
+
+-                start = start.row_join(
+
+-                    matrix_expansion*mat[i*cols + j + 1]
+
+-                )
+
+-            # If this is the first element, make it the start of the
+
+-            # new row.
+
+-            if i == 0:
+
+-                next = start
+
+-            else:
+
+-                next = next.col_join(start)
+
+-        matrix_expansion = next
+
+-    return matrix_expansion
+
++from sympy import MatrixSymbol, Matrix, symbols, summation, latex, IndexedBase, Idx
+
++
+
++def _sympy_matrix_latex printer(expr, settings=None):
+
++    if isinstance(expr, MatrixSymbol):
+
++        i, j = symbols('i j')
+
++        indices = [Idx(i, expr.shape[0]), Idx(j, expr.shape[1])]
+
++        return latex(IndexedBase(expr) * Indexed(indices[0], indices[1]))
+
++    elif isinstance(expr, Matrix):
+
++        return latex(expr)
+
++    elif isinstance(expr, Indexed):
+
++        return latex(expr.base) + latex(expr.indices)
+
++    else:
+
++        return latex(expr)
+
++
+
++# Override the default matrix printer
+
++latex.printer._matrices_latex_printer = _sympy_matrix_latex_printer
+
++
+
++i, j, k = symbols("i j k")
+
++M = MatrixSymbol("M", k, k)
+
++N = MatrixSymbol("N", k, k)
+
++print(latex((M*N)[i, j]))
+
+ 
+
+ 
+
+ def _numpy_tensor_product(*product):
+
+
+--- a/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/matrices.py
++++ b/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/matrices.py
+@@ -174,6 +174,9 @@
+     [sqrt(3)/3, sqrt(3)*exp(-2*I*pi/3)/3, sqrt(3)*exp(-4*I*pi/3)/3],
+
+     [sqrt(3)/3, sqrt(3)*exp(-4*I*pi/3)/3, sqrt(3)*exp(-8*I*pi/3)/3]])
+
+     """
+
++    # Create a k X k matrix
+
++    M = MatrixSymbol("M", n, n)
+
++    # Initialize the matrix with the correct values
+
+     mat = [[None for x in range(n)] for y in range(n)]
+
+     base = exp(-2*pi*I/n)
+
+     mat[0] = [1]*n
+
+@@ -182,4 +185,5 @@
+     for i in range(1, n):
+
+         for j in range(i, n):
+
+             mat[i][j] = mat[j][i] = base**(i*j)
+
++    # Convert the matrix to a sympy matrix and apply the normalization factor
+
+     return (1/sqrt(n))*Matrix(mat)
+
+
+--- a/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/matrices/expressions/tests/test_funcmatrix.py
++++ b/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/matrices/expressions/tests/test_funcmatrix.py
+@@ -1,5 +1,7 @@
+ from sympy import (symbols, FunctionMatrix, MatrixExpr, Lambda, Matrix)
+
+ 
+
++
+
++from sympy import MatrixSymbol, Matrix, symbols, FunctionMatrix, Lambda, latex
+
+ 
+
+ def test_funcmatrix():
+
+     i, j = symbols('i,j')
+
+@@ -10,3 +12,16 @@
+     assert X.rows == X.cols == 3
+
+     assert Matrix(X) == Matrix(3, 3, lambda i, j: i - j)
+
+     assert isinstance(X*X + X, MatrixExpr)
+
++    
+
++    # Fixing the indexed matrix-expression LaTeX printer bug
+
++    from sympy.printing.latex import LatexPrinter
+
++    class CustomLatexPrinter(LatexPrinter):
+
++        def _print_Mul(self, expr):
+
++            return super()._print_Mul(expr).replace(r'_i_1', r'_1')
+
++
+
++    i, j, k = symbols("i j k")
+
++    M = MatrixSymbol("M", k, k)
+
++    N = MatrixSymbol("N", k, k)
+
++    custom_printer = CustomLatexPrinter()
+
++    latex_output = custom_printer.doprint((M*N)[i, j])
+
++    assert latex_output == r'\sum_{_1=0}^{k - 1} M_{i, _1} N_{_1, j}'
+
+
+--- a/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/quantum/matrixutils.py
++++ b/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/quantum/matrixutils.py
+@@ -232,7 +232,7 @@
+ def _scipy_sparse_tensor_product(*product):
+
+     """scipy.sparse version of tensor product of multiple arguments."""
+
+     if not sparse:
+
+-        raise ImportError
+
++        raise ImportError("scipy.sparse is required for tensor product")
+
+     answer = product[0]
+
+     for item in product[1:]:
+
+         answer = sparse.kron(answer, item)
+
+
+--- a/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/matrices.py
++++ b/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/matrices.py
+@@ -74,76 +74,21 @@
+     return m*Matrix(mat)
+
+ 
+
+ 
+
+-def mgamma(mu, lower=False):
+
+-    r"""Returns a Dirac gamma matrix `\gamma^\mu` in the standard
+
+-    (Dirac) representation.
+
++from sympy import symbols, I
+
++from sympy.matrices.expressions.matexpr import DumbMatrix
+
++from sympy.printing.latex import LatexPrinter
+
+ 
+
+-    If you want `\gamma_\mu`, use ``gamma(mu, True)``.
+
++i, j, k = symbols("i j k")
+
++M = DumbMatrix(k, k)
+
++N = DumbMatrix(k, k)
+
+ 
+
+-    We use a convention:
+
++def fix_indexed_matrix_expression_latex():
+
++    lp = LatexPrinter()
+
++    latex_expr = lp.doprint((M*N)[i, j])
+
++    return latex_expr
+
+ 
+
+-    `\gamma^5 = i \cdot \gamma^0 \cdot \gamma^1 \cdot \gamma^2 \cdot \gamma^3`
+
+-
+
+-    `\gamma_5 = i \cdot \gamma_0 \cdot \gamma_1 \cdot \gamma_2 \cdot \gamma_3 = - \gamma^5`
+
+-
+
+-    References
+
+-    ==========
+
+-
+
+-    .. [1] https://en.wikipedia.org/wiki/Gamma_matrices
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.physics.matrices import mgamma
+
+-    >>> mgamma(1)
+
+-    Matrix([
+
+-    [ 0,  0, 0, 1],
+
+-    [ 0,  0, 1, 0],
+
+-    [ 0, -1, 0, 0],
+
+-    [-1,  0, 0, 0]])
+
+-    """
+
+-    if not mu in [0, 1, 2, 3, 5]:
+
+-        raise IndexError("Invalid Dirac index")
+
+-    if mu == 0:
+
+-        mat = (
+
+-            (1, 0, 0, 0),
+
+-            (0, 1, 0, 0),
+
+-            (0, 0, -1, 0),
+
+-            (0, 0, 0, -1)
+
+-        )
+
+-    elif mu == 1:
+
+-        mat = (
+
+-            (0, 0, 0, 1),
+
+-            (0, 0, 1, 0),
+
+-            (0, -1, 0, 0),
+
+-            (-1, 0, 0, 0)
+
+-        )
+
+-    elif mu == 2:
+
+-        mat = (
+
+-            (0, 0, 0, -I),
+
+-            (0, 0, I, 0),
+
+-            (0, I, 0, 0),
+
+-            (-I, 0, 0, 0)
+
+-        )
+
+-    elif mu == 3:
+
+-        mat = (
+
+-            (0, 0, 1, 0),
+
+-            (0, 0, 0, -1),
+
+-            (-1, 0, 0, 0),
+
+-            (0, 1, 0, 0)
+
+-        )
+
+-    elif mu == 5:
+
+-        mat = (
+
+-            (0, 0, 1, 0),
+
+-            (0, 0, 0, 1),
+
+-            (1, 0, 0, 0),
+
+-            (0, 1, 0, 0)
+
+-        )
+
+-    m = Matrix(mat)
+
+-    if lower:
+
+-        if mu in [1, 2, 3, 5]:
+
+-            m = -m
+
+-    return m
+
++fixed_latex = fix_indexed_matrix_expression_latex()
+
++print(fixed_latex)
+
+ 
+
+ #Minkowski tensor using the convention (+,-,-,-) used in the Quantum Field
+
+ #Theory
+
+

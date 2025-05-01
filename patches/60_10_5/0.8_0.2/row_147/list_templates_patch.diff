@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/147/pallets_flask/src/flask/templating.py
++++ b/decoupled/60/0.8_0.2/147/pallets_flask/src/flask/templating.py
+@@ -106,7 +106,7 @@
+             if loader is not None:
+
+                 yield blueprint, loader
+
+ 
+
+-    def list_templates(self) -> t.List[str]:
+
++def list_templates(self) -> t.List[str]:
+
+         result = set()
+
+         loader = self.app.jinja_loader
+
+         if loader is not None:
+
+@@ -116,8 +116,10 @@
+             loader = blueprint.jinja_loader
+
+             if loader is not None:
+
+                 for template in loader.list_templates():
+
+-                    result.add(template)
+
+-
+
++                    if '.' not in blueprint.name:
+
++                        result.add(template)
+
++                    else:
+
++                        raise ValueError(f"Blueprint name '{blueprint.name}' contains a dot, which is not allowed.")
+
+         return list(result)
+
+ 
+
+ 

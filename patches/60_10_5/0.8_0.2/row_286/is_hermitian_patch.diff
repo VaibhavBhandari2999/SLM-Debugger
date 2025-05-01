@@ -1,0 +1,150 @@
+--- a/decoupled/60/0.8_0.2/286/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/286/sympy_sympy/sympy/matrices/common.py
+@@ -1653,38 +1653,42 @@
+         return fuzzy_and(test_row(i) for i in range(rows))
+
+ 
+
+     @property
+
+-    def is_hermitian(self):
+
+-        """Checks if the matrix is Hermitian.
+
+-
+
+-        In a Hermitian matrix element i,j is the complex conjugate of
+
+-        element j,i.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import Matrix
+
+-        >>> from sympy import I
+
+-        >>> from sympy.abc import x
+
+-        >>> a = Matrix([[1, I], [-I, 1]])
+
+-        >>> a
+
+-        Matrix([
+
+-        [ 1, I],
+
+-        [-I, 1]])
+
+-        >>> a.is_hermitian
+
+-        True
+
+-        >>> a[0, 0] = 2*I
+
+-        >>> a.is_hermitian
+
+-        False
+
+-        >>> a[0, 0] = x
+
+-        >>> a.is_hermitian
+
+-        >>> a[0, 1] = a[1, 0]*I
+
+-        >>> a.is_hermitian
+
+-        False
+
+-        """
+
+-        if not self.is_square:
+
+-            return False
+
+-
+
+-        return self._eval_is_matrix_hermitian(_simplify)
+
++def is_hermitian(self):
+
++    """Checks if the matrix is Hermitian.
+
++
+
++    In a Hermitian matrix element i,j is the complex conjugate of
+
++    element j,i.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.matrices import Matrix
+
++    >>> from sympy import I
+
++    >>> from sympy.abc import x
+
++    >>> a = Matrix([[1, I], [-I, 1]])
+
++    >>> a
+
++    Matrix([
+
++    [ 1, I],
+
++    [-I, 1]])
+
++    >>> a.is_hermitian
+
++    True
+
++    >>> a[0, 0] = 2*I
+
++    >>> a.is_hermitian
+
++    False
+
++    >>> a[0, 0] = x
+
++    >>> a.is_hermitian
+
++    >>> a[0, 1] = a[1, 0]*I
+
++    >>> a.is_hermitian
+
++    False
+
++    """
+
++    if not self.is_square:
+
++        return False
+
++
+
++    # Fixing the bug: Derivative kind attribute should be correctly set
+
++    if isinstance(self, Derivative):
+
++        self.kind = MatrixKind(HermitianKind)
+
++
+
++    return self._eval_is_matrix_hermitian(_simplify)
+
+ 
+
+     @property
+
+     def is_Identity(self) -> FuzzyBool:

@@ -1,0 +1,88 @@
+--- a/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
++++ b/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
+@@ -732,33 +732,16 @@
+         """
+
+         return representation.represent_as(cls)
+
+ 
+
+-    def _apply(self, method, *args, **kwargs):
+
+-        """Create a new representation with ``method`` applied to the component
+
+-        data.
+
+-
+
+-        This is not a simple inherit from ``BaseRepresentationOrDifferential``
+
+-        because we need to call ``._apply()`` on any associated differential
+
+-        classes.
+
+-
+
+-        See docstring for `BaseRepresentationOrDifferential._apply`.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        method : str or callable
+
+-            If str, it is the name of a method that is applied to the internal
+
+-            ``components``. If callable, the function is applied.
+
+-        args : tuple
+
+-            Any positional arguments for ``method``.
+
+-        kwargs : dict
+
+-            Any keyword arguments for ``method``.
+
+-
+
+-        """
+
+-        rep = super()._apply(method, *args, **kwargs)
+
+-
+
+-        rep._differentials = dict(
+
+-            [(k, diff._apply(method, *args, **kwargs))
+
+-             for k, diff in self._differentials.items()])
+
+-        return rep
+
++def wcs_pix2world(self, *args, **kwargs):
+
++    # Check if any of the input arguments are empty lists
+
++    if any(len(arg) == 0 for arg in args):
+
++        # Return an empty list of the appropriate length
+
++        return [np.array([], dtype=float)] * len(args[0])
+
++
+
++    # Continue with the original logic if the inputs are not empty lists
+
++    return self._array_converter(
+
++        lambda xy, o: self.wcs.p2s(xy, o)['world'],
+
++        'output', *args, **kwargs)
+
+ 
+
+     def _scale_operation(self, op, *args):
+
+         """Scale all non-angular components, leaving angular ones unchanged.

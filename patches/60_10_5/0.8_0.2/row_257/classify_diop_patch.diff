@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/257/sympy_sympy/sympy/solvers/diophantine.py
++++ b/decoupled/60/0.8_0.2/257/sympy_sympy/sympy/solvers/diophantine.py
+@@ -461,6 +461,8 @@
+             'No solver has been written for %s.' % eq_type)
+
+ 
+
+ 
+
++from sympy import Sum, oo, pprint, Symbol, pretty_print
+
++
+
+ def classify_diop(eq, _dict=True):
+
+     # docstring supplied externally
+
+     try:
+
+@@ -539,6 +541,11 @@
+         This equation is not yet recognized or else has not been
+
+         simplified sufficiently to put it in a form recognized by
+
+         diop_classify().'''))
+
++
+
++# Example usage
+
++x = Symbol('x')
+
++expr = Sum(x, (x, 1, oo)) + 3
+
++pprint(expr)
+
+ 
+
+ 
+
+ classify_diop.func_doc = '''

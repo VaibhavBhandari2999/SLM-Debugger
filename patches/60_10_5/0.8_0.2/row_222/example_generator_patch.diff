@@ -1,0 +1,40 @@
+--- a/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/222/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -186,6 +186,19 @@
+     """
+
+     for i in range(n):
+
+         yield i
+
++
+
++# To ensure that attributes from the superclass are documented,
+
++# we can explicitly document them in the subclass.
+
++class Foo:
+
++    """docstring"""
+
++    attr1: int  #: docstring
+
++
+
++class Bar(Foo):
+
++    """docstring"""
+
++    attr2: str  #: docstring
+
++
+
++    # Explicitly document the inherited attribute
+
++    attr1: int  #: docstring
+
+ 
+
+ 
+
+ class ExampleError(Exception):

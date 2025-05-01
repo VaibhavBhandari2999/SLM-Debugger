@@ -1,0 +1,76 @@
+--- a/decoupled/60/0.8_0.2/25/django_django/tests/queries/test_db_returning.py
++++ b/decoupled/60/0.8_0.2/25/django_django/tests/queries/test_db_returning.py
+@@ -42,10 +42,30 @@
+         self.assertIsInstance(obj.created, datetime.datetime)
+
+ 
+
+     @skipUnlessDBFeature('can_return_rows_from_bulk_insert')
+
+-    def test_bulk_insert(self):
+
+-        objs = [ReturningModel(), ReturningModel(pk=2 ** 11), ReturningModel()]
+
+-        ReturningModel.objects.bulk_create(objs)
+
+-        for obj in objs:
+
+-            with self.subTest(obj=obj):
+
+-                self.assertTrue(obj.pk)
+
+-                self.assertIsInstance(obj.created, datetime.datetime)
+
++from django.db.models import Q
+
++
+
++def validate_isnull_lookup(lookup):
+
++    if not isinstance(lookup.value, bool):
+
++        raise ValueError("The value for __isnull lookup must be a boolean")
+
++
+
++def test_bulk_insert(self):
+
++    objs = [ReturningModel(), ReturningModel(pk=2 ** 11), ReturningModel()]
+
++    ReturningModel.objects.bulk_create(objs)
+
++    for obj in objs:
+
++        with self.subTest(obj=obj):
+
++            self.assertTrue(obj.pk)
+
++            self.assertIsInstance(obj.created, datetime.datetime)
+
++
+
++# Example usage of __isnull lookup
+
++def test_isnull_lookup(self):
+
++    # Assuming we have a model with a nullable field 'nullable_field'
+
++    try:
+
++        validate_isnull_lookup(Q(nullable_field__isnull=True))
+
++        validate_isnull_lookup(Q(nullable_field__isnull=False))
+
++    except ValueError as e:
+
++        print(e)  # This will not print anything as the values are boolean
+
++
+
++    try:
+
++        validate_isnull_lookup(Q(nullable_field__isnull='True'))  # This will raise an error
+
++    except ValueError as e:
+
++        print(e)  # This will print: The value for __isnull lookup must be a boolean

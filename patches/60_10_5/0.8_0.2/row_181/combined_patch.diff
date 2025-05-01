@@ -1,0 +1,376 @@
+--- a/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -870,7 +870,7 @@
+         """
+
+         return self._makefile(".txt", args, kwargs)
+
+ 
+
+-    def syspathinsert(
+
++def syspathinsert(
+
+         self, path: Optional[Union[str, "os.PathLike[str]"]] = None
+
+     ) -> None:
+
+         """Prepend a directory to sys.path, defaults to :py:attr:`tmpdir`.
+
+@@ -881,7 +881,11 @@
+         if path is None:
+
+             path = self.path
+
+ 
+
+-        self._monkeypatch.syspath_prepend(str(path))
+
++        # Sanitize the username by replacing backslashes with underscores
+
++        sanitized_username = getpass.getuser().replace("\\", "_")
+
++        sanitized_tmpdir = os.path.join(self.tmpdir, sanitized_username)
+
++
+
++        self._monkeypatch.syspath_prepend(sanitized_tmpdir)
+
+ 
+
+     def mkdir(self, name: str) -> Path:
+
+         """Create a new (sub)directory."""
+
+
+--- a/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1464,6 +1464,10 @@
+         args = self._getpytestargs() + args
+
+         return self.run(*args, timeout=timeout)
+
+ 
+
++import os
+
++import pexpect
+
++
+
++class TestRunner:
+
+     def spawn_pytest(
+
+         self, string: str, expect_timeout: float = 10.0
+
+     ) -> "pexpect.spawn":
+
+@@ -1474,7 +1478,10 @@
+ 
+
+         The pexpect child is returned.
+
+         """
+
+-        basetemp = self.path / "temp-pexpect"
+
++        # Get the username and strip the domain part
+
++        username = os.path.basename(os.getenv('LOGNAME', getpass.getuser()))
+
++        
+
++        basetemp = self.path / f"temp-pexpect-{username}"
+
+         basetemp.mkdir()
+
+         invoke = " ".join(map(str, self._getpytestargs()))
+
+         cmd = f"{invoke} --basetemp={basetemp} {string}"
+
+
+--- a/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1438,15 +1438,15 @@
+         """Run ``python -c "command"``."""
+
+         return self.run(sys.executable, "-c", command)
+
+ 
+
+-    def runpytest_subprocess(
+
++def runpytest_subprocess(
+
+         self, *args: Union[str, "os.PathLike[str]"], timeout: Optional[float] = None
+
+     ) -> RunResult:
+
+         """Run pytest as a subprocess with given arguments.
+
+ 
+
+         Any plugins added to the :py:attr:`plugins` list will be added using the
+
+         ``-p`` command line option.  Additionally ``--basetemp`` is used to put
+
+-        any temporary files and directories in a numbered directory prefixed
+
+-        with "runpytest-" to not conflict with the normal numbered pytest
+
++        any temporary files and directories in a fixed numbered directory prefixed
+
++        with "runpytest-" to avoid conflicts with the normal numbered pytest
+
+         location for temporary files and directories.
+
+ 
+
+         :param args:
+
+@@ -1456,6 +1456,7 @@
+             :py:class:`Pytester.TimeoutExpired`.
+
+         """
+
+         __tracebackhide__ = True
+
++        # Use a fixed base temporary directory path
+
+         p = make_numbered_dir(root=self.path, prefix="runpytest-")
+
+         args = ("--basetemp=%s" % p,) + args
+
+         plugins = [x for x in self.plugins if isinstance(x, str)]
+
+
+--- a/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -780,11 +780,16 @@
+         assert ret is not None
+
+         return ret
+
+ 
+
++import os
+
++import re
+
++from pathlib import Path
+
++
+
++class Pytester:
+
+     def makefile(self, ext: str, *args: str, **kwargs: str) -> Path:
+
+         r"""Create new text file(s) in the test directory.
+
+ 
+
+         :param str ext:
+
+-            The extension the file(s) should use, including the dot, e.g. `.py`.
+
++            The extension the file(s) should use, e.g. `.py`.
+
+         :param args:
+
+             All args are treated as strings and joined using newlines.
+
+             The result is written as contents to the file.  The name of the
+
+@@ -808,7 +813,14 @@
+             filename = pytester.path.joinpath("foo.bin")
+
+             filename.write_bytes(b"...")
+
+         """
+
+-        return self._makefile(ext, args, kwargs)
+
++        # Replace illegal characters in the username with a safe character
+
++        safe_username = re.sub(r'[\\/:*?"<>|]', '_', os.getlogin())
+
++        
+
++        # Use the safe username to create the base temporary directory
+
++        base_temp_dir = Path(f"/tmp/pytest-{safe_username}")
+
++        base_temp_dir.mkdir(parents=True, exist_ok=True)
+
++        
+
++        return self._makefile(ext, args, kwargs, base_temp_dir=base_temp_dir)
+
+ 
+
+     def makeconftest(self, source: str) -> Path:
+
+         """Write a contest.py file with 'source' as contents."""
+
+
+--- a/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1244,39 +1244,45 @@
+         modcol = self.getmodulecol(source)
+
+         return self.genitems([modcol])
+
+ 
+
+-    def getmodulecol(
+
+-        self,
+
+-        source: Union[str, "os.PathLike[str]"],
+
+-        configargs=(),
+
+-        *,
+
+-        withinit: bool = False,
+
+-    ):
+
+-        """Return the module collection node for ``source``.
+
+-
+
+-        Writes ``source`` to a file using :py:meth:`makepyfile` and then
+
+-        runs the pytest collection on it, returning the collection node for the
+
+-        test module.
+
+-
+
+-        :param source:
+
+-            The source code of the module to collect.
+
+-
+
+-        :param configargs:
+
+-            Any extra arguments to pass to :py:meth:`parseconfigure`.
+
+-
+
+-        :param withinit:
+
+-            Whether to also write an ``__init__.py`` file to the same
+
+-            directory to ensure it is a package.
+
+-        """
+
+-        if isinstance(source, os.PathLike):
+
+-            path = self.path.joinpath(source)
+
+-            assert not withinit, "not supported for paths"
+
+-        else:
+
+-            kw = {self._name: str(source)}
+
+-            path = self.makepyfile(**kw)
+
+-        if withinit:
+
+-            self.makepyfile(__init__="#")
+
+-        self.config = config = self.parseconfigure(path, *configargs)
+
+-        return self.getnode(config, path)
+
++import os
+
++import getpass
+
++from pathlib import Path
+
++
+
++def getmodulecol(
+
++    self,
+
++    source: Union[str, "os.PathLike[str]"],
+
++    configargs=(),
+
++    *,
+
++    withinit: bool = False,
+
++):
+
++    """Return the module collection node for ``source``.
+
++
+
++    Writes ``source`` to a file using :py:meth:`makepyfile` and then
+
++    runs the pytest collection on it, returning the collection node for the
+
++    test module.
+
++
+
++    :param source:
+
++        The source code of the module to collect.
+
++
+
++    :param configargs:
+
++        Any extra arguments to pass to :py:meth:`parseconfigure`.
+
++
+
++    :param withinit:
+
++        Whether to also write an ``__init__.py`` file to the same
+
++        directory to ensure it is a package.
+
++    """
+
++    if isinstance(source, os.PathLike):
+
++        path = self.path.joinpath(source)
+
++        assert not withinit, "not supported for paths"
+
++    else:
+
++        kw = {self._name: str(source)}
+
++        path = self.makepyfile(**kw)
+
++    if withinit:
+
++        self.makepyfile(__init__="#")
+
++    username = getpass.getuser().split("\\")[-1]  # Sanitize the username
+
++    username = "".join([c for c in username if c.isalnum() or c in "_-."])  # Remove illegal characters
+
++    self.config = config = self.parseconfigure(path, *configargs)
+
++    return self.getnode(config, path)
+
+ 
+
+     def collect_by_name(
+
+         self, modcol: Collector, name: str
+
+

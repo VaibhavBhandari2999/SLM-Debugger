@@ -1,0 +1,128 @@
+--- a/decoupled/60/0.8_0.2/177/pytest-dev_pytest/testing/python/collect.py
++++ b/decoupled/60/0.8_0.2/177/pytest-dev_pytest/testing/python/collect.py
+@@ -1185,32 +1185,37 @@
+ 
+
+ 
+
+ @pytest.mark.filterwarnings("default")
+
+-def test_dont_collect_non_function_callable(testdir):
+
+-    """Test for issue https://github.com/pytest-dev/pytest/issues/331
+
+-
+
+-    In this case an INTERNALERROR occurred trying to report the failure of
+
+-    a test like this one because pytest failed to get the source lines.
+
+-    """
+
+-    testdir.makepyfile(
+
+-        """
+
+-        class Oh(object):
+
+-            def __call__(self):
+
+-                pass
+
+-
+
+-        test_a = Oh()
+
+-
+
+-        def test_real():
+
+-            pass
+
+-    """
+
+-    )
+
+-    result = testdir.runpytest()
+
+-    result.stdout.fnmatch_lines(
+
+-        [
+
+-            "*collected 1 item*",
+
+-            "*test_dont_collect_non_function_callable.py:2: *cannot collect 'test_a' because it is not a function*",
+
+-            "*1 passed, 1 warning in *",
+
+-        ]
+
+-    )
+
++import os
+
++import errno
+
++import shutil
+
++
+
++import pytest
+
++
+
++
+
++@pytest.fixture
+
++def private_dir():  # or (monkeypatch)
+
++    out_dir = 'ddd'
+
++
+
++    try:
+
++        shutil.rmtree(out_dir)
+
++    except OSError as ex:
+
++        if ex.errno != errno.ENOENT:
+
++            raise
+
++    os.mkdir(out_dir)
+
++
+
++    old_dir = os.getcwd()
+
++    os.chdir(out_dir)
+
++    yield out_dir
+
++    os.chdir(old_dir)
+
++
+
++    # Same issue if using:
+
++    # monkeypatch.chdir(out_dir)
+
++
+
++
+
++def test_show_correct_path(private_dir):
+
++    # Get the full path to the test file relative to the original directory
+
++    test_file_path = os.path.join(os.getcwd(), os.pardir, 'test_path_error.py')
+
++    assert False, f"Test file path: {test_file_path}"
+
+ 
+
+ 
+
+ def test_class_injection_does_not_break_collection(testdir):

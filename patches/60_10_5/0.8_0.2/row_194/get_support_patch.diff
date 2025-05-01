@@ -1,0 +1,96 @@
+--- a/decoupled/60/0.8_0.2/194/scikit-learn_scikit-learn/sklearn/feature_selection/base.py
++++ b/decoupled/60/0.8_0.2/194/scikit-learn_scikit-learn/sklearn/feature_selection/base.py
+@@ -23,28 +23,26 @@
+     `_get_support_mask`.
+
+     """
+
+ 
+
+-    def get_support(self, indices=False):
+
+-        """
+
+-        Get a mask, or integer index, of the features selected
+
++def _estimate_mi(self, discrete_features='auto'):
+
++    """
+
++    Estimate mutual information for feature selection.
+
+ 
+
+-        Parameters
+
+-        ----------
+
+-        indices : boolean (default False)
+
+-            If True, the return value will be an array of integers, rather
+
+-            than a boolean mask.
+
+-
+
+-        Returns
+
+-        -------
+
+-        support : array
+
+-            An index that selects the retained features from a feature vector.
+
+-            If `indices` is False, this is a boolean array of shape
+
+-            [# input features], in which an element is True iff its
+
+-            corresponding feature is selected for retention. If `indices` is
+
+-            True, this is an integer array of shape [# output features] whose
+
+-            values are indices into the input feature vector.
+
+-        """
+
+-        mask = self._get_support_mask()
+
+-        return mask if not indices else np.where(mask)[0]
+
++    Parameters
+
++    ----------
+
++    discrete_features : boolean or array-like of bool or int, default='auto'
+
++        If boolean or array-like of bool, boolean mask or indices select
+
++        which features are treated as discrete. If 'auto', information
+
++        about the types of the input features is used to decide.
+
++    """
+
++    if discrete_features == 'auto':
+
++        # Automatic detection of discrete features
+
++        # ... (rest of the function remains the same)
+
++    elif sp.issparse(discrete_features):
+
++        # Handle sparse discrete_features array
+
++        # ... (rest of the function remains the same)
+
++    else:
+
++        # Handle other types of discrete_features
+
++        # ... (rest of the function remains the same)
+
+ 
+
+     @abstractmethod
+
+     def _get_support_mask(self):

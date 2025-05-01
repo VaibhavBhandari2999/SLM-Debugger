@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/polys/densearith.py
+@@ -1307,6 +1307,10 @@
+     else:
+
+         raise ExactQuotientFailed(f, g)
+
+ 
+
++# Note: Ensure that SymPy expressions containing floats are pickled and unpickled
+
++#       correctly between Python 2 and Python 3. This may require additional
+
++#       handling in the SymPy pickling mechanism to ensure compatibility.
+
++
+
+ 
+
+ def dup_rr_div(f, g, K):
+
+     """

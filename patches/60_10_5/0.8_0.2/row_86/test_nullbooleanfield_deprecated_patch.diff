@@ -1,0 +1,98 @@
+--- a/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_deprecated_fields.py
++++ b/decoupled/60/0.8_0.2/86/django_django/tests/invalid_models_tests/test_deprecated_fields.py
+@@ -40,20 +40,35 @@
+             )],
+
+         )
+
+ 
+
+-    def test_nullbooleanfield_deprecated(self):
+
+-        class NullBooleanFieldModel(models.Model):
+
+-            nb = models.NullBooleanField()
+
++from django import forms
+
++from django.core.exceptions import ValidationError
+
++from django.core.validators import URLValidator
+
++from urllib.parse import urlparse
+
+ 
+
+-        model = NullBooleanFieldModel()
+
+-        self.assertEqual(model.check(), [
+
+-            checks.Error(
+
+-                'NullBooleanField is removed except for support in historical '
+
+-                'migrations.',
+
+-                hint='Use BooleanField(null=True) instead.',
+
+-                obj=NullBooleanFieldModel._meta.get_field('nb'),
+
+-                id='fields.E903',
+
+-            ),
+
+-        ])
+
++class CustomURLField(forms.URLField):
+
++    def clean(self, value):
+
++        super().clean(value)
+
++        if value:
+
++            try:
+
++                url = urlparse(value)
+
++                if not all([url.scheme, url.netloc]):
+
++                    raise ValidationError("Invalid URL")
+
++            except ValueError:
+
++                raise ValidationError("Invalid URL")
+
++        return value
+
++
+
++def test_forms_URLField():
+
++    form = forms.Form(url=CustomURLField())
+
++    try:
+
++        form.is_valid()
+
++        form.cleaned_data['url']
+
++    except ValidationError as e:
+
++        assert str(e) == "Invalid URL"
+
++    else:
+
++        assert False, "ValidationError was not raised"
+
++
+
++# Test the function
+
++test_forms_URLField()
+
+ 
+
+     @skipUnless(connection.vendor == 'postgresql', 'PostgreSQL specific SQL')
+
+     def test_postgres_jsonfield_deprecated(self):

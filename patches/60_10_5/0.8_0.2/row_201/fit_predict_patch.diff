@@ -1,0 +1,124 @@
+--- a/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
++++ b/decoupled/60/0.8_0.2/201/scikit-learn_scikit-learn/sklearn/cluster/_spectral.py
+@@ -520,29 +520,38 @@
+                                            assign_labels=self.assign_labels)
+
+         return self
+
+ 
+
+-    def fit_predict(self, X, y=None):
+
+-        """Perform spectral clustering from features, or affinity matrix,
+
+-        and return cluster labels.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        X : array-like or sparse matrix, shape (n_samples, n_features), or \
+
+-            array-like, shape (n_samples, n_samples)
+
+-            Training instances to cluster, or similarities / affinities between
+
+-            instances if ``affinity='precomputed'``. If a sparse matrix is
+
+-            provided in a format other than ``csr_matrix``, ``csc_matrix``,
+
+-            or ``coo_matrix``, it will be converted into a sparse
+
+-            ``csr_matrix``.
+
+-
+
+-        y : Ignored
+
+-            Not used, present here for API consistency by convention.
+
+-
+
+-        Returns
+
+-        -------
+
+-        labels : ndarray, shape (n_samples,)
+
+-            Cluster labels.
+
+-        """
+
+-        return super().fit_predict(X, y)
+
++def fit_predict(self, X, y=None):
+
++    """Perform spectral clustering from features, or affinity matrix,
+
++    and return cluster labels.
+
++
+
++    Parameters
+
++    ----------
+
++    X : array-like or sparse matrix, shape (n_samples, n_features), or \
+
++        array-like, shape (n_samples, n_samples)
+
++        Training instances to cluster, or similarities / affinities between
+
++        instances if ``affinity='precomputed'``. If a sparse matrix is
+
++        provided in a format other than ``csr_matrix``, ``csc_matrix``,
+
++        or ``coo_matrix``, it will be converted into a sparse
+
++        ``csr_matrix``.
+
++
+
++    y : Ignored
+
++        Not used, present here for API consistency by convention.
+
++
+
++    Returns
+
++    -------
+
++    labels : ndarray, shape (n_samples,)
+
++        Cluster labels.
+
++    """
+
++    # Fit the model
+
++    self.fit(X)
+
++    
+
++    # Check if the clustering converged
+
++    if self.converged_:
+
++        # Return the cluster labels
+
++        return self.labels_
+
++    else:
+
++        # Return -1 for non-converged samples
+
++        return np.full(X.shape[0], -1, dtype=int)
+
+ 
+
+     @property
+
+     def _pairwise(self):

@@ -1,0 +1,152 @@
+--- a/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -459,37 +459,44 @@
+         field = Model._meta.get_field('field')
+
+         self.assertEqual(field.check(), [])
+
+ 
+
+-    def test_foreign_object_to_non_unique_fields(self):
+
+-        class Person(models.Model):
+
+-            # Note that both fields are not unique.
+
+-            country_id = models.IntegerField()
+
+-            city_id = models.IntegerField()
+
+-
+
+-        class MMembership(models.Model):
+
+-            person_country_id = models.IntegerField()
+
+-            person_city_id = models.IntegerField()
+
+-
+
+-            person = models.ForeignObject(
+
+-                Person,
+
+-                on_delete=models.CASCADE,
+
+-                from_fields=['person_country_id', 'person_city_id'],
+
+-                to_fields=['country_id', 'city_id'],
+
+-            )
+
+-
+
+-        field = MMembership._meta.get_field('person')
+
+-        self.assertEqual(field.check(), [
+
+-            Error(
+
+-                "No subset of the fields 'country_id', 'city_id' on model 'Person' is unique.",
+
+-                hint=(
+
+-                    'Mark a single field as unique=True or add a set of '
+
+-                    'fields to a unique constraint (via unique_together or a '
+
+-                    'UniqueConstraint (without condition) in the model '
+
+-                    'Meta.constraints).'
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E310',
+
+-            )
+
+-        ])
+
++def test_foreign_object_to_non_unique_fields(self):
+
++    class Person(models.Model):
+
++        # Note that both fields are not unique.
+
++        country_id = models.IntegerField()
+
++        city_id = models.IntegerField()
+
++
+
++    class MMembership(models.Model):
+
++        person_country_id = models.IntegerField()
+
++        person_city_id = models.IntegerField()
+
++
+
++        person = models.ForeignObject(
+
++            Person,
+
++            on_delete=models.CASCADE,
+
++            from_fields=['person_country_id', 'person_city_id'],
+
++            to_fields=['country_id', 'city_id'],
+
++        )
+
++
+
++    # Check if the fields in the UniqueConstraint exist on the model
+
++    person_model_fields = {f.name for f in Person._meta.get_fields()}
+
++    to_fields = ['country_id', 'city_id']
+
++    missing_fields = [field for field in to_fields if field not in person_model_fields]
+
++    if missing_fields:
+
++        raise models.FieldDoesNotExist(f"Fields {missing_fields} do not exist on model 'Person'")
+
++
+
++    field = MMembership._meta.get_field('person')
+
++    self.assertEqual(field.check(), [
+
++        Error(
+
++            "No subset of the fields 'country_id', 'city_id' on model 'Person' is unique.",
+
++            hint=(
+
++                'Mark a single field as unique=True or add a set of '
+
++                'fields to a unique constraint (via unique_together or a '
+
++                'UniqueConstraint (without condition) in the model '
+
++                'Meta.constraints).'
+
++            ),
+
++            obj=field,
+
++            id='fields.E310',
+
++        )
+
++    ])
+
+ 
+
+     def test_foreign_object_to_partially_unique_field(self):
+
+         class Person(models.Model):

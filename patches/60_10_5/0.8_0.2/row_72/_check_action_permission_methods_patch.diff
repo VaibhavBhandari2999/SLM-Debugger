@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/72/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/72/django_django/django/contrib/admin/checks.py
+@@ -982,7 +982,7 @@
+                 else:
+
+                     return []
+
+ 
+
+-    def _check_action_permission_methods(self, obj):
+
++def _check_action_permission_methods(self, obj):
+
+         """
+
+         Actions with an allowed_permission attribute require the ModelAdmin to
+
+         implement a has_<perm>_permission() method for each permission.

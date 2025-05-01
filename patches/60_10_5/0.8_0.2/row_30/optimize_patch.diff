@@ -1,0 +1,89 @@
+--- a/decoupled/60/0.8_0.2/30/django_django/django/db/migrations/optimizer.py
++++ b/decoupled/60/0.8_0.2/30/django_django/django/db/migrations/optimizer.py
+@@ -9,7 +9,7 @@
+     nothing.
+
+     """
+
+ 
+
+-    def optimize(self, operations, app_label=None):
+
++def optimize(self, operations, app_label=None):
+
+         """
+
+         Main optimization entry point. Pass in a list of Operation instances,
+
+         get out a new list of Operation instances.
+
+@@ -37,6 +37,35 @@
+             if result == operations:
+
+                 return result
+
+             operations = result
+
++
+
++    def optimize_inner(self, operations, app_label=None):
+
++        """
+
++        Helper function to perform the actual optimization.
+
++        """
+
++        optimized_operations = []
+
++        i = 0
+
++        while i < len(operations):
+
++            operation = operations[i]
+
++            if isinstance(operation, models.FieldOperation) and hasattr(operation, 'field'):
+
++                # Check if the field is an inner class
+
++                if isinstance(operation.field, str) and '.' in operation.field:
+
++                    outer_class, inner_class = operation.field.rsplit('.', 1)
+
++                    if app_label and outer_class == f'{app_label}.{inner_class}':
+
++                        # Correctly reference the inner class as part of the outer class
+
++                        optimized_operations.append(operation)
+
++                    else:
+
++                        # If the field is an inner class, find the outer class
+
++                        for j in range(i + 1, len(operations)):
+
++                            if isinstance(operations[j], models.ModelOperation) and operations[j].name == outer_class:
+
++                                optimized_operations.append(operation)
+
++                                i = j
+
++                                break
+
++                else:
+
++                    optimized_operations.append(operation)
+
++            else:
+
++                optimized_operations.append(operation)
+
++            i += 1
+
++        return optimized_operations
+
+ 
+
+     def optimize_inner(self, operations, app_label=None):
+
+         """Inner optimization loop."""

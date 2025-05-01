@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/sphinx/ext/autodoc/importer.py
++++ b/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/sphinx/ext/autodoc/importer.py
+@@ -179,6 +179,12 @@
+             if namespace == ns and name not in members:
+
+                 members[name] = Attribute(name, True, INSTANCEATTR)
+
+ 
+
++    # Filter out imported members
+
++    if not autosummary_imported_members:
+
++        module = sys.modules[subject.__module__]
+
++        module_dict = module.__dict__
+
++        members = {name: attr for name, attr in members.items() if name in module_dict}
+
++
+
+     return members
+
+ 
+
+ 

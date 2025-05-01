@@ -1,0 +1,124 @@
+
+
+--- a/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -317,7 +317,7 @@
+         """
+
+         return True
+
+ 
+
+-    def __special__(self):
+
++def __special__(self):
+
+         """By default special members with docstrings are not included.
+
+ 
+
+         Special members are any methods or attributes that start with and
+
+@@ -330,6 +330,10 @@
+ 
+
+             napoleon_include_special_with_doc = True
+
+ 
+
++        Attributes
+
++        ----------
+
++        hello_: int
+
++            hi
+
+         """
+
+         pass
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -75,6 +75,9 @@
+         https://www.python.org/dev/peps/pep-0484/
+
+ 
+
+     """
+
++    # Example of using the attribute with a trailing underscore
+
++    attribute_with_underscore = 42
+
++    print(f"Attribute with underscore: {attribute_with_underscore}")
+
+ 
+
+ 
+
+ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
+
+
+--- a/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -242,7 +242,7 @@
+ 
+
+     """
+
+ 
+
+-    def __init__(self, param1, param2, param3):
+
++def __init__(self, param1, param2, param3):
+
+         """Example of docstring on the __init__ method.
+
+ 
+
+         The __init__ method may be documented in either the class level
+
+@@ -276,6 +276,9 @@
+         self.attr5 = None
+
+         """str: Docstring *after* attribute, with type specified."""
+
+ 
+
++        # Correctly formatted attribute with trailing underscore
+
++        self.hello_ = "hello value"  #: Doc comment for `hello_` attribute
+
++
+
+     @property
+
+     def readonly_property(self):
+
+         """str: Properties should be documented in their getter method."""
+
+
+--- a/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/sphinx/testing/fixtures.py
++++ b/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/sphinx/testing/fixtures.py
+@@ -167,7 +167,7 @@
+     """
+
+     provides make_app function to initialize SphinxTestApp instance.
+
+     if you want to initialize 'app' in your test function. please use this
+
+-    instead of using SphinxTestApp class directory.
+
++    instead of using SphinxTestApp class directly.
+
+     """
+
+     monkeypatch.setattr('sphinx.application.abspath', lambda x: x)
+
+ 
+
+

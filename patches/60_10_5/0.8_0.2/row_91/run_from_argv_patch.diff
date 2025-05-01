@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/91/django_django/django/core/management/base.py
++++ b/decoupled/60/0.8_0.2/91/django_django/django/core/management/base.py
+@@ -343,7 +343,7 @@
+         parser = self.create_parser(prog_name, subcommand)
+
+         parser.print_help()
+
+ 
+
+-    def run_from_argv(self, argv):
+
++def run_from_argv(self, argv):
+
+         """
+
+         Set up any environment changes requested (e.g., Python path
+
+         and Django settings), then run this command. If the

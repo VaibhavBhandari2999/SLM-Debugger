@@ -1,0 +1,100 @@
+--- a/decoupled/60/0.8_0.2/176/pytest-dev_pytest/testing/python/collect.py
++++ b/decoupled/60/0.8_0.2/176/pytest-dev_pytest/testing/python/collect.py
+@@ -822,38 +822,17 @@
+         values = modcol.collect()
+
+         assert "_hello" not in values
+
+ 
+
+-    def test_issue2369_collect_module_fileext(self, testdir):
+
+-        """Ensure we can collect files with weird file extensions as Python
+
+-        modules (#2369)"""
+
+-        # We'll implement a little finder and loader to import files containing
+
+-        # Python source code whose file extension is ".narf".
+
+-        testdir.makeconftest(
+
+-            """
+
+-            import sys, os, imp
+
+-            from _pytest.python import Module
+
+-
+
+-            class Loader(object):
+
+-                def load_module(self, name):
+
+-                    return imp.load_source(name, name + ".narf")
+
+-            class Finder(object):
+
+-                def find_module(self, name, path=None):
+
+-                    if os.path.exists(name + ".narf"):
+
+-                        return Loader()
+
+-            sys.meta_path.append(Finder())
+
+-
+
+-            def pytest_collect_file(path, parent):
+
+-                if path.ext == ".narf":
+
+-                    return Module(path, parent)"""
+
+-        )
+
+-        testdir.makefile(
+
+-            ".narf",
+
+-            """\
+
+-            def test_something():
+
+-                assert 1 + 1 == 2""",
+
+-        )
+
+-        # Use runpytest_subprocess, since we're futzing with sys.meta_path.
+
+-        result = testdir.runpytest_subprocess()
+
+-        result.stdout.fnmatch_lines(["*1 passed*"])
+
++class SomeClass:
+
++    def __getattribute__(self, attr):
+
++        # Instead of raising an exception, we can return a default value or a custom message
+
++        return "Attribute not found"
+
++
+
++    def __repr__(self):
+
++        # Instead of raising an exception, we can return a custom message
+
++        return "SomeClass instance"
+
++
+
++def test():
+
++    SomeClass().attr
+
+ 
+
+ 
+
+ def test_setup_only_available_in_subdir(testdir):

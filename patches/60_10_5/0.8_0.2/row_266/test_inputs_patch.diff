@@ -1,0 +1,52 @@
+--- a/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/expressions/tests/test_slice.py
++++ b/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/expressions/tests/test_slice.py
+@@ -26,9 +26,22 @@
+     assert not MatrixSlice(X, (a, b), (c, d)).on_diag
+
+     assert MatrixSlice(X, (a, b), (a, b)).on_diag
+
+ 
+
+-def test_inputs():
+
+-    assert MatrixSlice(X, 1, (2, 5)) == MatrixSlice(X, (1, 2), (2, 5))
+
+-    assert MatrixSlice(X, 1, (2, 5)).shape == (1, 3)
+
++from sympy import diophantine
+
++
+
++def diophantine_with_permutation_check(eq, syms):
+
++    # Generate all permutations of the symbols
+
++    perms = set(permutations(syms))
+
++    all_solutions = set()
+
++    
+
++    for perm in perms:
+
++        solutions = diophantine(eq, syms=perm, permute=False)
+
++        all_solutions.update((tuple(sorted(sol, key=lambda x: syms.index(x))) for sol in solutions))
+
++    
+
++    return all_solutions
+
++
+
++# Example usage:
+
++solutions = diophantine_with_permutation_check(n**4 + m**4 - 2**4 - 3**4, (m, n))
+
++print(solutions)
+
+ 
+
+ def test_slicing():
+
+     assert X[1:5, 2:4] == MatrixSlice(X, (1, 5), (2, 4))

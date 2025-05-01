@@ -1,0 +1,86 @@
+--- a/decoupled/60/0.8_0.2/231/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/231/sympy_sympy/sympy/matrices/common.py
+@@ -507,21 +507,27 @@
+         return self[i, :]
+
+ 
+
+     @property
+
+-    def shape(self):
+
+-        """The shape (dimensions) of the matrix as the 2-tuple (rows, cols).
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import zeros
+
+-        >>> M = zeros(2, 3)
+
+-        >>> M.shape
+
+-        (2, 3)
+
+-        >>> M.rows
+
+-        2
+
+-        >>> M.cols
+
+-        3
+
+-        """
+
++def shape(self):
+
++    """The shape (dimensions) of the matrix as the 2-tuple (rows, cols).
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.matrices import zeros
+
++    >>> M = zeros(2, 3)
+
++    >>> M.shape
+
++    (2, 3)
+
++    >>> M.rows
+
++    2
+
++    >>> M.cols
+
++    3
+
++    """
+
++    if not self._mat:
+
++        # If the matrix is empty, determine the shape based on the inputs
+
++        cols = sum(col for mat in self.args for col in (mat.cols if mat else 0))
+
++        return (0, cols)
+
++    else:
+
++        # For non-empty matrices, use the existing logic
+
+         return (self.rows, self.cols)
+
+ 
+
+     def tolist(self):

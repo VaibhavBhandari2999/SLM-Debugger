@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -338,6 +338,12 @@
+     source = fn.read_bytes()
+
+     strfn = str(fn)
+
+     tree = ast.parse(source, filename=strfn)
+
++    
+
++    # Check if the first node is a docstring
+
++    if isinstance(tree.body[0], ast.Expr) and isinstance(tree.body[0].value, ast.Str):
+
++        # Remove the docstring node
+
++        tree.body.pop(0)
+
++    
+
+     rewrite_asserts(tree, source, strfn, config)
+
+     co = compile(tree, strfn, "exec", dont_inherit=True)
+
+     return stat, co

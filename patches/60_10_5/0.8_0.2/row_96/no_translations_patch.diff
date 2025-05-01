@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
++++ b/decoupled/60/0.8_0.2/96/django_django/django/core/management/base.py
+@@ -83,6 +83,21 @@
+     if options.pythonpath:
+
+         sys.path.insert(0, options.pythonpath)
+
+ 
+
++
+
++from django.core.management.base import BaseCommand, CommandParser
+
++
+
++class CustomCommand(BaseCommand):
+
++    def add_arguments(self, parser: CommandParser):
+
++        super().add_arguments(parser)
+
++        # Customize the help text formatting
+
++        parser.formatter_class = CustomHelpFormatter
+
++
+
++class CustomHelpFormatter(CommandParser):
+
++    def _format_help(self, parser):
+
++        help_text = super()._format_help(parser)
+
++        # Add custom formatting to the help text
+
++        help_text = help_text.replace('Example usage: ', 'Example usage:\n\t')
+
++        return help_text
+
+ 
+
+ def no_translations(handle_func):
+
+     """Decorator that forces a command to run with translations deactivated."""

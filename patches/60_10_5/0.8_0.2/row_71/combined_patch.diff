@@ -1,0 +1,447 @@
+--- a/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
++++ b/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
+@@ -15,7 +15,7 @@
+ class AppConfig:
+
+     """Class representing a Django application and its configuration."""
+
+ 
+
+-    def __init__(self, app_name, app_module):
+
++def __init__(self, app_name, app_module):
+
+         # Full Python path to the application e.g. 'django.contrib.admin'.
+
+         self.name = app_name
+
+ 
+
+@@ -56,6 +56,9 @@
+         # Mapping of lowercase model names to model classes. Initially set to
+
+         # None to prevent accidental access before import_models() runs.
+
+         self.models = None
+
++
+
++        # Fix for trailing slash issue
+
++        self.validate_name(os.path.basename(self.path.rstrip(os.sep)), 'directory')
+
+ 
+
+     def __repr__(self):
+
+         return '<%s: %s>' % (self.__class__.__name__, self.label)
+
+
+--- a/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
++++ b/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
+@@ -69,31 +69,32 @@
+     def _is_default_auto_field_overridden(self):
+
+         return self.__class__.default_auto_field is not AppConfig.default_auto_field
+
+ 
+
+-    def _path_from_module(self, module):
+
+-        """Attempt to determine app's filesystem path from its module."""
+
+-        # See #21874 for extended discussion of the behavior of this method in
+
+-        # various cases.
+
+-        # Convert to list because __path__ may not support indexing.
+
+-        paths = list(getattr(module, '__path__', []))
+
+-        if len(paths) != 1:
+
+-            filename = getattr(module, '__file__', None)
+
+-            if filename is not None:
+
+-                paths = [os.path.dirname(filename)]
+
+-            else:
+
+-                # For unknown reasons, sometimes the list returned by __path__
+
+-                # contains duplicates that must be removed (#25246).
+
+-                paths = list(set(paths))
+
+-        if len(paths) > 1:
+
+-            raise ImproperlyConfigured(
+
+-                "The app module %r has multiple filesystem locations (%r); "
+
+-                "you must configure this app with an AppConfig subclass "
+
+-                "with a 'path' class attribute." % (module, paths))
+
+-        elif not paths:
+
+-            raise ImproperlyConfigured(
+
+-                "The app module %r has no filesystem location, "
+
+-                "you must configure this app with an AppConfig subclass "
+
+-                "with a 'path' class attribute." % module)
+
+-        return paths[0]
+
++def _path_from_module(self, module):
+
++    """Attempt to determine app's filesystem path from its module."""
+
++    # See #21874 for extended discussion of the behavior of this method in
+
++    # various cases.
+
++    # Convert to list because __path__ may not support indexing.
+
++    paths = list(getattr(module, '__path__', []))
+
++    if len(paths) != 1:
+
++        filename = getattr(module, '__file__', None)
+
++        if filename is not None:
+
++            paths = [os.path.dirname(filename)]
+
++        else:
+
++            # For unknown reasons, sometimes the list returned by __path__
+
++            # contains duplicates that must be removed (#25246).
+
++            paths = list(set(paths))
+
++    if len(paths) > 1:
+
++        raise ImproperlyConfigured(
+
++            "The app module %r has multiple filesystem locations (%r); "
+
++            "you must configure this app with an AppConfig subclass "
+
++            "with a 'path' class attribute." % (module, paths))
+
++    elif not paths:
+
++        raise ImproperlyConfigured(
+
++            "The app module %r has no filesystem location, "
+
++            "you must configure this app with an AppConfig subclass "
+
++            "with a 'path' class attribute." % module)
+
++    # Fix: Remove trailing slash from the target directory path
+
++    return paths[0].rstrip(os.sep)
+
+ 
+
+     @classmethod
+
+     def create(cls, entry):
+
+
+--- a/decoupled/60/0.8_0.2/71/django_django/django/core/management/commands/makemigrations.py
++++ b/decoupled/60/0.8_0.2/71/django_django/django/core/management/commands/makemigrations.py
+@@ -59,7 +59,7 @@
+         )
+
+ 
+
+     @no_translations
+
+-    def handle(self, *app_labels, **options):
+
++def handle(self, *app_labels, **options):
+
+         self.verbosity = options['verbosity']
+
+         self.interactive = options['interactive']
+
+         self.dry_run = options['dry_run']
+
+@@ -162,34 +162,7 @@
+             }
+
+             changes = autodetector.arrange_for_graph(
+
+                 changes=changes,
+
+-                graph=loader.graph,
+
+-                migration_name=self.migration_name,
+
+-            )
+
+-            self.write_migration_files(changes)
+
+-            return
+
+-
+
+-        # Detect changes
+
+-        changes = autodetector.changes(
+
+-            graph=loader.graph,
+
+-            trim_to_apps=app_labels or None,
+
+-            convert_apps=app_labels or None,
+
+-            migration_name=self.migration_name,
+
+-        )
+
+-
+
+-        if not changes:
+
+-            # No changes? Tell them.
+
+-            if self.verbosity >= 1:
+
+-                if app_labels:
+
+-                    if len(app_labels) == 1:
+
+-                        self.stdout.write("No changes detected in app '%s'" % app_labels.pop())
+
+-                    else:
+
+-                        self.stdout.write("No changes detected in apps '%s'" % ("', '".join(app_labels)))
+
+-                else:
+
+-                    self.stdout.write("No changes detected")
+
+-        else:
+
+-            self.write_migration_files(changes)
+
+-            if check_changes:
+
+-                sys.exit(1)
+
++                graph=loader
+
+ 
+
+     def write_migration_files(self, changes):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
++++ b/decoupled/60/0.8_0.2/71/django_django/django/apps/config.py
+@@ -96,7 +96,7 @@
+         return paths[0]
+
+ 
+
+     @classmethod
+
+-    def create(cls, entry):
+
++def create(cls, entry):
+
+         """
+
+         Factory that creates an app config from an entry in INSTALLED_APPS.
+
+         """
+
+@@ -112,7 +112,7 @@
+         except Exception:
+
+             pass
+
+         else:
+
+-            # If app_module has an apps submodule that defines a single
+
++            # If app_module has an an apps submodule that defines a single
+
+             # AppConfig subclass, use it automatically.
+
+             # To prevent this, an AppConfig subclass can declare a class
+
+             # variable default = False.
+
+@@ -203,55 +203,7 @@
+             # an app module. Provide a nice error message in both cases.
+
+             mod_path, _, cls_name = entry.rpartition('.')
+
+             if mod_path and cls_name[0].isupper():
+
+-                # We could simply re-trigger the string import exception, but
+
+-                # we're going the extra mile and providing a better error
+
+-                # message for typos in INSTALLED_APPS.
+
+-                # This may raise ImportError, which is the best exception
+
+-                # possible if the module at mod_path cannot be imported.
+
+-                mod = import_module(mod_path)
+
+-                candidates = [
+
+-                    repr(name)
+
+-                    for name, candidate in inspect.getmembers(mod, inspect.isclass)
+
+-                    if issubclass(candidate, cls) and candidate is not cls
+
+-                ]
+
+-                msg = "Module '%s' does not contain a '%s' class." % (mod_path, cls_name)
+
+-                if candidates:
+
+-                    msg += ' Choices are: %s.' % ', '.join(candidates)
+
+-                raise ImportError(msg)
+
+-            else:
+
+-                # Re-trigger the module import exception.
+
+-                import_module(entry)
+
+-
+
+-        # Check for obvious errors. (This check prevents duck typing, but
+
+-        # it could be removed if it became a problem in practice.)
+
+-        if not issubclass(app_config_class, AppConfig):
+
+-            raise ImproperlyConfigured(
+
+-                "'%s' isn't a subclass of AppConfig." % entry)
+
+-
+
+-        # Obtain app name here rather than in AppClass.__init__ to keep
+
+-        # all error checking for entries in INSTALLED_APPS in one place.
+
+-        if app_name is None:
+
+-            try:
+
+-                app_name = app_config_class.name
+
+-            except AttributeError:
+
+-                raise ImproperlyConfigured(
+
+-                    "'%s' must supply a name attribute." % entry
+
+-                )
+
+-
+
+-        # Ensure app_name points to a valid module.
+
+-        try:
+
+-            app_module = import_module(app_name)
+
+-        except ImportError:
+
+-            raise ImproperlyConfigured(
+
+-                "Cannot import '%s'. Check that '%s.%s.name' is correct." % (
+
+-                    app_name,
+
+-                    app_config_class.__module__,
+
+-                    app_config_class.__qualname__,
+
+-                )
+
+-            )
+
+-
+
+-        # Entry is a path to an app config class.
+
+-        return app_config_class(app_name, app_module)
+
++                # We could simply re-trigger the string
+
+ 
+
+     def get_model(self, model_name, require_ready=True):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/71/django_django/django/core/management/commands/makemigrations.py
++++ b/decoupled/60/0.8_0.2/71/django_django/django/core/management/commands/makemigrations.py
+@@ -24,7 +24,7 @@
+ class Command(BaseCommand):
+
+     help = "Creates new migration(s) for apps."
+
+ 
+
+-    def add_arguments(self, parser):
+
++def add_arguments(self, parser):
+
+         parser.add_argument(
+
+             'args', metavar='app_label', nargs='*',
+
+             help='Specify the app label(s) to create migrations for.',
+
+@@ -57,6 +57,14 @@
+             '--check', action='store_true', dest='check_changes',
+
+             help='Exit with a non-zero status if model changes are missing migrations.',
+
+         )
+
++
+
++        # Fix for trailing slash issue
+
++        def validate_directory(target):
+
++            import os
+
++            return self.validate_name(os.path.basename(target.rstrip(os.sep)), 'directory')
+
++        
+
++        # Replace the original validate_name call with the new one
+
++        self.validate_name = validate_directory
+
+ 
+
+     @no_translations
+
+     def handle(self, *app_labels, **options):
+
+

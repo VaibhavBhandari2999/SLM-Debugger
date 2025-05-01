@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/simplify/cse_main.py
++++ b/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/simplify/cse_main.py
+@@ -60,6 +60,9 @@
+                 E.append((c1, c2))
+
+     return [r[i] for i in topological_sort((range(len(r)), E))]
+
+ 
+
++
+
++from sympy import *
+
++from sympy.simplify.cse_main import cse, reps_toposort, sift
+
+ 
+
+ def cse_separate(r, e):
+
+     """Move expressions that are in the form (symbol, expr) out of the
+
+@@ -85,6 +88,13 @@
+     r = r + [w.args for w in d[True]]
+
+     e = d[False]
+
+     return [reps_toposort(r), e]
+
++
+
++# Example usage to fix the issue with refine
+
++a, x = symbols('a x')
+
++J = Integral(sin(x)*exp(-a*x), (x, 0, oo))
+
++simplified_J = J.doit()
+
++refined_J = refine(simplified_J, Q.positive(a))
+
++print(refined_J)
+
+ 
+
+ # ====end of cse postprocess idioms===========================
+
+ 

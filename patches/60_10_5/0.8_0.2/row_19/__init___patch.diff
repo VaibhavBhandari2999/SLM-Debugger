@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/19/django_django/django/template/exceptions.py
++++ b/decoupled/60/0.8_0.2/19/django_django/django/template/exceptions.py
+@@ -24,7 +24,7 @@
+         encapsulate multiple exceptions when loading templates from multiple
+
+         engines.
+
+     """
+
+-    def __init__(self, msg, tried=None, backend=None, chain=None):
+
++def __init__(self, msg, tried=None, backend=None, chain=None):
+
+         self.backend = backend
+
+         if tried is None:
+
+             tried = []
+
+@@ -32,7 +32,10 @@
+         if chain is None:
+
+             chain = []
+
+         self.chain = chain
+
+-        super().__init__(msg)
+
++        if DEBUG:
+
++            raise Http404(msg)
+
++        else:
+
++            super().__init__(msg)
+
+ 
+
+ 
+
+ class TemplateSyntaxError(Exception):

@@ -1,0 +1,100 @@
+--- a/decoupled/60/0.8_0.2/198/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/198/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -336,48 +336,7 @@
+         Value to assign to the score if an error occurs in estimator fitting.
+
+         If set to 'raise', the error is raised.
+
+         If a numeric value is given, FitFailedWarning is raised. This parameter
+
+-        does not affect the refit step, which will always raise the error.
+
+-
+
+-    Returns
+
+-    -------
+
+-    scores : array of float, shape=(len(list(cv)),)
+
+-        Array of scores of the estimator for each run of the cross validation.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn import datasets, linear_model
+
+-    >>> from sklearn.model_selection import cross_val_score
+
+-    >>> diabetes = datasets.load_diabetes()
+
+-    >>> X = diabetes.data[:150]
+
+-    >>> y = diabetes.target[:150]
+
+-    >>> lasso = linear_model.Lasso()
+
+-    >>> print(cross_val_score(lasso, X, y, cv=3))
+
+-    [0.33150734 0.08022311 0.03531764]
+
+-
+
+-    See Also
+
+-    ---------
+
+-    :func:`sklearn.model_selection.cross_validate`:
+
+-        To run cross-validation on multiple metrics and also to return
+
+-        train scores, fit times and score times.
+
+-
+
+-    :func:`sklearn.model_selection.cross_val_predict`:
+
+-        Get predictions from each split of cross-validation for diagnostic
+
+-        purposes.
+
+-
+
+-    :func:`sklearn.metrics.make_scorer`:
+
+-        Make a scorer from a performance metric or loss function.
+
+-
+
+-    """
+
+-    # To ensure multimetric format is not supported
+
+-    scorer = check_scoring(estimator, scoring=scoring)
+
+-
+
+-    cv_results = cross_validate(estimator=estimator, X=X, y=y, groups=groups,
+
+-                                scoring={'score': scorer}, cv=cv,
+
+-                                n_jobs=n_jobs, verbose=verbose,
+
+-                                fit_params=fit_params,
+
+-                                pre_dispatch=pre_dispatch,
+
+-                                error_score=error_score)
+
+-    return cv_results['test_score']
+
++        does not affect the refit step, which will
+
+ 
+
+ 
+
+ def _fit_and_score(estimator, X, y, scorer, train, test, verbose,

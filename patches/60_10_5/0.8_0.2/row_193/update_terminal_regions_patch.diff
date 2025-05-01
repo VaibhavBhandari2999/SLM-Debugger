@@ -1,0 +1,160 @@
+--- a/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/_gb_losses.py
++++ b/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/_gb_losses.py
+@@ -225,38 +225,47 @@
+         """
+
+         return y - raw_predictions.ravel()
+
+ 
+
+-    def update_terminal_regions(self, tree, X, y, residual, raw_predictions,
+
+-                                sample_weight, sample_mask,
+
+-                                learning_rate=0.1, k=0):
+
+-        """Least squares does not need to update terminal regions.
+
+-
+
+-        But it has to update the predictions.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        tree : tree.Tree
+
+-            The tree object.
+
+-        X : 2d array, shape (n, m)
+
+-            The data array.
+
+-        y : 1d array, shape (n,)
+
+-            The target labels.
+
+-        residual : 1d array, shape (n,)
+
+-            The residuals (usually the negative gradient).
+
+-        raw_predictions : 2d array, shape (n_samples, K)
+
+-            The raw predictions (i.e. values from the tree leaves) of the
+
+-            tree ensemble at iteration ``i - 1``.
+
+-        sample_weight : 1d array, shape (n,)
+
+-            The weight of each sample.
+
+-        sample_mask : 1d array, shape (n,)
+
+-            The sample mask to be used.
+
+-        learning_rate : float, default=0.1
+
+-            Learning rate shrinks the contribution of each tree by
+
+-             ``learning_rate``.
+
+-        k : int, default=0
+
+-            The index of the estimator being updated.
+
+-        """
+
+-        # update predictions
+
+-        raw_predictions[:, k] += learning_rate * tree.predict(X).ravel()
+
++from sklearn.ensemble import IsolationForest
+
++from sklearn.datasets import make_classification
+
++from sklearn.utils.testing import assert_array_equal
+
++from sklearn.utils.estimator_checks import check_estimator
+
++
+
++class CustomIsolationForest(IsolationForest):
+
++    def __init__(self, n_estimators=100, max_samples='auto', contamination='auto',
+
++                 max_features=1.0, bootstrap=False, behaviour='new', warm_start=False):
+
++        super().__init__(n_estimators=n_estimators, max_samples=max_samples,
+
++                         contamination=contamination, max_features=max_features,
+
++                         bootstrap=bootstrap, behaviour=behaviour, warm_start=warm_start)
+
++
+
++    def fit(self, X, y=None, sample_weight=None):
+
++        if self.warm_start and hasattr(self, 'estimators_'):
+
++            self.n_estimators += len(self.estimators_)
+
++        return super().fit(X, y, sample_weight)
+
++
+
++    def partial_fit(self, X, y=None, sample_weight=None):
+
++        if not self.warm_start:
+
++            raise ValueError("warm_start should be True to use partial_fit.")
+
++        if not hasattr(self, "estimators_"):
+
++            self.fit(X, y, sample_weight)
+
++        else:
+
++            n_more_estimators = self.n_estimators - len(self.estimators_)
+
++            super().fit(X, y, sample_weight)
+
++            self.estimators_ += self.estimators_[-n_more_estimators:]
+
++            self.estimators_features_ += self.estimators_features_[-n_more_estimators:]
+
++        return self
+
++
+
++# Test the CustomIsolationForest class
+
++def test_custom_isolation_forest():
+
++    X, y = make_classification(n_samples=100, n_features=20, n_informative=2,
+
++                               n_redundant=10, n_clusters_per_class=1)
+
++    clf = CustomIsolationForest(warm_start=True, n_estimators=10)
+
++    clf.fit(X)
+
++    clf.partial_fit(X)  # Should add 10 more estimators
+
++
+
++    # Check that the number of estimators is as expected
+
++    assert len(clf.estimators_) == 20
+
++
+
++test_custom_isolation_forest()
+
+ 
+
+     def _update_terminal_region(self, tree, terminal_regions, leaf, X, y,
+
+                                 residual, raw_predictions, sample_weight):

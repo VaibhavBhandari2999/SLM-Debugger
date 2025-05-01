@@ -1,0 +1,136 @@
+--- a/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
+@@ -1847,31 +1847,42 @@
+ 
+
+         return Set._complement(self, other)
+
+ 
+
+-    def _contains(self, other):
+
+-        """
+
+-        Tests whether an element, other, is in the set.
+
+-
+
+-        The actual test is for mathematical equality (as opposed to
+
+-        syntactical equality). In the worst case all elements of the
+
+-        set must be checked.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import FiniteSet
+
+-        >>> 1 in FiniteSet(1, 2)
+
+-        True
+
+-        >>> 5 in FiniteSet(1, 2)
+
+-        False
+
+-
+
+-        """
+
+-        if other in self._args_set:
+
+-            return True
+
+-        else:
+
+-            # evaluate=True is needed to override evaluate=False context;
+
+-            # we need Eq to do the evaluation
+
+-            return fuzzy_or(fuzzy_bool(Eq(e, other, evaluate=True))
+
+-                for e in self.args)
+
++def _contains(self, other):
+
++    """
+
++    Tests whether an element, other, is in the set.
+
++
+
++    The actual test is for mathematical equality (as opposed to
+
++    syntactical equality). In the worst case all elements of the
+
++    set must be checked.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import FiniteSet
+
++    >>> 1 in FiniteSet(1, 2)
+
++    True
+
++    >>> 5 in FiniteSet(1, 2)
+
++    False
+
++
+
++    """
+
++    # Record the initial size of the set
+
++    initial_size = len(self._args_set)
+
++    
+
++    # Check if the element is in the set
+
++    if other in self._args_set:
+
++        return True
+
++    
+
++    # If not, evaluate the equality for each element
+
++    else:
+
++        # evaluate=True is needed to override evaluate=False context;
+
++        # we need Eq to do the evaluation
+
++        return fuzzy_or(fuzzy_bool(Eq(e, other, evaluate=True))
+
++            for e in self.args)
+
++    
+
++    # Check if the size of the set has changed during iteration
+
++    final_size = len(self._args_set)
+
++    if initial_size != final_size:
+
++        raise RuntimeError("The set changed size during iteration")
+
+ 
+
+     def _eval_is_subset(self, other):
+
+         return fuzzy_and(other._contains(e) for e in self.args)

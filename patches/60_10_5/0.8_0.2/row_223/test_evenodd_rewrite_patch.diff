@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/223/sympy_sympy/sympy/functions/elementary/tests/test_trigonometric.py
++++ b/decoupled/60/0.8_0.2/223/sympy_sympy/sympy/functions/elementary/tests/test_trigonometric.py
+@@ -963,6 +963,8 @@
+     return func(arg).args[0] == arg
+
+ 
+
+ 
+
++from sympy import ccode, sinc, sin, cos, pi, x, y
+
++
+
+ def test_evenodd_rewrite():
+
+     a = cos(2)  # negative
+
+     b = sin(1)  # positive
+
+@@ -981,6 +983,15 @@
+         assert _check_no_rewrite(func, a*b)
+
+         assert func(
+
+             x - y) == -func(y - x)  # it doesn't matter which form is canonical
+
++
+
++# Custom handling for sinc function in ccode
+
++def custom_ccode(expr):
+
++    if expr.func == sinc:
+
++        return 'sin(%s)/%s' % (expr.args[0], expr.args[0])
+
++    return ccode(expr)
+
++
+
++# Example usage
+
++print(custom_ccode(sinc(x)))  # This should now work correctly
+
+ 
+
+ 
+
+ def test_issue_4547():

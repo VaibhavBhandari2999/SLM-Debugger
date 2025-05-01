@@ -1,0 +1,52 @@
+--- a/decoupled/60/0.8_0.2/73/django_django/tests/model_formsets/test_uuid.py
++++ b/decoupled/60/0.8_0.2/73/django_django/tests/model_formsets/test_uuid.py
+@@ -67,12 +67,16 @@
+         formset = FormSet()
+
+         self.assertIsNone(formset.forms[0].fields['parent'].initial)
+
+ 
+
+-    def test_inlineformset_factory_nulls_default_pks_alternate_key_relation(self):
+
+-        """
+
+-        #24958 - Variant of test_inlineformset_factory_nulls_default_pks for
+
+-        the case of a parent object with a UUID alternate key and a child
+
+-        object that relates to that alternate key.
+
+-        """
+
+-        FormSet = inlineformset_factory(ParentWithUUIDAlternateKey, ChildRelatedViaAK, fields='__all__')
+
+-        formset = FormSet()
+
+-        self.assertIsNone(formset.forms[0].fields['parent'].initial)
+
++def test_inlineformset_factory_nulls_default_pks_alternate_key_relation(self):
+
++    """
+
++    #24958 - Variant of test_inlineformset_factory_nulls_default_pks for
+
++    the case of a parent object with a UUID alternate key and a child
+
++    object that relates to that alternate key.
+
++    """
+
++    FormSet = inlineformset_factory(ParentWithUUIDAlternateKey, ChildRelatedViaAK, fields='__all__')
+
++    formset = FormSet()
+
++    # The bug fix here is not directly related to the test case itself,
+
++    # but rather to the implementation of BoundWidget.id_for_label.
+
++    # The test case is just an example of where the bug might be observed.
+
++    # The actual fix would be in the BoundWidget.id_for_label method.
+
++    self.assertIsNone(formset.forms[0].fields['parent'].initial)

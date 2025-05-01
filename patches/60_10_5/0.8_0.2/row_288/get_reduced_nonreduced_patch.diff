@@ -1,0 +1,134 @@
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -398,36 +398,36 @@
+         macaulay_matrix = Matrix(rows)
+
+         return macaulay_matrix
+
+ 
+
+-    def get_reduced_nonreduced(self):
+
+-        r"""
+
+-        Returns
+
+-        =======
+
+-
+
+-        reduced: list
+
+-            A list of the reduced monomials
+
+-        non_reduced: list
+
+-            A list of the monomials that are not reduced
+
+-
+
+-        Definition
+
+-        ==========
+
+-
+
+-        A polynomial is said to be reduced in x_i, if its degree (the
+
+-        maximum degree of its monomials) in x_i is less than d_i. A
+
+-        polynomial that is reduced in all variables but one is said
+
+-        simply to be reduced.
+
+-        """
+
+-        divisible = []
+
+-        for m in self.monomial_set:
+
+-            temp = []
+
+-            for i, v in enumerate(self.variables):
+
+-                temp.append(bool(total_degree(m, v) >= self.degrees[i]))
+
+-            divisible.append(temp)
+
+-        reduced = [i for i, r in enumerate(divisible)
+
+-                   if sum(r) < self.n - 1]
+
+-        non_reduced = [i for i, r in enumerate(divisible)
+
+-                       if sum(r) >= self.n -1]
+
+-
+
+-        return reduced, non_reduced
+
++import sympy as sp
+
++
+
++def get_reduced_nonreduced(self):
+
++    r"""
+
++    Returns
+
++    =======
+
++
+
++    reduced: list
+
++        A list of the reduced monomials
+
++    non_reduced: list
+
++        A list of the monomials that are not reduced
+
++
+
++    Definition
+
++    ==========
+
++
+
++    A polynomial is said to be reduced in x_i, if its degree (the
+
++    maximum degree of its monomials) in x_i is less than d_i. A
+
++    polynomial that is reduced in all variables but one is said
+
++    simply to be reduced.
+
++    """
+
++    divisible = []
+
++    for m in sp.itermonomials(self.variables, self.max_degrees, min_degrees=self.min_degrees):
+
++        temp = []
+
++        for i, v in enumerate(self.variables):
+
++            temp.append(bool(total_degree(m, v) >= self.degrees[i]))
+
++        divisible.append(temp)
+
++    reduced = [i for i, r in enumerate(divisible) if sum(r) < self.n - 1]
+
++    non_reduced = [i for i, r in enumerate(divisible) if sum(r) >= self.n - 1]
+
++
+
++    return reduced, non_reduced
+
+ 
+
+     def get_submatrix(self, matrix):
+
+         r"""

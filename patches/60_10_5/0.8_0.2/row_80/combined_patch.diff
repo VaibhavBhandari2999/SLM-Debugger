@@ -1,0 +1,321 @@
+--- a/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
+@@ -19,6 +19,8 @@
+     update_wrapper(_wrapper, dummy)
+
+ 
+
+ 
+
++from functools import partial, wraps
+
++
+
+ def _multi_decorate(decorators, method):
+
+     """
+
+     Decorate `method` with one or more function decorators. `decorators` can be
+
+@@ -33,11 +35,8 @@
+         decorators = [decorators]
+
+ 
+
+     def _wrapper(self, *args, **kwargs):
+
+-        # bound_method has the signature that 'decorator' expects i.e. no
+
+-        # 'self' argument, but it's a closure over self so it can call
+
+-        # 'func'. Also, wrap method.__get__() in a function because new
+
+-        # attributes can't be set on bound method objects, only on functions.
+
+-        bound_method = partial(method.__get__(self, type(self)))
+
++        # Create a function that calls 'method' with 'self' and the provided arguments
+
++        bound_method = partial(lambda self, *args, **kwargs: method(self, *args, **kwargs), self)
+
+         for dec in decorators:
+
+             bound_method = dec(bound_method)
+
+         return bound_method(*args, **kwargs)
+
+
+--- a/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
+@@ -112,7 +112,7 @@
+ 
+
+ 
+
+ def make_middleware_decorator(middleware_class):
+
+-    def _make_decorator(*m_args, **m_kwargs):
+
++def _make_decorator(*m_args, **m_kwargs):
+
+         def _decorator(view_func):
+
+             middleware = middleware_class(view_func, *m_args, **m_kwargs)
+
+ 
+
+@@ -147,6 +147,8 @@
+                     if hasattr(middleware, 'process_response'):
+
+                         return middleware.process_response(request, response)
+
+                 return response
+
++            # Apply wraps to the inner function
+
++            _wrapped_view = wraps(view_func)(_wrapped_view)
+
+             return _wrapped_view
+
+         return _decorator
+
+     return _make_decorator
+
+
+--- a/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
+@@ -113,41 +113,43 @@
+ 
+
+ def make_middleware_decorator(middleware_class):
+
+     def _make_decorator(*m_args, **m_kwargs):
+
+-        def _decorator(view_func):
+
+-            middleware = middleware_class(view_func, *m_args, **m_kwargs)
+
++from functools import wraps
+
+ 
+
+-            @wraps(view_func)
+
+-            def _wrapped_view(request, *args, **kwargs):
+
+-                if hasattr(middleware, 'process_request'):
+
+-                    result = middleware.process_request(request)
+
+-                    if result is not None:
+
+-                        return result
+
+-                if hasattr(middleware, 'process_view'):
+
+-                    result = middleware.process_view(request, view_func, args, kwargs)
+
+-                    if result is not None:
+
+-                        return result
+
+-                try:
+
+-                    response = view_func(request, *args, **kwargs)
+
+-                except Exception as e:
+
+-                    if hasattr(middleware, 'process_exception'):
+
+-                        result = middleware.process_exception(request, e)
+
+-                        if result is not None:
+
+-                            return result
+
+-                    raise
+
+-                if hasattr(response, 'render') and callable(response.render):
+
+-                    if hasattr(middleware, 'process_template_response'):
+
+-                        response = middleware.process_template_response(request, response)
+
+-                    # Defer running of process_response until after the template
+
+-                    # has been rendered:
+
+-                    if hasattr(middleware, 'process_response'):
+
+-                        def callback(response):
+
+-                            return middleware.process_response(request, response)
+
+-                        response.add_post_render_callback(callback)
+
+-                else:
+
+-                    if hasattr(middleware, 'process_response'):
+
+-                        return middleware.process_response(request, response)
+
+-                return response
+
+-            return _wrapped_view
+
++def _decorator(view_func):
+
++    middleware = middleware_class(view_func, *m_args, **m_kwargs)
+
++
+
++    @wraps(view_func)
+
++    def _wrapped_view(request, *args, **kwargs):
+
++        if hasattr(middleware, 'process_request'):
+
++            result = middleware.process_request(request)
+
++            if result is not None:
+
++                return result
+
++        if hasattr(middleware, 'process_view'):
+
++            result = middleware.process_view(request, view_func, args, kwargs)
+
++            if result is not None:
+
++                return result
+
++        try:
+
++            response = view_func(request, *args, **kwargs)
+
++        except Exception as e:
+
++            if hasattr(middleware, 'process_exception'):
+
++                result = middleware.process_exception(request, e)
+
++                if result is not None:
+
++                    return result
+
++            raise
+
++        if hasattr(response, 'render') and callable(response.render):
+
++            if hasattr(middleware, 'process_template_response'):
+
++                response = middleware.process_template_response(request, response)
+
++            # Defer running of process_response until after the template
+
++            # has been rendered:
+
++            if hasattr(middleware, 'process_response'):
+
++                def callback(response):
+
++                    return middleware.process_response(request, response)
+
++                response.add_post_render_callback(callback)
+
++        else:
+
++            if hasattr(middleware, 'process_response'):
+
++                return middleware.process_response(request, response)
+
++        return response
+
++    return _wrapped_view
+
+         return _decorator
+
+     return _make_decorator
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
+@@ -50,6 +50,8 @@
+     return _wrapper
+
+ 
+
+ 
+
++from functools import wraps
+
++
+
+ def method_decorator(decorator, name=''):
+
+     """
+
+     Convert a function decorator into a method decorator
+
+@@ -72,7 +74,11 @@
+                 "Cannot decorate '%s' as it isn't a callable attribute of "
+
+                 "%s (%s)." % (name, obj, method)
+
+             )
+
+-        _wrapper = _multi_decorate(decorator, method)
+
++        # Apply wraps directly to the inner function
+
++        @wraps(method)
+
++        def _wrapper(*args, **kwargs):
+
++            result = method(*args, **kwargs)
+
++            return decorator(result)
+
+         setattr(obj, name, _wrapper)
+
+         return obj
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
+@@ -111,12 +111,14 @@
+     return make_middleware_decorator(middleware_class)()
+
+ 
+
+ 
+
++import functools
+
++
+
+ def make_middleware_decorator(middleware_class):
+
+     def _make_decorator(*m_args, **m_kwargs):
+
+         def _decorator(view_func):
+
+             middleware = middleware_class(view_func, *m_args, **m_kwargs)
+
+ 
+
+-            @wraps(view_func)
+
++            @functools.wraps(view_func)
+
+             def _wrapped_view(request, *args, **kwargs):
+
+                 if hasattr(middleware, 'process_request'):
+
+                     result = middleware.process_request(request)
+
+

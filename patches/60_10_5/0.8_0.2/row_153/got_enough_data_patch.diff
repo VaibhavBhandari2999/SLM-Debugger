@@ -1,0 +1,70 @@
+--- a/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardistribution.py
++++ b/decoupled/60/0.8_0.2/153/psf_requests/requests/packages/chardet/chardistribution.py
+@@ -95,10 +95,33 @@
+         # normalize confidence (we don't want to be 100% sure)
+
+         return SURE_YES
+
+ 
+
++import requests
+
++
+
++class DataFetcher:
+
++    def __init__(self, threshold):
+
++        self._mTotalChars = 0
+
++        self.ENOUGH_DATA_THRESHOLD = threshold
+
++
+
++    def fetch_data(self, url):
+
++        try:
+
++            response = requests.get(url)
+
++            response.raise_for_status()  # Raise an HTTPError for bad responses
+
++            self._mTotalChars += len(response.text)
+
++            return self.got_enough_data()
+
++        except requests.exceptions.RequestException as e:
+
++            print(f"Request failed: {e}")
+
++            return False
+
++        except requests.packages.urllib3.exceptions.DecodeError as e:
+
++            print(f"Decode error: {e}")
+
++            return False
+
++        except requests.packages.urllib3.exceptions.TimeoutError as e:
+
++            print(f"Timeout error: {e}")
+
++            return False
+
++
+
+     def got_enough_data(self):
+
+         # It is not necessary to receive all data to draw conclusion.
+
+         # For charset detection, certain amount of data is enough
+
+-        return self._mTotalChars > ENOUGH_DATA_THRESHOLD
+
++        return self._mTotalChars > self.ENOUGH_DATA_THRESHOLD
+
+ 
+
+     def get_order(self, aBuf):
+
+         # We do not handle characters based on the original encoding string,

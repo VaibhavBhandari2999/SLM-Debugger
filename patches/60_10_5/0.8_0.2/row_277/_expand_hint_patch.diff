@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/277/sympy_sympy/sympy/core/expr.py
++++ b/decoupled/60/0.8_0.2/277/sympy_sympy/sympy/core/expr.py
+@@ -3494,9 +3494,9 @@
+         return real + S.ImaginaryUnit*imag
+
+ 
+
+     @staticmethod
+
+-    def _expand_hint(expr, hint, deep=True, **hints):
+
+-        """
+
+-        Helper for ``expand()``.  Recursively calls ``expr._eval_expand_hint()``.
+
++def _expand_hint(expr, hint, deep=True, **hints):
+
++        """
+
++        Helper for ``expand()``. Recursively calls ``expr._eval_expand_hint()``.
+
+ 
+
+         Returns ``(expr, hit)``, where expr is the (possibly) expanded
+
+         ``expr`` and ``hit`` is ``True`` if ``expr`` was truly expanded and
+
+@@ -3520,6 +3520,10 @@
+             newexpr = getattr(expr, hint)(**hints)
+
+             if newexpr != expr:
+
+                 return (newexpr, True)
+
++
+
++        # Check if the expression is a Pow with base 0 and exponent -oo
+
++        if expr.func is Pow and expr.args[0] == 0 and expr.args[1] == -oo:
+
++            return (S.ComplexInfinity, True)
+
+ 
+
+         return (expr, hit)
+
+ 

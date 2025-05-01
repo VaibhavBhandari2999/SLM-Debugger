@@ -1,0 +1,63 @@
+--- a/decoupled/60/0.8_0.2/35/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/35/django_django/django/db/models/deletion.py
+@@ -96,7 +96,7 @@
+         # parent.
+
+         self.dependencies = defaultdict(set)  # {model: {models}}
+
+ 
+
+-    def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
++def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+         """
+
+         Add 'objs' to the collection of objects to be deleted.  If the call is
+
+         the result of a cascade, 'source' should be the model that caused it,
+
+@@ -108,16 +108,15 @@
+             return []
+
+         new_objs = []
+
+         model = objs[0].__class__
+
+-        instances = self.data[model]
+
++        instances = self.data.setdefault(model, [])
+
+         for obj in objs:
+
+             if obj not in instances:
+
+                 new_objs.append(obj)
+
+-        instances.update(new_objs)
+
+-        # Nullable relationships can be ignored -- they are nulled out before
+
+-        # deleting, and therefore do not affect the order in which objects have
+
+-        # to be deleted.
+
+-        if source is not None and not nullable:
+
+-            self.add_dependency(source, model, reverse_dependency=reverse_dependency)
+
++                instances.append(obj)  # Add to the list before saving
+
++        # Save all objects in a transaction to ensure correct order
+
++        with transaction.atomic():
+
++            for obj in new_objs:
+
++                obj.save()
+
+         return new_objs
+
+ 
+
+     def add_dependency(self, model, dependency, reverse_dependency=False):

@@ -1,0 +1,92 @@
+--- a/decoupled/60/0.8_0.2/208/sphinx-doc_sphinx/sphinx/util/typing.py
++++ b/decoupled/60/0.8_0.2/208/sphinx-doc_sphinx/sphinx/util/typing.py
+@@ -394,6 +394,45 @@
+         return _stringify_py37(annotation, mode)
+
+     else:
+
+         return _stringify_py36(annotation, mode)
+
++
+
++def _stringify_py37(annotation: Any, mode: str) -> str:
+
++    """Stringify type annotation object for Python 3.7 and above."""
+
++    from typing import get_origin, get_args
+
++
+
++    if isinstance(annotation, str):
+
++        return annotation
+
++    elif isinstance(annotation, TypeVar):
+
++        return annotation.__name__
+
++    elif inspect.isNewType(annotation):
+
++        return annotation.__name__
+
++    elif annotation is NoneType:
+
++        return 'None'
+
++    elif ismockmodule(annotation):
+
++        return annotation.__name__
+
++    elif ismock(annotation):
+
++        return '%s.%s' % (annotation.__module__, annotation.__name__)
+
++    elif is_invalid_builtin_class(annotation):
+
++        return INVALID_BUILTIN_CLASSES[annotation]
+
++    elif str(annotation).startswith('typing.Annotated'):
+
++        return str(annotation)
+
++    elif (getattr(annotation, '__module__', None) == 'builtins' and
+
++          getattr(annotation, '__qualname__', None)):
+
++        return annotation.__qualname__
+
++    elif annotation is Ellipsis:
+
++        return '...'
+
++
+
++    origin = get_origin(annotation)
+
++    if origin is None:
+
++        return str(annotation)
+
++    elif origin is Union:
+
++        args = get_args(annotation)
+
++        if NoneType in args:
+
++            args = tuple(arg for arg in args if arg is not NoneType)
+
++        return ' | '.join(_stringify_py37(arg, mode) for arg in args)
+
++    elif origin is Tuple:
+
++        args = get_args(annotation)
+
++        if not args:
+
++            return 'Tuple[()]'
+
+ 
+
+ 
+
+ def _stringify_py37(annotation: Any, mode: str = 'fully-qualified-except-typing') -> str:

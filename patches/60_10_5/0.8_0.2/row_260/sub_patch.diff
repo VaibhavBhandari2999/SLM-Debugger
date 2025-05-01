@@ -1,0 +1,87 @@
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -68,7 +68,7 @@
+ def sub(matlist1, matlist2, K):
+
+     """
+
+     Subtracts two matrices by first negating the second matrix and
+
+-    then adding it to first matrix.
+
++    then adding it to the first matrix.
+
+ 
+
+     Examples
+
+     ========
+
+@@ -88,14 +88,26 @@
+     [[11, 76], [53, 75]]
+
+     >>> sub(f, g, ZZ)
+
+     [[1, 2], [3, 4]]
+
+-
+
+-    See Also
+
+-    ========
+
+-
+
+-    negate
+
+-    negaterow
+
+-    """
+
+-    return add(matlist1, negate(matlist2, K), K)
+
++    >>> sub(e, g, ZZ)
+
++    [[12, 78], [56, 79]]
+
++    >>> sub(f, f, ZZ)
+
++    [[0, 0], [0, 0]]
+
++    """
+
++    # Check if the matrices have the same dimensions
+
++    if len(matlist1) != len(matlist2) or any(len(row1) != len(row2) for row1, row2 in zip(matlist1, matlist2)):
+
++        raise ValueError("Matrices must have the same dimensions for subtraction")
+
++
+
++    # Check if K is a valid type for matrix operations
+
++    if not hasattr(K, '__call__'):
+
++        raise TypeError("K must be a callable type representing a ring or field")
+
++
+
++    # Negate the second matrix
+
++    negated_matlist2 = negate(matlist2, K)
+
++
+
++    # Add the first matrix and the negated second matrix
+
++    result = add(matlist1, negated_matlist2, K)
+
++
+
++    return result
+
+ 
+
+ 
+
+ def negate(matlist, K):

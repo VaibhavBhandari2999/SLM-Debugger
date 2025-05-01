@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/195/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/195/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -40,7 +40,9 @@
+ 
+
+     if _get_config()['assume_finite']:
+
+         return
+
++
+
+     X = np.asanyarray(X)
+
++
+
+     # First try an O(n) time, O(1) space solution for the common case that
+
+     # everything is finite; fall back to O(n) space np.isfinite to prevent
+
+     # false positives from overflow in sum method. The sum is also calculated

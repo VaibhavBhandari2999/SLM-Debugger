@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/99/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/99/django_django/django/db/models/fields/related_descriptors.py
+@@ -578,7 +578,7 @@
+             self.rel,
+
+         )
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
++def __get__(self, instance, cls=None):
+
+         """
+
+         Get the related objects through the reverse relation.
+
+ 
+
+@@ -593,7 +593,9 @@
+         key = self.related_manager_cache_key
+
+         instance_cache = instance._state.related_managers_cache
+
+         if key not in instance_cache:
+
+-            instance_cache[key] = self.related_manager_cls(instance)
+
++            # Use the concrete model's metadata instead of the proxy model's metadata
+
++            concrete_model = instance._meta.concrete_model
+
++            instance_cache[key] = self.related_manager_cls(concrete_model)
+
+         return instance_cache[key]
+
+ 
+
+     def _get_set_deprecation_msg_params(self):

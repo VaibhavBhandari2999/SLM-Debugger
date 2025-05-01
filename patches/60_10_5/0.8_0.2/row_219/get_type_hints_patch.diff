@@ -1,0 +1,35 @@
+--- a/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/sphinx/util/typing.py
++++ b/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/sphinx/util/typing.py
+@@ -64,6 +64,7 @@
+     runtime.
+
+     """
+
+     from sphinx.util.inspect import safe_getattr  # lazy loading
+
++    import struct  # Import struct here to ensure it's available
+
+ 
+
+     try:
+
+         return typing.get_type_hints(obj, globalns, localns)
+
+@@ -77,6 +78,9 @@
+         return {}
+
+     except AttributeError:
+
+         # AttributeError is raised on 3.5.2 (fixed by 3.5.3)
+
++        return {}
+
++    except ImportError:
+
++        # Handle the case where struct is not available
+
+         return {}
+
+ 
+
+ 

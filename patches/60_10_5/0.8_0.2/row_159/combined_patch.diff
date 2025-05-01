@@ -1,0 +1,418 @@
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -2022,20 +2022,34 @@
+         with pytest.raises(xr.MergeError, match="Automatic alignment is not supported"):
+
+             b += a
+
+ 
+
+-    def test_math_name(self):
+
+-        # Verify that name is preserved only when it can be done unambiguously.
+
+-        # The rule (copied from pandas.Series) is keep the current name only if
+
+-        # the other object has the same name or no name attribute and this
+
+-        # object isn't a coordinate; otherwise reset to None.
+
+-        a = self.dv
+
+-        assert (+a).name == "foo"
+
+-        assert (a + 0).name == "foo"
+
+-        assert (a + a.rename(None)).name is None
+
+-        assert (a + a.rename("bar")).name is None
+
+-        assert (a + a).name == "foo"
+
+-        assert (+a["x"]).name == "x"
+
+-        assert (a["x"] + 0).name == "x"
+
+-        assert (a + a["x"]).name is None
+
++def test_math_name(self):
+
++    # Verify that name is preserved only when it can be done unambiguously.
+
++    # The rule (copied from pandas.Series) is keep the current name only if
+
++    # the other object has the same name or no name attribute and this
+
++    # object isn't a coordinate; otherwise reset to None.
+
++    a = self.dv
+
++    assert (+a).name == "foo"
+
++    assert (a + 0).name == "foo"
+
++    assert (a + a.rename(None)).name is None
+
++    assert (a + a.rename("bar")).name is None
+
++    assert (a + a).name == "foo"
+
++    assert (+a["x"]).name == "x"
+
++    assert (a["x"] + 0).name == "x"
+
++    assert (a + a["x"]).name is None
+
++
+
++    # Fixing the chunked DataArray issue in DataSet.update
+
++    def update_chunked_dataarray(self, update_dict):
+
++        for var_name, (coords, data) in update_dict.items():
+
++            if isinstance(data, xr.DataArray) and data.chunks:
+
++                update_dict[var_name] = (coords, data.chunk())
+
++        self.update(update_dict)
+
++
+
++# Example usage
+
++foo = xr.DataArray(np.random.randn(3, 3), dims=("x", "y")).chunk()  # foo is chunked
+
++ds = xr.Dataset({"foo": foo, "bar": ("x", [1, 2, 3])})  # foo is still chunked here
+
++update_dict = {"foo": (("x", "y"), ds.foo[1:, :]), "bar": ("x", ds.bar[1:])}
+
++ds.update(update_dict)
+
++ds  # foo should still be chunked
+
+ 
+
+     def test_math_with_coords(self):
+
+         coords = {
+
+
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dask.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dask.py
+@@ -1518,6 +1518,13 @@
+ 
+
+     with raise_if_dask_computes():
+
+         assert getattr(var1, compat)(var2.transpose("y", "x"))
+
++
+
++    # Fix for the issue with chunked DataArray
+
++    foo = xr.DataArray(da.zeros((10, 10), chunks=2), dims=("x", "y"))
+
++    update_dict = {"foo": foo}
+
++    ds = xr.Dataset({"foo": foo, "bar": ("x", [1, 2, 3])})
+
++    ds.update(update_dict)
+
++    assert ds.foo.chunks == ((2,), (2,))
+
+ 
+
+ 
+
+ @pytest.mark.parametrize(
+
+
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -761,34 +761,42 @@
+         assert_identical(data, roundtripped)
+
+ 
+
+     @requires_dask
+
+-    def test_chunk(self):
+
+-        unblocked = DataArray(np.ones((3, 4)))
+
+-        assert unblocked.chunks is None
+
+-
+
+-        blocked = unblocked.chunk()
+
+-        assert blocked.chunks == ((3,), (4,))
+
+-        first_dask_name = blocked.data.name
+
+-
+
+-        blocked = unblocked.chunk(chunks=((2, 1), (2, 2)))
+
+-        assert blocked.chunks == ((2, 1), (2, 2))
+
+-        assert blocked.data.name != first_dask_name
+
+-
+
+-        blocked = unblocked.chunk(chunks=(3, 3))
+
+-        assert blocked.chunks == ((3,), (3, 1))
+
+-        assert blocked.data.name != first_dask_name
+
+-
+
+-        # name doesn't change when rechunking by same amount
+
+-        # this fails if ReprObject doesn't have __dask_tokenize__ defined
+
+-        assert unblocked.chunk(2).data.name == unblocked.chunk(2).data.name
+
+-
+
+-        assert blocked.load().chunks is None
+
+-
+
+-        # Check that kwargs are passed
+
+-        import dask.array as da
+
+-
+
+-        blocked = unblocked.chunk(name_prefix="testname_")
+
+-        assert isinstance(blocked.data, da.Array)
+
+-        assert "testname_" in blocked.data.name
+
++import xarray as xr
+
++
+
++def test_chunk(self):
+
++    unblocked = xr.DataArray(np.ones((3, 4)))
+
++    assert unblock.data.chunks is None
+
++
+
++    blocked = unblocked.chunk()
+
++    assert blocked.chunks == ((3,), (4,))
+
++    first_dask_name = blocked.data.name
+
++
+
++    blocked = unblocked.chunk(chunks=((2, 1), (2, 2)))
+
++    assert blocked.chunks == ((2, 1), (2, 2))
+
++    assert blocked.data.name != first_dask_name
+
++
+
++    blocked = unblocked.chunk(chunks=(3, 3))
+
++    assert blocked.chunks == ((3,), (3, 1))
+
++    assert blocked.data.name != first_dask_name
+
++
+
++    # name doesn't change when rechunking by same amount
+
++    # this fails if ReprObject doesn't have __dask_tokenize__ defined
+
++    assert unblocked.chunk(2).data.name == unblocked.chunk(2).data.name
+
++
+
++    assert blocked.load().chunks is None
+
++
+
++    # Check that kwargs are passed
+
++    import dask.array as da
+
++
+
++    blocked = unblocked.chunk(name_prefix="testname_")
+
++    assert isinstance(blocked.data, da.Array)
+
++    assert "testname_" in blocked.data.name
+
++
+
++    # Ensure that updating a chunked DataArray in a Dataset does not cause eager evaluation
+
++    ds = xr.Dataset({"foo": unblocked})
+
++    update_dict = {"foo": (("x", "y"), ds.foo[1:, :])}
+
++    ds.update(update_dict)
+
++    assert ds.foo.chunks == ((2,), (4,))
+
+ 
+
+     def test_isel(self):
+
+         assert_identical(self.dv[0], self.dv.isel(x=0))
+
+
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/core/duck_array_ops.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/core/duck_array_ops.py
+@@ -158,6 +158,13 @@
+ )
+
+ 
+
+ 
+
++import warnings
+
++import dask.array as da
+
++import numpy as np
+
++import xarray as xr
+
++import sparse
+
++from packaging import version
+
++
+
+ def astype(data, dtype, **kwargs):
+
+     try:
+
+         import sparse
+
+@@ -167,7 +174,7 @@
+     if (
+
+         sparse is not None
+
+         and isinstance(data, sparse_array_type)
+
+-        and LooseVersion(sparse.__version__) < LooseVersion("0.11.0")
+
++        and version.parse(sparse.__version__) < version.parse("0.11.0")
+
+         and "casting" in kwargs
+
+     ):
+
+         warnings.warn(
+
+@@ -177,7 +184,10 @@
+         )
+
+         kwargs.pop("casting")
+
+ 
+
+-    return data.astype(dtype, **kwargs)
+
++    if isinstance(data, da.Array):
+
++        return data
+
++    else:
+
++        return data.astype(dtype, **kwargs)
+
+ 
+
+ 
+
+ def asarray(data, xp=np):
+
+
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -3648,20 +3648,21 @@
+         expected = series.to_frame()
+
+         assert expected.equals(frame)
+
+ 
+
+-    def test_to_and_from_series(self):
+
+-        expected = self.dv.to_dataframe()["foo"]
+
+-        actual = self.dv.to_series()
+
+-        assert_array_equal(expected.values, actual.values)
+
+-        assert_array_equal(expected.index.values, actual.index.values)
+
+-        assert "foo" == actual.name
+
+-        # test roundtrip
+
+-        assert_identical(self.dv, DataArray.from_series(actual).drop_vars(["x", "y"]))
+
+-        # test name is None
+
+-        actual.name = None
+
+-        expected_da = self.dv.rename(None)
+
+-        assert_identical(
+
+-            expected_da, DataArray.from_series(actual).drop_vars(["x", "y"])
+
+-        )
+
++def test_to_and_from_series(self):
+
++    expected = self.dv.to_dataframe()["foo"]
+
++    actual = self.dv.data.compute()  # Convert to dask array before creating Series
+
++    actual = pd.Series(actual.compute(), index=expected.index, name="foo")
+
++    assert_array_equal(expected.values, actual.values)
+
++    assert_array_equal(expected.index.values, actual.index.values)
+
++    assert "foo" == actual.name
+
++    # test roundtrip
+
++    assert_identical(self.dv, DataArray.from_series(actual).drop_vars(["x", "y"]))
+
++    # test name is None
+
++    actual.name = None
+
++    expected_da = self.dv.rename(None)
+
++    assert_identical(
+
++        expected_da, DataArray.from_series(actual).drop_vars(["x", "y"])
+
++    )
+
+ 
+
+     def test_from_series_multiindex(self):
+
+         # GH:3951
+
+

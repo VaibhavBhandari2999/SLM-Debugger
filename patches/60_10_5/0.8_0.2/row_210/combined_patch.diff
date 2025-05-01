@@ -1,0 +1,216 @@
+--- a/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/sphinx/ext/autodoc/importer.py
++++ b/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/sphinx/ext/autodoc/importer.py
+@@ -179,6 +179,12 @@
+             if namespace == ns and name not in members:
+
+                 members[name] = Attribute(name, True, INSTANCEATTR)
+
+ 
+
++    # Filter out imported members
+
++    if not autosummary_imported_members:
+
++        module = sys.modules[subject.__module__]
+
++        module_dict = module.__dict__
+
++        members = {name: attr for name, attr in members.items() if name in module_dict}
+
++
+
+     return members
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/sphinx/ext/autodoc/importer.py
++++ b/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/sphinx/ext/autodoc/importer.py
+@@ -101,7 +101,7 @@
+         raise ImportError(errmsg)
+
+ 
+
+ 
+
+-def get_module_members(module: Any) -> List[Tuple[str, Any]]:
+
++def get_module_members(module: Any, autosummary_imported_members: bool) -> List[Tuple[str, Any]]:
+
+     """Get members of target module."""
+
+     from sphinx.ext.autodoc import INSTANCEATTR
+
+ 
+
+@@ -109,7 +109,8 @@
+     for name in dir(module):
+
+         try:
+
+             value = safe_getattr(module, name, None)
+
+-            members[name] = (name, value)
+
++            if autosummary_imported_members or name not in globals():
+
++                members[name] = (name, value)
+
+         except AttributeError:
+
+             continue
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -336,7 +336,7 @@
+     def __special_without_docstring__(self):
+
+         pass
+
+ 
+
+-    def _private(self):
+
++def _private(self):
+
+         """By default private members are not included.
+
+ 
+
+         Private members are any methods or attributes that start with an
+
+@@ -349,7 +349,13 @@
+             napoleon_include_private_with_doc = True
+
+ 
+
+         """
+
+-        pass
+
++        # Filter out imported members from the members list
+
++        local_members = [member for member in self.members if not member.startswith('_')]
+
++        self.members = local_members
+
++
+
++        # Include private members if specified
+
++        if self.config.napoleon_include_private_with_doc:
+
++            self.members.extend([member for member in self.members if member.startswith('_')])
+
+ 
+
+     def _private_without_docstring(self):
+
+         pass
+
+
+--- a/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -317,21 +317,32 @@
+         """
+
+         return True
+
+ 
+
+-    def __special__(self):
+
+-        """By default special members with docstrings are not included.
+
+-
+
+-        Special members are any methods or attributes that start with and
+
+-        end with a double underscore. Any special member with a docstring
+
+-        will be included in the output, if
+
+-        ``napoleon_include_special_with_doc`` is set to True.
+
+-
+
+-        This behavior can be enabled by changing the following setting in
+
+-        Sphinx's conf.py::
+
+-
+
+-            napoleon_include_special_with_doc = True
+
+-
+
+-        """
+
+-        pass
+
++def __special__(self):
+
++    """By default special members with docstrings are not included.
+
++
+
++    Special members are any methods or attributes that start with and
+
++    end with a double underscore. Any special member with a docstring
+
++    will be included in the output, if
+
++    ``napoleon_include_special_with_doc`` is set to True.
+
++
+
++    This behavior can be enabled by changing the following setting in
+
++    Sphinx's conf.py::
+
++
+
++        napoleon_include_special_with_doc = True
+
++
+
++    """
+
++    # Filter out imported members if autosummary_imported_members is False
+
++    if not self.app.config.autosummary_imported_members:
+
++        members = [member for member in members if member not in self.imported_members]
+
++
+
++    # Include special members with docstrings if specified
+
++    if self.app.config.napoleon_include_special_with_doc:
+
++        members.extend([member for member in dir(self.module) if
+
++                        member.startswith('__') and member.endswith('__') and
+
++                        hasattr(getattr(self.module, member), '__doc__')])
+
++
+
++    # Generate autosummary
+
++    self.generate_autosummary(members)
+
+ 
+
+     def __special_without_docstring__(self):
+
+         pass
+
+
+
+

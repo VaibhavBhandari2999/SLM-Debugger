@@ -1,0 +1,116 @@
+--- a/decoupled/60/0.8_0.2/39/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/39/django_django/django/contrib/admin/checks.py
+@@ -445,21 +445,42 @@
+             else:
+
+                 return []
+
+ 
+
+-    def _check_radio_fields_value(self, obj, val, label):
+
+-        """ Check type of a value of `radio_fields` dictionary. """
+
+-
+
+-        from django.contrib.admin.options import HORIZONTAL, VERTICAL
+
+-
+
+-        if val not in (HORIZONTAL, VERTICAL):
+
+-            return [
+
+-                checks.Error(
+
+-                    "The value of '%s' must be either admin.HORIZONTAL or admin.VERTICAL." % label,
+
+-                    obj=obj.__class__,
+
+-                    id='admin.E024',
+
+-                )
+
+-            ]
+
+-        else:
+
+-            return []
+
++def _check_radio_fields_value(self, obj, val, label):
+
++    """ Check type of a value of `radio_fields` dictionary. """
+
++
+
++    from django.contrib.admin.options import HORIZONTAL, VERTICAL
+
++
+
++    if not isinstance(val, (dict, list, tuple)):
+
++        return [
+
++            checks.Error(
+
++                "The value of '%s' must be a dictionary, list, or tuple." % label,
+
++                obj=obj.__class__,
+
++                id='admin.E025',
+
++            )
+
++        ]
+
++    else:
+
++        errors = []
+
++        if isinstance(val, dict):
+
++            for key, field in val.items():
+
++                if field not in (HORIZONTAL, VERTICAL):
+
++                    errors.append(
+
++                        checks.Error(
+
++                            "The value of '%s' must be either admin.HORIZONTAL or admin.VERTICAL." % key,
+
++                            obj=obj.__class__,
+
++                            id='admin.E024',
+
++                        )
+
++                    )
+
++        elif isinstance(val, (list, tuple)):
+
++            for field in val:
+
++                if not isinstance(field, dict) or any(f not in (HORIZONTAL, VERTICAL) for f in field.values()):
+
++                    errors.append(
+
++                        checks.Error(
+
++                            "Each item in the list or tuple must be a dictionary with values either admin.HORIZONTAL or admin.VERTICAL." % label,
+
++                            obj=obj.__class__,
+
++                            id='admin.E026',
+
++                        )
+
++                    )
+
++        return errors if errors else []
+
+ 
+
+     def _check_view_on_site_url(self, obj):
+
+         if not callable(obj.view_on_site) and not isinstance(obj.view_on_site, bool):

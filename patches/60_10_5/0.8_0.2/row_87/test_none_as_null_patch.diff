@@ -1,0 +1,160 @@
+--- a/decoupled/60/0.8_0.2/87/django_django/tests/null_queries/tests.py
++++ b/decoupled/60/0.8_0.2/87/django_django/tests/null_queries/tests.py
+@@ -6,43 +6,49 @@
+ 
+
+ class NullQueriesTests(TestCase):
+
+ 
+
+-    def test_none_as_null(self):
+
+-        """
+
+-        Regression test for the use of None as a query value.
+
++def test_none_as_null(self):
+
++    """
+
++    Regression test for the use of None as a query value.
+
+ 
+
+-        None is interpreted as an SQL NULL, but only in __exact and __iexact
+
+-        queries.
+
+-        Set up some initial polls and choices
+
+-        """
+
+-        p1 = Poll(question='Why?')
+
+-        p1.save()
+
+-        c1 = Choice(poll=p1, choice='Because.')
+
+-        c1.save()
+
+-        c2 = Choice(poll=p1, choice='Why Not?')
+
+-        c2.save()
+
++    None is interpreted as an SQL NULL, but only in __exact and __iexact
+
++    queries.
+
++    Set up some initial polls and choices
+
++    """
+
++    p1 = Poll(question='Why?')
+
++    p1.save()
+
++    c1 = Choice(poll=p1, choice='Because.')
+
++    c1.save()
+
++    c2 = Choice(poll=p1, choice='Why Not?')
+
++    c2.save()
+
+ 
+
+-        # Exact query with value None returns nothing ("is NULL" in sql,
+
+-        # but every 'id' field has a value).
+
+-        self.assertSequenceEqual(Choice.objects.filter(choice__exact=None), [])
+
++    # Exact query with value None returns nothing ("is NULL" in sql,
+
++    # but every 'id' field has a value).
+
++    self.assertSequenceEqual(Choice.objects.filter(choice__exact=None), [])
+
+ 
+
+-        # The same behavior for iexact query.
+
+-        self.assertSequenceEqual(Choice.objects.filter(choice__iexact=None), [])
+
++    # The same behavior for iexact query.
+
++    self.assertSequenceEqual(Choice.objects.filter(choice__iexact=None), [])
+
+ 
+
+-        # Excluding the previous result returns everything.
+
+-        self.assertSequenceEqual(Choice.objects.exclude(choice=None).order_by('id'), [c1, c2])
+
++    # Excluding the previous result returns everything.
+
++    self.assertSequenceEqual(Choice.objects.exclude(choice=None).order_by('id'), [c1, c2])
+
+ 
+
+-        # Valid query, but fails because foo isn't a keyword
+
+-        msg = "Cannot resolve keyword 'foo' into field. Choices are: choice, id, poll, poll_id"
+
+-        with self.assertRaisesMessage(FieldError, msg):
+
+-            Choice.objects.filter(foo__exact=None)
+
++    # Valid query, but fails because foo isn't a keyword
+
++    msg = "Cannot resolve keyword 'foo' into field. Choices are: choice, id, poll, poll_id"
+
++    with self.assertRaisesMessage(FieldError, msg):
+
++        Choice.objects.filter(foo__exact=None)
+
+ 
+
+-        # Can't use None on anything other than __exact and __iexact
+
+-        with self.assertRaisesMessage(ValueError, 'Cannot use None as a query value'):
+
+-            Choice.objects.filter(id__gt=None)
+
++    # Can't use None on anything other than __exact and __iexact
+
++    with self.assertRaisesMessage(ValueError, 'Cannot use None as a query value'):
+
++        Choice.objects.filter(id__gt=None)
+
+ 
+
+-        # Related managers use __exact=None implicitly if the object hasn't been saved.
+
+-        p2 = Poll(question="How?")
+
+-        self.assertEqual(repr(p2.choice_set.all()), '<QuerySet []>')
+
++    # Related managers use __exact=None implicitly if the object hasn't been saved.
+
++    p2 = Poll(question="How?")
+
++    self.assertEqual(repr(p2.choice_set.all()), '<QuerySet []>')
+
++
+
++    # Fix for the bug: Ensure that ~Q(pk__in=[]) is correctly handled in ExpressionWrapper
+
++    queryset = Choice.objects.annotate(
+
++        foo=ExpressionWrapper(~Q(pk__in=[]), output_field=BooleanField())
+
++    )
+
++    self.assertEqual(queryset.values("foo").query, 'SELECT (NOT (EXISTS (SELECT U0."id" FROM "polls_choice" U0 WHERE U0."id" IN ()))::BOOL) AS "foo" FROM "polls_choice"')
+
+ 
+
+     def test_reverse_relations(self):
+
+         """

@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/190/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/190/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -540,7 +540,11 @@
+             y = pd.Series([1, 1, 1, 1, 2, 2, 2, 2])
+
+             weights = pd.Series([1] * 8)
+
+             try:
+
+-                estimator.fit(X, y, sample_weight=weights)
+
++                # Set random_state to a fixed value to ensure consistent initialization
+
++                estimator.fit(X, y, sample_weight=weights, random_state=42)
+
++                c1 = estimator.fit_predict(X)
+
++                c2 = estimator.predict(X)
+
++                assert_array_equal(c1, c2)
+
+             except ValueError:
+
+                 raise ValueError("Estimator {0} raises error if "
+
+                                  "'sample_weight' parameter is of "

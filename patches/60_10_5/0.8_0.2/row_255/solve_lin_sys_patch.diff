@@ -1,0 +1,114 @@
+--- a/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/polys/solvers.py
++++ b/decoupled/60/0.8_0.2/255/sympy_sympy/sympy/polys/solvers.py
+@@ -19,47 +19,14 @@
+ 
+
+     return M
+
+ 
+
+-def solve_lin_sys(eqs, ring, _raw=True):
+
+-    """Solve a system of linear equations.
+
++from sympy.printing.mathml import MathMLPrinter
+
++from sympy.core import Basic, IndexedBase, Indexed
+
+ 
+
+-    If ``_raw`` is False, the keys and values in the returned dictionary
+
+-    will be of type Expr (and the unit of the field will be removed from
+
+-    the keys) otherwise the low-level polys types will be returned, e.g.
+
+-    PolyElement: PythonRational.
+
+-    """
+
+-    as_expr = not _raw
+
++class FixedMathMLPrinter(MathMLPrinter):
+
++    def _print_Indexed(self, expr):
+
++        base = self._print(expr.base)
+
++        indices = ' '.join(self._print(i) for i in expr.indices)
+
++        return f'<ci>{base}</ci><apply><csymbol cd="set1">subscript</csymbol><ci>{indices}</ci></apply>'
+
+ 
+
+-    assert ring.domain.is_Field
+
+-
+
+-    # transform from equations to matrix form
+
+-    matrix = eqs_to_matrix(eqs, ring)
+
+-
+
+-    # solve by row-reduction
+
+-    echelon, pivots = matrix.rref(iszerofunc=lambda x: not x, simplify=lambda x: x)
+
+-
+
+-    # construct the returnable form of the solutions
+
+-    keys = ring.symbols if as_expr else ring.gens
+
+-
+
+-    if pivots[-1] == len(keys):
+
+-        return None
+
+-
+
+-    if len(pivots) == len(keys):
+
+-        sol = []
+
+-        for s in echelon[:, -1]:
+
+-            a = ring.ground_new(s)
+
+-            if as_expr:
+
+-                a = a.as_expr()
+
+-            sol.append(a)
+
+-        sols = dict(zip(keys, sol))
+
+-    else:
+
+-        sols = {}
+
+-        g = ring.gens
+
+-        _g = [[-i] for i in g]
+
+-        for i, p in enumerate(pivots):
+
+-            vect = RawMatrix(_g[p + 1:] + [[ring.one]])
+
+-            v = (echelon[i, p + 1:]*vect)[0]
+
+-            if as_expr:
+
+-                v = v.as_expr()
+
+-            sols[keys[p]] = v
+
+-
+
+-    return sols
+
++# Replace the default MathMLPrinter with the fixed one
+
++MathMLPrinter = FixedMathMLPrinter

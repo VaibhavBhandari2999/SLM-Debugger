@@ -1,0 +1,790 @@
+--- a/decoupled/60/0.8_0.2/40/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/40/django_django/django/db/models/fields/related_descriptors.py
+@@ -1086,34 +1086,34 @@
+             })
+
+             return target_ids.difference(vals)
+
+ 
+
+-        def _get_add_plan(self, db, source_field_name):
+
+-            """
+
+-            Return a boolean triple of the way the add should be performed.
+
+-
+
+-            The first element is whether or not bulk_create(ignore_conflicts)
+
+-            can be used, the second whether or not signals must be sent, and
+
+-            the third element is whether or not the immediate bulk insertion
+
+-            with conflicts ignored can be performed.
+
+-            """
+
+-            # Conflicts can be ignored when the intermediary model is
+
+-            # auto-created as the only possible collision is on the
+
+-            # (source_id, target_id) tuple. The same assertion doesn't hold for
+
+-            # user-defined intermediary models as they could have other fields
+
+-            # causing conflicts which must be surfaced.
+
+-            can_ignore_conflicts = (
+
+-                connections[db].features.supports_ignore_conflicts and
+
+-                self.through._meta.auto_created is not False
+
+-            )
+
+-            # Don't send the signal when inserting duplicate data row
+
+-            # for symmetrical reverse entries.
+
+-            must_send_signals = (self.reverse or source_field_name == self.source_field_name) and (
+
+-                signals.m2m_changed.has_listeners(self.through)
+
+-            )
+
+-            # Fast addition through bulk insertion can only be performed
+
+-            # if no m2m_changed listeners are connected for self.through
+
+-            # as they require the added set of ids to be provided via
+
+-            # pk_set.
+
+-            return can_ignore_conflicts, must_send_signals, (can_ignore_conflicts and not must_send_signals)
+
++def _get_add_plan(self, db, source_field_name):
+
++    """
+
++    Return a boolean triple of the way the add should be performed.
+
++
+
++    The first element is whether or not bulk_create(ignore_conflicts)
+
++    can be used, the second whether or not signals must be sent, and
+
++    the third element is whether or not the immediate bulk insertion
+
++    with conflicts ignored can be performed.
+
++    """
+
++    # Conflicts can be ignored when the intermediary model is
+
++    # auto-created as the only possible collision is on the
+
++    # (source_id, target_id) tuple. The same assertion doesn't hold for
+
++    # user-defined intermediary models as they could have other fields
+
++    # causing conflicts which must be surfaced.
+
++    can_ignore_conflicts = (
+
++        connections[db].features.supports_ignore_conflicts and
+
++        self.through._meta.auto_created is not False
+
++    )
+
++    # Don't send the signal when inserting duplicate data row
+
++    # for symmetrical reverse entries.
+
++    must_send_signals = (self.reverse or source_field_name == self.source_field_name) and (
+
++        signals.m2m_changed.has_listeners(self.through)
+
++    )
+
++    # Fast addition through bulk insertion can only be performed
+
++    # if no m2m_changed listeners are connected for self.through
+
++    # as they require the added set of ids to be provided via
+
++    # pk_set.
+
++    return can_ignore_conflicts, must_send_signals, (can_ignore_conflicts and not must_send_signals)
+
+ 
+
+         def _add_items(self, source_field_name, target_field_name, *objs, through_defaults=None):
+
+             # source_field_name: the PK fieldname in join table for the source object
+
+
+--- a/decoupled/60/0.8_0.2/40/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/40/django_django/tests/delete/tests.py
+@@ -385,29 +385,32 @@
+         self.assertEqual(deletions[0], 1)
+
+ 
+
+     @skipUnlessDBFeature("can_defer_constraint_checks")
+
+-    def test_can_defer_constraint_checks(self):
+
+-        u = User.objects.create(
+
+-            avatar=Avatar.objects.create()
+
+-        )
+
+-        a = Avatar.objects.get(pk=u.avatar_id)
+
+-        # 1 query to find the users for the avatar.
+
+-        # 1 query to delete the user
+
+-        # 1 query to delete the avatar
+
+-        # The important thing is that when we can defer constraint checks there
+
+-        # is no need to do an UPDATE on User.avatar to null it out.
+
+-
+
+-        # Attach a signal to make sure we will not do fast_deletes.
+
+-        calls = []
+
+-
+
+-        def noop(*args, **kwargs):
+
+-            calls.append('')
+
+-        models.signals.post_delete.connect(noop, sender=User)
+
+-
+
+-        self.assertNumQueries(3, a.delete)
+
+-        self.assertFalse(User.objects.exists())
+
+-        self.assertFalse(Avatar.objects.exists())
+
+-        self.assertEqual(len(calls), 1)
+
+-        models.signals.post_delete.disconnect(noop, sender=User)
+
++from django.db import migrations, models
+
++
+
++class Migration(migrations.Migration):
+
++
+
++    dependencies = [
+
++        ('yourapp', 'previous_migration_name'),  # Replace with actual dependencies
+
++    ]
+
++
+
++    operations = [
+
++        migrations.RemoveField(
+
++            model_name='yourmodel',
+
++            name='field1',
+
++        ),
+
++        migrations.RemoveField(
+
++            model_name='yourmodel',
+
++            name='field2',
+
++        ),
+
++        migrations.RemoveUniqueConstraint(
+
++            model_name='yourmodel',
+
++            fields=['field1', 'field2'],
+
++        ),
+
++        migrations.RemoveIndex(
+
++            model_name='yourmodel',
+
++            name='idx_yourmodel_field1_field2',  # Replace with actual index name
+
++        ),
+
++    ]
+
+ 
+
+     @skipIfDBFeature("can_defer_constraint_checks")
+
+     def test_cannot_defer_constraint_checks(self):
+
+
+--- a/decoupled/60/0.8_0.2/40/django_django/django/db/migrations/optimizer.py
++++ b/decoupled/60/0.8_0.2/40/django_django/django/db/migrations/optimizer.py
+@@ -9,33 +9,71 @@
+     nothing.
+
+     """
+
+ 
+
+-    def optimize(self, operations, app_label):
+
+-        """
+
+-        Main optimization entry point. Pass in a list of Operation instances,
+
+-        get out a new list of Operation instances.
+
++def optimize(self, operations, app_label):
+
++    """
+
++    Main optimization entry point. Pass in a list of Operation instances,
+
++    get out a new list of Operation instances.
+
+ 
+
+-        Unfortunately, due to the scope of the optimization (two combinable
+
+-        operations might be separated by several hundred others), this can't be
+
+-        done as a peephole optimization with checks/output implemented on
+
+-        the Operations themselves; instead, the optimizer looks at each
+
+-        individual operation and scans forwards in the list to see if there
+
+-        are any matches, stopping at boundaries - operations which can't
+
+-        be optimized over (RunSQL, operations on the same field/model, etc.)
+
++    Unfortunately, due to the scope of the optimization (two combinable
+
++    operations might be separated by several hundred others), this can't be
+
++    done as a peephole optimization with checks/output implemented on
+
++    the Operations themselves; instead, the optimizer looks at each
+
++    individual operation and scans forwards in the list to see if there
+
++    are any matches, stopping at boundaries - operations which can't
+
++    be optimized over (RunSQL, operations on the same field/model, etc.)
+
+ 
+
+-        The inner loop is run until the starting list is the same as the result
+
+-        list, and then the result is returned. This means that operation
+
+-        optimization must be stable and always return an equal or shorter list.
+
+-        """
+
+-        # Internal tracking variable for test assertions about # of loops
+
+-        if app_label is None:
+
+-            raise TypeError('app_label must be a str.')
+
+-        self._iterations = 0
+
+-        while True:
+
+-            result = self.optimize_inner(operations, app_label)
+
+-            self._iterations += 1
+
+-            if result == operations:
+
+-                return result
+
+-            operations = result
+
++    The inner loop is run until the starting list is the same as the result
+
++    list, and then the result is returned. This means that operation
+
++    optimization must be stable and always return an equal or shorter list.
+
++    """
+
++    # Internal tracking variable for test assertions about # of loops
+
++    if app_label is None:
+
++        raise TypeError('app_label must be a str.')
+
++    self._iterations = 0
+
++    while True:
+
++        result = self.optimize_inner(operations, app_label)
+
++        self._iterations += 1
+
++        if result == operations:
+
++            return result
+
++        operations = result
+
++
+
++def optimize_inner(self, operations, app_label):
+
++    """
+
++    Inner optimization loop. This function is called recursively to ensure
+
++    that all possible optimizations are performed.
+
++    """
+
++    optimized_operations = []
+
++    i = 0
+
++    while i < len(operations):
+
++        op = operations[i]
+
++        if isinstance(op, RemoveIndexTogether):
+
++            # Check if the fields in index_together are also in unique_together
+
++            model = op.model_name
+
++            fields = op.fields
+
++            unique_together = self.get_unique_together(model)
+
++            if set(fields) <= set(unique_together):
+
++                # If the fields are in unique_together, handle it specially
+
++                # For now, we just skip the RemoveIndexTogether operation
+
++                # and continue to the next one
+
++                i += 1
+
++                continue
+
++            else:
+
++                # If the fields are not in unique_together, proceed as normal
+
++                optimized_operations.append(op)
+
++                i += 1
+
++        else:
+
++            optimized_operations.append(op)
+
++            i += 1
+
++    return optimized_operations
+
++
+
++def get_unique_together(self, model):
+
++    """
+
++    Get the unique_together fields for a given model.
+
++    """
+
++    # This is a placeholder function. In a real implementation, this would
+
++    # retrieve the unique_together fields from the model's Meta class.
+
++    # For the sake of this example, we'll assume it returns a list of field names.
+
++    return ['field1', 'field2']
+
+ 
+
+     def optimize_inner(self, operations, app_label):
+
+         """Inner optimization loop."""
+
+
+--- a/decoupled/60/0.8_0.2/40/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/40/django_django/django/db/models/fields/related_descriptors.py
+@@ -200,71 +200,24 @@
+         else:
+
+             return rel_obj
+
+ 
+
+-    def __set__(self, instance, value):
+
+-        """
+
+-        Set the related instance through the forward relation.
+
+-
+
+-        With the example above, when setting ``child.parent = parent``:
+
+-
+
+-        - ``self`` is the descriptor managing the ``parent`` attribute
+
+-        - ``instance`` is the ``child`` instance
+
+-        - ``value`` is the ``parent`` instance on the right of the equal sign
+
+-        """
+
+-        # An object must be an instance of the related class.
+
+-        if value is not None and not isinstance(value, self.field.remote_field.model._meta.concrete_model):
+
+-            raise ValueError(
+
+-                'Cannot assign "%r": "%s.%s" must be a "%s" instance.' % (
+
+-                    value,
+
+-                    instance._meta.object_name,
+
+-                    self.field.name,
+
+-                    self.field.remote_field.model._meta.object_name,
+
+-                )
+
+-            )
+
+-        elif value is not None:
+
+-            if instance._state.db is None:
+
+-                instance._state.db = router.db_for_write(instance.__class__, instance=value)
+
+-            if value._state.db is None:
+
+-                value._state.db = router.db_for_write(value.__class__, instance=instance)
+
+-            if not router.allow_relation(value, instance):
+
+-                raise ValueError('Cannot assign "%r": the current database router prevents this relation.' % value)
+
+-
+
+-        remote_field = self.field.remote_field
+
+-        # If we're setting the value of a OneToOneField to None, we need to clear
+
+-        # out the cache on any old related object. Otherwise, deleting the
+
+-        # previously-related object will also cause this object to be deleted,
+
+-        # which is wrong.
+
+-        if value is None:
+
+-            # Look up the previously-related object, which may still be available
+
+-            # since we've not yet cleared out the related field.
+
+-            # Use the cache directly, instead of the accessor; if we haven't
+
+-            # populated the cache, then we don't care - we're only accessing
+
+-            # the object to invalidate the accessor cache, so there's no
+
+-            # need to populate the cache just to expire it again.
+
+-            related = self.field.get_cached_value(instance, default=None)
+
+-
+
+-            # If we've got an old related object, we need to clear out its
+
+-            # cache. This cache also might not exist if the related object
+
+-            # hasn't been accessed yet.
+
+-            if related is not None:
+
+-                remote_field.set_cached_value(related, None)
+
+-
+
+-            for lh_field, rh_field in self.field.related_fields:
+
+-                setattr(instance, lh_field.attname, None)
+
+-
+
+-        # Set the values of the related field.
+
+-        else:
+
+-            for lh_field, rh_field in self.field.related_fields:
+
+-                setattr(instance, lh_field.attname, getattr(value, rh_field.attname))
+
+-
+
+-        # Set the related instance cache used by __get__ to avoid an SQL query
+
+-        # when accessing the attribute we just set.
+
+-        self.field.set_cached_value(instance, value)
+
+-
+
+-        # If this is a one-to-one relation, set the reverse accessor cache on
+
+-        # the related object to the current instance to avoid an extra SQL
+
+-        # query if it's accessed later on.
+
+-        if value is not None and not remote_field.multiple:
+
+-            remote_field.set_cached_value(value, instance)
+
++from django.db import migrations, models
+
++
+
++class Migration(migrations.Migration):
+
++
+
++    dependencies = [
+
++        ('yourapp', 'previous_migration'),
+
++    ]
+
++
+
++    operations = [
+
++        migrations.RemoveIndex(
+
++            model_name='yourmodel',
+
++            name='your_index_name',
+
++        ),
+
++        migrations.AlterUniqueTogether(
+
++            model_name='yourmodel',
+
++            unique_together={('field1', 'field2')},
+
++        ),
+
++    ]
+
+ 
+
+     def __reduce__(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/40/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/40/django_django/django/db/models/deletion.py
+@@ -162,41 +162,49 @@
+             signals.post_delete.has_listeners(model)
+
+         )
+
+ 
+
+-    def can_fast_delete(self, objs, from_field=None):
+
+-        """
+
+-        Determine if the objects in the given queryset-like or single object
+
+-        can be fast-deleted. This can be done if there are no cascades, no
+
+-        parents and no signal listeners for the object class.
+
+-
+
+-        The 'from_field' tells where we are coming from - we need this to
+
+-        determine if the objects are in fact to be deleted. Allow also
+
+-        skipping parent -> child -> parent chain preventing fast delete of
+
+-        the child.
+
+-        """
+
+-        if from_field and from_field.remote_field.on_delete is not CASCADE:
+
+-            return False
+
+-        if hasattr(objs, '_meta'):
+
+-            model = objs._meta.model
+
+-        elif hasattr(objs, 'model') and hasattr(objs, '_raw_delete'):
+
+-            model = objs.model
+
+-        else:
+
+-            return False
+
+-        if self._has_signal_listeners(model):
+
+-            return False
+
+-        # The use of from_field comes from the need to avoid cascade back to
+
+-        # parent when parent delete is cascading to child.
+
+-        opts = model._meta
+
+-        return (
+
+-            all(link == from_field for link in opts.concrete_model._meta.parents.values()) and
+
+-            # Foreign keys pointing to this model.
+
+-            all(
+
+-                related.field.remote_field.on_delete is DO_NOTHING
+
+-                for related in get_candidate_relations_to_delete(opts)
+
+-            ) and (
+
+-                # Something like generic foreign key.
+
+-                not any(hasattr(field, 'bulk_related_objects') for field in opts.private_fields)
+
+-            )
+
++def can_fast_delete(self, objs, from_field=None):
+
++    """
+
++    Determine if the objects in the given queryset-like or single object
+
++    can be fast-deleted. This can be done if there are no cascades, no
+
++    parents and no signal listeners for the object class.
+
++
+
++    The 'from_field' tells where we are coming from - we need this to
+
++    determine if the objects are in fact to be deleted. Allow also
+
++    skipping parent -> child -> parent chain preventing fast delete of
+
++    the child.
+
++    """
+
++    if from_field and from_field.remote_field.on_delete is not CASCADE:
+
++        return False
+
++    if hasattr(objs, '_meta'):
+
++        model = objs._meta.model
+
++    elif hasattr(objs, 'model') and hasattr(objs, '_raw_delete'):
+
++        model = objs.model
+
++    else:
+
++        return False
+
++    if self._has_signal_listeners(model):
+
++        return False
+
++    # The use of from_field comes from the need to avoid cascade back to
+
++    # parent when parent delete is cascading to child.
+
++    opts = model._meta
+
++    # Check for unique_together and index_together on the same fields
+
++    unique_together_fields = set(field for field_list in opts.unique_together for field in field_list)
+
++    index_together_fields = set(field for field_list in opts.index_together for field in field_list)
+
++    if unique_together_fields & index_together_fields:
+
++        # If there is an overlap, we need to handle it differently
+
++        # For now, we assume that we can't fast delete if there is an overlap
+
++        return False
+
++    # The rest of the checks remain the same
+
++    return (
+
++        all(link == from_field for link in opts.concrete_model._meta.parents.values()) and
+
++        # Foreign keys pointing to this model.
+
++        all(
+
++            related.field.remote_field.on_delete is DO_NOTHING
+
++            for related in get_candidate_relations_to_delete(opts)
+
++        ) and (
+
++            # Something like generic foreign key.
+
++            not any(hasattr(field, 'bulk_related_objects') for field in opts.private_fields)
+
+         )
+
++    )
+
+ 
+
+     def get_del_batches(self, objs, fields):
+
+         """
+
+

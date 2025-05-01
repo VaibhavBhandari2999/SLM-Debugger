@@ -1,0 +1,30 @@
+--- a/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -1654,6 +1654,14 @@
+             estimator.set_params(contamination=contamination)
+
+             assert_raises(ValueError, estimator.fit, X)
+
+ 
+
++    # Ensure that best_indices[i] is within bounds before accessing
+
++    coefs_paths = estimator.coefs_paths_
+
++    for i in range(len(folds)):
+
++        if best_indices[i] < coefs_paths.shape[1]:
+
++            w = np.mean([coefs_paths[:, i, best_indices[i], :] for i in range(len(folds))], axis=0)
+
++        else:
+
++            raise IndexError(f"Index {best_indices[i]} is out of bounds for coefs_paths with shape {coefs_paths.shape}")
+
++
+
+ 
+
+ @ignore_warnings(category=(DeprecationWarning, FutureWarning))
+
+ def check_estimators_fit_returns_self(name, estimator_orig,

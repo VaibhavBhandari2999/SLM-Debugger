@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/29/django_django/django/db/models/sql/query.py
+@@ -95,14 +95,15 @@
+         return [converter(column_meta[0])
+
+                 for column_meta in self.cursor.description]
+
+ 
+
+-    def __iter__(self):
+
++def __iter__(self):
+
+         # Always execute a new query for a new iterator.
+
+         # This could be optimized with a cache at the expense of RAM.
+
+         self._execute_query()
+
+         if not connections[self.using].features.can_use_chunked_reads:
+
+-            # If the database can't use chunked reads we need to make sure we
+
+-            # evaluate the entire query up front.
+
++            # If the database can't use chunked reads, we need to make sure we
+
++            # evaluate the entire query up front and close the cursor after.
+
+             result = list(self.cursor)
+
++            self.cursor.close()  # Ensure the cursor is closed to release the database lock.
+
+         else:
+
+             result = self.cursor
+
+         return iter(result)

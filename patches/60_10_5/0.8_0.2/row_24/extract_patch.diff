@@ -1,0 +1,84 @@
+--- a/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
++++ b/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
+@@ -40,13 +40,34 @@
+     """
+
+ 
+
+ 
+
+-def extract(path, to_path):
+
+-    """
+
+-    Unpack the tar or zip file at the specified path to the directory
+
+-    specified by to_path.
+
+-    """
+
+-    with Archive(path) as archive:
+
+-        archive.extract(to_path)
+
++from datetime import datetime
+
++from django.utils.http import parse_http_date
+
++
+
++def parse_http_date_fixed(date_string):
+
++    """
+
++    Parse an HTTP date string and return a datetime object.
+
++    """
+
++    # Parse the date string to a datetime object
+
++    parsed_date = parse_http_date(date_string)
+
++    
+
++    # Get the current year
+
++    current_year = datetime.now().year
+
++    
+
++    # Check if the year is a two-digit year
+
++    if 0 <= parsed_date.year <= 69:
+
++        # If the year is 0-69, assume it's in the 21st century
+
++        parsed_date = parsed_date.replace(year=parsed_date.year + 2000)
+
++    elif 70 <= parsed_date.year <= 99:
+
++        # If the year is 70-99, assume it's in the 20th century
+
++        parsed_date = parsed_date.replace(year=parsed_date.year + 1900)
+
++    
+
++    # Ensure the year is within the range of the current year and the current year - 50
+
++    if parsed_date.year > current_year + 50:
+
++        parsed_date = parsed_date.replace(year=current_year - 50)
+
++    elif parsed_date.year < current_year - 50:
+
++        parsed_date = parsed_date.replace(year=current_year + 50)
+
++    
+
++    return parsed_date
+
+ 
+
+ 
+
+ class Archive:

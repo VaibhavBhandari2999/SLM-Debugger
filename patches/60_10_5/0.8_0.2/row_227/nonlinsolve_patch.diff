@@ -1,0 +1,281 @@
+--- a/decoupled/60/0.8_0.2/227/sympy_sympy/sympy/solvers/solveset.py
++++ b/decoupled/60/0.8_0.2/227/sympy_sympy/sympy/solvers/solveset.py
+@@ -1948,7 +1948,7 @@
+     ordered tuple, i.e. the first & only argument to FiniteSet is a tuple of
+
+     solutions, which is ordered, & hence the returned solution is ordered.
+
+ 
+
+-    Also note that solution could also have been returned as an ordered tuple,
+
++    Also note that solution could also be returned as an ordered tuple,
+
+     FiniteSet is just a wrapper `{}` around the tuple. It has no other
+
+     significance except for the fact it is just used to maintain a consistent
+
+     output format throughout the solveset.
+
+@@ -2004,130 +2004,4 @@
+     if present.
+
+ 
+
+     >>> from sympy import exp, sin
+
+-    >>> nonlinsolve([exp(x) - sin(y), y**2 - 4], [x, y])
+
+-    {(log(sin(2)), 2), (ImageSet(Lambda(_n, I*(2*_n*pi + pi) +
+
+-        log(sin(2))), Integers()), -2), (ImageSet(Lambda(_n, 2*_n*I*pi +
+
+-        Mod(log(sin(2)), 2*I*pi)), Integers()), 2)}
+
+-
+
+-    3. If system is Non linear polynomial zero dimensional then it returns
+
+-    both solution (real and complex solutions, if present using
+
+-    `solve_poly_system`):
+
+-
+
+-    >>> from sympy import sqrt
+
+-    >>> nonlinsolve([x**2 - 2*y**2 -2, x*y - 2], [x, y])
+
+-    {(-2, -1), (2, 1), (-sqrt(2)*I, sqrt(2)*I), (sqrt(2)*I, -sqrt(2)*I)}
+
+-
+
+-    4. `nonlinsolve` can solve some linear(zero or positive dimensional)
+
+-    system (because it is using `groebner` function to get the
+
+-    groebner basis and then `substitution` function basis as the new `system`).
+
+-    But it is not recommended to solve linear system using `nonlinsolve`,
+
+-    because `linsolve` is better for all kind of linear system.
+
+-
+
+-    >>> nonlinsolve([x + 2*y -z - 3, x - y - 4*z + 9 , y + z - 4], [x, y, z])
+
+-    {(3*z - 5, -z + 4, z)}
+
+-
+
+-    5. System having polynomial equations and only real solution is present
+
+-    (will be solved using `solve_poly_system`):
+
+-
+
+-    >>> e1 = sqrt(x**2 + y**2) - 10
+
+-    >>> e2 = sqrt(y**2 + (-x + 10)**2) - 3
+
+-    >>> nonlinsolve((e1, e2), (x, y))
+
+-    {(191/20, -3*sqrt(391)/20), (191/20, 3*sqrt(391)/20)}
+
+-    >>> nonlinsolve([x**2 + 2/y - 2, x + y - 3], [x, y])
+
+-    {(1, 2), (1 + sqrt(5), -sqrt(5) + 2), (-sqrt(5) + 1, 2 + sqrt(5))}
+
+-    >>> nonlinsolve([x**2 + 2/y - 2, x + y - 3], [y, x])
+
+-    {(2, 1), (2 + sqrt(5), -sqrt(5) + 1), (-sqrt(5) + 2, 1 + sqrt(5))}
+
+-
+
+-    6. It is better to use symbols instead of Trigonometric Function or
+
+-    Function (e.g. replace `sin(x)` with symbol, replace `f(x)` with symbol
+
+-    and so on. Get soln from `nonlinsolve` and then using `solveset` get
+
+-    the value of `x`)
+
+-
+
+-    How nonlinsolve is better than old solver `_solve_system` :
+
+-    ===========================================================
+
+-
+
+-    1. A positive dimensional system solver : nonlinsolve can return
+
+-    solution for positive dimensional system. It finds the
+
+-    Groebner Basis of the positive dimensional system(calling it as
+
+-    basis) then we can start solving equation(having least number of
+
+-    variable first in the basis) using solveset and substituting that
+
+-    solved solutions into other equation(of basis) to get solution in
+
+-    terms of minimum variables. Here the important thing is how we
+
+-    are substituting the known values and in which equations.
+
+-
+
+-    2. Real and Complex both solutions : nonlinsolve returns both real
+
+-    and complex solution. If all the equations in the system are polynomial
+
+-    then using `solve_poly_system` both real and complex solution is returned.
+
+-    If all the equations in the system are not polynomial equation then goes to
+
+-    `substitution` method with this polynomial and non polynomial equation(s),
+
+-    to solve for unsolved variables. Here to solve for particular variable
+
+-    solveset_real and solveset_complex is used. For both real and complex
+
+-    solution function `_solve_using_know_values` is used inside `substitution`
+
+-    function.(`substitution` function will be called when there is any non
+
+-    polynomial equation(s) is present). When solution is valid then add its
+
+-    general solution in the final result.
+
+-
+
+-    3. Complement and Intersection will be added if any : nonlinsolve maintains
+
+-    dict for complements and Intersections. If solveset find complements or/and
+
+-    Intersection with any Interval or set during the execution of
+
+-    `substitution` function ,then complement or/and Intersection for that
+
+-    variable is added before returning final solution.
+
+-
+
+-    """
+
+-    from sympy.polys.polytools import is_zero_dimensional
+
+-
+
+-    if not system:
+
+-        return S.EmptySet
+
+-
+
+-    if not symbols:
+
+-        msg = ('Symbols must be given, for which solution of the '
+
+-               'system is to be found.')
+
+-        raise ValueError(filldedent(msg))
+
+-
+
+-    if hasattr(symbols[0], '__iter__'):
+
+-        symbols = symbols[0]
+
+-
+
+-    try:
+
+-        sym = symbols[0].is_Symbol
+
+-    except AttributeError:
+
+-        sym = False
+
+-    except IndexError:
+
+-        msg = ('Symbols must be given, for which solution of the '
+
+-               'system is to be found.')
+
+-        raise IndexError(filldedent(msg))
+
+-
+
+-    if not sym:
+
+-        msg = ('Symbols or iterable of symbols must be given as '
+
+-               'second argument, not type %s: %s')
+
+-        raise ValueError(filldedent(msg % (type(symbols[0]), symbols[0])))
+
+-
+
+-    if len(system) == 1 and len(symbols) == 1:
+
+-        return _solveset_work(system, symbols)
+
+-
+
+-    # main code of def nonlinsolve() starts from here
+
+-    polys, polys_expr, nonpolys, denominators = _separate_poly_nonpoly(
+
+-        system, symbols)
+
+-
+
+-    if len(symbols) == len(polys):
+
+-        # If all the equations in the system is poly
+
+-        if is_zero_dimensional(polys, symbols):
+
+-            # finite number of soln (Zero dimensional system)
+
+-            try:
+
+-                return _handle_zero_dimensional(polys, symbols, system)
+
+-            except NotImplementedError:
+
+-                # Right now it doesn't fail for any polynomial system of
+
+-                # equation. If `solve_poly_system` fails then `substitution`
+
+-                # method will handle it.
+
+-                result = substitution(
+
+-                    polys_expr, symbols, exclude=denominators)
+
+-                return result
+
+-
+
+-        # positive dimensional system
+
+-        return _handle_positive_dimensional(polys, symbols, denominators)
+
+-
+
+-    else:
+
+-        # If alll the equations are not polynomial.
+
+-        # Use `substitution` method for the system
+
+-        result = substitution(
+
+-            polys_expr + nonpolys, symbols, exclude=denominators)
+
+-        return result
+
++    >>> nonlinsolve([exp(x) - sin(y), y

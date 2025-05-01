@@ -1,0 +1,66 @@
+--- a/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/python_api.py
++++ b/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/python_api.py
+@@ -130,19 +130,19 @@
+ 
+
+         return ApproxBase.__eq__(self, actual)
+
+ 
+
+-    def _yield_comparisons(self, actual):
+
+-        import numpy as np
+
+-
+
+-        # `actual` can either be a numpy array or a scalar, it is treated in
+
+-        # `__eq__` before being passed to `ApproxBase.__eq__`, which is the
+
+-        # only method that calls this one.
+
+-
+
+-        if np.isscalar(actual):
+
+-            for i in np.ndindex(self.expected.shape):
+
+-                yield actual, self.expected[i].item()
+
+-        else:
+
+-            for i in np.ndindex(self.expected.shape):
+
+-                yield actual[i].item(), self.expected[i].item()
+
++def _yield_comparisons(self, actual):
+
++    import numpy as np
+
++
+
++    # `actual` can either be a numpy array or a scalar, it is treated in
+
++    # `__eq__` before being passed to `ApproxBase.__eq__`, which is the
+
++    # only method that calls this one.
+
++
+
++    if np.isscalar(actual):
+
++        for i in np.ndindex(self.expected.shape):
+
++            yield actual, self.expected[i].item()
+
++    else:
+
++        for i in np.ndindex(self.expected.shape):
+
++            yield actual[i].item(), self.expected[i].item()
+
+ 
+
+ 
+
+ class ApproxMapping(ApproxBase):

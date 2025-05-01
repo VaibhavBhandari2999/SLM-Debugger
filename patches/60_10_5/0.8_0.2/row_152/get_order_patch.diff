@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/packages/chardet/chardistribution.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/packages/chardet/chardistribution.py
+@@ -100,11 +100,17 @@
+         # For charset detection, certain amount of data is enough
+
+         return self._mTotalChars > ENOUGH_DATA_THRESHOLD
+
+ 
+
+-    def get_order(self, aBuf):
+
++def get_order(self, aBuf):
+
+         # We do not handle characters based on the original encoding string,
+
+         # but convert this encoding string to a number, here called order.
+
+         # This allows multiple encodings of a language to share one frequency
+
+         # table.
+
++        # Fix: Convert the binary string to a regular string without the b' prefix
+
++        if isinstance(aBuf, bytes):
+
++            method = aBuf.decode('utf-8')
+
++        else:
+
++            method = aBuf
+
++
+
+         return -1
+
+ 
+
+ 

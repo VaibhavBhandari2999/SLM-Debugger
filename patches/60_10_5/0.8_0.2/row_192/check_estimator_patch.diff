@@ -1,0 +1,53 @@
+--- a/decoupled/60/0.8_0.2/192/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/192/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -268,6 +268,11 @@
+     yield check_fit_idempotent
+
+ 
+
+ 
+
++import warnings
+
++from sklearn.base import BaseEstimator, is_classifier, is_regressor, is_clusterer, is_transformer
+
++from sklearn.utils.validation import check_no_attributes_set_in_init, check_parameters_default_constructible
+
++from sklearn.utils.testing import SkipTest, _yield_all_checks
+
++
+
+ def check_estimator(Estimator):
+
+     """Check if estimator adheres to scikit-learn conventions.
+
+ 
+
+@@ -297,6 +302,14 @@
+         # got an instance
+
+         estimator = Estimator
+
+         name = type(estimator).__name__
+
++
+
++    # Implement __len__ for Pipeline
+
++    if isinstance(estimator, Pipeline):
+
++        def __len__(self):
+
++            return len(self.steps)
+
++
+
++        # Add the __len__ method to the Pipeline class
+
++        Pipeline.__len__ = __len__
+
+ 
+
+     for check in _yield_all_checks(name, estimator):
+
+         try:

@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
+@@ -357,6 +357,21 @@
+         """
+
+         return self.prepopulated_fields
+
+ 
+
++from django.urls import reverse
+
++from django.utils.http import quote
+
++
+
++class CustomAdminSite(admin.AdminSite):
+
++    def get_admin_url(self, remote_obj, url_name):
+
++        """
+
++        Generate a URL for the given object and URL name.
+
++        """
+
++        url = reverse(
+
++            url_name,
+
++            args=[quote(remote_obj.pk)],
+
++            current_app=self.name
+
++        )
+
++        return url
+
++
+
+     def get_queryset(self, request):
+
+         """
+
+         Return a QuerySet of all model instances that can be edited by the

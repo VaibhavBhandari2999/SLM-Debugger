@@ -1,0 +1,79 @@
+--- a/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
+@@ -878,7 +878,7 @@
+                 for index, item in enumerate(obj.list_editable)
+
+             ))
+
+ 
+
+-    def _check_list_editable_item(self, obj, field_name, label):
+
++def _check_list_editable_item(self, obj, field_name, label):
+
+         try:
+
+             field = obj.model._meta.get_field(field_name)
+
+         except FieldDoesNotExist:
+
+@@ -916,15 +916,21 @@
+                     )
+
+                 ]
+
+             elif not field.editable:
+
+-                return [
+
+-                    checks.Error(
+
+-                        "The value of '%s' refers to '%s', which is not editable through the admin." % (
+
+-                            label, field_name
+
+-                        ),
+
+-                        obj=obj.__class__,
+
+-                        id='admin.E125',
+
+-                    )
+
+-                ]
+
++                # Ensure JSONField values are properly formatted as JSON strings
+
++                if isinstance(field, JSONField):
+
++                    value = getattr(obj, field_name)
+
++                    if value is not None:
+
++                        value = field.prepare_value(value)
+
++                else:
+
++                    return [
+
++                        checks.Error(
+
++                            "The value of '%s' refers to '%s', which is not editable through the admin." % (
+
++                                label, field_name
+
++                            ),
+
++                            obj=obj.__class__,
+
++                            id='admin.E125',
+
++                        )
+
++                    ]
+
+             else:
+
+                 return []
+
+ 

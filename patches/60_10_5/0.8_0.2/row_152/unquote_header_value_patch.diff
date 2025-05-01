@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
++++ b/decoupled/60/0.8_0.2/152/psf_requests/requests/utils.py
+@@ -240,7 +240,7 @@
+     :param value: the header value to unquote.
+
+     """
+
+     if value and value[0] == value[-1] == '"':
+
+-        # this is not the real unquoting, but fixing this so that the
+
++        # this is not the real unquoting, but fixing this so the
+
+         # RFC is met will result in bugs with internet explorer and
+
+         # probably some other browsers as well.  IE for example is
+
+         # uploading files with "C:\foo\bar.txt" as filename
+
+@@ -254,6 +254,14 @@
+         if not is_filename or value[:2] != '\\\\':
+
+             return value.replace('\\\\', '\\').replace('\\"', '"')
+
+     return value
+
++
+
++# Ensure the method remains a bytes object
+
++def process_request(method, *args, **kwargs):
+
++    # Ensure method is a bytes object
+
++    if isinstance(method, str):
+
++        method = method.encode('ascii')
+
++    # Call the original function with the method as bytes
+
++    return unquote_header_value(method, *args, **kwargs)
+
+ 
+
+ 
+
+ def dict_from_cookiejar(cj):

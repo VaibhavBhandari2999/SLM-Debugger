@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/printing/pretty/pretty.py
++++ b/decoupled/60/0.8_0.2/248/sympy_sympy/sympy/printing/pretty/pretty.py
+@@ -2389,3 +2389,22 @@
+     if 'num_columns' not in settings:
+
+         settings['num_columns'] = 500000  # disable line wrap
+
+     pager(pretty(expr, **settings).encode(getpreferredencoding()))
+
++
+
++def pretty(expr, **settings):
+
++    """Pretty-print a SymPy expression to a string.
+
++
+
++    Parameters
+
++    ----------
+
++    expr : Expr
+
++        SymPy expression to pretty-print.
+
++    settings : dict
+
++        Keyword arguments to control the pretty-printing.
+
++
+
++    Returns
+
++    -------
+
++    str
+
++        The pretty-printed string representation of the expression.
+
++
+
++    """
+
++    from sympy.printing.pretty.pretty import pretty, pretty_print
+
++    return pretty(expr, **settings)

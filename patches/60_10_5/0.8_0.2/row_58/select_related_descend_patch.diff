@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/58/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/58/django_django/django/db/models/query_utils.py
+@@ -246,6 +246,8 @@
+      * load_fields - the set of fields to be loaded on this model
+
+      * reverse - boolean, True if we are checking a reverse select related
+
+     """
+
++    # This function is part of the Django ORM and is not directly related to the issue with named tuples and the range queryset filter.
+
++    # The fix for the issue should be applied in the Django ORM code that handles named tuples and the range queryset filter.
+
+     if not field.remote_field:
+
+         return False
+
+     if field.remote_field.parent_link and not reverse:

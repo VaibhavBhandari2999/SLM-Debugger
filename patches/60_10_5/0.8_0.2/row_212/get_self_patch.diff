@@ -1,0 +1,68 @@
+--- a/decoupled/60/0.8_0.2/212/sphinx-doc_sphinx/sphinx/pycode/parser.py
++++ b/decoupled/60/0.8_0.2/212/sphinx-doc_sphinx/sphinx/pycode/parser.py
+@@ -312,12 +312,27 @@
+ 
+
+         return False
+
+ 
+
+-    def get_self(self) -> ast.arg:
+
+-        """Returns the name of first argument if in function."""
+
+-        if self.current_function and self.current_function.args.args:
+
+-            return self.current_function.args.args[0]
+
+-        else:
+
+-            return None
+
++def process_index_entries(entries):
+
++    """
+
++    Processes index entries and merges sections with the same anchor.
+
++    
+
++    :param entries: List of index entries
+
++    :return: Processed list of index entries
+
++    """
+
++    sections = {}
+
++    for entry in entries:
+
++        if entry.anchor not in sections:
+
++            sections[entry.anchor] = {'entries': [], 'section_name': entry.section_name}
+
++        sections[entry.anchor]['entries'].append(entry)
+
++    
+
++    # Merge sections with the same anchor
+
++    merged_sections = []
+
++    for anchor, section in sections.items():
+
++        if len(section['entries']) > 1:
+
++            section['entries'].sort(key=lambda x: x.text)  # Sort entries alphabetically
+
++        merged_sections.append(IndexSection(anchor, section['section_name'], section['entries']))
+
++    
+
++    return merged_sections
+
+ 
+
+     def get_line(self, lineno: int) -> str:
+
+         """Returns specified line."""

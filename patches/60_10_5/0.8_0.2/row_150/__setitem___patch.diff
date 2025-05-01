@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/150/psf_requests/requests/structures.py
++++ b/decoupled/60/0.8_0.2/150/psf_requests/requests/structures.py
+@@ -68,10 +68,14 @@
+             data = {}
+
+         self.update(data, **kwargs)
+
+ 
+
+-    def __setitem__(self, key, value):
+
+-        # Use the lowercased key for lookups, but store the actual
+
+-        # key alongside the value.
+
+-        self._store[key.lower()] = (key, value)
+
++def __setitem__(self, key, value):
+
++    # Use the lowercased key for lookups, but store the actual
+
++    # key alongside the value.
+
++    self._store[key.lower()] = (key, value)
+
++    # Ensure the method is correctly set for the request
+
++    if key == 'method':
+
++        # Update the method in the request object
+
++        self.request.method = value
+
+ 
+
+     def __getitem__(self, key):
+
+         return self._store[key.lower()][1]

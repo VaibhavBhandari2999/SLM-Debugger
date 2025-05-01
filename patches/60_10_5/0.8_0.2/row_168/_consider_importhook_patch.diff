@@ -1,0 +1,33 @@
+--- a/decoupled/60/0.8_0.2/168/pytest-dev_pytest/src/_pytest/config/__init__.py
++++ b/decoupled/60/0.8_0.2/168/pytest-dev_pytest/src/_pytest/config/__init__.py
+@@ -1185,7 +1185,7 @@
+         )
+
+         self._override_ini = ns.override_ini or ()
+
+ 
+
+-    def _consider_importhook(self, args: Sequence[str]) -> None:
+
++def _consider_importhook(self, args: Sequence[str]) -> None:
+
+         """Install the PEP 302 import hook if using assertion rewriting.
+
+ 
+
+         Needs to parse the --assert=<mode> option from the commandline
+
+@@ -1198,6 +1198,7 @@
+             import _pytest.assertion
+
+ 
+
+             try:
+
++                # Ensure the import hook is installed only once
+
+                 hook = _pytest.assertion.install_importhook(self)
+
+             except SystemError:
+
+                 mode = "plain"

@@ -1,0 +1,71 @@
+--- a/decoupled/60/0.8_0.2/283/sympy_sympy/sympy/physics/secondquant.py
++++ b/decoupled/60/0.8_0.2/283/sympy_sympy/sympy/physics/secondquant.py
+@@ -2285,7 +2285,7 @@
+ 
+
+     If one index is repeated it is summed over and in effect substituted with
+
+     the other one. If both indices are repeated we substitute according to what
+
+-    is the preferred index.  this is determined by
+
++    is the preferred index.  This is determined by
+
+     KroneckerDelta.preferred_index and KroneckerDelta.killable_index.
+
+ 
+
+     In case there are no possible substitutions or if a substitution would
+
+@@ -2365,26 +2365,6 @@
+                     indices[s] = 0  # geek counting simplifies logic below
+
+             if isinstance(i, KroneckerDelta):
+
+                 deltas.append(i)
+
+-
+
+-        for d in deltas:
+
+-            # If we do something, and there are more deltas, we should recurse
+
+-            # to treat the resulting expression properly
+
+-            if d.killable_index.is_Symbol and indices[d.killable_index]:
+
+-                e = e.subs(d.killable_index, d.preferred_index)
+
+-                if len(deltas) > 1:
+
+-                    return evaluate_deltas(e)
+
+-            elif (d.preferred_index.is_Symbol and indices[d.preferred_index]
+
+-                  and d.indices_contain_equal_information):
+
+-                e = e.subs(d.preferred_index, d.killable_index)
+
+-                if len(deltas) > 1:
+
+-                    return evaluate_deltas(e)
+
+-            else:
+
+-                pass
+
+-
+
+-        return e
+
+-    # nothing to do, maybe we hit a Symbol or a number
+
+-    else:
+
+-        return e
+
+ 
+
+ 
+
+ def substitute_dummies(expr, new_indices=False, pretty_indices={}):

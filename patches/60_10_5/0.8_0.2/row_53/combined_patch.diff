@@ -1,0 +1,352 @@
+--- a/decoupled/60/0.8_0.2/53/django_django/django/contrib/sessions/middleware.py
++++ b/decoupled/60/0.8_0.2/53/django_django/django/contrib/sessions/middleware.py
+@@ -23,7 +23,7 @@
+         session_key = request.COOKIES.get(settings.SESSION_COOKIE_NAME)
+
+         request.session = self.SessionStore(session_key)
+
+ 
+
+-    def process_response(self, request, response):
+
++def process_response(self, request, response):
+
+         """
+
+         If request.session was modified, or if the configuration is to save the
+
+         session every time, save the changes and set a session cookie or delete
+
+@@ -67,6 +67,15 @@
+                             "request completed. The user may have logged "
+
+                             "out in a concurrent request, for example."
+
+                         )
+
++                    try:
+
++                        session_data = request.session.session_key
+
++                        if session_data:
+
++                            # Attempt to decode the session data
+
++                            request.session.decode(session_data)
+
++                    except (BadSignature, binascii.Error):
+
++                        # Handle invalid session data gracefully
+
++                        request.session.flush()
+
++                        logger.warning("Invalid session data detected and flushed.")
+
+                     response.set_cookie(
+
+                         settings.SESSION_COOKIE_NAME,
+
+                         request.session.session_key, max_age=max_age,
+
+
+--- a/decoupled/60/0.8_0.2/53/django_django/django/dispatch/dispatcher.py
++++ b/decoupled/60/0.8_0.2/53/django_django/django/dispatch/dispatcher.py
+@@ -222,44 +222,18 @@
+                 if not(isinstance(r[1], weakref.ReferenceType) and r[1]() is None)
+
+             ]
+
+ 
+
+-    def _live_receivers(self, sender):
+
+-        """
+
+-        Filter sequence of receivers to get resolved, live receivers.
+
+-
+
+-        This checks for weak references and resolves them, then returning only
+
+-        live receivers.
+
+-        """
+
+-        receivers = None
+
+-        if self.use_caching and not self._dead_receivers:
+
+-            receivers = self.sender_receivers_cache.get(sender)
+
+-            # We could end up here with NO_RECEIVERS even if we do check this case in
+
+-            # .send() prior to calling _live_receivers() due to concurrent .send() call.
+
+-            if receivers is NO_RECEIVERS:
+
+-                return []
+
+-        if receivers is None:
+
+-            with self.lock:
+
+-                self._clear_dead_receivers()
+
+-                senderkey = _make_id(sender)
+
+-                receivers = []
+
+-                for (receiverkey, r_senderkey), receiver in self.receivers:
+
+-                    if r_senderkey == NONE_ID or r_senderkey == senderkey:
+
+-                        receivers.append(receiver)
+
+-                if self.use_caching:
+
+-                    if not receivers:
+
+-                        self.sender_receivers_cache[sender] = NO_RECEIVERS
+
+-                    else:
+
+-                        # Note, we must cache the weakref versions.
+
+-                        self.sender_receivers_cache[sender] = receivers
+
+-        non_weak_receivers = []
+
+-        for receiver in receivers:
+
+-            if isinstance(receiver, weakref.ReferenceType):
+
+-                # Dereference the weak reference.
+
+-                receiver = receiver()
+
+-                if receiver is not None:
+
+-                    non_weak_receivers.append(receiver)
+
+-            else:
+
+-                non_weak_receivers.append(receiver)
+
+-        return non_weak_receivers
+
++from django.contrib.sessions.backends.base import SessionBase
+
++from django.core.signing import BadSignature
+
++from django.utils.deprecation import MiddlewareMixin
+
++
+
++class CustomSessionStore(SessionBase, MiddlewareMixin):
+
++    def load(self):
+
++        try:
+
++            return super().load()
+
++        except BadSignature:
+
++            # Handle the case where the session data is invalid
+
++            self._session_key = None
+
++            return {}
+
+ 
+
+     def _remove_receiver(self, receiver=None):
+
+         # Mark that the self.receivers list has dead weakrefs. If so, we will
+
+
+--- a/decoupled/60/0.8_0.2/53/django_django/django/core/checks/security/sessions.py
++++ b/decoupled/60/0.8_0.2/53/django_django/django/core/checks/security/sessions.py
+@@ -90,7 +90,22 @@
+ 
+
+ 
+
+ def _session_middleware():
+
+-    return 'django.contrib.sessions.middleware.SessionMiddleware' in settings.MIDDLEWARE
+
++    # Check if the session middleware is enabled
+
++    if 'django.contrib.sessions.middleware.SessionMiddleware' not in settings.MIDDLEWARE:
+
++        return False
+
++    
+
++    # Attempt to load the session data with a fallback mechanism
+
++    try:
+
++        # Load the session data
+
++        request.session.load()
+
++    except (BadSignature, binascii.Error) as e:
+
++        # If there's an error, clear the session and reload
+
++        request.session.flush()
+
++        request.session.save()
+
++        request.session.load()
+
++    
+
++    # Return True if the session is successfully loaded
+
++    return True
+
+ 
+
+ 
+
+ def _session_app():
+
+
+--- a/decoupled/60/0.8_0.2/53/django_django/django/dispatch/dispatcher.py
++++ b/decoupled/60/0.8_0.2/53/django_django/django/dispatch/dispatcher.py
+@@ -179,7 +179,7 @@
+             for receiver in self._live_receivers(sender)
+
+         ]
+
+ 
+
+-    def send_robust(self, sender, **named):
+
++def send_robust(self, sender, **named):
+
+         """
+
+         Send signal from sender to all connected receivers catching errors.
+
+ 
+
+@@ -212,6 +212,22 @@
+             else:
+
+                 responses.append((receiver, response))
+
+         return responses
+
++
+
++    def decode_session_data(self, session_data):
+
++        """
+
++        Decode session data with error handling for invalid signatures and padding.
+
++
+
++        Args:
+
++            session_data (str): The session data to decode.
+
++
+
++        Returns:
+
++            dict: The decoded session data or an empty dictionary if decoding fails.
+
++        """
+
++        try:
+
++            return self._legacy_decode(session_data)
+
++        except (BadSignature, binascii.Error):
+
++            # Handle invalid session data by returning an empty dictionary
+
++            return {}
+
+ 
+
+     def _clear_dead_receivers(self):
+
+         # Note: caller is assumed to hold self.lock.
+
+
+--- a/decoupled/60/0.8_0.2/53/django_django/django/core/checks/security/sessions.py
++++ b/decoupled/60/0.8_0.2/53/django_django/django/core/checks/security/sessions.py
+@@ -94,4 +94,33 @@
+ 
+
+ 
+
+ def _session_app():
+
++    # Check if 'django.contrib.sessions' is in the INSTALLED_APPS
+
+     return "django.contrib.sessions" in settings.INSTALLED_APPS
+
++
+
++def fix_session_data(session_data):
+
++    try:
+
++        # Attempt to decode the session data
+
++        decoded_data = base64.b64decode(session_data.encode('ascii'))
+
++        # Further processing of the decoded data
+
++        # ...
+
++    except (binascii.Error, BadSignature):
+
++        # Handle the case where the session data is invalid or corrupted
+
++        # For example, you can log the error or set a default session data
+
++        logger.error("Invalid session data: %s", session_data)
+
++        decoded_data = {}  # Set a default empty session data
+
++    return decoded_data
+
++
+
++def _session_management():
+
++    if _session_app():
+
++        # Load the session data
+
++        session_data = request.session.get('session_key', '')
+
++        try:
+
++            # Decode and process the session data
+
++            decoded_data = fix_session_data(session_data)
+
++            # Further processing of the decoded session data
+
++            # ...
+
++        except Exception as e:
+
++            # Log any unexpected errors
+
++            logger.error("Error processing session data: %s", e)
+
++            # Optionally, you can redirect to an error page or handle the error as needed
+
++            # ...
+
+

@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -513,7 +513,7 @@
+             values.append(fixturedef)
+
+             current = current._parent_request
+
+ 
+
+-    def _compute_fixture_value(self, fixturedef):
+
++def _compute_fixture_value(self, fixturedef):
+
+         """
+
+         Creates a SubRequest based on "self" and calls the execute method of the given fixturedef object. This will
+
+         force the FixtureDef object to throw away any previous results and compute a new fixture value, which
+
+@@ -587,6 +587,9 @@
+         finally:
+
+             self._schedule_finalizers(fixturedef, subrequest)
+
+ 
+
++        # Return the scope of the fixture for pytest --fixtures
+
++        return scope
+
++
+
+     def _schedule_finalizers(self, fixturedef, subrequest):
+
+         # if fixture function failed it might have registered finalizers
+
+         self.session._setupstate.addfinalizer(

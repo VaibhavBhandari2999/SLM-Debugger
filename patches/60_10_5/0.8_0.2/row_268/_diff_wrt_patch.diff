@@ -1,0 +1,166 @@
+--- a/decoupled/60/0.8_0.2/268/sympy_sympy/sympy/core/expr.py
++++ b/decoupled/60/0.8_0.2/268/sympy_sympy/sympy/core/expr.py
+@@ -36,44 +36,44 @@
+     is_scalar = True  # self derivative is 1
+
+ 
+
+     @property
+
+-    def _diff_wrt(self):
+
+-        """Return True if one can differentiate with respect to this
+
+-        object, else False.
+
+-
+
+-        Subclasses such as Symbol, Function and Derivative return True
+
+-        to enable derivatives wrt them. The implementation in Derivative
+
+-        separates the Symbol and non-Symbol (_diff_wrt=True) variables and
+
+-        temporarily converts the non-Symbols into Symbols when performing
+
+-        the differentiation. By default, any object deriving from Expr
+
+-        will behave like a scalar with self.diff(self) == 1. If this is
+
+-        not desired then the object must also set `is_scalar = False` or
+
+-        else define an _eval_derivative routine.
+
+-
+
+-        Note, see the docstring of Derivative for how this should work
+
+-        mathematically. In particular, note that expr.subs(yourclass, Symbol)
+
+-        should be well-defined on a structural level, or this will lead to
+
+-        inconsistent results.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Expr
+
+-        >>> e = Expr()
+
+-        >>> e._diff_wrt
+
+-        False
+
+-        >>> class MyScalar(Expr):
+
+-        ...     _diff_wrt = True
+
+-        ...
+
+-        >>> MyScalar().diff(MyScalar())
+
+-        1
+
+-        >>> class MySymbol(Expr):
+
+-        ...     _diff_wrt = True
+
+-        ...     is_scalar = False
+
+-        ...
+
+-        >>> MySymbol().diff(MySymbol())
+
+-        Derivative(MySymbol(), MySymbol())
+
+-        """
+
+-        return False
+
++def _diff_wrt(self):
+
++    """Return True if one can differentiate with respect to this
+
++    object, else False.
+
++
+
++    Subclasses such as Symbol, Function and Derivative return True
+
++    to enable derivatives wrt them. The implementation in Derivative
+
++    separates the Symbol and non-Symbol (_diff_wrt=True) variables and
+
++    temporarily converts the non-Symbols into Symbols when performing
+
++    the differentiation. By default, any object deriving from Expr
+
++    will behave like a scalar with self.diff(self) == 1. If this is
+
++    not desired then the object must also set `is_scalar = False` or
+
++    else define an _eval_derivative routine.
+
++
+
++    Note, see the docstring of Derivative for how this should work
+
++    mathematically. In particular, note that expr.subs(yourclass, Symbol)
+
++    should be well-defined on a structural level, or this will lead to
+
++    inconsistent results.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Expr
+
++    >>> e = Expr()
+
++    >>> e._diff_wrt
+
++    False
+
++    >>> class MyScalar(Expr):
+
++    ...     _diff_wrt = True
+
++    ...
+
++    >>> MyScalar().diff(MyScalar())
+
++    1
+
++    >>> class MySymbol(Expr):
+
++    ...     _diff_wrt = True
+
++    ...     is_scalar = False
+
++    ...
+
++    >>> MySymbol().diff(MySymbol())
+
++    Derivative(MySymbol(), MySymbol())
+
++    """
+
++    # Your fix here
+
+ 
+
+     @cacheit
+
+     def sort_key(self, order=None):

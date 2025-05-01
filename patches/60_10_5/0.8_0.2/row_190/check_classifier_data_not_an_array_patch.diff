@@ -1,0 +1,34 @@
+--- a/decoupled/60/0.8_0.2/190/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/190/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -2023,12 +2023,10 @@
+ 
+
+ 
+
+ @ignore_warnings(category=DeprecationWarning)
+
+-def check_classifier_data_not_an_array(name, estimator_orig):
+
+-    X = np.array([[3, 0], [0, 1], [0, 2], [1, 1], [1, 2], [2, 1]])
+
+-    X = pairwise_estimator_convert_X(X, estimator_orig)
+
+-    y = [1, 1, 1, 2, 2, 2]
+
+-    y = multioutput_estimator_convert_y_2d(estimator_orig, y)
+
+-    check_estimators_data_not_an_array(name, estimator_orig, X, y)
+
++def fix_gaussian_mixture_fit_predict(name, estimator_orig, X, y, n_init):
+
++    # ...
+
++    # Your fix here
+
++    # ...
+
+ 
+
+ 
+
+ @ignore_warnings(category=DeprecationWarning)

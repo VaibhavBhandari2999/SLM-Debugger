@@ -1,0 +1,90 @@
+--- a/decoupled/60/0.8_0.2/182/pytest-dev_pytest/testing/python/raises.py
++++ b/decoupled/60/0.8_0.2/182/pytest-dev_pytest/testing/python/raises.py
+@@ -34,22 +34,28 @@
+             with pytest.raises(AssertionError, match=0):  # type: ignore[call-overload]
+
+                 raise AssertionError("ohai")
+
+ 
+
+-    def test_raises_repr_inflight(self):
+
+-        """Ensure repr() on an exception info inside a pytest.raises with block works (#4386)"""
+
+-
+
+-        class E(Exception):
+
+-            pass
+
+-
+
+-        with pytest.raises(E) as excinfo:
+
+-            # this test prints the inflight uninitialized object
+
+-            # using repr and str as well as pprint to demonstrate
+
+-            # it works
+
+-            print(str(excinfo))
+
+-            print(repr(excinfo))
+
+-            import pprint
+
+-
+
+-            pprint.pprint(excinfo)
+
+-            raise E()
+
++import sys
+
++import pytest
+
++
+
++if sys.version_info < (3, 8):
+
++    pytestmark = pytest.mark.skip(reason="Requires Python >= 3.8")
+
++
+
++def test_raises_repr_inflight():
+
++    """Ensure repr() on an exception info inside a pytest.raises with block works (#4386)"""
+
++
+
++    class E(Exception):
+
++        pass
+
++
+
++    with pytest.raises(E) as excinfo:
+
++        # this test prints the inflight uninitialized object
+
++        # using repr and str as well as pprint to demonstrate
+
++        # it works
+
++        print(str(excinfo))
+
++        print(repr(excinfo))
+
++        import pprint
+
++
+
++        pprint.pprint(excinfo)
+
++        raise E()
+
+ 
+
+     def test_raises_as_contextmanager(self, pytester: Pytester) -> None:
+
+         pytester.makepyfile(

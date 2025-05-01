@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/21/django_django/tests/forms_tests/field_tests/test_choicefield.py
++++ b/decoupled/60/0.8_0.2/21/django_django/tests/forms_tests/field_tests/test_choicefield.py
+@@ -6,8 +6,18 @@
+ 
+
+ class ChoiceFieldTest(FormFieldAssertionsMixin, SimpleTestCase):
+
+ 
+
++from django.core.exceptions import ValidationError
+
++from django import forms
+
++
+
++class TestChoiceField:
+
+     def test_choicefield_1(self):
+
+         f = ChoiceField(choices=[('1', 'One'), ('2', 'Two')])
+
++        
+
++        # Check if max_length is sufficient for the longest choice
+
++        max_choice_length = max(len(choice[1]) for choice in f.choices)
+
++        if f.max_length < max_choice_length:
+
++            raise ValidationError(f"max_length ({f.max_length}) is too small to fit the longest choice ({max_choice_length})")
+
++        
+
+         with self.assertRaisesMessage(ValidationError, "'This field is required.'"):
+
+             f.clean('')
+
+         with self.assertRaisesMessage(ValidationError, "'This field is required.'"):

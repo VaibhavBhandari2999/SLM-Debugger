@@ -1,0 +1,70 @@
+--- a/decoupled/60/0.8_0.2/69/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/69/django_django/django/utils/decorators.py
+@@ -86,15 +86,32 @@
+     return _dec
+
+ 
+
+ 
+
++import functools
+
++
+
++class ResolverMatch:
+
++    def __init__(self, view, args=None, kwargs=None):
+
++        # Unwrap functools.partial objects to get the underlying function and arguments
+
++        if isinstance(view, functools.partial):
+
++            view = view.func
+
++            args = view.args if view.args else args
+
++            kwargs = view.keywords if view.keywords else kwargs
+
++        
+
++        self.view = view
+
++        self.args = args
+
++        self.kwargs = kwargs
+
++
+
++    def __repr__(self):
+
++        return f"ResolverMatch(view={self.view}, args={self.args}, kwargs={self.kwargs})"
+
++
+
+ def decorator_from_middleware_with_args(middleware_class):
+
+     """
+
+     Like decorator_from_middleware, but return a function
+
+     that accepts the arguments to be passed to the middleware_class.
+
+     Use like::
+
+-
+
++    
+
+          cache_page = decorator_from_middleware_with_args(CacheMiddleware)
+
+          # ...
+
+-
+
++         
+
+          @cache_page(3600)
+
+          def my_view(request):
+
+              # ...

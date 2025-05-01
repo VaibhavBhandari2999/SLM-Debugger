@@ -1,0 +1,76 @@
+--- a/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/chardet/__init__.py
++++ b/decoupled/60/0.8_0.2/154/psf_requests/requests/packages/chardet/__init__.py
+@@ -19,14 +19,32 @@
+ from sys import version_info
+
+ 
+
+ 
+
++import sys
+
++from . import universaldetector
+
++
+
+ def detect(aBuf):
+
+-    if ((version_info < (3, 0) and isinstance(aBuf, unicode)) or
+
+-            (version_info >= (3, 0) and not isinstance(aBuf, bytes))):
+
+-        raise ValueError('Expected a bytes object, not a unicode object')
+
++    from requests import get
+
++    import io
+
+ 
+
+-    from . import universaldetector
+
++    # Ensure we're working with a bytes object if using Python 3
+
++    if sys.version_info[0] >= 3:
+
++        if not isinstance(aBuf, bytes):
+
++            raise ValueError('Expected a bytes object, not a unicode object')
+
++    else:
+
++        # In Python 2, aBuf can be either str or unicode
+
++        if not isinstance(aBuf, (str, unicode)):
+
++            raise ValueError('Expected a str or unicode object, not another type')
+
++
+
++    # Create a StringIO object to treat the buffer as text
+
++    stream = io.TextIOWrapper(io.BytesIO(aBuf), encoding='utf-8')
+
++
+
++    # Initialize the UniversalDetector
+
+     u = universaldetector.UniversalDetector()
+
+     u.reset()
+
+-    u.feed(aBuf)
+
++
+
++    # Read the buffer in chunks and feed into the detector
+
++    for line in stream:
+
++        u.feed(line)
+
++
+
+     u.close()
+
+     return u.result

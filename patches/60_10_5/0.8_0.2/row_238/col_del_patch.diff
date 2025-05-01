@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/238/sympy_sympy/sympy/matrices/common.py
+@@ -171,13 +171,20 @@
+ 
+
+         return self._new(len(self), 1, entry)
+
+ 
+
+-    def col_del(self, col):
+
+-        """Delete the specified column."""
+
+-        if col < 0:
+
+-            col += self.cols
+
+-        if not 0 <= col < self.cols:
+
+-            raise ValueError("Column {} out of range.".format(col))
+
+-        return self._eval_col_del(col)
+
++def col_insert(self, pos, c):
+
++        """
+
++        Insert column `c` at the position `pos`.
+
++
+
++        Explanation:
+
++        - The function first checks if the position `pos` is negative, adjusting it by adding the number of columns.
+
++        - It then checks if the position is within the valid range. If not, it raises a ValueError.
+
++        - The column insertion is performed using the `_eval_col_insert` method, which is assumed to be correctly implemented in the rest of the class.
+
++        """
+
++        if pos < 0:
+
++            pos += self.cols
+
++        if not 0 <= pos < self.cols:
+
++            raise ValueError(f"Column position {pos} out of range.")
+
++        return self._eval_col_insert(pos, c)
+
+ 
+
+     def col_insert(self, pos, other):
+
+         """Insert one or more columns at the given column position.

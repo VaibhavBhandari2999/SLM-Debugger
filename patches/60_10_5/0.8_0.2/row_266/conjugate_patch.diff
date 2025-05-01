@@ -1,0 +1,144 @@
+--- a/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/matrices/common.py
+@@ -1731,34 +1731,43 @@
+         """Returns a tuple containing the (real, imaginary) part of matrix."""
+
+         return self._eval_as_real_imag()
+
+ 
+
+-    def conjugate(self):
+
+-        """Return the by-element conjugation.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import SparseMatrix
+
+-        >>> from sympy import I
+
+-        >>> a = SparseMatrix(((1, 2 + I), (3, 4), (I, -I)))
+
+-        >>> a
+
+-        Matrix([
+
+-        [1, 2 + I],
+
+-        [3,     4],
+
+-        [I,    -I]])
+
+-        >>> a.C
+
+-        Matrix([
+
+-        [ 1, 2 - I],
+
+-        [ 3,     4],
+
+-        [-I,     I]])
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        transpose: Matrix transposition
+
+-        H: Hermite conjugation
+
+-        sympy.matrices.matrices.MatrixBase.D: Dirac conjugation
+
+-        """
+
+-        return self._eval_conjugate()
+
++def diophantine(eq, syms, permute=True):
+
++    """
+
++    Find all integer solutions to the given equation.
+
++
+
++    Parameters
+
++    ----------
+
++    eq : sympy expression
+
++        The equation to solve.
+
++    syms : tuple
+
++        The symbols to solve for, in a specific order.
+
++    permute : bool, optional
+
++        Whether to permute the symbols and solve for each permutation.
+
++
+
++    Returns
+
++    -------
+
++    solutions : set
+
++        A set of tuples representing the integer solutions.
+
++
+
++    Examples
+
++    --------
+
++    >>> from sympy import symbols, Eq, diophantine
+
++    >>> n, m = symbols('n m')
+
++    >>> eq = Eq(n**4 + m**4, 2**4 + 3**4)
+
++    >>> solutions = diophantine(eq.lhs - eq.rhs, (m, n), permute=True)
+
++    >>> sorted(solutions)
+
++    [(-3, -2), (-3, 2), (-2, -3), (-2, 3), (2, -3), (2, 3), (3, -2), (3, 2)]
+
++    """
+
++    if permute:
+
++        # Generate all permutations of the symbols
+
++        perms = permutations(syms)
+
++        all_solutions = set()
+
++        for perm in perms:
+
++            sol_set = diophantine(eq.subs(dict(zip(syms, perm))), perm)
+
++            all_solutions.update((tuple(sol.subs(dict(zip(perm, syms)))) for sol in sol_set))
+
++        return all_solutions
+
++    else:
+
++        return diophantine(eq, syms)
+
+ 
+
+     def doit(self, **kwargs):
+
+         return self.applyfunc(lambda x: x.doit())

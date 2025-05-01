@@ -1,0 +1,352 @@
+--- a/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1378,91 +1378,91 @@
+ 
+
+         return popen
+
+ 
+
+-    def run(
+
+-        self,
+
+-        *cmdargs: Union[str, "os.PathLike[str]"],
+
+-        timeout: Optional[float] = None,
+
+-        stdin: Union[NotSetType, bytes, IO[Any], int] = CLOSE_STDIN,
+
+-    ) -> RunResult:
+
+-        """Run a command with arguments.
+
+-
+
+-        Run a process using :py:class:`subprocess.Popen` saving the stdout and
+
+-        stderr.
+
+-
+
+-        :param cmdargs:
+
+-            The sequence of arguments to pass to :py:class:`subprocess.Popen`,
+
+-            with path-like objects being converted to :py:class:`str`
+
+-            automatically.
+
+-        :param timeout:
+
+-            The period in seconds after which to timeout and raise
+
+-            :py:class:`Pytester.TimeoutExpired`.
+
+-        :param stdin:
+
+-            Optional standard input.
+
+-
+
+-            - If it is :py:attr:`CLOSE_STDIN` (Default), then this method calls
+
+-              :py:class:`subprocess.Popen` with ``stdin=subprocess.PIPE``, and
+
+-              the standard input is closed immediately after the new command is
+
+-              started.
+
+-
+
+-            - If it is of type :py:class:`bytes`, these bytes are sent to the
+
+-              standard input of the command.
+
+-
+
+-            - Otherwise, it is passed through to :py:class:`subprocess.Popen`.
+
+-              For further information in this case, consult the document of the
+
+-              ``stdin`` parameter in :py:class:`subprocess.Popen`.
+
+-        :returns:
+
+-            The result.
+
+-        """
+
+-        __tracebackhide__ = True
+
+-
+
+-        cmdargs = tuple(os.fspath(arg) for arg in cmdargs)
+
+-        p1 = self.path.joinpath("stdout")
+
+-        p2 = self.path.joinpath("stderr")
+
+-        print("running:", *cmdargs)
+
+-        print("     in:", Path.cwd())
+
+-
+
+-        with p1.open("w", encoding="utf8") as f1, p2.open("w", encoding="utf8") as f2:
+
+-            now = timing.time()
+
+-            popen = self.popen(
+
+-                cmdargs,
+
+-                stdin=stdin,
+
+-                stdout=f1,
+
+-                stderr=f2,
+
+-                close_fds=(sys.platform != "win32"),
+
++def run(
+
++    self,
+
++    *cmdargs: Union[str, "os.PathLike[str]"],
+
++    timeout: Optional[float] = None,
+
++    stdin: Union[NotSetType, bytes, IO[Any], int] = CLOSE_STDIN,
+
++) -> RunResult:
+
++    """Run a command with arguments.
+
++
+
++    Run a process using :py:class:`subprocess.Popen` saving the stdout and
+
++    stderr.
+
++
+
++    :param cmdargs:
+
++        The sequence of arguments to pass to :py:class:`subprocess.Popen`,
+
++        with path-like objects being converted to :py:class:`str`
+
++        automatically.
+
++    :param timeout:
+
++        The period in seconds after which to timeout and raise
+
++        :py:class:`Pytester.TimeoutExpired`.
+
++    :param stdin:
+
++        Optional standard input.
+
++
+
++        - If it is :py:attr:`CLOSE_STDIN` (Default), then this method calls
+
++          :py:class:`subprocess.Popen` with ``stdin=subprocess.PIPE``, and
+
++          the standard input is closed immediately after the new command is
+
++          started.
+
++
+
++        - If it is of type :py:class:`bytes`, these bytes are sent to the
+
++          standard input of the command.
+
++
+
++        - Otherwise, it is passed through to :py:class:`subprocess.Popen`.
+
++          For further information in this case, consult the document of the
+
++          ``stdin`` parameter in :py:class:`subprocess.Popen`.
+
++    :returns:
+
++        The result.
+
++    """
+
++    __tracebackhide__ = True
+
++
+
++    cmdargs = tuple(os.fspath(arg) for arg in cmdargs)
+
++    p1 = self.path.joinpath("stdout")
+
++    p2 = self.path.joinpath("stderr")
+
++    print("running:", *cmdargs)
+
++    print("     in:", Path.cwd())
+
++
+
++    with p1.open("w", encoding="utf8") as f1, p2.open("w", encoding="utf8") as f2:
+
++        now = timing.time()
+
++        popen = self.popen(
+
++            cmdargs,
+
++            stdin=stdin,
+
++            stdout=f1,
+
++            stderr=f2,
+
++            close_fds=(sys.platform != "win32"),
+
++        )
+
++        if popen.stdin is not None:
+
++            popen.stdin.close()
+
++
+
++        def handle_timeout() -> None:
+
++            __tracebackhide__ = True
+
++
+
++            timeout_message = (
+
++                "{seconds} second timeout expired running:"
+
++                " {command}".format(seconds=timeout, command=cmdargs)
+
+             )
+
+-            if popen.stdin is not None:
+
+-                popen.stdin.close()
+
+-
+
+-            def handle_timeout() -> None:
+
+-                __tracebackhide__ = True
+
+-
+
+-                timeout_message = (
+
+-                    "{seconds} second timeout expired running:"
+
+-                    " {command}".format(seconds=timeout, command=cmdargs)
+
+-                )
+
+-
+
+-                popen.kill()
+
+-                popen.wait()
+
+-                raise self.TimeoutExpired(timeout_message)
+
+-
+
+-            if timeout is None:
+
+-                ret = popen.wait()
+
+-            else:
+
+-                try:
+
+-                    ret = popen.wait(timeout)
+
+-                except subprocess.TimeoutExpired:
+
+-                    handle_timeout()
+
+-
+
+-        with p1.open(encoding="utf8") as f1, p2.open(encoding="utf8") as f2:
+
+-            out = f1.read().splitlines()
+
+-            err = f2.read().splitlines()
+
+-
+
+-        self._dump_lines(out, sys.stdout)
+
+-        self._dump_lines(err, sys.stderr)
+
+-
+
+-        with contextlib.suppress(ValueError):
+
+-            ret = ExitCode(ret)
+
+-        return RunResult(ret, out, err, timing.time() - now)
+
++
+
++            popen.kill()
+
++            popen.wait()
+
++            raise self.TimeoutExpired(timeout_message)
+
++
+
++        if timeout is None:
+
++            ret = popen.wait()
+
++        else:
+
++            try:
+
++                ret = popen.wait(timeout)
+
++            except subprocess.TimeoutExpired:
+
++                handle_timeout()
+
++
+
++    with p1.open(encoding="utf8") as f1, p2.open(encoding="utf8") as f2:
+
++        out = f1.read().splitlines()
+
++        err = f2.read().splitlines()
+
++
+
++    self._dump_lines(out, sys.stdout)
+
++    self._dump_lines(err, sys.stderr)
+
++
+
++    with contextlib.suppress(ValueError):
+
++        ret = ExitCode(ret)
+
++    return RunResult(ret, out, err, timing.time() - now)
+
+ 
+
+     def _dump_lines(self, lines, fp):
+
+         try:

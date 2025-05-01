@@ -1,0 +1,88 @@
+--- a/decoupled/60/0.8_0.2/150/psf_requests/requests/packages/urllib3/_collections.py
++++ b/decoupled/60/0.8_0.2/150/psf_requests/requests/packages/urllib3/_collections.py
+@@ -87,16 +87,34 @@
+     def __iter__(self):
+
+         raise NotImplementedError('Iteration over this class is unlikely to be threadsafe.')
+
+ 
+
+-    def clear(self):
+
+-        with self.lock:
+
+-            # Copy pointers to all values, then wipe the mapping
+
+-            # under Python 2, this copies the list of values twice :-|
+
+-            values = list(self._container.values())
+
+-            self._container.clear()
+
++def resolve_redirects(self, response, **kwargs):
+
++    # ... (existing code)
+
+ 
+
+-        if self.dispose_func:
+
+-            for value in values:
+
+-                self.dispose_func(value)
+
++    # Ensure the method is preserved across redirects
+
++    request = response.request
+
++    while True:
+
++        # ... (existing code)
+
++
+
++        # Copy the request object to avoid mutating the original
+
++        new_request = request.copy()
+
++
+
++        # ... (existing code)
+
++
+
++        # Ensure the method is set correctly in the new request
+
++        new_request.method = request.method
+
++
+
++        # ... (existing code)
+
++
+
++        # Send the new request
+
++        response = send(new_request, **kwargs)
+
++
+
++        # ... (existing code)
+
++
+
++        # Break the loop if the response is not a redirect
+
++        if response.status_code not in (301, 302, 303, 307, 308):
+
++            break
+
++
+
++    return response
+
+ 
+
+     def keys(self):
+
+         with self.lock:

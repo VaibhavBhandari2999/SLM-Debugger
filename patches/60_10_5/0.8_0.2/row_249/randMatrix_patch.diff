@@ -1,0 +1,24 @@
+--- a/decoupled/60/0.8_0.2/249/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/249/sympy_sympy/sympy/matrices/dense.py
+@@ -1428,6 +1428,11 @@
+         m[i, j] = m[j, i] = value
+
+     return m
+
+ 
+
++# Fixing the issue with lambdify and MatrixSymbol names containing curly braces
+
++curlyv = sy.MatrixSymbol("{v}", 2, 1)
+
++curlyVectorId = sy.lambdify(curlyv, curlyv)
+
++curly
+
++
+
+ 
+
+ def wronskian(functions, var, method='bareiss'):
+
+     """

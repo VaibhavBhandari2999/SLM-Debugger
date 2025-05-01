@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/68/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/68/django_django/django/db/models/fields/related_descriptors.py
+@@ -199,6 +199,18 @@
+             )
+
+         else:
+
+             return rel_obj
+
++
+
++def __and__(self, other):
+
++        if isinstance(other, Q):
+
++            return self._combine(other, self.AND)
+
++        elif isinstance(other, Exists):
+
++            return other & self  # Use the __rand__ method of Exists
+
++
+
++    def __rand__(self, other):
+
++        if isinstance(other, Q):
+
++            return self._combine(other, self.AND)
+
++        elif isinstance(other, Exists):
+
++            return self & other  # Use the __and__ method of Q
+
+ 
+
+     def __set__(self, instance, value):
+
+         """

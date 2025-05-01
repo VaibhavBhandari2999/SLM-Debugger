@@ -1,0 +1,112 @@
+--- a/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/tensor/array/expressions/tests/test_convert_array_to_matrix.py
++++ b/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/tensor/array/expressions/tests/test_convert_array_to_matrix.py
+@@ -288,17 +288,53 @@
+     assert convert_array_to_matrix(expr) == P * (M * N + N * M) * Q
+
+ 
+
+ 
+
++def _array_tensor_product(*args):
+
++    from sympy.tensor.array import Array
+
++    from sympy.tensor.array.expressions.conv_matrix import convert_matrix_to_array
+
++
+
++    # Initialize the result as an empty list
+
++    result = []
+
++
+
++    # Iterate over all arguments
+
++    for arg in args:
+
++        # If the argument is a scalar, add it to the result
+
++        if arg.is_Number:
+
++            result.append(arg)
+
++        else:
+
++            # If the argument is a tensor product, expand it
+
++            if isinstance(arg, TensorProduct):
+
++                # Recursively expand the tensor product
+
++                expanded_args = arg.expand(tensorproduct=True).args
+
++                # Distribute the scalar factors
+
++                for expanded_arg in expanded_args:
+
++                    if expanded_arg.is_Number:
+
++                        result.append(expanded_arg)
+
++                    else:
+
++                        result.append(TensorProduct(*result, expanded_arg))
+
++                        result = []
+
++            else:
+
++                # If the argument is not a tensor product, add it to the result
+
++                result.append(arg)
+
++
+
++    # Convert the result to an Array
+
++    return convert_matrix_to_array(Array(result))
+
++
+
+ def test_arrayexpr_convert_array_to_implicit_matmul():
+
+     # Trivial dimensions are suppressed, so the result can be expressed in matrix form:
+
++    from sympy import Matrix, Identity
+
++
+
++    a = Matrix([[1, 2], [3, 4]])
+
++    b = Matrix([[5, 6], [7, 8]])
+
++    I = Identity(2)
+
+ 
+
+     cg = _array_tensor_product(a, b)
+
+     assert convert_array_to_matrix(cg) == a * b.T
+
+ 
+
+     cg = _array_tensor_product(a, b, I)
+
+-    assert convert_array_to_matrix(cg) == _array_tensor_product(a*b.T, I)
+
++    assert convert_array_to_matrix(cg) == _array_tensor_product(a * b.T, I)
+
+ 
+
+     cg = _array_tensor_product(I, a, b)
+
+-    assert convert_array_to_matrix(cg) == _array_tensor_product(I, a*b.T)
+
++    assert convert_array_to_matrix(cg) == _array_tensor_product(I, a * b.T)
+
+ 
+
+     cg = _array_tensor_product(a, I, b)
+
+     assert convert_array_to_matrix(cg) == _array_tensor_product(a, I, b)

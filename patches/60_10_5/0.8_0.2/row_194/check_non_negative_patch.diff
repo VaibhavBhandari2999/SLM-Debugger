@@ -1,0 +1,118 @@
+--- a/decoupled/60/0.8_0.2/194/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/194/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -899,31 +899,34 @@
+         raise NotFittedError(msg % {'name': type(estimator).__name__})
+
+ 
+
+ 
+
+-def check_non_negative(X, whom):
+
+-    """
+
+-    Check if there is any negative value in an array.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    X : array-like or sparse matrix
+
+-        Input data.
+
+-
+
+-    whom : string
+
+-        Who passed X to this function.
+
+-    """
+
+-    # avoid X.min() on sparse matrix since it also sorts the indices
+
+-    if sp.issparse(X):
+
+-        if X.format in ['lil', 'dok']:
+
+-            X = X.tocsr()
+
+-        if X.data.size == 0:
+
+-            X_min = 0
+
+-        else:
+
+-            X_min = X.data.min()
+
++def _estimate_mi(X, y, discrete_features='auto', random_state=None):
+
++    """
+
++    Estimate mutual information for a Discrete Feature using KDMV estimators.
+
++
+
++    Parameters
+
++    ----------
+
++    X : array-like, shape (n_samples, n_features)
+
++        The set of features to consider.
+
++    y : array-like, shape (n_samples,)
+
++        The target variable.
+
++    discrete_features : string ('auto' or array), optional (default='auto')
+
++        The indices of the features in X which you want to treat as discrete.
+
++        If 'auto', it will attempt to infer discrete features based on the type of the feature.
+
++    random_state : int, RandomState instance or None, optional (default=None)
+
++        The seed of the pseudo random number generator.
+
++    """
+
++    if discrete_features == 'auto':
+
++        # Infer discrete features based on the type of the feature
+
++        pass  # Placeholder for the actual implementation
+
+     else:
+
+-        X_min = X.min()
+
+-
+
+-    if X_min < 0:
+
+-        raise ValueError("Negative values in data passed to %s" % whom)
+
++        # Handle the case where discrete_features is an array or boolean mask
+
++        if isinstance(discrete_features, (np.ndarray, list, tuple)):
+
++            discrete_features = np.array(discrete_features, dtype=bool)
+
++        if not np.all(np.in1d(discrete_features, [True, False])):
+
++            raise ValueError("discrete_features must be an array of booleans or a boolean mask")
+
++        
+
++        # Proceed with the mutual information estimation
+
++        pass  # Placeholder for the actual mutual information estimation code
+
+ 
+
+ 
+
+ def check_scalar(x, name, target_type, min_val=None, max_val=None):

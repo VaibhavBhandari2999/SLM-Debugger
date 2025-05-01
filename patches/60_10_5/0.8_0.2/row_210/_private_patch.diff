@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/210/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -336,7 +336,7 @@
+     def __special_without_docstring__(self):
+
+         pass
+
+ 
+
+-    def _private(self):
+
++def _private(self):
+
+         """By default private members are not included.
+
+ 
+
+         Private members are any methods or attributes that start with an
+
+@@ -349,7 +349,13 @@
+             napoleon_include_private_with_doc = True
+
+ 
+
+         """
+
+-        pass
+
++        # Filter out imported members from the members list
+
++        local_members = [member for member in self.members if not member.startswith('_')]
+
++        self.members = local_members
+
++
+
++        # Include private members if specified
+
++        if self.config.napoleon_include_private_with_doc:
+
++            self.members.extend([member for member in self.members if member.startswith('_')])
+
+ 
+
+     def _private_without_docstring(self):
+
+         pass

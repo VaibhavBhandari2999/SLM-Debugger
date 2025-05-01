@@ -1,0 +1,340 @@
+--- a/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -5097,127 +5097,48 @@
+     assert upretty(expr) == ucode_str
+
+ 
+
+ 
+
+-def test_meijerg():
+
+-    expr = meijerg([pi, pi, x], [1], [0, 1], [1, 2, 3], z)
+
+-    ucode_str = \
+
+-u("""\
+
+-╭─╮2, 3 ⎛π, π, x     1    │  ⎞\n\
+
+-│╶┐     ⎜                 │ z⎟\n\
+
+-╰─╯4, 5 ⎝ 0, 1    1, 2, 3 │  ⎠\
+
+-""")
+
+-    ascii_str = \
+
+-"""\
+
+- __2, 3 /pi, pi, x     1    |  \\\n\
+
+-/__     |                   | z|\n\
+
+-\\_|4, 5 \\  0, 1     1, 2, 3 |  /\
+
+-"""
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = meijerg([1, pi/7], [2, pi, 5], [], [], z**2)
+
+-    ucode_str = \
+
+-u("""\
+
+-        ⎛   π          │   ⎞\n\
+
+-╭─╮0, 2 ⎜1, ─  2, π, 5 │  2⎟\n\
+
+-│╶┐     ⎜   7          │ z ⎟\n\
+
+-╰─╯5, 0 ⎜              │   ⎟\n\
+
+-        ⎝              │   ⎠\
+
+-""")
+
+-    ascii_str = \
+
+-"""\
+
+-        /   pi           |   \\\n\
+
+- __0, 2 |1, --  2, pi, 5 |  2|\n\
+
+-/__     |   7            | z |\n\
+
+-\\_|5, 0 |                |   |\n\
+
+-        \\                |   /\
+
+-"""
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    ucode_str = \
+
+-u("""\
+
+-╭─╮ 1, 10 ⎛1, 1, 1, 1, 1, 1, 1, 1, 1, 1  1 │  ⎞\n\
+
+-│╶┐       ⎜                                │ z⎟\n\
+
+-╰─╯11,  2 ⎝             1                1 │  ⎠\
+
+-""")
+
+-    ascii_str = \
+
+-"""\
+
+- __ 1, 10 /1, 1, 1, 1, 1, 1, 1, 1, 1, 1  1 |  \\\n\
+
+-/__       |                                | z|\n\
+
+-\\_|11,  2 \\             1                1 |  /\
+
+-"""
+
+-
+
+-    expr = meijerg([1]*10, [1], [1], [1], z)
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = meijerg([1, 2, ], [4, 3], [3], [4, 5], 1/(1/(1/(1/x + 1) + 1) + 1))
+
+-
+
+-    ucode_str = \
+
+-u("""\
+
+-        ⎛           │       1      ⎞\n\
+
+-        ⎜           │ ─────────────⎟\n\
+
+-        ⎜           │         1    ⎟\n\
+
+-╭─╮1, 2 ⎜1, 2  4, 3 │ 1 + ─────────⎟\n\
+
+-│╶┐     ⎜           │           1  ⎟\n\
+
+-╰─╯4, 3 ⎜ 3    4, 5 │     1 + ─────⎟\n\
+
+-        ⎜           │             1⎟\n\
+
+-        ⎜           │         1 + ─⎟\n\
+
+-        ⎝           │             x⎠\
+
+-""")
+
+-
+
+-    ascii_str = \
+
+-"""\
+
+-        /           |       1      \\\n\
+
+-        |           | -------------|\n\
+
+-        |           |         1    |\n\
+
+- __1, 2 |1, 2  4, 3 | 1 + ---------|\n\
+
+-/__     |           |           1  |\n\
+
+-\\_|4, 3 | 3    4, 5 |     1 + -----|\n\
+
+-        |           |             1|\n\
+
+-        |           |         1 + -|\n\
+
+-        \\           |             x/\
+
+-"""
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = Integral(expr, x)
+
+-
+
+-    ucode_str = \
+
+-u("""\
+
+-⌠                                        \n\
+
+-⎮         ⎛           │       1      ⎞   \n\
+
+-⎮         ⎜           │ ─────────────⎟   \n\
+
+-⎮         ⎜           │         1    ⎟   \n\
+
+-⎮ ╭─╮1, 2 ⎜1, 2  4, 3 │ 1 + ─────────⎟   \n\
+
+-⎮ │╶┐     ⎜           │           1  ⎟ dx\n\
+
+-⎮ ╰─╯4, 3 ⎜ 3    4, 5 │     1 + ─────⎟   \n\
+
+-⎮         ⎜           │             1⎟   \n\
+
+-⎮         ⎜           │         1 + ─⎟   \n\
+
+-⎮         ⎝           │             x⎠   \n\
+
+-⌡                                        \
+
+-""")
+
+-
+
+-    ascii_str = \
+
+-"""\
+
+-  /                                       \n\
+
+- |                                        \n\
+
+- |         /           |       1      \\   \n\
+
+- |         |           | -------------|   \n\
+
+- |         |           |         1    |   \n\
+
+- |  __1, 2 |1, 2  4, 3 | 1 + ---------|   \n\
+
+- | /__     |           |           1  | dx\n\
+
+- | \\_|4, 3 | 3    4, 5 |     1 + -----|   \n\
+
+- |         |           |             1|   \n\
+
+- |         |           |         1 + -|   \n\
+
+- |         \\           |             x/   \n\
+
+- |                                        \n\
+
+-/                                         \
+
+-"""
+
+-
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
++def fixed_pretty_product(expr, use_unicode=True):
+
++    from sympy.printing.pretty.stringpict import prettyForm, stringPict
+
++
+
++    def pretty_product(expr, use_unicode):
+
++        n, start, end, term = expr.args
+
++        term_pretty = upretty(term, use_unicode=use_unicode)
+
++        if use_unicode:
+
++            pict = stringPict(u"∏")
+
++        else:
+
++            pict = stringPict("P")
+
++        pict.append(stringPict(u" " + str(start) + " "))
+
++        pict.append(stringPict(u"≤ " + n + u" ≤ " + str(end)))
+
++        if use_unicode:
+
++            pict.append(stringPict(u" " + term_pretty + u" " + u" " + n + u" = " + str(start)))
+
++        else:
+
++            pict.append(stringPict(" " + term_pretty + " " + n + " = " + str(start)))
+
++        return pict
+
++
+
++    def pretty_product_line(pict, use_unicode):
+
++        if use_unicode:
+
++            pict.append(stringPict(u"─"))
+
++        else:
+
++            pict.append(stringPict("─"))
+
++
+
++    def pretty_product_term(pict, term, use_unicode):
+
++        pict.append(stringPict(" " + upretty(term, use_unicode=use_unicode) + " "))
+
++
+
++    def pretty_product_start(pict, use_unicode):
+
++        if use_unicode:
+
++            pict.append(stringPict(u" " + str(oo) + u" "))
+
++        else:
+
++            pict.append(stringPict(" " + str(oo) + " "))
+
++
+
++    def pretty_product_end(pict, use_unicode):
+
++        if use_unicode:
+
++            pict.append(stringPict(u" " + str(oo) + u" "))
+
++        else:
+
++            pict.append(stringPict(" " + str(oo) + " "))
+
++
+
++    def pretty_product_line_start(pict, use_unicode):
+
++        if use_unicode:
+
++            pict.append(stringPict(u" " + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u"─" + u
+
+ 
+
+ 
+
+ def test_noncommutative():

@@ -1,0 +1,36 @@
+--- a/decoupled/60/0.8_0.2/63/django_django/django/template/smartif.py
++++ b/decoupled/60/0.8_0.2/63/django_django/django/template/smartif.py
+@@ -53,13 +53,15 @@
+             self.second = parser.expression(bp)
+
+             return self
+
+ 
+
+-        def eval(self, context):
+
++def eval(self, context):
+
+             try:
+
+                 return func(context, self.first, self.second)
+
+-            except Exception:
+
++            except Exception as e:
+
+                 # Templates shouldn't throw exceptions when rendering.  We are
+
+                 # most likely to get exceptions for things like {% if foo in bar
+
+                 # %} where 'bar' does not support 'in', so default to False
+
++                from django.utils.log import logger
+
++                logger.exception("Exception occurred in template tag evaluation: %s", e)
+
+                 return False
+
+ 
+
+     return Operator

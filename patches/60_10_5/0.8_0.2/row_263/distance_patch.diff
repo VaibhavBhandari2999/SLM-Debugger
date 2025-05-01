@@ -1,0 +1,118 @@
+--- a/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
++++ b/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
+@@ -379,46 +379,18 @@
+         points = list(uniq(points))
+
+         return Point.affine_rank(*points) <= 2
+
+ 
+
+-    def distance(self, other):
+
+-        """The Euclidean distance between self and another GeometricEntity.
+
+-
+
+-        Returns
+
+-        =======
+
+-
+
+-        distance : number or symbolic expression.
+
+-
+
+-        Raises
+
+-        ======
+
+-
+
+-        TypeError : if other is not recognized as a GeometricEntity or is a
+
+-                    GeometricEntity for which distance is not defined.
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        sympy.geometry.line.Segment.length
+
+-        sympy.geometry.point.Point.taxicab_distance
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.geometry import Point, Line
+
+-        >>> p1, p2 = Point(1, 1), Point(4, 5)
+
+-        >>> l = Line((3, 1), (2, 2))
+
+-        >>> p1.distance(p2)
+
+-        5
+
+-        >>> p1.distance(l)
+
+-        sqrt(2)
+
+-
+
+-        The computed distance may be symbolic, too:
+
+-
+
+-        >>> from sympy.abc import x, y
+
+-        >>> p3 = Point(x, y)
+
+-        >>> p3.distance((0, 0))
+
+-        sqrt(x**2 + y**2)
+
+-
+
+-        """
+
+-        if not isinstance(other, GeometryEntity):
+
++from sympy import Point, sqrt, Add, Mul, GeometryError, TypeError
+
++from sympy.geometry.entity import GeometryEntity
+
++
+
++class Point(Point):
+
++    def __add__(self, other):
+
++        if isinstance(other, (int, float, sympy.Basic)):
+
++            # If other is a number, perform the multiplication and add the points
+
++            other = other * self
+
++        elif isinstance(other, Mul):
+
++            # If other is a Mul object, extract the operands and perform the multiplication
+
++            other = other.args[0] * self
+
++        elif not isinstance(other, GeometryEntity):
+
+             try:
+
+                 other = Point(other, dim=self.ambient_dimension)
+
+             except TypeError:

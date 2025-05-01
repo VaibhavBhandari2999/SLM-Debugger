@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/32/django_django/tests/model_inheritance/tests.py
++++ b/decoupled/60/0.8_0.2/32/django_django/tests/model_inheritance/tests.py
+@@ -110,7 +110,7 @@
+         # accidentally found).
+
+         self.assertQuerysetEqual(s.titles.all(), [])
+
+ 
+
+-    def test_update_parent_filtering(self):
+
++def test_update_parent_filtering(self):
+
+         """
+
+         Updating a field of a model subclass doesn't issue an UPDATE
+
+         query constrained by an inner query (#10399).
+
+@@ -130,6 +130,13 @@
+             sql = query['sql']
+
+             if 'UPDATE' in sql:
+
+                 self.assertEqual(expected_sql, sql)
+
++
+
++    def test_get_field_display_with_inherited_choices(self):
+
++        """
+
++        Ensure get_field_foo_display() works correctly with inherited choices.
+
++        """
+
++        b_instance = B.objects.create(field_foo='C')
+
++        self.assertEqual(b_instance.get_field_foo_display(), 'output3')
+
+ 
+
+     def test_create_child_no_update(self):
+
+         """Creating a child with non-abstract parents only issues INSERTs."""

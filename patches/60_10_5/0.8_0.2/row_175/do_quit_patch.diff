@@ -1,0 +1,70 @@
+--- a/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/debugging.py
++++ b/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/debugging.py
+@@ -164,19 +164,21 @@
+ 
+
+             do_c = do_cont = do_continue
+
+ 
+
+-            def do_quit(self, arg):
+
+-                """Raise Exit outcome when quit command is used in pdb.
+
+-
+
+-                This is a bit of a hack - it would be better if BdbQuit
+
+-                could be handled, but this would require to wrap the
+
+-                whole pytest run, and adjust the report etc.
+
+-                """
+
+-                ret = super().do_quit(arg)
+
+-
+
+-                if cls._recursive_debug == 0:
+
+-                    outcomes.exit("Quitting debugger")
+
+-
+
+-                return ret
+
++def do_quit(self, arg):
+
++    """Raise Exit outcome when quit command is used in pdb.
+
++
+
++    This is a bit of a hack - it would be better if BdbQuit
+
++    could be handled, but this would require to wrap the
+
++    whole pytest run, and adjust the report etc.
+
++    """
+
++    ret = super().do_quit(arg)
+
++
+
++    if cls._recursive_debug == 0:
+
++        # The original code was missing the import for the 'outcomes' module.
+
++        from pytest import outcomes
+
++        outcomes.exit("Quitting debugger")
+
++
+
++    return ret
+
+ 
+
+             do_q = do_quit
+
+             do_exit = do_quit

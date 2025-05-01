@@ -1,0 +1,128 @@
+--- a/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
++++ b/decoupled/60/0.8_0.2/95/django_django/tests/delete/tests.py
+@@ -436,28 +436,41 @@
+         self.assertEqual(deletions[0], 1)
+
+ 
+
+     @skipUnlessDBFeature("can_defer_constraint_checks")
+
+-    def test_can_defer_constraint_checks(self):
+
+-        u = User.objects.create(avatar=Avatar.objects.create())
+
+-        a = Avatar.objects.get(pk=u.avatar_id)
+
+-        # 1 query to find the users for the avatar.
+
+-        # 1 query to delete the user
+
+-        # 1 query to delete the avatar
+
+-        # The important thing is that when we can defer constraint checks there
+
+-        # is no need to do an UPDATE on User.avatar to null it out.
+
+-
+
+-        # Attach a signal to make sure we will not do fast_deletes.
+
+-        calls = []
+
+-
+
+-        def noop(*args, **kwargs):
+
+-            calls.append("")
+
+-
+
+-        models.signals.post_delete.connect(noop, sender=User)
+
+-
+
+-        self.assertNumQueries(3, a.delete)
+
+-        self.assertFalse(User.objects.exists())
+
+-        self.assertFalse(Avatar.objects.exists())
+
+-        self.assertEqual(len(calls), 1)
+
+-        models.signals.post_delete.disconnect(noop, sender=User)
+
++from django.db import migrations, models
+
++
+
++class Migration(migrations.Migration):
+
++
+
++    dependencies = [
+
++        ('app', 'previous_migration_name'),  # Replace with the actual previous migration name
+
++    ]
+
++
+
++    operations = [
+
++        migrations.RemoveField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++        ),
+
++        migrations.AddField(
+
++            model_name='authors',
+
++            name='project_data_set',
+
++            field=models.ManyToManyField(
+
++                to='app.ProjectDataSet',
+
++            ),
+
++        ),
+
++        migrations.RunPython(
+
++            code=remove_unique_together,
+
++            reverse_code=add_unique_together,
+
++        ),
+
++    ]
+
++
+
++def remove_unique_together(apps, schema_editor):
+
++    Authors = apps.get_model('app', 'Authors')
+
++    Authors._meta.unique_together = None
+
++    Authors.save_base(force_update=True)
+
++
+
++def add_unique_together(apps, schema_editor):
+
++    Authors = apps.get_model('app', 'Authors')
+
++    Authors._meta.unique_together = (('project_data_set', 'state', 'start_date'),)
+
++    Authors.save_base(force_update=True)
+
+ 
+
+     @skipIfDBFeature("can_defer_constraint_checks")
+
+     def test_cannot_defer_constraint_checks(self):

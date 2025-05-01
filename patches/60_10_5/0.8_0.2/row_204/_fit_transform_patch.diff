@@ -1,0 +1,174 @@
+--- a/decoupled/60/0.8_0.2/204/scikit-learn_scikit-learn/sklearn/decomposition/_fastica.py
++++ b/decoupled/60/0.8_0.2/204/scikit-learn_scikit-learn/sklearn/decomposition/_fastica.py
+@@ -527,7 +527,7 @@
+         self.whiten_solver = whiten_solver
+
+         self.random_state = random_state
+
+ 
+
+-    def _fit_transform(self, X, compute_sources=False):
+
++def _fit_transform(self, X, compute_sources=False):
+
+         """Fit the model.
+
+ 
+
+         Parameters
+
+@@ -607,7 +607,7 @@
+             # Whitening and preprocessing by PCA
+
+             if self.whiten_solver == "eigh":
+
+                 # Faster when num_samples >> n_features
+
+-                d, u = linalg.eigh(XT.dot(X))
+
++                d, u = linalg.eigh(XT.dot(XT.T))
+
+                 sort_indices = np.argsort(d)[::-1]
+
+                 eps = np.finfo(d.dtype).eps
+
+                 degenerate_idx = d < eps
+
+@@ -631,68 +631,7 @@
+             X1 = np.dot(K, XT)
+
+             # see (13.6) p.267 Here X1 is white and data
+
+             # in X has been projected onto a subspace by PCA
+
+-            X1 *= np.sqrt(n_samples)
+
+-        else:
+
+-            # X must be casted to floats to avoid typing issues with numpy
+
+-            # 2.0 and the line below
+
+-            X1 = as_float_array(XT, copy=False)  # copy has been taken care of
+
+-
+
+-        w_init = self.w_init
+
+-        if w_init is None:
+
+-            w_init = np.asarray(
+
+-                random_state.normal(size=(n_components, n_components)), dtype=X1.dtype
+
+-            )
+
+-
+
+-        else:
+
+-            w_init = np.asarray(w_init)
+
+-            if w_init.shape != (n_components, n_components):
+
+-                raise ValueError(
+
+-                    "w_init has invalid shape -- should be %(shape)s"
+
+-                    % {"shape": (n_components, n_components)}
+
+-                )
+
+-
+
+-        kwargs = {
+
+-            "tol": self.tol,
+
+-            "g": g,
+
+-            "fun_args": fun_args,
+
+-            "max_iter": self.max_iter,
+
+-            "w_init": w_init,
+
+-        }
+
+-
+
+-        if self.algorithm == "parallel":
+
+-            W, n_iter = _ica_par(X1, **kwargs)
+
+-        elif self.algorithm == "deflation":
+
+-            W, n_iter = _ica_def(X1, **kwargs)
+
+-        del X1
+
+-
+
+-        self.n_iter_ = n_iter
+
+-
+
+-        if compute_sources:
+
+-            if self._whiten:
+
+-                S = np.linalg.multi_dot([W, K, XT]).T
+
+-            else:
+
+-                S = np.dot(W, XT).T
+
+-        else:
+
+-            S = None
+
+-
+
+-        if self._whiten:
+
+-            if self._whiten == "unit-variance":
+
+-                if not compute_sources:
+
+-                    S = np.linalg.multi_dot([W, K, XT]).T
+
+-                S_std = np.std(S, axis=0, keepdims=True)
+
+-                S /= S_std
+
+-                W /= S_std.T
+
+-
+
+-            self.components_ = np.dot(W, K)
+
+-            self.mean_ = X_mean
+
+-            self.whitening_ = K
+
+-        else:
+
+-            self.components_ = W
+
+-
+
+-        self.mixing_ = linalg.pinv(self.components_, check_finite=False)
+
+-        self._unmixing = W
+
+-
+
+-        return S
+
++            X1 *=
+
+ 
+
+     def fit_transform(self, X, y=None):
+
+         """Fit the model and recover the sources from X.

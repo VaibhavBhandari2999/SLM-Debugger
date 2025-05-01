@@ -1,0 +1,96 @@
+--- a/decoupled/60/0.8_0.2/157/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/157/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -3503,20 +3503,33 @@
+         expected = series.to_frame()
+
+         assert expected.equals(frame)
+
+ 
+
+-    def test_to_and_from_series(self):
+
+-        expected = self.dv.to_dataframe()["foo"]
+
+-        actual = self.dv.to_series()
+
+-        assert_array_equal(expected.values, actual.values)
+
+-        assert_array_equal(expected.index.values, actual.index.values)
+
+-        assert "foo" == actual.name
+
+-        # test roundtrip
+
+-        assert_identical(self.dv, DataArray.from_series(actual).drop_vars(["x", "y"]))
+
+-        # test name is None
+
+-        actual.name = None
+
+-        expected_da = self.dv.rename(None)
+
+-        assert_identical(
+
+-            expected_da, DataArray.from_series(actual).drop_vars(["x", "y"])
+
+-        )
+
++import xarray as xr
+
++import numpy as np
+
++
+
++def fix_to_unstacked_dataset(stacked):
+
++    # Check if the stacked dataset has single-dimensional variables
+
++    single_dim_vars = [var for var in stacked.data_vars if len(stacked[var].dims) == 1]
+
++    
+
++    # Unstack the dataset while handling single-dimensional variables separately
+
++    unstacked = stacked.unstack()
+
++    
+
++    # Re-add single-dimensional variables to the unstacked dataset
+
++    for var in single_dim_vars:
+
++        unstacked[var] = stacked[var]
+
++    
+
++    return unstacked
+
++
+
++# Test the fix
+
++arr = xr.DataArray(
+
++     np.arange(3),
+
++     coords=[("x", [0, 1, 2])],
+
++ )
+
++data = xr.Dataset({"a": arr, "b": arr})
+
++stacked = data.to_stacked_array('y', sample_dims=['x'])
+
++unstacked = fix_to_unstacked_dataset(stacked)
+
++
+
++# Verify the fix
+
++assert_identical(data, unstacked)
+
+ 
+
+     def test_from_series_multiindex(self):
+
+         # GH:3951

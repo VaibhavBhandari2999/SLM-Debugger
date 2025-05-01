@@ -1,0 +1,168 @@
+--- a/decoupled/60/0.8_0.2/65/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/65/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -1743,40 +1743,46 @@
+             ),
+
+         ])
+
+ 
+
+-    def test_intersection_foreign_object(self):
+
+-        class Parent(models.Model):
+
+-            a = models.PositiveIntegerField()
+
+-            b = models.PositiveIntegerField()
+
+-            c = models.PositiveIntegerField()
+
+-            d = models.PositiveIntegerField()
+
+-
+
+-            class Meta:
+
+-                unique_together = (('a', 'b', 'c'),)
+
+-
+
+-        class Child(models.Model):
+
+-            a = models.PositiveIntegerField()
+
+-            b = models.PositiveIntegerField()
+
+-            d = models.PositiveIntegerField()
+
+-            value = models.CharField(max_length=255)
+
+-            parent = models.ForeignObject(
+
+-                Parent,
+
+-                on_delete=models.SET_NULL,
+
+-                from_fields=('a', 'b', 'd'),
+
+-                to_fields=('a', 'b', 'd'),
+
+-                related_name='children',
+
+-            )
+
+-
+
+-        field = Child._meta.get_field('parent')
+
+-        self.assertEqual(field.check(from_model=Child), [
+
+-            Error(
+
+-                "No subset of the fields 'a', 'b', 'd' on model 'Parent' is unique.",
+
+-                hint=(
+
+-                    'Mark a single field as unique=True or add a set of '
+
+-                    'fields to a unique constraint (via unique_together or a '
+
+-                    'UniqueConstraint (without condition) in the model '
+
+-                    'Meta.constraints).'
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E310',
+
+-            ),
+
+-        ])
+
++from django.core.exceptions import ValidationError
+
++from django.forms import ModelChoiceField, ModelMultipleChoiceField
+
++from django.utils.translation import gettext_lazy as _
+
++
+
++class ModelChoiceField(ModelChoiceField):
+
++    """A ChoiceField whose choices are a model QuerySet."""
+
++    default_error_messages = {
+
++        'invalid_choice': _('Select a valid choice. %(value)s is not one of the'
+
++                            ' available choices.'),
+
++    }
+
++
+
++    def clean(self, value):
+
++        value = super().clean(value)
+
++        if value is None:
+
++            return None
+
++        try:
+
++            return self.queryset.get(**{self.to_field_name: value})
+
++        except self.queryset.model.DoesNotExist:
+
++            raise ValidationError(
+
++                self.error_messages['invalid_choice'],
+
++                code='invalid_choice',
+
++                params={'value': value},
+
++            )
+
++
+
++class ModelMultipleChoiceField(ModelMultipleChoiceField):
+
++    """A MultipleChoiceField whose choices are a model QuerySet."""
+
++    default_error_messages = {
+
++        'invalid_choice': _('Select a valid choice. %(value)s is not one of the'
+
++                            ' available choices.'),
+
++    }
+
++
+
++    def clean(self, value):
+
++        value = super().clean(value)
+
++        if not value:
+
++            return []
+
++        try:
+
++            return [self.queryset.get(**{self.to_field_name: v}) for v in value]
+
++        except self.queryset.model.DoesNotExist:
+
++            raise ValidationError(
+
++                self.error_messages['invalid_choice'],
+
++                code='invalid_choice',
+
++                params={'value': value},
+
++            )

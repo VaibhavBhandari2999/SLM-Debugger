@@ -1,0 +1,97 @@
+--- a/decoupled/60/0.8_0.2/69/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/69/django_django/django/utils/decorators.py
+@@ -18,6 +18,8 @@
+         pass
+
+     update_wrapper(_wrapper, dummy)
+
+ 
+
++
+
++from functools import partial
+
+ 
+
+ def _multi_decorate(decorators, method):
+
+     """
+
+@@ -48,6 +50,39 @@
+     # Preserve any existing attributes of 'method', including the name.
+
+     update_wrapper(_wrapper, method)
+
+     return _wrapper
+
++
+
++# Assuming ResolverMatch.__init__ is defined somewhere in the codebase
+
++# and it calls _multi_decorate to create the view.
+
++# We need to modify ResolverMatch.__init__ to unwrap partial objects.
+
++
+
++class ResolverMatch:
+
++    def __init__(self, view, args=None, kwargs=None):
+
++        # Unwrap any functools.partial objects in the view
+
++        if isinstance(view, partial):
+
++            view = view.func
+
++        self.view = view
+
++        self.args = args or []
+
++        self.kwargs = kwargs or {}
+
++
+
++    def __repr__(self):
+
++        return f"ResolverMatch(view={self.view}, args={self.args}, kwargs={self.kwargs})"
+
++
+
++# Example usage:
+
++def my_decorator(f):
+
++    def wrapper(*args, **kwargs):
+
++        print("Decorating...")
+
++        return f(*args, **kwargs)
+
++    return wrapper
+
++
+
++@my_decorator
+
++def my_view():
+
++    pass
+
++
+
++# Create a ResolverMatch instance with a partial view
+
++partial_view = partial(my_view, arg1='value1')
+
++resolver_match = ResolverMatch(partial_view)
+
++
+
++print(repr(resolver_match))  # Should show the underlying function and its arguments
+
+ 
+
+ 
+
+ def method_decorator(decorator, name=''):

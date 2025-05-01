@@ -1,0 +1,72 @@
+--- a/decoupled/60/0.8_0.2/212/sphinx-doc_sphinx/sphinx/pycode/parser.py
++++ b/decoupled/60/0.8_0.2/212/sphinx-doc_sphinx/sphinx/pycode/parser.py
+@@ -569,8 +569,30 @@
+         self.finals = picker.finals
+
+         self.overloads = picker.overloads
+
+ 
+
+-    def parse_definition(self) -> None:
+
+-        """Parse the location of definitions from the code."""
+
+-        parser = DefinitionFinder(self.code.splitlines(True))
+
+-        parser.parse()
+
+-        self.definitions = parser.definitions
+
++def parse_definition(self) -> None:
+
++    """Parse the location of definitions from the code."""
+
++    parser = DefinitionFinder(self.code.splitlines(True))
+
++    parser.parse()
+
++    # Ensure that special characters are handled correctly and do not create duplicate sections
+
++    self.definitions = parser.definitions
+
++    # Add a check to merge or handle special characters appropriately
+
++    self._merge_special_characters_in_index()
+
++
+
++def _merge_special_characters_in_index(self) -> None:
+
++    """Merge index entries with special characters to avoid duplicate sections."""
+
++    index_entries = self.definitions.get('index', [])
+
++    merged_entries = []
+
++    symbols_section = []
+
++
+
++    for entry in index_entries:
+
++        if entry.startswith(('_', '@', '£', '←')):
+
++            symbols_section.append(entry)
+
++        else:
+
++            merged_entries.append(entry)
+
++
+
++    # Merge symbols section into the main index entries
+
++    if symbols_section:
+
++        merged_entries.append('Symbols')
+
++        merged_entries.extend(symbols_section)
+
++
+
++    self.definitions['index'] = merged_entries

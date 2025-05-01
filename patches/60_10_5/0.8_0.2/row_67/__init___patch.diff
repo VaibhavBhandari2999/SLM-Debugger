@@ -1,0 +1,53 @@
+--- a/decoupled/60/0.8_0.2/67/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/67/django_django/django/db/models/query_utils.py
+@@ -284,6 +284,9 @@
+ class FilteredRelation:
+
+     """Specify custom filtering in the ON clause of SQL joins."""
+
+ 
+
++from django.db.models import Q
+
++
+
++class CustomQ(Q):
+
+     def __init__(self, relation_name, *, condition=Q()):
+
+         if not relation_name:
+
+             raise ValueError('relation_name cannot be empty.')
+
+@@ -291,8 +294,16 @@
+         self.alias = None
+
+         if not isinstance(condition, Q):
+
+             raise ValueError('condition argument must be a Q() instance.')
+
++        # Convert dict_keys to a list if it's a dict_keys object
+
++        if isinstance(condition.lhs, dict_keys):
+
++            condition = condition._clone(lhs=list(condition.lhs))
+
+         self.condition = condition
+
+         self.path = []
+
++
+
++# Example usage
+
++# q = CustomQ('x', condition=Q(x__in={}.keys()))
+
++# print(q.condition)  # Should print a Q object with a list instead of dict_keys
+
++# print(Q() | q.condition)  # Should not raise TypeError
+
+ 
+
+     def __eq__(self, other):
+
+         if not isinstance(other, self.__class__):

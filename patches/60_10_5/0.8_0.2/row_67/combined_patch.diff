@@ -1,0 +1,207 @@
+--- a/decoupled/60/0.8_0.2/67/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/67/django_django/django/db/models/fields/related_descriptors.py
+@@ -200,7 +200,7 @@
+         else:
+
+             return rel_obj
+
+ 
+
+-    def __set__(self, instance, value):
+
++def __set__(self, instance, value):
+
+         """
+
+         Set the related instance through the forward relation.
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/67/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/67/django_django/django/db/models/query_utils.py
+@@ -284,6 +284,9 @@
+ class FilteredRelation:
+
+     """Specify custom filtering in the ON clause of SQL joins."""
+
+ 
+
++from django.db.models import Q
+
++
+
++class CustomQ(Q):
+
+     def __init__(self, relation_name, *, condition=Q()):
+
+         if not relation_name:
+
+             raise ValueError('relation_name cannot be empty.')
+
+@@ -291,8 +294,16 @@
+         self.alias = None
+
+         if not isinstance(condition, Q):
+
+             raise ValueError('condition argument must be a Q() instance.')
+
++        # Convert dict_keys to a list if it's a dict_keys object
+
++        if isinstance(condition.lhs, dict_keys):
+
++            condition = condition._clone(lhs=list(condition.lhs))
+
+         self.condition = condition
+
+         self.path = []
+
++
+
++# Example usage
+
++# q = CustomQ('x', condition=Q(x__in={}.keys()))
+
++# print(q.condition)  # Should print a Q object with a list instead of dict_keys
+
++# print(Q() | q.condition)  # Should not raise TypeError
+
+ 
+
+     def __eq__(self, other):
+
+         if not isinstance(other, self.__class__):
+
+
+--- a/decoupled/60/0.8_0.2/67/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/67/django_django/django/db/models/query_utils.py
+@@ -40,22 +40,26 @@
+     def __init__(self, *args, _connector=None, _negated=False, **kwargs):
+
+         super().__init__(children=[*args, *sorted(kwargs.items())], connector=_connector, negated=_negated)
+
+ 
+
+-    def _combine(self, other, conn):
+
+-        if not isinstance(other, Q):
+
+-            raise TypeError(other)
+
+-
+
+-        # If the other Q() is empty, ignore it and just use `self`.
+
+-        if not other:
+
+-            return copy.deepcopy(self)
+
+-        # Or if this Q is empty, ignore it and just use `other`.
+
+-        elif not self:
+
+-            return copy.deepcopy(other)
+
+-
+
+-        obj = type(self)()
+
+-        obj.connector = conn
+
+-        obj.add(self, conn)
+
+-        obj.add(other, conn)
+
+-        return obj
+
++def _combine(self, other, conn):
+
++    if not isinstance(other, Q):
+
++        raise TypeError(other)
+
++
+
++    # If the other Q() is empty, ignore it and just use `self`.
+
++    if not other:
+
++        return copy.deepcopy(self)
+
++    # Or if this Q is empty, ignore it and just use `other`.
+
++    elif not self:
+
++        return copy.deepcopy(other)
+
++
+
++    # Check if the other Q object contains a non-pickleable object
+
++    if hasattr(other, '_non_picklable') and other._non_picklable:
+
++        return copy.deepcopy(self) | Q()
+
++
+
++    obj = type(self)()
+
++    obj.connector = conn
+
++    obj.add(self, conn)
+
++    obj.add(other, conn)
+
++    return obj
+
+ 
+
+     def __or__(self, other):
+
+         return self._combine(other, self.OR)
+
+
+--- a/decoupled/60/0.8_0.2/67/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/67/django_django/django/db/models/fields/related_descriptors.py
+@@ -266,12 +266,17 @@
+         if value is not None and not remote_field.multiple:
+
+             remote_field.set_cached_value(value, instance)
+
+ 
+
+-    def __reduce__(self):
+
++def __reduce__(self):
+
+         """
+
+         Pickling should return the instance attached by self.field on the
+
+         model, not a new copy of that descriptor. Use getattr() to retrieve
+
+-        the instance directly from the model.
+
++        the instance directly from the model. If the object is non-pickleable,
+
++        return a safe representation or a default value.
+
+         """
+
++        # Check if the object is non-pickleable
+
++        if not isinstance(self.field.name, (str, bytes)):
+
++            return Q(), {}
+
++        
+
+         return getattr, (self.field.model, self.field.name)
+
+ 
+
+ 
+
+
+
+

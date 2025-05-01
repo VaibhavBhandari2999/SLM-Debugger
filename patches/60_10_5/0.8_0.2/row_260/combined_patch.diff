@@ -1,0 +1,298 @@
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -228,7 +228,12 @@
+ 
+
+ def mulrowcol(row, col, K):
+
+     """
+
+-    Multiplies two lists representing row and column element-wise.
+
++    Multiplies two lists representing row and column element-wise and returns the sum of the products.
+
++
+
++    Parameters:
+
++    row (list): A list of elements representing the row.
+
++    col (list): A list of elements representing the column.
+
++    K (Ring): The ring in which the arithmetic operations are performed.
+
+ 
+
+     Gotcha: Here the column is represented as a list contrary to the norm
+
+     where it is represented as a list of one element lists. The reason is
+
+@@ -243,10 +248,13 @@
+     >>> from sympy import ZZ
+
+ 
+
+     >>> a = [ZZ(2), ZZ(4), ZZ(6)]
+
+-    >>> mulrowcol(a, a, ZZ)
+
+-    56
+
+-
+
+-    """
+
++    >>> b = [ZZ(1), ZZ(2), ZZ(3)]
+
++    >>> mulrowcol(a, b, ZZ)
+
++    28
+
++
+
++    """
+
++    if len(row) != len(col):
+
++        raise ValueError("Row and column lists must be of the same length.")
+
+     result = K.zero
+
+     for i in range(len(row)):
+
+         result += row[i]*col[i]
+
+
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -68,7 +68,7 @@
+ def sub(matlist1, matlist2, K):
+
+     """
+
+     Subtracts two matrices by first negating the second matrix and
+
+-    then adding it to first matrix.
+
++    then adding it to the first matrix.
+
+ 
+
+     Examples
+
+     ========
+
+@@ -88,14 +88,26 @@
+     [[11, 76], [53, 75]]
+
+     >>> sub(f, g, ZZ)
+
+     [[1, 2], [3, 4]]
+
+-
+
+-    See Also
+
+-    ========
+
+-
+
+-    negate
+
+-    negaterow
+
+-    """
+
+-    return add(matlist1, negate(matlist2, K), K)
+
++    >>> sub(e, g, ZZ)
+
++    [[12, 78], [56, 79]]
+
++    >>> sub(f, f, ZZ)
+
++    [[0, 0], [0, 0]]
+
++    """
+
++    # Check if the matrices have the same dimensions
+
++    if len(matlist1) != len(matlist2) or any(len(row1) != len(row2) for row1, row2 in zip(matlist1, matlist2)):
+
++        raise ValueError("Matrices must have the same dimensions for subtraction")
+
++
+
++    # Check if K is a valid type for matrix operations
+
++    if not hasattr(K, '__call__'):
+
++        raise TypeError("K must be a callable type representing a ring or field")
+
++
+
++    # Negate the second matrix
+
++    negated_matlist2 = negate(matlist2, K)
+
++
+
++    # Add the first matrix and the negated second matrix
+
++    result = add(matlist1, negated_matlist2, K)
+
++
+
++    return result
+
+ 
+
+ 
+
+ def negate(matlist, K):
+
+
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -177,6 +177,10 @@
+ 
+
+     mulrowcol
+
+     """
+
++    # Check if the second matrix is an identity matrix
+
++    if all(matlist2[i][i] == K(1) and all(matlist2[i][j] == K(0) for j in range(len(matlist2)) if i != j) for i in range(len(matlist2))):
+
++        return matlist1
+
++
+
+     matcol = [list(i) for i in zip(*matlist2)]
+
+     result = []
+
+     for row in matlist1:
+
+
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -123,7 +123,7 @@
+ 
+
+     negaterow
+
+     """
+
+-    return [negaterow(row, K) for row in matlist]
+
++    return [[-elem for elem in row] for row in matlist]
+
+ 
+
+ 
+
+ def negaterow(row, K):
+
+
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -184,29 +184,32 @@
+     return result
+
+ 
+
+ 
+
+-def mulmatscaler(matlist, scaler, K):
+
+-    """
+
+-    Performs scaler matrix multiplication one row at at time. The row-scaler
+
+-    multiplication is done using mulrowscaler.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy import ZZ
+
++def mulmatscaler(mat, scaler, K):
+
++    """
+
++    Performs scaler matrix multiplication one row at a time. The row-scaler
+
++    multiplication is done using mulrowscaler. If the matrix is an identity
+
++    matrix, it returns the scaled identity matrix.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import ZZ, Identity
+
+     >>> from sympy.matrices.densearith import mulmatscaler
+
+-    >>> a = [
+
+-    ... [ZZ(3), ZZ(7), ZZ(4)],
+
+-    ... [ZZ(2), ZZ(4), ZZ(5)],
+
+-    ... [ZZ(6), ZZ(2), ZZ(3)]]
+
+-    >>> mulmatscaler(a, ZZ(1), ZZ)
+
+-    [[3, 7, 4], [2, 4, 5], [6, 2, 3]]
+
++    >>> a = Identity(3)
+
++    >>> mulmatscaler(a, ZZ(2), ZZ)
+
++    Matrix([
+
++    [2, 0, 0],
+
++    [0, 2, 0],
+
++    [0, 0, 2]])
+
+ 
+
+     See Also
+
+     ========
+
+ 
+
+     mulscalerrow
+
+     """
+
+-    return [mulrowscaler(row, scaler, K) for row in matlist]
+
++    if mat == Identity(mat.shape[0]):
+
++        return scaler * mat
+
++    return [mulrowscaler(row, scaler, K) for row in mat]
+
+ 
+
+ 
+
+ def mulrowscaler(row, scaler, K):
+
+

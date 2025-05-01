@@ -1,0 +1,68 @@
+--- a/decoupled/60/0.8_0.2/189/scikit-learn_scikit-learn/sklearn/multioutput.py
++++ b/decoupled/60/0.8_0.2/189/scikit-learn_scikit-learn/sklearn/multioutput.py
+@@ -68,7 +68,7 @@
+         self.n_jobs = n_jobs
+
+ 
+
+     @if_delegate_has_method('estimator')
+
+-    def partial_fit(self, X, y, classes=None, sample_weight=None):
+
++def partial_fit(self, X, y, classes=None, sample_weight=None):
+
+         """Incrementally fit the model to data.
+
+         Fit a separate model for each output variable.
+
+ 
+
+@@ -91,8 +91,7 @@
+ 
+
+         sample_weight : array-like, shape = (n_samples) or None
+
+             Sample weights. If None, then samples are equally weighted.
+
+-            Only supported if the underlying regressor supports sample
+
+-            weights.
+
++            Only supported if the underlying regressor supports sample weights.
+
+ 
+
+         Returns
+
+         -------
+
+@@ -113,10 +112,14 @@
+ 
+
+         first_time = not hasattr(self, 'estimators_')
+
+ 
+
++        # Ensure that the test data strings can accommodate the longest possible category string
+
++        max_category_length = max([len(str(cat)) for cat in self.categories_[0]]) if self.categories_ else 0
+
++        X_test = np.array([str(x[0]) for x in X], dtype=object)
+
++
+
+         self.estimators_ = Parallel(n_jobs=self.n_jobs)(
+
+             delayed(_partial_fit_estimator)(
+
+                 self.estimators_[i] if not first_time else self.estimator,
+
+-                X, y[:, i],
+
++                X_test, y[:, i],
+
+                 classes[i] if classes is not None else None,
+
+                 sample_weight, first_time) for i in range(y.shape[1]))
+
+         return self

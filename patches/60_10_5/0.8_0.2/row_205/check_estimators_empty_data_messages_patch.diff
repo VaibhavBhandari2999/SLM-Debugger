@@ -1,0 +1,63 @@
+--- a/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/205/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -1782,6 +1782,10 @@
+ 
+
+ 
+
+ @ignore_warnings(category=FutureWarning)
+
++import pandas as pd
+
++import numpy as np
+
++from sklearn.utils.multiclass import unique_labels
+
++
+
+ def check_estimators_empty_data_messages(name, estimator_orig):
+
+     e = clone(estimator_orig)
+
+     set_random_state(e, 1)
+
+@@ -1803,6 +1807,20 @@
+     msg = r"0 feature\(s\) \(shape=\(\d*, 0\)\) while a minimum of \d* " "is required."
+
+     with raises(ValueError, match=msg):
+
+         e.fit(X_zero_features, y)
+
++
+
++def handle_nullable_dtypes(y_true, y_predicted):
+
++    # Convert pandas Series to numpy arrays with the correct dtypes
+
++    y_true_np = y_true.to_numpy(dtype=y_true.dtype)
+
++    y_predicted_np = y_predicted.to_numpy(dtype=y_predicted.dtype)
+
++    
+
++    # Pass the numpy arrays to unique_labels
+
++    return unique_labels(y_true_np, y_predicted_np)
+
++
+
++# Example usage
+
++y_true = pd.Series([1, 0, 0, 1, 0, 1, 1, 0, 1], dtype="Int64")
+
++y_predicted = pd.Series([0, 0, 1, 1, 0, 1, 1, 1, 1], dtype="int64")
+
++
+
++handle_nullable_dtypes(y_true, y_predicted)
+
+ 
+
+ 
+
+ @ignore_warnings(category=FutureWarning)

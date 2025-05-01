@@ -1,0 +1,66 @@
+--- a/decoupled/60/0.8_0.2/24/django_django/django/utils/safestring.py
++++ b/decoupled/60/0.8_0.2/24/django_django/django/utils/safestring.py
+@@ -9,13 +9,26 @@
+ 
+
+ 
+
+ class SafeData:
+
+-    def __html__(self):
+
+-        """
+
+-        Return the html representation of a string for interoperability.
+
++from datetime import datetime
+
+ 
+
+-        This allows other template engines to understand Django's SafeData.
+
+-        """
+
+-        return self
+
++def parse_http_date(date_string):
+
++    """
+
++    Parse an HTTP date string and return a datetime object.
+
++    """
+
++    try:
+
++        # Parse the date string
+
++        parsed_date = datetime.strptime(date_string, "%a, %d %b %Y %H:%M:%S %Z")
+
++    except ValueError:
+
++        # If parsing fails, try to interpret the date as an rfc850 date
+
++        parsed_date = datetime.strptime(date_string, "%a %b %d %H:%M:%S %Y")
+
++    
+
++    # Check if the year is more than 50 years in the future
+
++    current_year = datetime.now().year
+
++    if parsed_date.year > current_year + 50:
+
++        # Interpret the year as the most recent year in the past with the same last two digits
+
++        parsed_date = parsed_date.replace(year=current_year - (current_year % 100) + (parsed_date.year % 100))
+
++    
+
++    return parsed_date
+
+ 
+
+ 
+
+ class SafeString(str, SafeData):

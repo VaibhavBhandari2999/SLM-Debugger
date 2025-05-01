@@ -1,0 +1,68 @@
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/core/duck_array_ops.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/core/duck_array_ops.py
+@@ -158,6 +158,13 @@
+ )
+
+ 
+
+ 
+
++import warnings
+
++import dask.array as da
+
++import numpy as np
+
++import xarray as xr
+
++import sparse
+
++from packaging import version
+
++
+
+ def astype(data, dtype, **kwargs):
+
+     try:
+
+         import sparse
+
+@@ -167,7 +174,7 @@
+     if (
+
+         sparse is not None
+
+         and isinstance(data, sparse_array_type)
+
+-        and LooseVersion(sparse.__version__) < LooseVersion("0.11.0")
+
++        and version.parse(sparse.__version__) < version.parse("0.11.0")
+
+         and "casting" in kwargs
+
+     ):
+
+         warnings.warn(
+
+@@ -177,7 +184,10 @@
+         )
+
+         kwargs.pop("casting")
+
+ 
+
+-    return data.astype(dtype, **kwargs)
+
++    if isinstance(data, da.Array):
+
++        return data
+
++    else:
+
++        return data.astype(dtype, **kwargs)
+
+ 
+
+ 
+
+ def asarray(data, xp=np):

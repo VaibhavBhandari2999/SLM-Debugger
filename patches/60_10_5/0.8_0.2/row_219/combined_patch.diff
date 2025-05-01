@@ -1,0 +1,265 @@
+
+
+--- a/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -161,6 +161,46 @@
+         raise ValueError('param1 may not be equal to param2')
+
+     return True
+
+ 
+
++
+
++import struct
+
++import pathlib
+
++
+
++def consume_struct(_: struct.Struct) -> None:
+
++    """This function consumes a struct.Struct object.
+
++
+
++    Parameters
+
++    ----------
+
++    _ : struct.Struct
+
++        The struct.Struct object to consume.
+
++
+
++    Returns
+
++    -------
+
++    None
+
++        This function does not return anything.
+
++
+
++    """
+
++    pass
+
++
+
++def make_struct() -> struct.Struct:
+
++    """This function creates and returns a struct.Struct object.
+
++
+
++    Returns
+
++    -------
+
++    struct.Struct
+
++        The created struct.Struct object.
+
++    """
+
++    mystruct = struct.Struct('HH')
+
++    return mystruct
+
++
+
++def make_path() -> pathlib.Path:
+
++    """This function creates and returns a pathlib.Path object.
+
++
+
++    Returns
+
++    -------
+
++    pathlib.Path
+
++        The created pathlib.Path object.
+
++    """
+
++    return pathlib.Path()
+
+ 
+
+ def example_generator(n):
+
+     """Generators have a ``Yields`` section instead of a ``Returns`` section.
+
+
+--- a/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/sphinx/util/typing.py
++++ b/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/sphinx/util/typing.py
+@@ -64,6 +64,7 @@
+     runtime.
+
+     """
+
+     from sphinx.util.inspect import safe_getattr  # lazy loading
+
++    import struct  # Import struct here to ensure it's available
+
+ 
+
+     try:
+
+         return typing.get_type_hints(obj, globalns, localns)
+
+@@ -77,6 +78,9 @@
+         return {}
+
+     except AttributeError:
+
+         # AttributeError is raised on 3.5.2 (fixed by 3.5.3)
+
++        return {}
+
++    except ImportError:
+
++        # Handle the case where struct is not available
+
+         return {}
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -52,29 +52,28 @@
+ """
+
+ 
+
+ 
+
+-def function_with_types_in_docstring(param1, param2):
+
+-    """Example function with types documented in the docstring.
+
+-
+
+-    `PEP 484`_ type annotations are supported. If attribute, parameter, and
+
+-    return types are annotated according to `PEP 484`_, they do not need to be
+
+-    included in the docstring:
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    param1 : int
+
+-        The first parameter.
+
+-    param2 : str
+
+-        The second parameter.
+
+-
+
+-    Returns
+
+-    -------
+
+-    bool
+
+-        True if successful, False otherwise.
+
+-
+
+-    .. _PEP 484:
+
+-        https://www.python.org/dev/peps/pep-0484/
+
+-
+
+-    """
+
++# conf.py
+
++
+
++# ... other configurations ...
+
++
+
++# Add the struct module to the autodoc member order
+
++autodoc_member_order = 'bysource'
+
++
+
++# Optionally, use the autodoc_typehints extension to handle type hints
+
++extensions = [
+
++    # ... other extensions ...
+
++    'sphinx.ext.autodoc',
+
++    'sphinx.ext.autosectionlabel',
+
++    'sphinx.ext.intersphinx',
+
++    'sphinx.ext.doctest',
+
++    'sphinx.ext.todo',
+
++    'sphinx.ext.autodoc.typehints',  # Add this line
+
++]
+
++
+
++# Configure autodoc_typehints to use the 'signature' style
+
++autodoc_typehints = 'signature'
+
++
+
++# ... other configurations ...
+
+ 
+
+ 
+
+ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
+
+
+--- a/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/sphinx/util/typing.py
++++ b/decoupled/60/0.8_0.2/219/sphinx-doc_sphinx/sphinx/util/typing.py
+@@ -310,6 +310,10 @@
+         return _stringify_py37(annotation)
+
+     else:
+
+         return _stringify_py36(annotation)
+
++
+
++    # Add this block to handle struct.Struct
+
++    if annotation.__name__ == 'Struct':
+
++        return 'struct.Struct'
+
+ 
+
+ 
+
+ def _stringify_py37(annotation: Any) -> str:
+
+

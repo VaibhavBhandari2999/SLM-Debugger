@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/165/pylint-dev_pylint/pylint/epylint.py
++++ b/decoupled/60/0.8_0.2/165/pylint-dev_pylint/pylint/epylint.py
+@@ -60,6 +60,11 @@
+     env["PYTHONPATH"] = os.pathsep.join(sys.path)
+
+     return env
+
+ 
+
++
+
++import os
+
++import sys
+
++import subprocess
+
++from typing import Sequence
+
+ 
+
+ def lint(filename: str, options: Sequence[str] = ()) -> int:
+
+     """Pylint the given file.
+
+@@ -103,8 +108,8 @@
+         + list(options)
+
+     )
+
+ 
+
+-    with Popen(
+
+-        cmd, stdout=PIPE, cwd=parent_path, env=_get_env(), universal_newlines=True
+
++    with subprocess.Popen(
+
++        cmd, stdout=subprocess.PIPE, cwd=parent_path, env=os.environ, universal_newlines=True
+
+     ) as process:
+
+ 
+
+         for line in process.stdout:  # type: ignore[union-attr]

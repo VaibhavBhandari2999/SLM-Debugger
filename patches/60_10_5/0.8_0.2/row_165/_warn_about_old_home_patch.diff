@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/165/pylint-dev_pylint/pylint/constants.py
++++ b/decoupled/60/0.8_0.2/165/pylint-dev_pylint/pylint/constants.py
+@@ -102,6 +102,11 @@
+ TYPING_TYPE_CHECKS_GUARDS = frozenset({"typing.TYPE_CHECKING", "TYPE_CHECKING"})
+
+ 
+
+ 
+
++import os
+
++import pathlib
+
++import sys
+
++from datetime import datetime
+
++
+
+ def _warn_about_old_home(pylint_home: pathlib.Path) -> None:
+
+     """Warn users about the old pylint home being deprecated.
+
+ 
+
+@@ -114,7 +119,7 @@
+     spam_prevention_file = pathlib.Path(pylint_home) / datetime.now().strftime(
+
+         prefix_spam_prevention + "_%Y-%m-%d.temp"
+
+     )
+
+-    old_home = pathlib.Path(USER_HOME) / OLD_DEFAULT_PYLINT_HOME
+
++    old_home = pathlib.Path.home() / OLD_DEFAULT_PYLINT_HOME
+
+ 
+
+     if old_home.exists() and not spam_prevention_file.exists():
+
+         print(

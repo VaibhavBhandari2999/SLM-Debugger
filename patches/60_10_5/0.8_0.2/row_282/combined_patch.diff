@@ -1,0 +1,720 @@
+--- a/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/singularity_functions.py
++++ b/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/singularity_functions.py
+@@ -113,72 +113,73 @@
+             raise ArgumentIndexError(self, argindex)
+
+ 
+
+     @classmethod
+
+-    def eval(cls, variable, offset, exponent):
+
+-        """
+
+-        Returns a simplified form or a value of Singularity Function depending
+
+-        on the argument passed by the object.
+
+-
+
+-        Explanation
+
+-        ===========
+
+-
+
+-        The ``eval()`` method is automatically called when the
+
+-        ``SingularityFunction`` class is about to be instantiated and it
+
+-        returns either some simplified instance or the unevaluated instance
+
+-        depending on the argument passed. In other words, ``eval()`` method is
+
+-        not needed to be called explicitly, it is being called and evaluated
+
+-        once the object is called.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import SingularityFunction, Symbol, nan
+
+-        >>> from sympy.abc import x, a, n
+
+-        >>> SingularityFunction(x, a, n)
+
+-        SingularityFunction(x, a, n)
+
+-        >>> SingularityFunction(5, 3, 2)
+
+-        4
+
+-        >>> SingularityFunction(x, a, nan)
+
+-        nan
+
+-        >>> SingularityFunction(x, 3, 0).subs(x, 3)
+
+-        1
+
+-        >>> SingularityFunction(x, a, n).eval(3, 5, 1)
+
+-        0
+
+-        >>> SingularityFunction(x, a, n).eval(4, 1, 5)
+
+-        243
+
+-        >>> x = Symbol('x', positive = True)
+
+-        >>> a = Symbol('a', negative = True)
+
+-        >>> n = Symbol('n', nonnegative = True)
+
+-        >>> SingularityFunction(x, a, n)
+
+-        (-a + x)**n
+
+-        >>> x = Symbol('x', negative = True)
+
+-        >>> a = Symbol('a', positive = True)
+
+-        >>> SingularityFunction(x, a, n)
+
+-        0
+
+-
+
+-        """
+
+-
+
+-        x = sympify(variable)
+
+-        a = sympify(offset)
+
+-        n = sympify(exponent)
+
+-        shift = (x - a)
+
+-
+
+-        if fuzzy_not(im(shift).is_zero):
+
+-            raise ValueError("Singularity Functions are defined only for Real Numbers.")
+
+-        if fuzzy_not(im(n).is_zero):
+
+-            raise ValueError("Singularity Functions are not defined for imaginary exponents.")
+
+-        if shift is S.NaN or n is S.NaN:
+
+-            return S.NaN
+
+-        if (n + 2).is_negative:
+
+-            raise ValueError("Singularity Functions are not defined for exponents less than -2.")
+
+-        if shift.is_extended_negative:
+
++def eval(cls, variable, offset, exponent):
+
++    """
+
++    Returns a simplified form or a value of Singularity Function depending
+
++    on the argument passed by the object.
+
++
+
++    Explanation
+
++    ===========
+
++
+
++    The ``eval()`` method is automatically called when the
+
++    ``SingularityFunction`` class is about to be instantiated and it
+
++    returns either some simplified instance or the unevaluated instance
+
++    depending on the argument passed. In other words, ``eval()`` method is
+
++    not needed to be called explicitly, it is being called and evaluated
+
++    once the object is called.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import SingularityFunction, Symbol, nan
+
++    >>> from sympy.abc import x, a, n
+
++    >>> SingularityFunction(x, a, n)
+
++    SingularityFunction(x, a, n)
+
++    >>> SingularityFunction(5, 3, 2)
+
++    4
+
++    >>> SingularityFunction(x, a, nan)
+
++    nan
+
++    >>> SingularityFunction(x, 3, 0).subs(x, 3)
+
++    1
+
++    >>> SingularityFunction(x, a, n).eval(3, 5, 1)
+
++    0
+
++    >>> SingularityFunction(x, a, n).eval(4, 1, 5)
+
++    243
+
++    >>> x = Symbol('x', positive = True)
+
++    >>> a = Symbol('a', negative = True)
+
++    >>> n = Symbol('n', nonnegative = True)
+
++    >>> SingularityFunction(x, a, n)
+
++    (-a + x)**n
+
++    >>> x = Symbol('x', negative = True)
+
++    >>> a = Symbol('a', positive = True)
+
++    >>> SingularityFunction(x, a, n)
+
++    0
+
++
+
++    """
+
++
+
++    x = sympify(variable)
+
++    a = sympify(offset)
+
++    n = sympify(exponent)
+
++    shift = (x - a)
+
++
+
++    if fuzzy_not(im(shift).is_zero):
+
++        raise ValueError("Singularity Functions are defined only for Real Numbers.")
+
++    if fuzzy_not(im(n).is_zero):
+
++        raise ValueError("Singularity Functions are not defined for imaginary exponents.")
+
++    if shift is S.NaN or n is S.NaN:
+
++        return S.NaN
+
++    if (n + 2).is_negative:
+
++        raise ValueError("Singularity Functions are not defined for exponents less than -2.")
+
++    if shift.is_extended_negative:
+
++        return S.Zero
+
++    if n.is_nonnegative and shift.is_extended_nonnegative:
+
++        return (x - a)**n
+
++    if n == -1 or n == -2:
+
++        if shift.is_negative or shift.is_extended_positive:
+
+             return S.Zero
+
+-        if n.is_nonnegative and shift.is_extended_nonnegative:
+
+-            return (x - a)**n
+
+-        if n == -1 or n == -2:
+
+-            if shift.is_negative or shift.is_extended_positive:
+
+-                return S.Zero
+
+-            if shift.is_zero:
+
+-                return S.Infinity
+
++        if shift.is_zero:
+
++            return S.Infinity
+
++    return (x - a)**n  # Simplify the expression when conditions are met
+
+ 
+
+     def _eval_rewrite_as_Piecewise(self, *args, **kwargs):
+
+         '''
+
+
+--- a/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/simplify/cse_main.py
++++ b/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/simplify/cse_main.py
+@@ -60,6 +60,9 @@
+                 E.append((c1, c2))
+
+     return [r[i] for i in topological_sort((range(len(r)), E))]
+
+ 
+
++
+
++from sympy import *
+
++from sympy.simplify.cse_main import cse, reps_toposort, sift
+
+ 
+
+ def cse_separate(r, e):
+
+     """Move expressions that are in the form (symbol, expr) out of the
+
+@@ -85,6 +88,13 @@
+     r = r + [w.args for w in d[True]]
+
+     e = d[False]
+
+     return [reps_toposort(r), e]
+
++
+
++# Example usage to fix the issue with refine
+
++a, x = symbols('a x')
+
++J = Integral(sin(x)*exp(-a*x), (x, 0, oo))
+
++simplified_J = J.doit()
+
++refined_J = refine(simplified_J, Q.positive(a))
+
++print(refined_J)
+
+ 
+
+ # ====end of cse postprocess idioms===========================
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/tensor_functions.py
++++ b/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/tensor_functions.py
+@@ -408,44 +408,46 @@
+             return self.args[0]
+
+ 
+
+     @property
+
+-    def killable_index(self):
+
+-        """
+
+-        Returns the index which is preferred to substitute in the final
+
+-        expression.
+
+-
+
+-        Explanation
+
+-        ===========
+
+-
+
+-        The index to substitute is the index with less information regarding
+
+-        fermi level. If indices contain the same information, 'a' is preferred
+
+-        before 'b'.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.functions.special.tensor_functions import KroneckerDelta
+
+-        >>> from sympy import Symbol
+
+-        >>> a = Symbol('a', above_fermi=True)
+
+-        >>> i = Symbol('i', below_fermi=True)
+
+-        >>> j = Symbol('j', below_fermi=True)
+
+-        >>> p = Symbol('p')
+
+-        >>> KroneckerDelta(p, i).killable_index
+
+-        p
+
+-        >>> KroneckerDelta(p, a).killable_index
+
+-        p
+
+-        >>> KroneckerDelta(i, j).killable_index
+
+-        j
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        preferred_index
+
+-
+
+-        """
+
+-        if self._get_preferred_index():
+
+-            return self.args[0]
+
+-        else:
+
+-            return self.args[1]
+
++from sympy import simplify
+
++
+
++def killable_index(self):
+
++    """
+
++    Returns the index which is preferred to substitute in the final
+
++    expression.
+
++
+
++    Explanation
+
++    ===========
+
++
+
++    The index to substitute is the index with less information regarding
+
++    fermi level. If indices contain the same information, 'a' is preferred
+
++    before 'b'.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.functions.special.tensor_functions import KroneckerDelta
+
++    >>> from sympy import Symbol
+
++    >>> a = Symbol('a', above_fermi=True)
+
++    >>> i = Symbol('i', below_fermi=True)
+
++    >>> j = Symbol('j', below_fermi=True)
+
++    >>> p = Symbol('p')
+
++    >>> KroneckerDelta(p, i).killable_index
+
++    p
+
++    >>> KroneckerDelta(p, a).killable_index
+
++    p
+
++    >>> KroneckerDelta(i, j).killable_index
+
++    j
+
++
+
++    See Also
+
++    ========
+
++
+
++    preferred_index
+
++
+
++    """
+
++    if self._get_preferred_index():
+
++        return simplify(self.args[0])
+
++    else:
+
++        return simplify(self.args[1])
+
+ 
+
+     def _get_preferred_index(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/tensor_functions.py
++++ b/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/functions/special/tensor_functions.py
+@@ -369,43 +369,49 @@
+         return self.is_below_fermi and self.is_above_fermi
+
+ 
+
+     @property
+
+-    def preferred_index(self):
+
+-        """
+
+-        Returns the index which is preferred to keep in the final expression.
+
+-
+
+-        Explanation
+
+-        ===========
+
+-
+
+-        The preferred index is the index with more information regarding fermi
+
+-        level. If indices contain the same information, 'a' is preferred before
+
+-        'b'.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.functions.special.tensor_functions import KroneckerDelta
+
+-        >>> from sympy import Symbol
+
+-        >>> a = Symbol('a', above_fermi=True)
+
+-        >>> i = Symbol('i', below_fermi=True)
+
+-        >>> j = Symbol('j', below_fermi=True)
+
+-        >>> p = Symbol('p')
+
+-        >>> KroneckerDelta(p, i).preferred_index
+
+-        i
+
+-        >>> KroneckerDelta(p, a).preferred_index
+
+-        a
+
+-        >>> KroneckerDelta(i, j).preferred_index
+
+-        i
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        killable_index
+
+-
+
+-        """
+
+-        if self._get_preferred_index():
+
+-            return self.args[1]
+
+-        else:
+
+-            return self.args[0]
+
++def preferred_index(self):
+
++    """
+
++    Returns the index which is preferred to keep in the final expression.
+
++
+
++    Explanation
+
++    ===========
+
++
+
++    The preferred index is the index with more information regarding fermi
+
++    level. If indices contain the same information, 'a' is preferred before
+
++    'b'.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.functions.special.tensor_functions import KroneckerDelta
+
++    >>> from sympy import Symbol
+
++    >>> a = Symbol('a', above_fermi=True)
+
++    >>> i = Symbol('i', below_fermi=True)
+
++    >>> j = Symbol('j', below_fermi=True)
+
++    >>> p = Symbol('p')
+
++    >>> KroneckerDelta(p, i).preferred_index
+
++    i
+
++    >>> KroneckerDelta(p, a).preferred_index
+
++    a
+
++    >>> KroneckerDelta(i, j).preferred_index
+
++    i
+
++
+
++    See Also
+
++    ========
+
++
+
++    killable_index
+
++
+
++    """
+
++    if self.args[1].above_fermi and not self.args[0].above_fermi:
+
++        return self.args[1]
+
++    elif not self.args[1].above_fermi and self.args[0].above_fermi:
+
++        return self.args[0]
+
++    elif self.args[1].below_fermi and not self.args[0].below_fermi:
+
++        return self.args[1]
+
++    elif not self.args[1].below_fermi and self.args[0].below_fermi:
+
++        return self.args[0]
+
++    else:
+
++        return self.args[0] if self.args[0].name < self.args[1].name else self.args[1]
+
+ 
+
+     @property
+
+     def killable_index(self):
+
+
+--- a/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/simplify/cse_main.py
++++ b/decoupled/60/0.8_0.2/282/sympy_sympy/sympy/simplify/cse_main.py
+@@ -32,6 +32,8 @@
+ # ===============================================================
+
+ 
+
+ 
+
++from sympy import symbols, refine, topological_sort, sympify
+
++
+
+ def reps_toposort(r):
+
+     """Sort replacements ``r`` so (k1, v1) appears before (k2, v2)
+
+     if k2 is in v1's free symbols. This orders items in the
+
+@@ -57,7 +59,10 @@
+     for c1, (k1, v1) in enumerate(r):
+
+         for c2, (k2, v2) in enumerate(r):
+
+             if k1 in v2.free_symbols:
+
+-                E.append((c1, c2))
+
++                # Simplify v2 under the assumption that a is positive
+
++                v2_simplified = refine(v2, Q.positive(k2))
+
++                if k1 in v2_simplified.free_symbols:
+
++                    E.append((c1, c2))
+
+     return [r[i] for i in topological_sort((range(len(r)), E))]
+
+ 
+
+ 
+
+

@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/137/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
++++ b/decoupled/60/0.8_0.2/137/matplotlib_matplotlib/lib/matplotlib/backend_tools.py
+@@ -119,9 +119,19 @@
+         doc="The canvas of the figure affected by this tool, or None.")
+
+ 
+
+     @property
+
+-    def figure(self):
+
+-        """The Figure affected by this tool, or None."""
+
+-        return self._figure
+
++import matplotlib.pyplot as plt
+
++import pickle
+
++
+
++def figure(self):
+
++    """The Figure affected by this tool, or None."""
+
++    # Temporarily remove the _figure attribute to avoid pickling issues
+
++    figure = self._figure
+
++    try:
+
++        del self._figure
+
++        return figure
+
++    finally:
+
++        # Re-apply the _figure attribute after unpickling
+
++        self._figure = figure
+
+ 
+
+     @figure.setter
+
+     def figure(self, figure):

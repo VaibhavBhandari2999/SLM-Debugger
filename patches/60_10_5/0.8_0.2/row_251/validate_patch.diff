@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/251/sympy_sympy/sympy/matrices/expressions/matmul.py
++++ b/decoupled/60/0.8_0.2/251/sympy_sympy/sympy/matrices/expressions/matmul.py
+@@ -136,12 +136,15 @@
+         return coeff_c, coeff_nc + matrices
+
+ 
+
+ 
+
+-def validate(*matrices):
+
+-    """ Checks for valid shapes for args of MatMul """
+
+-    for i in range(len(matrices)-1):
+
+-        A, B = matrices[i:i+2]
+
+-        if A.cols != B.rows:
+
+-            raise ShapeError("Matrices %s and %s are not aligned"%(A, B))
+
++def mathematica_code(expr):
+
++    """Converts a SymPy expression to valid Mathematica code."""
+
++    from sympy.printing.lambdarepr import StrPrinter
+
++    class MathematicaPrinter(StrPrinter):
+
++        def _print_Max(self, expr):
+
++            return 'Max' + self.parenthesize(expr.args)
+
++    
+
++    printer = MathematicaPrinter()
+
++    return printer.doprint(expr)
+
+ 
+
+ # Rules
+
+ 

@@ -1,0 +1,108 @@
+--- a/decoupled/60/0.8_0.2/298/sympy_sympy/sympy/physics/mechanics/linearize.py
++++ b/decoupled/60/0.8_0.2/298/sympy_sympy/sympy/physics/mechanics/linearize.py
+@@ -150,36 +150,23 @@
+         else:
+
+             self.perm_mat = P_col2
+
+ 
+
+-    def _form_coefficient_matrices(self):
+
+-        """Form the coefficient matrices C_0, C_1, and C_2."""
+
+-
+
+-        # Extract dimension variables
+
+-        l, m, n, o, s, k = self._dims
+
+-        # Build up the coefficient matrices C_0, C_1, and C_2
+
+-        # If there are configuration constraints (l > 0), form C_0 as normal.
+
+-        # If not, C_0 is I_(nxn). Note that this works even if n=0
+
+-        if l > 0:
+
+-            f_c_jac_q = self.f_c.jacobian(self.q)
+
+-            self._C_0 = (eye(n) - self._Pqd * (f_c_jac_q *
+
+-                    self._Pqd).LUsolve(f_c_jac_q)) * self._Pqi
+
+-        else:
+
+-            self._C_0 = eye(n)
+
+-        # If there are motion constraints (m > 0), form C_1 and C_2 as normal.
+
+-        # If not, C_1 is 0, and C_2 is I_(oxo). Note that this works even if
+
+-        # o = 0.
+
+-        if m > 0:
+
+-            f_v_jac_u = self.f_v.jacobian(self.u)
+
+-            temp = f_v_jac_u * self._Pud
+
+-            if n != 0:
+
+-                f_v_jac_q = self.f_v.jacobian(self.q)
+
+-                self._C_1 = -self._Pud * temp.LUsolve(f_v_jac_q)
+
+-            else:
+
+-                self._C_1 = zeros(o, n)
+
+-            self._C_2 = (eye(o) - self._Pud *
+
+-                    temp.LUsolve(f_v_jac_u)) * self._Pui
+
+-        else:
+
+-            self._C_1 = zeros(o, n)
+
+-            self._C_2 = eye(o)
+
++def _collect_factor_and_dimension(self, expr):
+
++    """Collect factors and dimensions of the given expression."""
+
++    from sympy.physics.units import Dimension
+
++
+
++    # Extract the dimensions of the expression
+
++    expr_dim = expr.dimensionality
+
++
+
++    # Iterate through the expression to check for equivalent dimensions
+
++    for term in expr.args:
+
++        if isinstance(term, units.Quantity):
+
++            term_dim = term.dimensionality
+
++            if term_dim != expr_dim:
+
++                # Check if the dimensions are equivalent
+
++                if not term_dim.equals(expr_dim):
+
++                    raise ValueError(
+
++                        f"Dimension of \"{term.name}\" is {term_dim}, but it should be {expr_dim}"
+
++                    )
+
+ 
+
+     def _form_block_matrices(self):
+
+         """Form the block matrices for composing M, A, and B."""

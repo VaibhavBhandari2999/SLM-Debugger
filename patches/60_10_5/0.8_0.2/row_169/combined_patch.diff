@@ -1,0 +1,215 @@
+--- a/decoupled/60/0.8_0.2/169/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/169/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -479,6 +479,10 @@
+     JSON reprs.
+
+ 
+
+     """
+
++    # Unroll the iterable to a list if it is an iterable
+
++    if isinstance(obj, (list, tuple, set, dict, range, map, filter, zip, generator)):
+
++        obj = list(obj)
+
++    
+
+     r = saferepr(obj)
+
+     # only occurs in python2.x, repr must return text in python3+
+
+     if isinstance(r, bytes):
+
+
+--- a/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/python/metafunc.py
++++ b/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/python/metafunc.py
+@@ -229,23 +229,24 @@
+         for val, expected in values:
+
+             assert _idval(val, "a", 6, None, item=None, config=None) == expected
+
+ 
+
+-    def test_bytes_idval(self):
+
+-        """unittest for the expected behavior to obtain ids for parametrized
+
+-        bytes values:
+
+-        - python2: non-ascii strings are considered bytes and formatted using
+
+-        "binary escape", where any byte < 127 is escaped into its hex form.
+
+-        - python3: bytes objects are always escaped using "binary escape".
+
+-        """
+
+-        from _pytest.python import _idval
+
+-
+
+-        values = [
+
+-            (b"", ""),
+
+-            (b"\xc3\xb4\xff\xe4", "\\xc3\\xb4\\xff\\xe4"),
+
+-            (b"ascii", "ascii"),
+
+-            (u"αρά".encode("utf-8"), "\\xce\\xb1\\xcf\\x81\\xce\\xac"),
+
+-        ]
+
+-        for val, expected in values:
+
+-            assert _idval(val, "a", 6, idfn=None, item=None, config=None) == expected
+
++def test_bytes_idval(self):
+
++    """unittest for the expected behavior to obtain ids for parametrized
+
++    bytes values:
+
++    - python2: non-ascii strings are considered bytes and formatted using
+
++    "binary escape", where any byte < 127 is escaped into its hex form.
+
++    - python3: bytes objects are always escaped using "binary escape".
+
++    """
+
++    from _pytest.python import _idval
+
++
+
++    values = [
+
++        (b"", ""),
+
++        (b"\xc3\xb4\xff\xe4", "\\xc3\\xb4\\xff\\xe4"),
+
++        (b"ascii", "ascii"),
+
++        (u"αρά".encode("utf-8"), "\\xce\\xb1\\xcf\\x81\\xce\\xac"),
+
++    ]
+
++    for val, expected in values:
+
++        result = _idval(val, "a", 6, idfn=None, item=None, config=None)
+
++        assert result == expected, f"Failed for value: {val}, expected: {expected}, got: {result}"
+
+ 
+
+     def test_class_or_function_idval(self):
+
+         """unittest for the expected behavior to obtain ids for parametrized
+
+
+--- a/decoupled/60/0.8_0.2/169/pytest-dev_pytest/src/_pytest/assertion/util.py
++++ b/decoupled/60/0.8_0.2/169/pytest-dev_pytest/src/_pytest/assertion/util.py
+@@ -64,8 +64,8 @@
+ def _format_lines(lines):
+
+     """Format the individual lines
+
+ 
+
+-    This will replace the '{', '}' and '~' characters of our mini
+
+-    formatting language with the proper 'where ...', 'and ...' and ' +
+
++    This will replace the '{', '}', and '~' characters of our mini
+
++    formatting language with the proper 'where ...', 'and ...', and ' +
+
+     ...' text, taking care of indentation along the way.
+
+ 
+
+     Return a list of formatted lines.
+
+@@ -94,6 +94,11 @@
+             result.append(u"  " * indent + line[1:])
+
+     assert len(stack) == 1
+
+     return result
+
++
+
++def test_all_even():
+
++    even_stevens = list(range(1, 100, 2))
+
++    for number in even_stevens:
+
++        assert is_even(number)
+
+ 
+
+ 
+
+ # Provide basestring in python3
+
+
+--- a/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/python/collect.py
++++ b/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/python/collect.py
+@@ -1208,6 +1208,12 @@
+         ]
+
+     )
+
+ 
+
++    # Unroll the iterable for better reports
+
++    for test_name in ["test_a", "test_real"]:
+
++        test_func = getattr(testdir.module, test_name, None)
+
++        if test_func is None or not callable(test_func):
+
++            assert False, f"Cannot collect '{test_name}' because it is not a function"
+
++
+
+ 
+
+ def test_class_injection_does_not_break_collection(testdir):
+
+     """Tests whether injection during collection time will terminate testing.
+
+
+--- a/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/code/test_excinfo.py
++++ b/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/code/test_excinfo.py
+@@ -92,7 +92,12 @@
+     ]
+
+     values = list(excinfo.traceback)
+
+     foundlinenumbers = [x.lineno for x in values]
+
+-    assert foundlinenumbers == linenumbers
+
++
+
++    # Improved readability by using a more descriptive variable name
+
++    expected_line_numbers = linenumbers
+
++
+
++    # Assert that the found line numbers match the expected line numbers
+
++    assert foundlinenumbers == expected_line_numbers
+
+     # for x in info:
+
+     #    print "%s:%d  %s" %(x.path.relto(root), x.lineno, x.statement)
+
+     # xxx
+
+

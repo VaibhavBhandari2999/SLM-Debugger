@@ -1,0 +1,61 @@
+--- a/decoupled/60/0.8_0.2/246/sympy_sympy/sympy/polys/specialpolys.py
++++ b/decoupled/60/0.8_0.2/246/sympy_sympy/sympy/polys/specialpolys.py
+@@ -125,7 +125,9 @@
+ 
+
+ 
+
+ @public
+
+-def random_poly(x, n, inf, sup, domain=ZZ, polys=False):
+
++from sympy import QQ, Poly, dup_random, symbols
+
++
+
++def random_poly(x, n, inf, sup, domain=QQ, polys=False):
+
+     """Generates a polynomial of degree ``n`` with coefficients in
+
+     ``[inf, sup]``.
+
+ 
+
+@@ -146,9 +148,18 @@
+         ``polys=True`` returns an expression, otherwise
+
+         (default) returns an expression.
+
+     """
+
+-    poly = Poly(dup_random(n, inf, sup, domain), x, domain=domain)
+
++    # Generate random polynomial coefficients
+
++    coefficients = dup_random(n, inf, sup, domain)
+
++    
+
++    # Create the polynomial with the specified domain
+
++    poly = Poly(coefficients, x, domain=domain)
+
+ 
+
+     return poly if polys else poly.as_expr()
+
++
+
++# Example usage
+
++x = symbols('x')
+
++print(random_poly(x, 3, -10, 10, domain=QQ))
+
++print(random_poly(x, 3, -10, 10, domain=QQ, polys=True))
+
+ 
+
+ 
+
+ @public

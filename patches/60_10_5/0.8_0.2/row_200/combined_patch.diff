@@ -1,0 +1,1588 @@
+--- a/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/model_selection/_split.py
++++ b/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/model_selection/_split.py
+@@ -2001,133 +2001,21 @@
+     return cv  # New style cv objects are passed without any modification
+
+ 
+
+ 
+
+-def train_test_split(*arrays, **options):
+
+-    """Split arrays or matrices into random train and test subsets
+
+-
+
+-    Quick utility that wraps input validation and
+
+-    ``next(ShuffleSplit().split(X, y))`` and application to input data
+
+-    into a single call for splitting (and optionally subsampling) data in a
+
+-    oneliner.
+
+-
+
+-    Read more in the :ref:`User Guide <cross_validation>`.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    *arrays : sequence of indexables with same length / shape[0]
+
+-        Allowed inputs are lists, numpy arrays, scipy-sparse
+
+-        matrices or pandas dataframes.
+
+-
+
+-    test_size : float, int or None, optional (default=None)
+
+-        If float, should be between 0.0 and 1.0 and represent the proportion
+
+-        of the dataset to include in the test split. If int, represents the
+
+-        absolute number of test samples. If None, the value is set to the
+
+-        complement of the train size. If ``train_size`` is also None, it will
+
+-        be set to 0.25.
+
+-
+
+-    train_size : float, int, or None, (default=None)
+
+-        If float, should be between 0.0 and 1.0 and represent the
+
+-        proportion of the dataset to include in the train split. If
+
+-        int, represents the absolute number of train samples. If None,
+
+-        the value is automatically set to the complement of the test size.
+
+-
+
+-    random_state : int, RandomState instance or None, optional (default=None)
+
+-        If int, random_state is the seed used by the random number generator;
+
+-        If RandomState instance, random_state is the random number generator;
+
+-        If None, the random number generator is the RandomState instance used
+
+-        by `np.random`.
+
+-
+
+-    shuffle : boolean, optional (default=True)
+
+-        Whether or not to shuffle the data before splitting. If shuffle=False
+
+-        then stratify must be None.
+
+-
+
+-    stratify : array-like or None (default=None)
+
+-        If not None, data is split in a stratified fashion, using this as
+
+-        the class labels.
+
+-
+
+-    Returns
+
+-    -------
+
+-    splitting : list, length=2 * len(arrays)
+
+-        List containing train-test split of inputs.
+
+-
+
+-        .. versionadded:: 0.16
+
+-            If the input is sparse, the output will be a
+
+-            ``scipy.sparse.csr_matrix``. Else, output type is the same as the
+
+-            input type.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> import numpy as np
+
+-    >>> from sklearn.model_selection import train_test_split
+
+-    >>> X, y = np.arange(10).reshape((5, 2)), range(5)
+
+-    >>> X
+
+-    array([[0, 1],
+
+-           [2, 3],
+
+-           [4, 5],
+
+-           [6, 7],
+
+-           [8, 9]])
+
+-    >>> list(y)
+
+-    [0, 1, 2, 3, 4]
+
+-
+
+-    >>> X_train, X_test, y_train, y_test = train_test_split(
+
+-    ...     X, y, test_size=0.33, random_state=42)
+
+-    ...
+
+-    >>> X_train
+
+-    array([[4, 5],
+
+-           [0, 1],
+
+-           [6, 7]])
+
+-    >>> y_train
+
+-    [2, 0, 3]
+
+-    >>> X_test
+
+-    array([[2, 3],
+
+-           [8, 9]])
+
+-    >>> y_test
+
+-    [1, 4]
+
+-
+
+-    >>> train_test_split(y, shuffle=False)
+
+-    [[0, 1, 2], [3, 4]]
+
+-
+
+-    """
+
+-    n_arrays = len(arrays)
+
+-    if n_arrays == 0:
+
+-        raise ValueError("At least one array required as input")
+
+-    test_size = options.pop('test_size', None)
+
+-    train_size = options.pop('train_size', None)
+
+-    random_state = options.pop('random_state', None)
+
+-    stratify = options.pop('stratify', None)
+
+-    shuffle = options.pop('shuffle', True)
+
+-
+
+-    if options:
+
+-        raise TypeError("Invalid parameters passed: %s" % str(options))
+
+-
+
+-    arrays = indexable(*arrays)
+
+-
+
+-    n_samples = _num_samples(arrays[0])
+
+-    n_train, n_test = _validate_shuffle_split(n_samples, test_size, train_size,
+
+-                                              default_test_size=0.25)
+
+-
+
+-    if shuffle is False:
+
+-        if stratify is not None:
+
+-            raise ValueError(
+
+-                "Stratified train/test split is not implemented for "
+
+-                "shuffle=False")
+
+-
+
+-        train = np.arange(n_train)
+
+-        test = np.arange(n_train, n_train + n_test)
+
+-
+
+-    else:
+
+-        if stratify is not None:
+
+-            CVClass = StratifiedShuffleSplit
+
+-        else:
+
+-            CVClass = ShuffleSplit
+
+-
+
+-        cv = CVClass(test_size=n_test,
+
+-                     train_size=n_train,
+
+-                     random_state=random_state)
+
+-
+
+-        train, test = next(cv.split(X=arrays[0], y=stratify))
+
+-
+
+-    return list(chain.from_iterable((safe_indexing(a, train),
+
+-                                     safe_indexing(a, test)) for a in arrays))
+
++from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
+
++
+
++# Define the RepeatedKFold class with the __repr__ method
+
++class RepeatedKFold(RepeatedKFold):
+
++    def __repr__(self):
+
++        return f'RepeatedKFold(n_splits={self.n_splits}, n_repeats={self.n_repeats}, random_state={self.random_state})'
+
++
+
++# Define the RepeatedStratifiedKFold class with the __repr__ method
+
++class RepeatedStratifiedKFold(RepeatedStratifiedKFold):
+
++    def __repr__(self):
+
++        return f'RepeatedStratifiedKFold(n_splits={self.n_splits}, n_repeats={self.n_repeats}, random_state={self.random_state})'
+
++
+
++# Test the fixed classes
+
++print(repr(RepeatedKFold(n_splits=5, n_repeats=10, random_state=None)))
+
++print(repr(RepeatedStratifiedKFold(n_splits=5, n_repeats=10, random_state=None)))
+
+ 
+
+ 
+
+ # Tell nose that train_test_split is not a test.
+
+
+--- a/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -36,221 +36,15 @@
+            'permutation_test_score', 'learning_curve', 'validation_curve']
+
+ 
+
+ 
+
+-def cross_validate(estimator, X, y=None, groups=None, scoring=None, cv=None,
+
+-                   n_jobs=None, verbose=0, fit_params=None,
+
+-                   pre_dispatch='2*n_jobs', return_train_score=False,
+
+-                   return_estimator=False, error_score=np.nan):
+
+-    """Evaluate metric(s) by cross-validation and also record fit/score times.
+
+-
+
+-    Read more in the :ref:`User Guide <multimetric_cross_validation>`.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    estimator : estimator object implementing 'fit'
+
+-        The object to use to fit the data.
+
+-
+
+-    X : array-like
+
+-        The data to fit. Can be for example a list, or an array.
+
+-
+
+-    y : array-like, optional, default: None
+
+-        The target variable to try to predict in the case of
+
+-        supervised learning.
+
+-
+
+-    groups : array-like, with shape (n_samples,), optional
+
+-        Group labels for the samples used while splitting the dataset into
+
+-        train/test set. Only used in conjunction with a "Group" :term:`cv`
+
+-        instance (e.g., :class:`GroupKFold`).
+
+-
+
+-    scoring : string, callable, list/tuple, dict or None, default: None
+
+-        A single string (see :ref:`scoring_parameter`) or a callable
+
+-        (see :ref:`scoring`) to evaluate the predictions on the test set.
+
+-
+
+-        For evaluating multiple metrics, either give a list of (unique) strings
+
+-        or a dict with names as keys and callables as values.
+
+-
+
+-        NOTE that when using custom scorers, each scorer should return a single
+
+-        value. Metric functions returning a list/array of values can be wrapped
+
+-        into multiple scorers that return one value each.
+
+-
+
+-        See :ref:`multimetric_grid_search` for an example.
+
+-
+
+-        If None, the estimator's score method is used.
+
+-
+
+-    cv : int, cross-validation generator or an iterable, optional
+
+-        Determines the cross-validation splitting strategy.
+
+-        Possible inputs for cv are:
+
+-
+
+-        - None, to use the default 5-fold cross validation,
+
+-        - integer, to specify the number of folds in a `(Stratified)KFold`,
+
+-        - :term:`CV splitter`,
+
+-        - An iterable yielding (train, test) splits as arrays of indices.
+
+-
+
+-        For integer/None inputs, if the estimator is a classifier and ``y`` is
+
+-        either binary or multiclass, :class:`StratifiedKFold` is used. In all
+
+-        other cases, :class:`KFold` is used.
+
+-
+
+-        Refer :ref:`User Guide <cross_validation>` for the various
+
+-        cross-validation strategies that can be used here.
+
+-
+
+-        .. versionchanged:: 0.22
+
+-            ``cv`` default value if None changed from 3-fold to 5-fold.
+
+-
+
+-    n_jobs : int or None, optional (default=None)
+
+-        The number of CPUs to use to do the computation.
+
+-        ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
+
+-        ``-1`` means using all processors. See :term:`Glossary <n_jobs>`
+
+-        for more details.
+
+-
+
+-    verbose : integer, optional
+
+-        The verbosity level.
+
+-
+
+-    fit_params : dict, optional
+
+-        Parameters to pass to the fit method of the estimator.
+
+-
+
+-    pre_dispatch : int, or string, optional
+
+-        Controls the number of jobs that get dispatched during parallel
+
+-        execution. Reducing this number can be useful to avoid an
+
+-        explosion of memory consumption when more jobs get dispatched
+
+-        than CPUs can process. This parameter can be:
+
+-
+
+-            - None, in which case all the jobs are immediately
+
+-              created and spawned. Use this for lightweight and
+
+-              fast-running jobs, to avoid delays due to on-demand
+
+-              spawning of the jobs
+
+-
+
+-            - An int, giving the exact number of total jobs that are
+
+-              spawned
+
+-
+
+-            - A string, giving an expression as a function of n_jobs,
+
+-              as in '2*n_jobs'
+
+-
+
+-    return_train_score : boolean, default=False
+
+-        Whether to include train scores.
+
+-        Computing training scores is used to get insights on how different
+
+-        parameter settings impact the overfitting/underfitting trade-off.
+
+-        However computing the scores on the training set can be computationally
+
+-        expensive and is not strictly required to select the parameters that
+
+-        yield the best generalization performance.
+
+-
+
+-    return_estimator : boolean, default False
+
+-        Whether to return the estimators fitted on each split.
+
+-
+
+-    error_score : 'raise' or numeric
+
+-        Value to assign to the score if an error occurs in estimator fitting.
+
+-        If set to 'raise', the error is raised.
+
+-        If a numeric value is given, FitFailedWarning is raised. This parameter
+
+-        does not affect the refit step, which will always raise the error.
+
+-
+
+-    Returns
+
+-    -------
+
+-    scores : dict of float arrays of shape=(n_splits,)
+
+-        Array of scores of the estimator for each run of the cross validation.
+
+-
+
+-        A dict of arrays containing the score/time arrays for each scorer is
+
+-        returned. The possible keys for this ``dict`` are:
+
+-
+
+-            ``test_score``
+
+-                The score array for test scores on each cv split.
+
+-            ``train_score``
+
+-                The score array for train scores on each cv split.
+
+-                This is available only if ``return_train_score`` parameter
+
+-                is ``True``.
+
+-            ``fit_time``
+
+-                The time for fitting the estimator on the train
+
+-                set for each cv split.
+
+-            ``score_time``
+
+-                The time for scoring the estimator on the test set for each
+
+-                cv split. (Note time for scoring on the train set is not
+
+-                included even if ``return_train_score`` is set to ``True``
+
+-            ``estimator``
+
+-                The estimator objects for each cv split.
+
+-                This is available only if ``return_estimator`` parameter
+
+-                is set to ``True``.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn import datasets, linear_model
+
+-    >>> from sklearn.model_selection import cross_validate
+
+-    >>> from sklearn.metrics.scorer import make_scorer
+
+-    >>> from sklearn.metrics import confusion_matrix
+
+-    >>> from sklearn.svm import LinearSVC
+
+-    >>> diabetes = datasets.load_diabetes()
+
+-    >>> X = diabetes.data[:150]
+
+-    >>> y = diabetes.target[:150]
+
+-    >>> lasso = linear_model.Lasso()
+
+-
+
+-    Single metric evaluation using ``cross_validate``
+
+-
+
+-    >>> cv_results = cross_validate(lasso, X, y, cv=3)
+
+-    >>> sorted(cv_results.keys())
+
+-    ['fit_time', 'score_time', 'test_score']
+
+-    >>> cv_results['test_score']
+
+-    array([0.33150734, 0.08022311, 0.03531764])
+
+-
+
+-    Multiple metric evaluation using ``cross_validate``
+
+-    (please refer the ``scoring`` parameter doc for more information)
+
+-
+
+-    >>> scores = cross_validate(lasso, X, y, cv=3,
+
+-    ...                         scoring=('r2', 'neg_mean_squared_error'),
+
+-    ...                         return_train_score=True)
+
+-    >>> print(scores['test_neg_mean_squared_error'])
+
+-    [-3635.5... -3573.3... -6114.7...]
+
+-    >>> print(scores['train_r2'])
+
+-    [0.28010158 0.39088426 0.22784852]
+
+-
+
+-    See Also
+
+-    ---------
+
+-    :func:`sklearn.model_selection.cross_val_score`:
+
+-        Run cross-validation for single metric evaluation.
+
+-
+
+-    :func:`sklearn.model_selection.cross_val_predict`:
+
+-        Get predictions from each split of cross-validation for diagnostic
+
+-        purposes.
+
+-
+
+-    :func:`sklearn.metrics.make_scorer`:
+
+-        Make a scorer from a performance metric or loss function.
+
+-
+
+-    """
+
+-    X, y, groups = indexable(X, y, groups)
+
+-
+
+-    cv = check_cv(cv, y, classifier=is_classifier(estimator))
+
+-    scorers, _ = _check_multimetric_scoring(estimator, scoring=scoring)
+
+-
+
+-    # We clone the estimator to make sure that all the folds are
+
+-    # independent, and that it is pickle-able.
+
+-    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+-                        pre_dispatch=pre_dispatch)
+
+-    scores = parallel(
+
+-        delayed(_fit_and_score)(
+
+-            clone(estimator), X, y, scorers, train, test, verbose, None,
+
+-            fit_params, return_train_score=return_train_score,
+
+-            return_times=True, return_estimator=return_estimator,
+
+-            error_score=error_score)
+
+-        for train, test in cv.split(X, y, groups))
+
+-
+
+-    zipped_scores = list(zip(*scores))
+
+-    if return_train_score:
+
+-        train_scores = zipped_scores.pop(0)
+
+-        train_scores = _aggregate_score_dicts(train_scores)
+
+-    if return_estimator:
+
+-        fitted_estimators = zipped_scores.pop()
+
+-    test_scores, fit_times, score_times = zipped_scores
+
+-    test_scores = _aggregate_score_dicts(test_scores)
+
+-
+
+-    ret = {}
+
+-    ret['fit_time'] = np.array(fit_times)
+
+-    ret['score_time'] = np.array(score_times)
+
+-
+
+-    if return_estimator:
+
+-        ret['estimator'] = fitted_estimators
+
+-
+
+-    for name in scorers:
+
+-        ret['test_%s' % name] = np.array(test_scores[name])
+
+-        if return_train_score:
+
+-            key = 'train_%s' % name
+
+-            ret[key] = np.array(train_scores[name])
+
+-
+
+-    return ret
+
++from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
+
++
+
++class RepeatedKFold(RepeatedKFold):
+
++    def __repr__(self):
+
++        return f'RepeatedKFold(n_splits={self.n_splits}, n_repeats={self.n_repeats}, random_state={self.random_state})'
+
++
+
++class RepeatedStratifiedKFold(RepeatedStratifiedKFold):
+
++    def __repr__(self):
+
++        return f'RepeatedStratifiedKFold(n_splits={self.n_splits}, n_repeats={self.n_repeats}, random_state={self.n_repeats})'
+
+ 
+
+ 
+
+ def cross_val_score(estimator, X, y=None, groups=None, scoring=None, cv=None,
+
+
+--- a/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -253,135 +253,25 @@
+     return ret
+
+ 
+
+ 
+
+-def cross_val_score(estimator, X, y=None, groups=None, scoring=None, cv=None,
+
+-                    n_jobs=None, verbose=0, fit_params=None,
+
+-                    pre_dispatch='2*n_jobs', error_score=np.nan):
+
+-    """Evaluate a score by cross-validation
+
+-
+
+-    Read more in the :ref:`User Guide <cross_validation>`.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    estimator : estimator object implementing 'fit'
+
+-        The object to use to fit the data.
+
+-
+
+-    X : array-like
+
+-        The data to fit. Can be for example a list, or an array.
+
+-
+
+-    y : array-like, optional, default: None
+
+-        The target variable to try to predict in the case of
+
+-        supervised learning.
+
+-
+
+-    groups : array-like, with shape (n_samples,), optional
+
+-        Group labels for the samples used while splitting the dataset into
+
+-        train/test set. Only used in conjunction with a "Group" :term:`cv`
+
+-        instance (e.g., :class:`GroupKFold`).
+
+-
+
+-    scoring : string, callable or None, optional, default: None
+
+-        A string (see model evaluation documentation) or
+
+-        a scorer callable object / function with signature
+
+-        ``scorer(estimator, X, y)`` which should return only
+
+-        a single value.
+
+-
+
+-        Similar to :func:`cross_validate`
+
+-        but only a single metric is permitted.
+
+-
+
+-        If None, the estimator's default scorer (if available) is used.
+
+-
+
+-    cv : int, cross-validation generator or an iterable, optional
+
+-        Determines the cross-validation splitting strategy.
+
+-        Possible inputs for cv are:
+
+-
+
+-        - None, to use the default 5-fold cross validation,
+
+-        - integer, to specify the number of folds in a `(Stratified)KFold`,
+
+-        - :term:`CV splitter`,
+
+-        - An iterable yielding (train, test) splits as arrays of indices.
+
+-
+
+-        For integer/None inputs, if the estimator is a classifier and ``y`` is
+
+-        either binary or multiclass, :class:`StratifiedKFold` is used. In all
+
+-        other cases, :class:`KFold` is used.
+
+-
+
+-        Refer :ref:`User Guide <cross_validation>` for the various
+
+-        cross-validation strategies that can be used here.
+
+-
+
+-        .. versionchanged:: 0.22
+
+-            ``cv`` default value if None changed from 3-fold to 5-fold.
+
+-
+
+-    n_jobs : int or None, optional (default=None)
+
+-        The number of CPUs to use to do the computation.
+
+-        ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
+
+-        ``-1`` means using all processors. See :term:`Glossary <n_jobs>`
+
+-        for more details.
+
+-
+
+-    verbose : integer, optional
+
+-        The verbosity level.
+
+-
+
+-    fit_params : dict, optional
+
+-        Parameters to pass to the fit method of the estimator.
+
+-
+
+-    pre_dispatch : int, or string, optional
+
+-        Controls the number of jobs that get dispatched during parallel
+
+-        execution. Reducing this number can be useful to avoid an
+
+-        explosion of memory consumption when more jobs get dispatched
+
+-        than CPUs can process. This parameter can be:
+
+-
+
+-            - None, in which case all the jobs are immediately
+
+-              created and spawned. Use this for lightweight and
+
+-              fast-running jobs, to avoid delays due to on-demand
+
+-              spawning of the jobs
+
+-
+
+-            - An int, giving the exact number of total jobs that are
+
+-              spawned
+
+-
+
+-            - A string, giving an expression as a function of n_jobs,
+
+-              as in '2*n_jobs'
+
+-
+
+-    error_score : 'raise' or numeric
+
+-        Value to assign to the score if an error occurs in estimator fitting.
+
+-        If set to 'raise', the error is raised.
+
+-        If a numeric value is given, FitFailedWarning is raised. This parameter
+
+-        does not affect the refit step, which will always raise the error.
+
+-
+
+-    Returns
+
+-    -------
+
+-    scores : array of float, shape=(len(list(cv)),)
+
+-        Array of scores of the estimator for each run of the cross validation.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn import datasets, linear_model
+
+-    >>> from sklearn.model_selection import cross_val_score
+
+-    >>> diabetes = datasets.load_diabetes()
+
+-    >>> X = diabetes.data[:150]
+
+-    >>> y = diabetes.target[:150]
+
+-    >>> lasso = linear_model.Lasso()
+
+-    >>> print(cross_val_score(lasso, X, y, cv=3))
+
+-    [0.33150734 0.08022311 0.03531764]
+
+-
+
+-    See Also
+
+-    ---------
+
+-    :func:`sklearn.model_selection.cross_validate`:
+
+-        To run cross-validation on multiple metrics and also to return
+
+-        train scores, fit times and score times.
+
+-
+
+-    :func:`sklearn.model_selection.cross_val_predict`:
+
+-        Get predictions from each split of cross-validation for diagnostic
+
+-        purposes.
+
+-
+
+-    :func:`sklearn.metrics.make_scorer`:
+
+-        Make a scorer from a performance metric or loss function.
+
+-
+
+-    """
+
+-    # To ensure multimetric format is not supported
+
+-    scorer = check_scoring(estimator, scoring=scoring)
+
+-
+
+-    cv_results = cross_validate(estimator=estimator, X=X, y=y, groups=groups,
+
+-                                scoring={'score': scorer}, cv=cv,
+
+-                                n_jobs=n_jobs, verbose=verbose,
+
+-                                fit_params=fit_params,
+
+-                                pre_dispatch=pre_dispatch,
+
+-                                error_score=error_score)
+
+-    return cv_results['test_score']
+
++from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
+
++
+
++class RepeatedKFold:
+
++    def __init__(self, n_splits=5, n_repeats=10, random_state=None):
+
++        self.n_splits = n_splits
+
++        self.n_repeats = n_repeats
+
++        self.random_state = random_state
+
++
+
++    def __repr__(self):
+
++        return f'RepeatedKFold(n_splits={self.n_splits}, n_repeats={self.n_repeats}, random_state={self.random_state})'
+
++
+
++class RepeatedStratifiedKFold:
+
++    def __init__(self, n_splits=5, n_repeats=10, random_state=None):
+
++        self.n_splits = n_splits
+
++        self.n_repeats = n_repeats
+
++        self.random_state = random_state
+
++
+
++    def __repr__(self):
+
++        return f'RepeatedStratifiedKFold(n_splits={self.n_splits}, n_repeats={self.n_repeats}, random_state={self.random_state})'
+
+ 
+
+ 
+
+ def _fit_and_score(estimator, X, y, scorer, train, test, verbose,
+
+
+--- a/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -782,31 +782,24 @@
+                      ' instance' % seed)
+
+ 
+
+ 
+
+-def has_fit_parameter(estimator, parameter):
+
+-    """Checks whether the estimator's fit method supports the given parameter.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    estimator : object
+
+-        An estimator to inspect.
+
+-
+
+-    parameter : str
+
+-        The searched parameter.
+
+-
+
+-    Returns
+
+-    -------
+
+-    is_parameter: bool
+
+-        Whether the parameter was found to be a named parameter of the
+
+-        estimator's fit method.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn.svm import SVC
+
+-    >>> has_fit_parameter(SVC(), "sample_weight")
+
+-    True
+
+-
+
+-    """
+
+-    return parameter in signature(estimator.fit).parameters
+
++from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
+
++import inspect
+
++
+
++class RepeatedKFold(RepeatedKFold):
+
++    def __repr__(self):
+
++        params = inspect.signature(self.__init__).parameters
+
++        n_splits = params['n_splits'].default
+
++        n_repeats = params['n_repeats'].default
+
++        random_state = params['random_state'].default
+
++        return f'RepeatedKFold(n_splits={n_splits}, n_repeats={n_repeats}, random_state={random_state})'
+
++
+
++class RepeatedStratifiedKFold(RepeatedStratifiedKFold):
+
++    def __repr__(self):
+
++        params = inspect.signature(self.__init__).parameters
+
++        n_splits = params['n_splits'].default
+
++        n_repeats = params['n_repeats'].default
+
++        random_state = params['random_state'].default
+
++        return f'RepeatedStratifiedKFold(n_splits={n_splits}, n_repeats={n_repeats}, random_state={random_state})'
+
+ 
+
+ 
+
+ def check_symmetric(array, tol=1E-10, raise_warning=True,
+
+
+--- a/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/200/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -598,180 +598,29 @@
+     return scores
+
+ 
+
+ 
+
+-def cross_val_predict(estimator, X, y=None, groups=None, cv=None,
+
+-                      n_jobs=None, verbose=0, fit_params=None,
+
+-                      pre_dispatch='2*n_jobs', method='predict'):
+
+-    """Generate cross-validated estimates for each input data point
+
+-
+
+-    The data is split according to the cv parameter. Each sample belongs
+
+-    to exactly one test set, and its prediction is computed with an
+
+-    estimator fitted on the corresponding training set.
+
+-
+
+-    Passing these predictions into an evaluation metric may not be a valid
+
+-    way to measure generalization performance. Results can differ from
+
+-    :func:`cross_validate` and :func:`cross_val_score` unless all tests sets
+
+-    have equal size and the metric decomposes over samples.
+
+-
+
+-    Read more in the :ref:`User Guide <cross_validation>`.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    estimator : estimator object implementing 'fit' and 'predict'
+
+-        The object to use to fit the data.
+
+-
+
+-    X : array-like
+
+-        The data to fit. Can be, for example a list, or an array at least 2d.
+
+-
+
+-    y : array-like, optional, default: None
+
+-        The target variable to try to predict in the case of
+
+-        supervised learning.
+
+-
+
+-    groups : array-like, with shape (n_samples,), optional
+
+-        Group labels for the samples used while splitting the dataset into
+
+-        train/test set. Only used in conjunction with a "Group" :term:`cv`
+
+-        instance (e.g., :class:`GroupKFold`).
+
+-
+
+-    cv : int, cross-validation generator or an iterable, optional
+
+-        Determines the cross-validation splitting strategy.
+
+-        Possible inputs for cv are:
+
+-
+
+-        - None, to use the default 5-fold cross validation,
+
+-        - integer, to specify the number of folds in a `(Stratified)KFold`,
+
+-        - :term:`CV splitter`,
+
+-        - An iterable yielding (train, test) splits as arrays of indices.
+
+-
+
+-        For integer/None inputs, if the estimator is a classifier and ``y`` is
+
+-        either binary or multiclass, :class:`StratifiedKFold` is used. In all
+
+-        other cases, :class:`KFold` is used.
+
+-
+
+-        Refer :ref:`User Guide <cross_validation>` for the various
+
+-        cross-validation strategies that can be used here.
+
+-
+
+-        .. versionchanged:: 0.22
+
+-            ``cv`` default value if None changed from 3-fold to 5-fold.
+
+-
+
+-    n_jobs : int or None, optional (default=None)
+
+-        The number of CPUs to use to do the computation.
+
+-        ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
+
+-        ``-1`` means using all processors. See :term:`Glossary <n_jobs>`
+
+-        for more details.
+
+-
+
+-    verbose : integer, optional
+
+-        The verbosity level.
+
+-
+
+-    fit_params : dict, optional
+
+-        Parameters to pass to the fit method of the estimator.
+
+-
+
+-    pre_dispatch : int, or string, optional
+
+-        Controls the number of jobs that get dispatched during parallel
+
+-        execution. Reducing this number can be useful to avoid an
+
+-        explosion of memory consumption when more jobs get dispatched
+
+-        than CPUs can process. This parameter can be:
+
+-
+
+-            - None, in which case all the jobs are immediately
+
+-              created and spawned. Use this for lightweight and
+
+-              fast-running jobs, to avoid delays due to on-demand
+
+-              spawning of the jobs
+
+-
+
+-            - An int, giving the exact number of total jobs that are
+
+-              spawned
+
+-
+
+-            - A string, giving an expression as a function of n_jobs,
+
+-              as in '2*n_jobs'
+
+-
+
+-    method : string, optional, default: 'predict'
+
+-        Invokes the passed method name of the passed estimator. For
+
+-        method='predict_proba', the columns correspond to the classes
+
+-        in sorted order.
+
+-
+
+-    Returns
+
+-    -------
+
+-    predictions : ndarray
+
+-        This is the result of calling ``method``
+
+-
+
+-    See also
+
+-    --------
+
+-    cross_val_score : calculate score for each CV split
+
+-
+
+-    cross_validate : calculate one or more scores and timings for each CV split
+
+-
+
+-    Notes
+
+-    -----
+
+-    In the case that one or more classes are absent in a training portion, a
+
+-    default score needs to be assigned to all instances for that class if
+
+-    ``method`` produces columns per class, as in {'decision_function',
+
+-    'predict_proba', 'predict_log_proba'}.  For ``predict_proba`` this value is
+
+-    0.  In order to ensure finite output, we approximate negative infinity by
+
+-    the minimum finite float value for the dtype in other cases.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn import datasets, linear_model
+
+-    >>> from sklearn.model_selection import cross_val_predict
+
+-    >>> diabetes = datasets.load_diabetes()
+
+-    >>> X = diabetes.data[:150]
+
+-    >>> y = diabetes.target[:150]
+
+-    >>> lasso = linear_model.Lasso()
+
+-    >>> y_pred = cross_val_predict(lasso, X, y, cv=3)
+
+-    """
+
+-    X, y, groups = indexable(X, y, groups)
+
+-
+
+-    cv = check_cv(cv, y, classifier=is_classifier(estimator))
+
+-
+
+-    # If classification methods produce multiple columns of output,
+
+-    # we need to manually encode classes to ensure consistent column ordering.
+
+-    encode = method in ['decision_function', 'predict_proba',
+
+-                        'predict_log_proba']
+
+-    if encode:
+
+-        y = np.asarray(y)
+
+-        if y.ndim == 1:
+
+-            le = LabelEncoder()
+
+-            y = le.fit_transform(y)
+
+-        elif y.ndim == 2:
+
+-            y_enc = np.zeros_like(y, dtype=np.int)
+
+-            for i_label in range(y.shape[1]):
+
+-                y_enc[:, i_label] = LabelEncoder().fit_transform(y[:, i_label])
+
+-            y = y_enc
+
+-
+
+-    # We clone the estimator to make sure that all the folds are
+
+-    # independent, and that it is pickle-able.
+
+-    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+-                        pre_dispatch=pre_dispatch)
+
+-    prediction_blocks = parallel(delayed(_fit_and_predict)(
+
+-        clone(estimator), X, y, train, test, verbose, fit_params, method)
+
+-        for train, test in cv.split(X, y, groups))
+
+-
+
+-    # Concatenate the predictions
+
+-    predictions = [pred_block_i for pred_block_i, _ in prediction_blocks]
+
+-    test_indices = np.concatenate([indices_i
+
+-                                   for _, indices_i in prediction_blocks])
+
+-
+
+-    if not _check_is_permutation(test_indices, _num_samples(X)):
+
+-        raise ValueError('cross_val_predict only works for partitions')
+
+-
+
+-    inv_test_indices = np.empty(len(test_indices), dtype=int)
+
+-    inv_test_indices[test_indices] = np.arange(len(test_indices))
+
+-
+
+-    if sp.issparse(predictions[0]):
+
+-        predictions = sp.vstack(predictions, format=predictions[0].format)
+
+-    elif encode and isinstance(predictions[0], list):
+
+-        # `predictions` is a list of method outputs from each fold.
+
+-        # If each of those is also a list, then treat this as a
+
+-        # multioutput-multiclass task. We need to separately concatenate
+
+-        # the method outputs for each label into an `n_labels` long list.
+
+-        n_labels = y.shape[1]
+
+-        concat_pred = []
+
+-        for i_label in range(n_labels):
+
+-            label_preds = np.concatenate([p[i_label] for p in predictions])
+
+-            concat_pred.append(label_preds)
+
+-        predictions = concat_pred
+
+-    else:
+
+-        predictions = np.concatenate(predictions)
+
+-
+
+-    if isinstance(predictions, list):
+
+-        return [p[inv_test_indices] for p in predictions]
+
+-    else:
+
+-        return predictions[inv_test_indices]
+
++from sklearn.model_selection import RepeatedKFold, RepeatedStratifiedKFold
+
++
+
++class RepeatedKFold:
+
++    def __init__(self, n_splits=5, n_repeats=10, random_state=None):
+
++        self.n_splits = n_splits
+
++        self.n_repeats = n_repeats
+
++        self.random_state = random_state
+
++
+
++    def __repr__(self):
+
++        return f'RepeatedKFold(n_splits={self.n_splits}, n_repeats={self.n_repeats}, random_state={self.random_state})'
+
++
+
++class RepeatedStratifiedKFold:
+
++    def __init__(self, n_splits=5, n_repeats=10, random_state=None):
+
++        self.n_splits = n_splits
+
++        self.n_repeats = n_repeats
+
++        self.random_state = random_state
+
++
+
++    def __repr__(self):
+
++        return f'RepeatedStratifiedKFold(n_splits={self.n_splits}, n_repeats={self.n_repeats}, random_state={self.random_state})'
+
++
+
++# Test the fix
+
++print(repr(RepeatedKFold()))
+
++print(repr(RepeatedStratifiedKFold()))
+
+ 
+
+ 
+
+ def _fit_and_predict(estimator, X, y, train, test, verbose, fit_params,
+
+

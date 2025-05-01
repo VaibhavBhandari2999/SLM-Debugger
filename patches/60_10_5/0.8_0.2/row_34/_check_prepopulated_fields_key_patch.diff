@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/34/django_django/django/contrib/admin/checks.py
+@@ -485,7 +485,7 @@
+                 for field_name, val in obj.prepopulated_fields.items()
+
+             ))
+
+ 
+
+-    def _check_prepopulated_fields_key(self, obj, field_name, label):
+
++def _check_prepopulated_fields_key(self, obj, field_name, label):
+
+         """ Check a key of `prepopulated_fields` dictionary, i.e. check that it
+
+         is a name of existing field and the field is one of the allowed types.
+
+         """
+
+@@ -505,6 +505,11 @@
+                     )
+
+                 ]
+
+             else:
+
++                if isinstance(field, models.JSONField):
+
++                    # Call the prepare_value method to handle JSON serialization
+
++                    value = field.prepare_value(obj, field.get_prep_value(obj))
+
++                else:
+
++                    value = field.value_from_object(obj)
+
+                 return []
+
+ 
+
+     def _check_prepopulated_fields_value(self, obj, val, label):

@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/79/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/79/django_django/django/db/models/fields/related_descriptors.py
+@@ -287,7 +287,7 @@
+     ``Restaurant.place`` is a ``ForwardOneToOneDescriptor`` instance.
+
+     """
+
+ 
+
+-    def get_object(self, instance):
+
++def get_object(self, instance):
+
+         if self.field.remote_field.parent_link:
+
+             deferred = instance.get_deferred_fields()
+
+             # Because it's a parent link, all the data is available in the
+
+@@ -304,6 +304,11 @@
+                 obj._state.adding = instance._state.adding
+
+                 obj._state.db = instance._state.db
+
+                 return obj
+
++
+
++            # If deferred fields are present, we need to fetch the related object
+
++            # to populate the deferred fields.
+
++            obj = rel_model.objects.get(**{field: getattr(instance, field) for field in fields})
+
++            return obj
+
+         return super().get_object(instance)
+
+ 
+
+     def __set__(self, instance, value):

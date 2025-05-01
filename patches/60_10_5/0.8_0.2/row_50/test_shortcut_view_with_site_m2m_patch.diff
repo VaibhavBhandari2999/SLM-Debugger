@@ -1,0 +1,150 @@
+--- a/decoupled/60/0.8_0.2/50/django_django/tests/contenttypes_tests/test_views.py
++++ b/decoupled/60/0.8_0.2/50/django_django/tests/contenttypes_tests/test_views.py
+@@ -122,48 +122,37 @@
+         self.assertRedirects(response, expected_url, fetch_redirect_response=False)
+
+ 
+
+     @mock.patch('django.apps.apps.get_model')
+
+-    def test_shortcut_view_with_site_m2m(self, get_model):
+
+-        """
+
+-        When the object has a ManyToManyField to Site, redirect to the current
+
+-        site if it's attached to the object or to the domain of the first site
+
+-        found in the m2m relationship.
+
+-        """
+
+-        get_model.side_effect = lambda *args, **kwargs: MockSite if args[0] == 'sites.Site' else ModelWithM2MToSite
+
++from django.contrib.syndication.views import Feed
+
++from django.utils.feedgenerator import Atom1Feed
+
+ 
+
+-        # get_current_site() will lookup a Site object, so these must match the
+
+-        # domains in the MockSite model.
+
+-        MockSite.objects.bulk_create([
+
+-            MockSite(pk=1, domain='example.com'),
+
+-            MockSite(pk=self.site_2.pk, domain=self.site_2.domain),
+
+-            MockSite(pk=self.site_3.pk, domain=self.site_3.domain),
+
+-        ])
+
+-        ct = ContentType.objects.get_for_model(ModelWithM2MToSite)
+
+-        site_3_obj = ModelWithM2MToSite.objects.create(title='Not Linked to Current Site')
+
+-        site_3_obj.sites.add(MockSite.objects.get(pk=self.site_3.pk))
+
+-        expected_url = 'http://%s%s' % (self.site_3.domain, site_3_obj.get_absolute_url())
+
++class CustomFeed(Feed):
+
++    def item_comments(self, item):
+
++        # Example implementation of item_comments
+
++        return item.comments.all()
+
+ 
+
+-        with self.settings(SITE_ID=self.site_2.pk):
+
+-            # Redirects to the domain of the first Site found in the m2m
+
+-            # relationship (ordering is arbitrary).
+
+-            response = self.client.get('/shortcut/%s/%s/' % (ct.pk, site_3_obj.pk))
+
+-            self.assertRedirects(response, expected_url, fetch_redirect_response=False)
+
++    def add_item(self, item, comments=None):
+
++        # Add the item to the feed with the optional comments
+
++        super().add_item(item, extra_kwargs={'comments': comments})
+
+ 
+
+-        obj_with_sites = ModelWithM2MToSite.objects.create(title='Linked to Current Site')
+
+-        obj_with_sites.sites.set(MockSite.objects.all())
+
+-        shortcut_url = '/shortcut/%s/%s/' % (ct.pk, obj_with_sites.pk)
+
+-        expected_url = 'http://%s%s' % (self.site_2.domain, obj_with_sites.get_absolute_url())
+
++    def items(self):
+
++        # Example items to be included in the feed
+
++        return MyModel.objects.all().order_by('-pub_date')[:10]
+
+ 
+
+-        with self.settings(SITE_ID=self.site_2.pk):
+
+-            # Redirects to the domain of the Site matching the current site's
+
+-            # domain.
+
+-            response = self.client.get(shortcut_url)
+
+-            self.assertRedirects(response, expected_url, fetch_redirect_response=False)
+
++    def item_title(self, item):
+
++        return item.title
+
+ 
+
+-        with self.settings(SITE_ID=None, ALLOWED_HOSTS=[self.site_2.domain]):
+
+-            # Redirects to the domain of the Site matching the request's host
+
+-            # header.
+
+-            response = self.client.get(shortcut_url, SERVER_NAME=self.site_2.domain)
+
+-            self.assertRedirects(response, expected_url, fetch_redirect_response=False)
+
++    def item_description(self, item):
+
++        return item.description
+
++
+
++    def item_link(self, item):
+
++        return item.get_absolute_url()
+
++
+
++    def item_pubdate(self, item):
+
++        return item.pub_date
+
++
+
++    def item_comments(self, item):
+
++        # Example implementation of item_comments
+
++        return item.comments.all()
+
+ 
+
+ 
+
+ class ShortcutViewTests(TestCase):

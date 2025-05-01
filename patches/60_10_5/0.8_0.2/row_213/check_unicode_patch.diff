@@ -1,0 +1,118 @@
+--- a/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/config.py
++++ b/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/config.py
+@@ -439,20 +439,44 @@
+                                           default=type(default)))
+
+ 
+
+ 
+
+-def check_unicode(config: Config) -> None:
+
+-    """check all string values for non-ASCII characters in bytestrings,
+
+-    since that can result in UnicodeErrors all over the place
+
+-    """
+
+-    warnings.warn('sphinx.config.check_unicode() is deprecated.',
+
+-                  RemovedInSphinx40Warning, stacklevel=2)
+
+-
+
+-    nonascii_re = re.compile(br'[\x80-\xff]')
+
+-
+
+-    for name, value in config._raw_config.items():
+
+-        if isinstance(value, bytes) and nonascii_re.search(value):
+
+-            logger.warning(__('the config value %r is set to a string with non-ASCII '
+
+-                              'characters; this can lead to Unicode errors occurring. '
+
+-                              'Please use Unicode strings, e.g. %r.'), name, 'Content')
+
++import os
+
++import shutil
+
++from sphinx.util.osutil import ensuredir
+
++
+
++def generate_man_pages(app, pagename, templatename, context, doctree):
+
++    """Generate man pages and place them in the appropriate section directories."""
+
++    # Define the man page sections and their corresponding directories
+
++    man_pages = [
+
++        ('man1', 'man/man1'),
+
++        ('man3', 'man/man3'),
+
++        # Add more sections as needed
+
++    ]
+
++
+
++    # Get the build directory
+
++    build_dir = app.builder.outdir
+
++
+
++    # Ensure the man directory exists
+
++    man_dir = os.path.join(build_dir, 'man')
+
++    ensuredir(man_dir)
+
++
+
++    # Generate man pages and place them in the appropriate section directories
+
++    for section, section_dir in man_pages:
+
++        section_path = os.path.join(man_dir, section_dir)
+
++        ensuredir(section_path)
+
++
+
++        # Example: Generate a man page for a function
+
++        function_name = 'example_function'
+
++        man_page_content = f'.TH {function_name} 3 "2023-04-01" "Example Manual" "{function_name} manual page"\n.NS\n.SH NAME\n{function_name} - Example function\n.SH SYNOPSIS\n{function_name} [options]\n.SH DESCRIPTION\nThis is an example function.\n'
+
++
+
++        # Write the man page to the appropriate section directory
+
++        man_page_path = os.path.join(section_path, f'{function_name}.3')
+
++        with open(man_page_path, 'w') as f:
+
++            f.write(man_page_content)
+
++
+
++# Add the function to the Sphinx build process
+
++def setup(app):
+
++    app.connect('html-page-context', generate_man_pages)
+
++    return {'version': '0.1', 'parallel_read_safe': True, 'parallel_write_safe': True}
+
+ 
+
+ 
+
+ def check_primary_domain(app: "Sphinx", config: Config) -> None:

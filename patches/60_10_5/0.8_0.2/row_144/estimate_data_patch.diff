@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
+@@ -151,7 +151,7 @@
+         return x, y
+
+ 
+
+     @property
+
+-    def estimate_data(self):
+
++def estimate_data(self):
+
+         """Data with a point estimate and CI for each discrete x value."""
+
+         x, y = self.x_discrete, self.y
+
+         vals = sorted(np.unique(x))
+
+@@ -160,7 +160,11 @@
+         for val in vals:
+
+ 
+
+             # Get the point estimate of the y variable
+
++            _x = x[x == val]
+
+             _y = y[x == val]
+
++            _x = _x[~np.isnan(_x)]
+
++            _y = _y[~np.isnan(_y)]
+
++
+
+             est = self.x_estimator(_y)
+
+             points.append(est)
+
+ 
+
+@@ -175,6 +179,7 @@
+                 else:
+
+                     if self.units is not None:
+
+                         units = self.units[x == val]
+
++                        units = units[~np.isnan(units)]
+
+                     boots = algo.bootstrap(_y,
+
+                                            func=self.x_estimator,
+
+                                            n_boot=self.n_boot,

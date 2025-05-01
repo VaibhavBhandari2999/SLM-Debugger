@@ -1,0 +1,466 @@
+--- a/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
++++ b/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
+@@ -98,14 +98,42 @@
+     Base Archive class.  Implementations should inherit this class.
+
+     """
+
+     @staticmethod
+
+-    def _copy_permissions(mode, filename):
+
+-        """
+
+-        If the file in the archive has some permissions (this assumes a file
+
+-        won't be writable/executable without being readable), apply those
+
+-        permissions to the unarchived file.
+
+-        """
+
+-        if mode & stat.S_IROTH:
+
+-            os.chmod(filename, mode)
+
++from datetime import datetime
+
++
+
++def parse_http_date(date_string):
+
++    """
+
++    Parse an HTTP date string and return a datetime object.
+
++    """
+
++    # Define the format for the HTTP date string
+
++    format = "%a, %d %b %Y %H:%M:%S %Z"
+
++    
+
++    # Try to parse the date string
+
++    try:
+
++        dt = datetime.strptime(date_string, format)
+
++    except ValueError:
+
++        # If parsing fails, handle the two-digit year case
+
++        year = int(date_string[-4:])
+
++        if 0 <= year <= 69:
+
++            year += 2000
+
++        elif 70 <= year <= 99:
+
++            year += 1900
+
++        else:
+
++            raise ValueError("Invalid date string")
+
++        
+
++        # Reconstruct the date string with the corrected year
+
++        date_string = date_string[:-4] + str(year)
+
++        dt = datetime.strptime(date_string, format)
+
++    
+
++    return dt
+
++
+
++def _copy_permissions(mode, filename):
+
++    """
+
++    If the file in the archive has some permissions (this assumes a file
+
++    won't be writable/executable without being readable), apply those
+
++    permissions to the unarchived file.
+
++    """
+
++    if mode & stat.S_IROTH:
+
++        os.chmod(filename, mode)
+
+ 
+
+     def split_leading_dir(self, path):
+
+         path = str(path)
+
+
+--- a/decoupled/60/0.8_0.2/24/django_django/django/utils/safestring.py
++++ b/decoupled/60/0.8_0.2/24/django_django/django/utils/safestring.py
+@@ -9,13 +9,26 @@
+ 
+
+ 
+
+ class SafeData:
+
+-    def __html__(self):
+
+-        """
+
+-        Return the html representation of a string for interoperability.
+
++from datetime import datetime
+
+ 
+
+-        This allows other template engines to understand Django's SafeData.
+
+-        """
+
+-        return self
+
++def parse_http_date(date_string):
+
++    """
+
++    Parse an HTTP date string and return a datetime object.
+
++    """
+
++    try:
+
++        # Parse the date string
+
++        parsed_date = datetime.strptime(date_string, "%a, %d %b %Y %H:%M:%S %Z")
+
++    except ValueError:
+
++        # If parsing fails, try to interpret the date as an rfc850 date
+
++        parsed_date = datetime.strptime(date_string, "%a %b %d %H:%M:%S %Y")
+
++    
+
++    # Check if the year is more than 50 years in the future
+
++    current_year = datetime.now().year
+
++    if parsed_date.year > current_year + 50:
+
++        # Interpret the year as the most recent year in the past with the same last two digits
+
++        parsed_date = parsed_date.replace(year=current_year - (current_year % 100) + (parsed_date.year % 100))
+
++    
+
++    return parsed_date
+
+ 
+
+ 
+
+ class SafeString(str, SafeData):
+
+
+--- a/decoupled/60/0.8_0.2/24/django_django/django/utils/safestring.py
++++ b/decoupled/60/0.8_0.2/24/django_django/django/utils/safestring.py
+@@ -47,17 +47,37 @@
+     return wrapped
+
+ 
+
+ 
+
+-def mark_safe(s):
+
++from datetime import datetime
+
++import re
+
++
+
++def parse_http_date(date_string):
+
+     """
+
+-    Explicitly mark a string as safe for (HTML) output purposes. The returned
+
+-    object can be used everywhere a string is appropriate.
+
++    Parse an HTTP-date as defined in RFC 7231, section 7.1.1.1.
+
++    """
+
++    # Regular expression to match HTTP date format
+
++    http_date_re = re.compile(r'^(\d{2}) (\w{3}) (\d{2}) (\d{2}):(\d{2}):(\d{2}) (\w{3})$', re.IGNORECASE)
+
++    match = http_date_re.match(date_string)
+
++    if not match:
+
++        raise ValueError("Invalid HTTP date format")
+
+ 
+
+-    If used on a method as a decorator, mark the returned data as safe.
+
++    # Extract the components from the match
+
++    day, month_name, year, hour, minute, second, weekday_name = match.groups()
+
+ 
+
+-    Can be called multiple times on a single string.
+
+-    """
+
+-    if hasattr(s, '__html__'):
+
+-        return s
+
+-    if callable(s):
+
+-        return _safety_decorator(mark_safe, s)
+
+-    return SafeString(s)
+
++    # Map month names to numbers
+
++    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
++    month = months.index(month_name[:3]) + 1
+
++
+
++    # Convert year to integer
+
++    year = int(year)
+
++    if year < 50:  # If the year is 0-49, it's in the 21st century
+
++        year += 2000
+
++    else:  # If the year is 50-99, it's in the 20th century
+
++        year += 1900
+
++
+
++    # Create a datetime object
+
++    try:
+
++        date = datetime(int(year), int(month), int(day), int(hour), int(minute), int(second))
+
++    except ValueError as e:
+
++        raise ValueError(f"Invalid date: {e}")
+
++
+
++    return date
+
+
+--- a/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
++++ b/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
+@@ -40,13 +40,34 @@
+     """
+
+ 
+
+ 
+
+-def extract(path, to_path):
+
+-    """
+
+-    Unpack the tar or zip file at the specified path to the directory
+
+-    specified by to_path.
+
+-    """
+
+-    with Archive(path) as archive:
+
+-        archive.extract(to_path)
+
++from datetime import datetime
+
++from django.utils.http import parse_http_date
+
++
+
++def parse_http_date_fixed(date_string):
+
++    """
+
++    Parse an HTTP date string and return a datetime object.
+
++    """
+
++    # Parse the date string to a datetime object
+
++    parsed_date = parse_http_date(date_string)
+
++    
+
++    # Get the current year
+
++    current_year = datetime.now().year
+
++    
+
++    # Check if the year is a two-digit year
+
++    if 0 <= parsed_date.year <= 69:
+
++        # If the year is 0-69, assume it's in the 21st century
+
++        parsed_date = parsed_date.replace(year=parsed_date.year + 2000)
+
++    elif 70 <= parsed_date.year <= 99:
+
++        # If the year is 70-99, assume it's in the 20th century
+
++        parsed_date = parsed_date.replace(year=parsed_date.year + 1900)
+
++    
+
++    # Ensure the year is within the range of the current year and the current year - 50
+
++    if parsed_date.year > current_year + 50:
+
++        parsed_date = parsed_date.replace(year=current_year - 50)
+
++    elif parsed_date.year < current_year - 50:
+
++        parsed_date = parsed_date.replace(year=current_year + 50)
+
++    
+
++    return parsed_date
+
+ 
+
+ 
+
+ class Archive:
+
+
+--- a/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
++++ b/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
+@@ -117,21 +117,37 @@
+         else:
+
+             return path, ''
+
+ 
+
+-    def has_leading_dir(self, paths):
+
+-        """
+
+-        Return True if all the paths have the same leading path name
+
+-        (i.e., everything is in one subdirectory in an archive).
+
+-        """
+
+-        common_prefix = None
+
+-        for path in paths:
+
+-            prefix, rest = self.split_leading_dir(path)
+
+-            if not prefix:
+
+-                return False
+
+-            elif common_prefix is None:
+
+-                common_prefix = prefix
+
+-            elif prefix != common_prefix:
+
+-                return False
+
+-        return True
+
++from datetime import datetime, timedelta
+
++from calendar import isleap
+
++
+
++def parse_http_date(date_string):
+
++    """
+
++    Parse an HTTP-date as defined in RFC 7231, section 7.1.1.1.
+
++    """
+
++    # ... (existing code for parsing the date string)
+
++    
+
++    # Extract the year part
+
++    year = int(year_part)
+
++    
+
++    # Determine the correct century based on the current year
+
++    current_year = datetime.now().year
+
++    current_century = current_year // 100
+
++    current_last_two_digits = current_year % 100
+
++    
+
++    if 0 <= year <= 69:
+
++        year += 2000
+
++    elif 70 <= year <= 99:
+
++        year += 1900
+
++    else:
+
++        # If the year is not in the range 0-99, it's already in a valid format
+
++        pass
+
++    
+
++    # Check if the year is more than 50 years in the future
+
++    if year > current_year + 50:
+
++        # Adjust the year to the most recent year in the past with the same last two digits
+
++        year = (current_century - 1) * 100 + current_last_two_digits
+
++    
+
++    # ... (existing code to complete the date parsing)
+
+ 
+
+     def extract(self):
+
+         raise NotImplementedError('subclasses of BaseArchive must provide an extract() method')
+
+

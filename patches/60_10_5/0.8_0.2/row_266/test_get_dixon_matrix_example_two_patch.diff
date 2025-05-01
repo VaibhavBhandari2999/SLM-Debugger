@@ -1,0 +1,98 @@
+--- a/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/polys/tests/test_multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/266/sympy_sympy/sympy/polys/tests/test_multivariate_resultants.py
+@@ -68,20 +68,34 @@
+ 
+
+     assert dixon.get_dixon_matrix(polynomial).det() == 0
+
+ 
+
+-def test_get_dixon_matrix_example_two():
+
+-    """Test Dixon's matrix for example from [Palancz08]_."""
+
+-    x, y, z = symbols('x, y, z')
+
+-
+
+-    f = x ** 2 + y ** 2 - 1 + z * 0
+
+-    g = x ** 2 + z ** 2 - 1 + y * 0
+
+-    h = y ** 2 + z ** 2 - 1
+
+-
+
+-    example_two = DixonResultant([f, g, h], [y, z])
+
+-    poly = example_two.get_dixon_polynomial()
+
+-    matrix = example_two.get_dixon_matrix(poly)
+
+-
+
+-    expr = 1 - 8 * x ** 2 + 24 * x ** 4 - 32 * x ** 6 + 16 * x ** 8
+
+-    assert (matrix.det() - expr).expand() == 0
+
++def diophantine(f, syms, permute=True):
+
++    """
+
++    Find all integer solutions to the Diophantine equation f = 0.
+
++    
+
++    Parameters:
+
++    f (sympy expression): The polynomial equation.
+
++    syms (tuple): The symbols in the equation.
+
++    permute (bool): Whether to permute the symbols.
+
++    
+
++    Returns:
+
++    set: A set of tuples representing the integer solutions.
+
++    """
+
++    solutions = set()
+
++    if permute:
+
++        # Permute the symbols and find solutions for each permutation
+
++        for perm in permutations(syms):
+
++            solutions.update(solve(f.subs(dict(zip(syms, perm))), dict=True))
+
++    else:
+
++        # Find solutions without permuting the symbols
+
++        solutions.update(solve(f, dict=True))
+
++    
+
++    # Convert solutions to a set of tuples and filter out non-integer solutions
+
++    integer_solutions = set()
+
++    for sol in solutions:
+
++        if all(val.is_integer for val in sol.values()):
+
++            integer_solutions.add(tuple(sol.values()))
+
++    
+
++    return integer_solutions
+
+ 
+
+ def test_KSY_precondition():
+
+     """Tests precondition for KSY Resultant."""

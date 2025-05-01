@@ -1,0 +1,82 @@
+--- a/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
++++ b/decoupled/60/0.8_0.2/148/pallets_flask/src/flask/json/__init__.py
+@@ -105,7 +105,11 @@
+     return _json.loads(s, **kwargs)
+
+ 
+
+ 
+
+-def load(fp: t.IO[t.AnyStr], **kwargs: t.Any) -> t.Any:
+
++from typing import IO, Any, TypeVar, Type
+
++
+
++T = TypeVar('T')
+
++
+
++def load(fp: IO[Any], mode: str = 'r', **kwargs: Any) -> T:
+
+     """Deserialize data as JSON read from a file.
+
+ 
+
+     If :data:`~flask.current_app` is available, it will use its
+
+@@ -113,6 +117,7 @@
+     method, otherwise it will use :func:`json.load`.
+
+ 
+
+     :param fp: A file opened for reading text or UTF-8 bytes.
+
++    :param mode: The mode in which to open the file. Defaults to 'r' (text mode).
+
+     :param kwargs: Arguments passed to the ``load`` implementation.
+
+ 
+
+     .. versionchanged:: 2.3
+
+@@ -133,6 +138,20 @@
+         return current_app.json.load(fp, **kwargs)
+
+ 
+
+     return _json.load(fp, **kwargs)
+
++
+
++def from_file(filename: str, load: Type[callable], mode: str = 'r', **kwargs: Any) -> None:
+
++    """Load configuration from a file.
+
++
+
++    :param filename: The name of the file to load.
+
++    :param load: The function to use for loading the configuration.
+
++    :param mode: The mode in which to open the file. Defaults to 'r' (text mode).
+
++    :param kwargs: Additional arguments to pass to the `load` function.
+
++
+
++    .. versionadded:: 2.3
+
++        Added the `mode` parameter to support binary file mode.
+
++    """
+
++    with open(filename, mode) as file:
+
++        app.config.from_mapping(load(file, **kwargs))
+
+ 
+
+ 
+
+ def jsonify(*args: t.Any, **kwargs: t.Any) -> Response:

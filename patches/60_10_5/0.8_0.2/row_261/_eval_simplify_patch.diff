@@ -1,0 +1,262 @@
+--- a/decoupled/60/0.8_0.2/261/sympy_sympy/sympy/logic/boolalg.py
++++ b/decoupled/60/0.8_0.2/261/sympy_sympy/sympy/logic/boolalg.py
+@@ -672,65 +672,71 @@
+             newargs.append(x)
+
+         return LatticeOp._new_args_filter(newargs, And)
+
+ 
+
+-    def _eval_simplify(self, ratio, measure, rational, inverse):
+
+-        from sympy.core.relational import Equality, Relational
+
+-        from sympy.solvers.solveset import linear_coeffs
+
+-        # standard simplify
+
+-        rv = super(And, self)._eval_simplify(
+
+-            ratio, measure, rational, inverse)
+
+-        if not isinstance(rv, And):
+
+-            return rv
+
+-        # simplify args that are equalities involving
+
+-        # symbols so x == 0 & x == y -> x==0 & y == 0
+
+-        Rel, nonRel = sift(rv.args, lambda i: isinstance(i, Relational),
+
+-                           binary=True)
+
+-        if not Rel:
+
+-            return rv
+
+-        eqs, other = sift(Rel, lambda i: isinstance(i, Equality), binary=True)
+
+-        if not eqs:
+
+-            return rv
+
+-        reps = {}
+
+-        sifted = {}
+
+-        if eqs:
+
+-            # group by length of free symbols
+
+-            sifted = sift(ordered([
+
+-                (i.free_symbols, i) for i in eqs]),
+
+-                lambda x: len(x[0]))
+
+-            eqs = []
+
+-            while 1 in sifted:
+
+-                for free, e in sifted.pop(1):
+
+-                    x = free.pop()
+
+-                    if e.lhs != x or x in e.rhs.free_symbols:
+
+-                        try:
+
+-                            m, b = linear_coeffs(
+
+-                                e.rewrite(Add, evaluate=False), x)
+
+-                            enew = e.func(x, -b/m)
+
+-                            if measure(enew) <= ratio*measure(e):
+
+-                                e = enew
+
+-                            else:
+
+-                                eqs.append(e)
+
+-                                continue
+
+-                        except ValueError:
+
+-                            pass
+
+-                    if x in reps:
+
+-                        eqs.append(e.func(e.rhs, reps[x]))
+
+-                    else:
+
+-                        reps[x] = e.rhs
+
+-                        eqs.append(e)
+
+-                resifted = defaultdict(list)
+
+-                for k in sifted:
+
+-                    for f, e in sifted[k]:
+
+-                        e = e.subs(reps)
+
+-                        f = e.free_symbols
+
+-                        resifted[len(f)].append((f, e))
+
+-                sifted = resifted
+
+-        for k in sifted:
+
+-            eqs.extend([e for f, e in sifted[k]])
+
+-        other = [ei.subs(reps) for ei in other]
+
+-        rv = rv.func(*([i.canonical for i in (eqs + other)] + nonRel))
+
+-        patterns = simplify_patterns_and()
+
+-        return self._apply_patternbased_simplification(rv, patterns,
+
+-                                                       measure, False)
+
++def _TR6(expr, cos, sin, f, max=None, pow=None):
+
++    from sympy.core.relational import Equality, Relational
+
++    from sympy.solvers.solveset import linear_coeffs
+
++    from sympy import I
+
++    
+
++    # Check if the expression is a complex number before comparing
+
++    if expr.func == I:
+
++        return expr
+
++    
+
++    # standard simplify
+
++    rv = super(And, self)._eval_simplify(
+
++        ratio, measure, rational, inverse)
+
++    if not isinstance(rv, And):
+
++        return rv
+
++    # simplify args that are equalities involving
+
++    # symbols so x == 0 & x == y -> x==0 & y == 0
+
++    Rel, nonRel = sift(rv.args, lambda i: isinstance(i, Relational),
+
++                       binary=True)
+
++    if not Rel:
+
++        return rv
+
++    eqs, other = sift(Rel, lambda i: isinstance(i, Equality), binary=True)
+
++    if not eqs:
+
++        return rv
+
++    reps = {}
+
++    sifted = {}
+
++    if eqs:
+
++        # group by length of free symbols
+
++        sifted = sift(ordered([
+
++            (i.free_symbols, i) for i in eqs]),
+
++            lambda x: len(x[0]))
+
++        eqs = []
+
++        while 1 in sifted:
+
++            for free, e in sifted.pop(1):
+
++                x = free.pop()
+
++                if e.lhs != x or x in e.rhs.free_symbols:
+
++                    try:
+
++                        m, b = linear_coeffs(
+
++                            e.rewrite(Add, evaluate=False), x)
+
++                        enew = e.func(x, -b/m)
+
++                        if measure(enew) <= ratio*measure(e):
+
++                            e = enew
+
++                        else:
+
++                            eqs.append(e)
+
++                            continue
+
++                    except ValueError:
+
++                        pass
+
++                if x in reps:
+
++                    eqs.append(e.func(e.rhs, reps[x]))
+
++                else:
+
++                    reps[x] = e.rhs
+
++                    eqs.append(e)
+
++            resifted = defaultdict(list)
+
++            for k in sifted:
+
++                for f, e in sifted[k]:
+
++                    e = e.subs(reps)
+
++                    f = e.free_symbols
+
++                    resifted[len(f)].append((f, e))
+
++            sifted = resifted
+
++    for k in sifted:
+
++        eqs.extend([e for f, e in sifted[k]])
+
++    other = [ei.subs(reps) for ei in other]
+
++    rv = rv.func(*([i.canonical for i in (eqs + other)] + nonRel))
+
++    patterns = simplify_patterns_and()
+
++    return self._apply_patternbased_simplification(rv, patterns,
+
++                                                   measure, False)
+
+ 
+
+     def _eval_as_set(self):
+
+         from sympy.sets.sets import Intersection

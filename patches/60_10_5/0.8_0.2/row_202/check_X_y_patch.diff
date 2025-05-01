@@ -1,0 +1,152 @@
+--- a/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -620,7 +620,7 @@
+               dtype="numeric", order=None, copy=False, force_all_finite=True,
+
+               ensure_2d=True, allow_nd=False, multi_output=False,
+
+               ensure_min_samples=1, ensure_min_features=1, y_numeric=False,
+
+-              warn_on_dtype=None, estimator=None):
+
++              warn_on_dtype=None, estimator=None, allow_non_numeric=False):
+
+     """Input validation for standard estimators.
+
+ 
+
+     Checks X and y for consistent length, enforces X to be 2D and y 1D. By
+
+@@ -667,7 +667,7 @@
+ 
+
+     force_all_finite : boolean or 'allow-nan', (default=True)
+
+         Whether to raise an error on np.inf and np.nan in X. This parameter
+
+-        does not influence whether y can have np.inf or np.nan values.
+
++        does not influence whether y can have np.nan or np.inf values.
+
+         The possibilities are:
+
+ 
+
+         - True: Force all values of X to be finite.
+
+@@ -697,57 +697,7 @@
+         Make sure that the 2D array has some minimum number of features
+
+         (columns). The default value of 1 rejects empty datasets.
+
+         This check is only enforced when X has effectively 2 dimensions or
+
+-        is originally 1D and ``ensure_2d`` is True. Setting to 0 disables
+
+-        this check.
+
+-
+
+-    y_numeric : boolean (default=False)
+
+-        Whether to ensure that y has a numeric type. If dtype of y is object,
+
+-        it is converted to float64. Should only be used for regression
+
+-        algorithms.
+
+-
+
+-    warn_on_dtype : boolean or None, optional (default=None)
+
+-        Raise DataConversionWarning if the dtype of the input data structure
+
+-        does not match the requested dtype, causing a memory copy.
+
+-
+
+-        .. deprecated:: 0.21
+
+-            ``warn_on_dtype`` is deprecated in version 0.21 and will be
+
+-             removed in 0.23.
+
+-
+
+-    estimator : str or estimator instance (default=None)
+
+-        If passed, include the name of the estimator in warning messages.
+
+-
+
+-    Returns
+
+-    -------
+
+-    X_converted : object
+
+-        The converted and validated X.
+
+-
+
+-    y_converted : object
+
+-        The converted and validated y.
+
+-    """
+
+-    if y is None:
+
+-        raise ValueError("y cannot be None")
+
+-
+
+-    X = check_array(X, accept_sparse=accept_sparse,
+
+-                    accept_large_sparse=accept_large_sparse,
+
+-                    dtype=dtype, order=order, copy=copy,
+
+-                    force_all_finite=force_all_finite,
+
+-                    ensure_2d=ensure_2d, allow_nd=allow_nd,
+
+-                    ensure_min_samples=ensure_min_samples,
+
+-                    ensure_min_features=ensure_min_features,
+
+-                    warn_on_dtype=warn_on_dtype,
+
+-                    estimator=estimator)
+
+-    if multi_output:
+
+-        y = check_array(y, 'csr', force_all_finite=True, ensure_2d=False,
+
+-                        dtype=None)
+
+-    else:
+
+-        y = column_or_1d(y, warn=True)
+
+-        _assert_all_finite(y)
+
+-    if y_numeric and y.dtype.kind == 'O':
+
+-        y = y.astype(np.float64)
+
+-
+
+-    check_consistent_length(X, y)
+
+-
+
+-    return X, y
+
++        is originally
+
+ 
+
+ 
+
+ def column_or_1d(y, warn=False):

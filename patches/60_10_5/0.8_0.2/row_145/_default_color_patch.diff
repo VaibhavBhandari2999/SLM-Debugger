@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
++++ b/decoupled/60/0.8_0.2/145/mwaskom_seaborn/seaborn/utils.py
+@@ -144,6 +144,10 @@
+         scout, = method([np.nan], [np.nan], **kws)
+
+         color = to_rgb(scout.get_facecolor())
+
+         scout.remove()
+
++
+
++        # Fix for boolean data
+
++        if isinstance(color, np.ndarray) and color.dtype == bool:
+
++            color = color.astype(int)
+
+ 
+
+     elif method.__name__ == "fill_between":
+
+ 

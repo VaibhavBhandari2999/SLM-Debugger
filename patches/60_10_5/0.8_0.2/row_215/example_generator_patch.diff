@@ -1,0 +1,86 @@
+--- a/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/215/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -162,30 +162,18 @@
+     return True
+
+ 
+
+ 
+
+-def example_generator(n):
+
+-    """Generators have a ``Yields`` section instead of a ``Returns`` section.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    n : int
+
+-        The upper limit of the range to generate, from 0 to `n` - 1.
+
+-
+
+-    Yields
+
+-    ------
+
+-    int
+
+-        The next number in the range of 0 to `n` - 1.
+
+-
+
+-    Examples
+
+-    --------
+
+-    Examples should be written in doctest format, and should illustrate how
+
+-    to use the function.
+
+-
+
+-    >>> print([i for i in example_generator(4)])
+
+-    [0, 1, 2, 3]
+
+-
+
+-    """
+
+-    for i in range(n):
+
+-        yield i
+
++# example.py
+
++from __future__ import annotations
+
++
+
++class MyString:
+
++    "mystring"
+
++
+
++    #: blah blah blah
+
++    var: MyString
+
++
+
++
+
++#: blah blah blah
+
++example.var = MyString()
+
+ 
+
+ 
+
+ class ExampleError(Exception):

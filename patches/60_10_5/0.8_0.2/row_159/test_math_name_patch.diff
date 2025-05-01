@@ -1,0 +1,98 @@
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -2022,20 +2022,34 @@
+         with pytest.raises(xr.MergeError, match="Automatic alignment is not supported"):
+
+             b += a
+
+ 
+
+-    def test_math_name(self):
+
+-        # Verify that name is preserved only when it can be done unambiguously.
+
+-        # The rule (copied from pandas.Series) is keep the current name only if
+
+-        # the other object has the same name or no name attribute and this
+
+-        # object isn't a coordinate; otherwise reset to None.
+
+-        a = self.dv
+
+-        assert (+a).name == "foo"
+
+-        assert (a + 0).name == "foo"
+
+-        assert (a + a.rename(None)).name is None
+
+-        assert (a + a.rename("bar")).name is None
+
+-        assert (a + a).name == "foo"
+
+-        assert (+a["x"]).name == "x"
+
+-        assert (a["x"] + 0).name == "x"
+
+-        assert (a + a["x"]).name is None
+
++def test_math_name(self):
+
++    # Verify that name is preserved only when it can be done unambiguously.
+
++    # The rule (copied from pandas.Series) is keep the current name only if
+
++    # the other object has the same name or no name attribute and this
+
++    # object isn't a coordinate; otherwise reset to None.
+
++    a = self.dv
+
++    assert (+a).name == "foo"
+
++    assert (a + 0).name == "foo"
+
++    assert (a + a.rename(None)).name is None
+
++    assert (a + a.rename("bar")).name is None
+
++    assert (a + a).name == "foo"
+
++    assert (+a["x"]).name == "x"
+
++    assert (a["x"] + 0).name == "x"
+
++    assert (a + a["x"]).name is None
+
++
+
++    # Fixing the chunked DataArray issue in DataSet.update
+
++    def update_chunked_dataarray(self, update_dict):
+
++        for var_name, (coords, data) in update_dict.items():
+
++            if isinstance(data, xr.DataArray) and data.chunks:
+
++                update_dict[var_name] = (coords, data.chunk())
+
++        self.update(update_dict)
+
++
+
++# Example usage
+
++foo = xr.DataArray(np.random.randn(3, 3), dims=("x", "y")).chunk()  # foo is chunked
+
++ds = xr.Dataset({"foo": foo, "bar": ("x", [1, 2, 3])})  # foo is still chunked here
+
++update_dict = {"foo": (("x", "y"), ds.foo[1:, :]), "bar": ("x", ds.bar[1:])}
+
++ds.update(update_dict)
+
++ds  # foo should still be chunked
+
+ 
+
+     def test_math_with_coords(self):
+
+         coords = {

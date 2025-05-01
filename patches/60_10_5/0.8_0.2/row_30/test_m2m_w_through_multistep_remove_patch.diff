@@ -1,0 +1,90 @@
+--- a/decoupled/60/0.8_0.2/30/django_django/tests/migrations/test_autodetector.py
++++ b/decoupled/60/0.8_0.2/30/django_django/tests/migrations/test_autodetector.py
+@@ -1981,23 +1981,29 @@
+         self.assertOperationAttributes(changes, 'otherapp', 0, 1, name='Attribution')
+
+         self.assertOperationAttributes(changes, 'otherapp', 0, 2, name='Book')
+
+ 
+
+-    def test_m2m_w_through_multistep_remove(self):
+
+-        """
+
+-        A model with a m2m field that specifies a "through" model cannot be
+
+-        removed in the same migration as that through model as the schema will
+
+-        pass through an inconsistent state. The autodetector should produce two
+
+-        migrations to avoid this issue.
+
+-        """
+
+-        changes = self.get_changes([self.author_with_m2m_through, self.publisher, self.contract], [self.publisher])
+
++def test_inner_class_field_migrations(self):
+
++        """
+
++        Test that when an inner class is used as a field in a Django model,
+
++        the generated migration correctly references the inner class.
+
++        """
+
++        # Define the model with an inner class field
+
++        class Outer(object):
+
++            class Inner(models.CharField):
+
++                pass
+
++
+
++        class A(models.Model):
+
++            field = Outer.Inner(max_length=20)
+
++
+
++        # Run makemigrations and get the generated migration
+
++        changes = self.get_changes([A], [])
+
+         # Right number/type of migrations?
+
+         self.assertNumberMigrations(changes, "testapp", 1)
+
+-        self.assertOperationTypes(changes, "testapp", 0, [
+
+-            "RemoveField", "RemoveField", "DeleteModel", "DeleteModel"
+
+-        ])
+
+-        self.assertOperationAttributes(changes, "testapp", 0, 0, name="author", model_name='contract')
+
+-        self.assertOperationAttributes(changes, "testapp", 0, 1, name="publisher", model_name='contract')
+
+-        self.assertOperationAttributes(changes, "testapp", 0, 2, name="Author")
+
+-        self.assertOperationAttributes(changes, "testapp", 0, 3, name="Contract")
+
++        self.assertOperationTypes(changes, "testapp", 0, ["CreateModel"])
+
++        self.assertOperationAttributes(changes, "testapp", 0, 0, name='A', fields=[('field', Outer.Inner(max_length=20))])
+
++
+
++        # Check the migration file content
+
++        migration_file_content = self.get_migration_content(changes, "testapp", 0)
+
++        self.assertIn('testapp.models.Outer.Inner(max_length=20)', migration_file_content)
+
+ 
+
+     def test_concrete_field_changed_to_many_to_many(self):
+
+         """

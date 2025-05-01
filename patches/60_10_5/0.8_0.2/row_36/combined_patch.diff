@@ -1,0 +1,123 @@
+--- a/decoupled/60/0.8_0.2/36/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/36/django_django/django/db/models/fields/related_descriptors.py
+@@ -153,7 +153,7 @@
+         # Assuming the database enforces foreign keys, this won't fail.
+
+         return qs.get(self.field.get_reverse_related_filter(instance))
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
++def __get__(self, instance, cls=None):
+
+         """
+
+         Get the related instance through the forward relation.
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/36/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/36/django_django/django/db/models/fields/related_descriptors.py
+@@ -380,7 +380,7 @@
+             self.related.field.set_cached_value(rel_obj, instance)
+
+         return queryset, rel_obj_attr, instance_attr, True, self.related.get_cache_name(), False
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
++def __get__(self, instance, cls=None):
+
+         """
+
+         Get the related instance through the reverse relation.
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/36/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/36/django_django/django/db/models/fields/related_descriptors.py
+@@ -904,6 +904,10 @@
+                 queryset = super().get_queryset()
+
+                 return self._apply_rel_filters(queryset)
+
+ 
+
++class Child(Parent):
+
++    class Meta:
+
++        ordering = ["-pk"]
+
++
+
+         def get_prefetch_queryset(self, instances, queryset=None):
+
+             if queryset is None:
+
+                 queryset = super().get_queryset()
+
+
+--- a/decoupled/60/0.8_0.2/36/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/36/django_django/django/db/models/query_utils.py
+@@ -294,6 +294,7 @@
+             opts.concrete_model in model._meta.get_parent_list() or
+
+             model in opts.get_parent_list()
+
+         )
+
++    
+
+     # If the field is a primary key, then doing a query against the field's
+
+     # model is ok, too. Consider the case:
+
+     # class Restaurant(models.Model):
+
+@@ -308,6 +309,10 @@
+         (getattr(field, 'primary_key', False) and check(field.model._meta))
+
+     )
+
+ 
+
++    # Additional logic to handle ordering by primary key in inherited models
+
++    if isinstance(model, type) and issubclass(model, Parent) and field.name == 'pk':
+
++        return target_opts.ordering == ('-pk',) or target_opts.ordering == ('pk',)
+
++
+
+ 
+
+ class FilteredRelation:
+
+     """Specify custom filtering in the ON clause of SQL joins."""
+
+
+--- a/decoupled/60/0.8_0.2/36/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/36/django_django/django/db/models/sql/query.py
+@@ -1845,7 +1845,7 @@
+         self.distinct_fields = field_names
+
+         self.distinct = True
+
+ 
+
+-    def add_fields(self, field_names, allow_m2m=True):
+
++def add_fields(self, field_names, allow_m2m=True):
+
+         """
+
+         Add the given (model) fields to the select set. Add the field names in
+
+         the order specified.
+
+

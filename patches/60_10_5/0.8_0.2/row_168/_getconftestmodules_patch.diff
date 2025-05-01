@@ -1,0 +1,111 @@
+--- a/decoupled/60/0.8_0.2/168/pytest-dev_pytest/src/_pytest/config/__init__.py
++++ b/decoupled/60/0.8_0.2/168/pytest-dev_pytest/src/_pytest/config/__init__.py
+@@ -586,20 +586,25 @@
+                 if x.is_dir():
+
+                     self._getconftestmodules(x, importmode, rootpath)
+
+ 
+
+-    def _getconftestmodules(
+
+-        self, path: Path, importmode: Union[str, ImportMode], rootpath: Path
+
+-    ) -> Sequence[types.ModuleType]:
+
+-        if self._noconftest:
+
+-            return []
+
+-
+
+-        directory = self._get_directory(path)
+
+-
+
+-        # Optimization: avoid repeated searches in the same directory.
+
+-        # Assumes always called with same importmode and rootpath.
+
+-        existing_clist = self._dirpath2confmods.get(directory)
+
+-        if existing_clist is not None:
+
+-            return existing_clist
+
+-
+
++def _getconftestmodules(
+
++    self, path: Path, importmode: Union[str, ImportMode], rootpath: Path
+
++) -> Sequence[types.ModuleType]:
+
++    if self._noconftest:
+
++        return []
+
++
+
++    directory = self._get_directory(path)
+
++
+
++    # Optimization: avoid repeated searches in the same directory.
+
++    # Assumes always called with same importmode and rootpath.
+
++    existing_clist = self._dirpath2confmods.get(directory)
+
++    if existing_clist is not None:
+
++        return existing_clist
+
++
+
++    # Check if the module is already in sys.modules
+
++    modname = f"{path.name}.conftest"
+
++    if modname in sys.modules:
+
++        mod = sys.modules[modname]
+
++    else:
+
+         # XXX these days we may rather want to use config.rootpath
+
+         # and allow users to opt into looking into the rootdir parent
+
+         # directories instead of requiring to specify confcutdir.
+
+@@ -610,8 +615,13 @@
+                 if conftestpath.is_file():
+
+                     mod = self._importconftest(conftestpath, importmode, rootpath)
+
+                     clist.append(mod)
+
+-        self._dirpath2confmods[directory] = clist
+
+-        return clist
+
++                    break
+
++        else:
+
++            mod = None
+
++
+
++    if mod is not None:
+
++        self._dirpath2confmods[directory] = [mod]
+
++    return self._dirpath2confmods[directory]
+
+ 
+
+     def _rget_with_confmod(
+
+         self,

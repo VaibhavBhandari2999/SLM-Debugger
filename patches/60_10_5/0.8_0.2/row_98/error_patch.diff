@@ -1,0 +1,68 @@
+--- a/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
+@@ -540,18 +540,21 @@
+         node.origin = self.origin
+
+         nodelist.append(node)
+
+ 
+
+-    def error(self, token, e):
+
+-        """
+
+-        Return an exception annotated with the originating token. Since the
+
+-        parser can be called recursively, check if a token is already set. This
+
+-        ensures the innermost token is highlighted if an exception occurs,
+
+-        e.g. a compile error within the body of an if statement.
+
+-        """
+
+-        if not isinstance(e, Exception):
+
+-            e = TemplateSyntaxError(e)
+
+-        if not hasattr(e, "token"):
+
+-            e.token = token
+
+-        return e
+
++def check_for_template_tags_with_the_same_name(templates_config):
+
++    """
+
++    Check for duplicate template tag library names in the TEMPLATES configuration.
+
++    """
+
++    tag_libraries = {}
+
++    for template_config in templates_config:
+
++        libraries = template_config.get('OPTIONS', {}).get('libraries', [])
+
++        for library in libraries:
+
++            if library['name'] in tag_libraries:
+
++                raise TemplateConfigurationError(
+
++                    f"'{library['name']}' is used for multiple template tag modules: "
+
++                    f"{', '.join(library['module'] for library in tag_libraries[library['name']])}"
+
++                )
+
++            tag_libraries[library['name']] = [library]
+
++    return True
+
+ 
+
+     def invalid_block_tag(self, token, command, parse_until=None):
+
+         if parse_until:

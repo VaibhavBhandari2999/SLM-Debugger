@@ -1,0 +1,163 @@
+--- a/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_error_messages.py
++++ b/decoupled/60/0.8_0.2/75/django_django/tests/forms_tests/tests/test_error_messages.py
+@@ -241,6 +241,25 @@
+         self.assertHTMLEqual(str(form2['last_name'].errors), '<div class="error"><p>This field is required.</p></div>')
+
+         self.assertHTMLEqual(str(form2.errors['__all__']), '<div class="error"><p>I like to be awkward.</p></div>')
+
+ 
+
++from django import forms
+
++from django.test import SimpleTestCase
+
++from django.template import Template, Context
+
++from django.forms.models import ModelMultipleChoiceField
+
++from django.db import models
+
++
+
++class ChoiceModel(models.Model):
+
++    choice = models.CharField(max_length=10)
+
++
+
++class SomeFormSet(forms.BaseFormSet):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        for form in self.forms:
+
++            form.fields['field'].error_class = forms.utils.ErrorList
+
++
+
++class SomeForm(forms.Form):
+
++    field = ChoiceField(choices=[('one', 'One')])
+
++
+
++class TestErrorMessagesEscaping(SimpleTestCase):
+
+     def test_error_messages_escaping(self):
+
+         # The forms layer doesn't escape input values directly because error
+
+         # messages might be presented in non-HTML contexts. Instead, the
+
+@@ -248,9 +267,6 @@
+         # is needed to trigger the escaping.
+
+         t = Template('{{ form.errors }}')
+
+ 
+
+-        class SomeForm(Form):
+
+-            field = ChoiceField(choices=[('one', 'One')])
+
+-
+
+         f = SomeForm({'field': '<script>'})
+
+         self.assertHTMLEqual(
+
+             t.render(Context({'form': f})),
+
+@@ -259,9 +275,6 @@
+             'available choices.</li></ul></li></ul>'
+
+         )
+
+ 
+
+-        class SomeForm(Form):
+
+-            field = MultipleChoiceField(choices=[('one', 'One')])
+
+-
+
+         f = SomeForm({'field': ['<script>']})
+
+         self.assertHTMLEqual(
+
+             t.render(Context({'form': f})),
+
+@@ -270,15 +283,33 @@
+             'available choices.</li></ul></li></ul>'
+
+         )
+
+ 
+
+-        class SomeForm(Form):
+
+-            field = ModelMultipleChoiceField(ChoiceModel.objects.all())
+
+-
+
+         f = SomeForm({'field': ['<script>']})
+
+         self.assertHTMLEqual(
+
+             t.render(Context({'form': f})),
+
+             '<ul class="errorlist"><li>field<ul class="errorlist">'
+
+             '<li>“&lt;script&gt;” is not a valid value.</li>'
+
+             '</ul></li></ul>'
+
++        )
+
++
+
++    def test_formset_nonform_error_messages(self):
+
++        # Test that non-form errors in FormSets are rendered with the nonform CSS class
+
++        t = Template('{{ formset.errors }}')
+
++
+
++        class SomeFormSet(forms.FormSet):
+
++            def __init__(self, *args, **kwargs):
+
++                super().__init__(*args, **kwargs)
+
++                for form in self.forms:
+
++                    form.fields['field'].error_class = forms.utils.ErrorList
+
++
+
++            def clean(self):
+
++                super().clean()
+
++                if self.forms[0].cleaned_data.get('field') == '<script>':
+
++                    self.add_error(None, 'Non-form error')
+
++
+
++        f = SomeFormSet(initial=[{'field': '<script>'}])
+
++        self.assertHTMLEqual(
+
++            t.render(Context({'formset': f})),
+
++            '<ul class="errorlist nonform"><li>Non-form error</li></ul>'
+
+         )
+
+ 
+
+ 

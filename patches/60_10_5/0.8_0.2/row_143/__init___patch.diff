@@ -1,0 +1,63 @@
+--- a/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/_core/groupby.py
++++ b/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/_core/groupby.py
+@@ -24,7 +24,7 @@
+     - It increases future flexibility regarding alternate DataFrame libraries
+
+ 
+
+     """
+
+-    def __init__(self, order: list[str] | dict[str, list | None]):
+
++def __init__(self, order: list[str] | dict[str, list | None]):
+
+         """
+
+         Initialize the GroupBy from grouping variables and optional level orders.
+
+ 
+
+@@ -42,6 +42,22 @@
+ 
+
+         if isinstance(order, list):
+
+             order = {k: None for k in order}
+
++
+
++        # Ensure all hue values are in the hue_order, if provided
+
++        self.hue_order = order.get("hue", [])
+
++        self.hue_order_set = set(self.hue_order)
+
++
+
++        # Filter out hue values not in hue_order
+
++        self.valid_hue_values = {
+
++            species: idx
+
++            for idx, species in enumerate(iris["species"])
+
++            if species in self.hue_order_set
+
++        }
+
++
+
++        # Drop rows with invalid hue values if necessary
+
++        if len(self.valid_hue_values) < len(iris):
+
++            iris = iris[iris["species"].isin(self.hue_order_set)]
+
++
+
+         self.order = order
+
+ 
+
+     def _get_groups(self, data: DataFrame) -> MultiIndex:

@@ -1,0 +1,62 @@
+--- a/decoupled/60/0.8_0.2/245/sympy_sympy/sympy/polys/orderings.py
++++ b/decoupled/60/0.8_0.2/245/sympy_sympy/sympy/polys/orderings.py
+@@ -196,6 +196,8 @@
+     'igrevlex': igrevlex
+
+ }
+
+ 
+
++from sympy import Poly, Symbol, pretty, latex
+
++
+
+ def monomial_key(order=None, gens=None):
+
+     """
+
+     Return a function defining admissible order on monomials.
+
+@@ -220,7 +222,7 @@
+ 
+
+     """
+
+     if order is None:
+
+-        order = lex
+
++        order = 'lex'
+
+ 
+
+     if isinstance(order, Symbol):
+
+         order = str(order)
+
+@@ -239,6 +241,13 @@
+     else:
+
+         raise ValueError("monomial ordering specification must be a string or a callable, got %s" % order)
+
+ 
+
++# Example usage
+
++var('a b c x')
+
++p = Poly([a, 1, b, 2, c, 3], x)
+
++print(p)
+
++print(pretty(p))
+
++print(latex(p))
+
++
+
+ class _ItemGetter(object):
+
+     """Helper class to return a subsequence of values."""
+
+ 

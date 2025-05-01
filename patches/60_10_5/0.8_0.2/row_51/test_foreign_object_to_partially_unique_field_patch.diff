@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/51/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/51/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -491,7 +491,7 @@
+             )
+
+         ])
+
+ 
+
+-    def test_foreign_object_to_partially_unique_field(self):
+
++def test_foreign_object_to_partially_unique_field(self):
+
+         class Person(models.Model):
+
+             country_id = models.IntegerField()
+
+             city_id = models.IntegerField()

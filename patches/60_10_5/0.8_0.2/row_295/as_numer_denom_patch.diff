@@ -1,0 +1,156 @@
+--- a/decoupled/60/0.8_0.2/295/sympy_sympy/sympy/core/power.py
++++ b/decoupled/60/0.8_0.2/295/sympy_sympy/sympy/core/power.py
+@@ -1548,40 +1548,43 @@
+             from sympy.functions.elementary.complexes import arg, Abs
+
+             return exp((log(Abs(base)) + S.ImaginaryUnit*arg(base))*expo)
+
+ 
+
+-    def as_numer_denom(self):
+
+-        if not self.is_commutative:
+
+-            return self, S.One
+
+-        base, exp = self.as_base_exp()
+
+-        n, d = base.as_numer_denom()
+
+-        # this should be the same as ExpBase.as_numer_denom wrt
+
+-        # exponent handling
+
+-        neg_exp = exp.is_negative
+
+-        if exp.is_Mul and not neg_exp and not exp.is_positive:
+
+-            neg_exp = exp.could_extract_minus_sign()
+
+-        int_exp = exp.is_integer
+
+-        # the denominator cannot be separated from the numerator if
+
+-        # its sign is unknown unless the exponent is an integer, e.g.
+
+-        # sqrt(a/b) != sqrt(a)/sqrt(b) when a=1 and b=-1. But if the
+
+-        # denominator is negative the numerator and denominator can
+
+-        # be negated and the denominator (now positive) separated.
+
+-        if not (d.is_extended_real or int_exp):
+
+-            n = base
+
+-            d = S.One
+
+-        dnonpos = d.is_nonpositive
+
+-        if dnonpos:
+
+-            n, d = -n, -d
+
+-        elif dnonpos is None and not int_exp:
+
+-            n = base
+
+-            d = S.One
+
+-        if neg_exp:
+
+-            n, d = d, n
+
+-            exp = -exp
+
+-        if exp.is_infinite:
+
+-            if n is S.One and d is not S.One:
+
+-                return n, self.func(d, exp)
+
+-            if n is not S.One and d is S.One:
+
+-                return self.func(n, exp), d
+
+-        return self.func(n, exp), self.func(d, exp)
+
++def as_numer_denom(self):
+
++    if not self.is_commutative:
+
++        return self, S.One
+
++    base, exp = self.as_base_exp()
+
++    n, d = base.as_numer_denom()
+
++    # this should be the same as ExpBase.as_numer_denom wrt
+
++    # exponent handling
+
++    neg_exp = exp.is_negative
+
++    if exp.is_Mul and not neg_exp and not exp.is_positive:
+
++        neg_exp = exp.could_extract_minus_sign()
+
++    int_exp = exp.is_integer
+
++    # the denominator cannot be separated from the numerator if
+
++    # its sign is unknown unless the exponent is an integer, e.g.
+
++    # sqrt(a/b) != sqrt(a)/sqrt(b) when a=1 and b=-1. But if the
+
++    # denominator is negative the numerator and denominator can
+
++    # be negated and the denominator (now positive) separated.
+
++    if not (d.is_extended_real or int_exp):
+
++        n = base
+
++        d = S.One
+
++    dnonpos = d.is_nonpositive
+
++    if dnonpos:
+
++        n, d = -n, -d
+
++    elif dnonpos is None and not int_exp:
+
++        n = base
+
++        d = S.One
+
++    if neg_exp:
+
++        n, d = d, n
+
++        exp = -exp
+
++    if exp.is_infinite:
+
++        if n is S.One and d is not S.One:
+
++            return n, self.func(d, exp)
+
++        if n is not S.One and d is S.One:
+
++            return self.func(n, exp), d
+
++    # Fix for handling dimensionless exponents
+
++    if exp.is_Mul and exp.args[0].is_dimensionless:
+
++        return n**exp, d**exp
+
++    return self.func(n, exp), self.func(d, exp)
+
+ 
+
+     def matches(self, expr, repl_dict=None, old=False):
+
+         expr = _sympify(expr)

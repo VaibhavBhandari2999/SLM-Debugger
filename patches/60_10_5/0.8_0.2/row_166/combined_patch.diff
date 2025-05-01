@@ -1,0 +1,248 @@
+--- a/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/interfaces.py
++++ b/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/interfaces.py
+@@ -52,7 +52,7 @@
+ class Interface:
+
+     """Base class for interfaces."""
+
+ 
+
+-    def __init__(self) -> None:
+
++def __init__(self) -> None:
+
+         warnings.warn(
+
+             "Interface and all of its subclasses have been deprecated "
+
+             "and will be removed in pylint 3.0.",
+
+
+
+
+--- a/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/checkers/deprecated.py
++++ b/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/checkers/deprecated.py
+@@ -143,31 +143,41 @@
+         """
+
+         return ()
+
+ 
+
+-    def deprecated_arguments(self, method: str) -> Iterable[tuple[int | None, str]]:
+
+-        """Callback returning the deprecated arguments of method/function.
+
+-
+
+-        Args:
+
+-            method (str): name of function/method checked for deprecated arguments
+
+-
+
+-        Returns:
+
+-            collections.abc.Iterable in form:
+
+-                ((POSITION1, PARAM1), (POSITION2: PARAM2) ...)
+
+-            where
+
+-                * POSITIONX - position of deprecated argument PARAMX in function definition.
+
+-                  If argument is keyword-only, POSITIONX should be None.
+
+-                * PARAMX - name of the deprecated argument.
+
+-            E.g. suppose function:
+
+-
+
+-            .. code-block:: python
+
+-                def bar(arg1, arg2, arg3, arg4, arg5='spam')
+
+-
+
+-            with deprecated arguments `arg2` and `arg4`. `deprecated_arguments` should return:
+
+-
+
+-            .. code-block:: python
+
+-                ((1, 'arg2'), (3, 'arg4'))
+
+-        """
+
+-        # pylint: disable=unused-argument
+
+-        return ()
+
++def deprecated_arguments(self, method: str) -> Iterable[tuple[int | None, str]]:
+
++    """Callback returning the deprecated arguments of method/function.
+
++
+
++    Args:
+
++        method (str): name of function/method checked for deprecated arguments
+
++
+
++    Returns:
+
++        collections.abc.Iterable in form:
+
++            ((POSITION1, PARAM1), (POSITION2: PARAM2) ...)
+
++        where
+
++            * POSITIONX - position of deprecated argument PARAMX in function definition.
+
++              If argument is keyword-only, POSITIONX should be None.
+
++            * PARAMX - name of the deprecated argument.
+
++        E.g. suppose function:
+
++
+
++        .. code-block:: python
+
++            def bar(arg1, arg2, arg3, arg4, arg5='spam')
+
++
+
++        with deprecated arguments `arg2` and `arg4`. `deprecated_arguments` should return:
+
++
+
++        .. code-block:: python
+
++            ((1, 'arg2'), (3, 'arg4'))
+
++    """
+
++    # pylint: disable=unused-argument
+
++    return ()
+
++
+
++# To fix the issue with the custom message template, we can use a standard template and then modify the output
+
++def custom_message_template(message: Message) -> str:
+
++    return f'{{"Category": "{message.category}"}}'
+
++
+
++# Example usage in a Pylint reporter or similar context
+
++class CustomPylintReporter(BaseReporter):
+
++    def handle_message(self, msg: Message) -> None:
+
++        formatted_message = custom_message_template(msg)
+
++        print(formatted_message)
+
+ 
+
+     def deprecated_modules(self) -> Iterable[str]:
+
+         """Callback returning the deprecated modules.
+
+
+--- a/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/interfaces.py
++++ b/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/interfaces.py
+@@ -124,8 +124,12 @@
+ class IReporter(Interface):
+
+     """Reporter collect messages and display results encapsulated in a layout."""
+
+ 
+
+-    def handle_message(self, msg: Message) -> None:
+
++def handle_message(self, msg: Message) -> None:
+
+         """Handle the given message object."""
+
++        # Ensure the message template is correctly formatted
+
++        message_template = '{ "Category": "{category}" }'
+
++        # Print the message using the template
+
++        print(message_template.format(category=msg.category))
+
+ 
+
+     def display_reports(self, layout: Section) -> None:
+
+         """Display results encapsulated in the layout tree."""
+
+
+--- a/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/checkers/deprecated.py
++++ b/decoupled/60/0.8_0.2/166/pylint-dev_pylint/pylint/checkers/deprecated.py
+@@ -177,17 +177,17 @@
+         """
+
+         return ()
+
+ 
+
+-    def deprecated_classes(self, module: str) -> Iterable[str]:
+
+-        """Callback returning the deprecated classes of module.
+
+-
+
+-        Args:
+
+-            module (str): name of module checked for deprecated classes
+
+-
+
+-        Returns:
+
+-            collections.abc.Container of deprecated class names.
+
+-        """
+
+-        # pylint: disable=unused-argument
+
+-        return ()
+
++def deprecated_classes(self, module: str) -> Iterable[str]:
+
++    """Callback returning the deprecated classes of module.
+
++
+
++    Args:
+
++        module (str): name of module checked for deprecated classes
+
++
+
++    Returns:
+
++        collections.abc.Container of deprecated class names.
+
++    """
+
++    # pylint: disable=unused-argument
+
++    return ()
+
+ 
+
+     def check_deprecated_module(self, node: nodes.Import, mod_path: str | None) -> None:
+
+         """Checks if the module is deprecated."""
+
+

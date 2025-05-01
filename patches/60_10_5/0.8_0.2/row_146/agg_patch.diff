@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/146/mwaskom_seaborn/seaborn/_core/groupby.py
++++ b/decoupled/60/0.8_0.2/146/mwaskom_seaborn/seaborn/_core/groupby.py
+@@ -76,7 +76,7 @@
+         cols += [c for c in res if c not in data]
+
+         return res.reindex(columns=pd.Index(cols))
+
+ 
+
+-    def agg(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+
++def agg(self, data: DataFrame, *args, **kwargs) -> DataFrame:
+
+         """
+
+         Reduce each group to a single row in the output.
+
+ 
+
+@@ -85,6 +85,9 @@
+         those combinations do not appear in the dataset.
+
+ 
+
+         """
+
++        # Flatten the MultiIndex columns to a single level
+
++        data.columns = ["".join(column) for column in data.columns]
+
++
+
+         grouper, groups = self._get_groups(data)
+
+ 
+
+         if not grouper:

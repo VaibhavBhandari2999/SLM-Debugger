@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_checkboxinput.py
++++ b/decoupled/60/0.8_0.2/73/django_django/tests/forms_tests/widget_tests/test_checkboxinput.py
+@@ -44,7 +44,7 @@
+             html='<input checked type="checkbox" name="is_cool" value="1">',
+
+         )
+
+ 
+
+-    def test_render_check_test(self):
+
++def test_render_check_test(self):
+
+         """
+
+         You can pass 'check_test' to the constructor. This is a callable that
+
+         takes the value and returns True if the box should be checked.

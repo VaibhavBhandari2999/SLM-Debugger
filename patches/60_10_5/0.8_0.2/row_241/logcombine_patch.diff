@@ -1,0 +1,94 @@
+--- a/decoupled/60/0.8_0.2/241/sympy_sympy/sympy/simplify/simplify.py
++++ b/decoupled/60/0.8_0.2/241/sympy_sympy/sympy/simplify/simplify.py
+@@ -962,45 +962,7 @@
+ 
+
+         # collapse multi-logs as far as possible in a canonical way
+
+         # TODO: see if x*log(a)+x*log(a)*log(b) -> x*log(a)*(1+log(b))?
+
+-        # -- in this case, it's unambiguous, but if it were were a log(c) in
+
+-        # each term then it's arbitrary whether they are grouped by log(a) or
+
+-        # by log(c). So for now, just leave this alone; it's probably better to
+
+-        # let the user decide
+
+-        for o, e, l in logs:
+
+-            l = list(ordered(l))
+
+-            e = log(l.pop(0).args[0]**Mul(*e))
+
+-            while l:
+
+-                li = l.pop(0)
+
+-                e = log(li.args[0]**e)
+
+-            c, l = Mul(*o), e
+
+-            if isinstance(l, log):  # it should be, but check to be sure
+
+-                log1[(c,)].append(([], l))
+
+-            else:
+
+-                other.append(c*l)
+
+-
+
+-        # logs that have the same coefficient can multiply
+
+-        for k in list(log1.keys()):
+
+-            log1[Mul(*k)] = log(logcombine(Mul(*[
+
+-                l.args[0]**Mul(*c) for c, l in log1.pop(k)]),
+
+-                force=force))
+
+-
+
+-        # logs that have oppositely signed coefficients can divide
+
+-        for k in ordered(list(log1.keys())):
+
+-            if not k in log1:  # already popped as -k
+
+-                continue
+
+-            if -k in log1:
+
+-                # figure out which has the minus sign; the one with
+
+-                # more op counts should be the one
+
+-                num, den = k, -k
+
+-                if num.count_ops() > den.count_ops():
+
+-                    num, den = den, num
+
+-                other.append(num*log(log1.pop(num).args[0]/log1.pop(den).args[0]))
+
+-            else:
+
+-                other.append(k*log1.pop(k))
+
+-
+
+-        return Add(*other)
+
+-
+
+-    return bottom_up(expr, f)
+
++        # -- in this case, it's unambiguous, but if it were were
+
+ 
+
+ 
+
+ def walk(e, *target):

@@ -1,0 +1,58 @@
+--- a/decoupled/60/0.8_0.2/261/sympy_sympy/sympy/logic/boolalg.py
++++ b/decoupled/60/0.8_0.2/261/sympy_sympy/sympy/logic/boolalg.py
+@@ -51,6 +51,28 @@
+     if isinstance(e, Boolean):
+
+         return e
+
+     raise TypeError('expecting bool or Boolean, not `%s`.' % e)
+
++
+
++def fix_comparison(rv):
+
++    """Fix the comparison issue in the as_Boolean function."""
+
++    from sympy import I, S
+
++    if rv.exp.is_real:
+
++        return (rv.exp < 0) == True
+
++    else:
+
++        # Handle the case where rv.exp is not real
+
++        return False  # or any appropriate default value
+
++
+
++# Example usage
+
++from sympy import cos, I, S
+
++
+
++# Define the function to be used in the simplify process
+
++def _f(rv):
+
++    return fix_comparison(rv)
+
++
+
++# Example expression
+
++expr = cos(x)**I
+
++# Simplify the expression
+
++simplified_expr = expr.rewrite('exp')  # Convert to exponential form first
+
++print(simplified_expr)
+
+ 
+
+ 
+
+ class Boolean(Basic):

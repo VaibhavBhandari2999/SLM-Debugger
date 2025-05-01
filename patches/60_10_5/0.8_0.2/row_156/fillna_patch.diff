@@ -1,0 +1,168 @@
+--- a/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/ops.py
++++ b/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/ops.py
+@@ -134,41 +134,55 @@
+ """
+
+ 
+
+ 
+
+-def fillna(data, other, join="left", dataset_join="left"):
+
+-    """Fill missing values in this object with data from the other object.
+
+-    Follows normal broadcasting and alignment rules.
+
+-
+
++def concatenate_datasets(*datasets, join="outer", dataset_join="outer", **kwargs):
+
++    """Concatenate multiple xarray Datasets along their shared dimensions.
+
++    
+
+     Parameters
+
+     ----------
+
++    datasets : list of xarray.Dataset
+
++        Datasets to concatenate.
+
+     join : {'outer', 'inner', 'left', 'right'}, optional
+
+         Method for joining the indexes of the passed objects along each
+
+-        dimension
+
+-        - 'outer': use the union of object indexes
+
+-        - 'inner': use the intersection of object indexes
+
+-        - 'left': use indexes from the first object with each dimension
+
+-        - 'right': use indexes from the last object with each dimension
+
+-        - 'exact': raise `ValueError` instead of aligning when indexes to be
+
+-          aligned are not equal
+
++        dimension. The default is 'outer'.
+
+     dataset_join : {'outer', 'inner', 'left', 'right'}, optional
+
+         Method for joining variables of Dataset objects with mismatched
+
+-        data variables.
+
+-        - 'outer': take variables from both Dataset objects
+
+-        - 'inner': take only overlapped variables
+
+-        - 'left': take only variables from the first object
+
+-        - 'right': take only variables from the last object
+
++        data variables. The default is 'outer'.
+
++    **kwargs : dict
+
++        Additional keyword arguments passed to xarray.concat.
+
++
+
++    Returns
+
++    -------
+
++    concatenated : xarray.Dataset
+
++        The concatenated dataset.
+
+     """
+
+-    from .computation import apply_ufunc
+
+-
+
+-    return apply_ufunc(
+
+-        duck_array_ops.fillna,
+
+-        data,
+
+-        other,
+
+-        join=join,
+
+-        dask="allowed",
+
+-        dataset_join=dataset_join,
+
+-        dataset_fill_value=np.nan,
+
+-        keep_attrs=True,
+
+-    )
+
++    import xarray as xr
+
++
+
++    # Ensure all datasets have the same dimensions
+
++    if not all(set(ds.dims) == set(datasets[0].dims) for ds in datasets[1:]):
+
++        raise ValueError("All datasets must have the same dimensions")
+
++
+
++    # Concatenate datasets
+
++    concatenated = xr.concat(datasets, dim=join, **kwargs)
+
++
+
++    # Handle different variables with the specified dataset_join method
+
++    if dataset_join == "outer":
+
++        # Take variables from both Dataset objects
+
++        all_vars = set().union(*[set(ds.data_vars) for ds in datasets])
+
++        concatenated = concatenated.expand_dims(list(all_vars - set(concatenated.data_vars)))
+
++    elif dataset_join == "inner":
+
++        # Take only overlapped variables
+
++        common_vars = set.intersection(*[set(ds.data_vars) for ds in datasets])
+
++        concatenated = concatenated[common_vars]
+
++    elif dataset_join == "left":
+
++        # Take only variables from the first object
+
++        concatenated = concatenated[datasets[0].data_vars]
+
++    elif dataset_join == "right":
+
++        # Take only variables from the last object
+
++        concatenated = concatenated[datasets[-1].data_vars]
+
++    else:
+
++        raise ValueError("Invalid dataset_join value. Choose from 'outer', 'inner', 'left', 'right'")
+
++
+
++    return concatenated
+
+ 
+
+ 
+
+ def where_method(self, cond, other=dtypes.NA):

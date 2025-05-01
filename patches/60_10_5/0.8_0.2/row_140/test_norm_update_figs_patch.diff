@@ -1,0 +1,100 @@
+--- a/decoupled/60/0.8_0.2/140/matplotlib_matplotlib/lib/matplotlib/tests/test_colors.py
++++ b/decoupled/60/0.8_0.2/140/matplotlib_matplotlib/lib/matplotlib/tests/test_colors.py
+@@ -1535,20 +1535,39 @@
+ 
+
+ 
+
+ @check_figures_equal()
+
+-def test_norm_update_figs(fig_test, fig_ref):
+
++import matplotlib.pyplot as plt
+
++from matplotlib.colors import LogNorm
+
++import numpy as np
+
++
+
++def update_colorbar.colorbar_update_figs(fig_test, fig_ref):
+
+     ax_ref = fig_ref.add_subplot()
+
+     ax_test = fig_test.add_subplot()
+
+ 
+
+-    z = np.arange(100).reshape((10, 10))
+
+-    ax_ref.imshow(z, norm=mcolors.Normalize(10, 90))
+
+-
+
+-    # Create the norm beforehand with different limits and then update
+
+-    # after adding to the plot
+
+-    norm = mcolors.Normalize(0, 1)
+
+-    ax_test.imshow(z, norm=norm)
+
+-    # Force initial draw to make sure it isn't already stale
+
++    img = 10**np.random.normal(1, 1, size=(50, 50))
+
++
+
++    # Create the initial plot and colorbar
+
++    plot_ref = ax_ref.imshow(img, cmap='gray')
+
++    cb_ref = fig_ref.colorbar(plot_ref, ax=ax_ref)
+
++
+
++    # Create the second plot with a different norm
+
++    plot_test = ax_test.imshow(img, cmap='gray', norm=LogNorm())
+
++    
+
++    # Update the colorbar's norm
+
++    cb_ref.update_normal(plot_test)
+
++    
+
++    # Force a redraw to ensure the colorbar is updated
+
+     fig_test.canvas.draw()
+
+-    norm.vmin, norm.vmax = 10, 90
+
++
+
++    # Check if the colorbar has been updated correctly
+
++    assert cb_ref.norm.vmin > 1 and cb_ref.norm.vmax > 1, "Colorbar norm not updated correctly"
+
++
+
++fig, ax = plt.subplots(1, 1)
+
++img = 10**np.random.normal(1, 1, size=(50, 50))
+
++plot = ax.imshow(img, cmap='gray')
+
++cb = fig.colorbar(plot, ax=ax)
+
++plot.norm = LogNorm()
+
++cb.update_normal(plot)
+
++plt.show()
+
+ 
+
+ 
+
+ def test_make_norm_from_scale_name():

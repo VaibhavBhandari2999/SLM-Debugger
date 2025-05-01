@@ -1,0 +1,234 @@
+--- a/decoupled/60/0.8_0.2/46/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/46/django_django/django/db/models/fields/related_descriptors.py
+@@ -647,115 +647,7 @@
+             def check_and_update_obj(obj):
+
+                 if not isinstance(obj, self.model):
+
+                     raise TypeError("'%s' instance expected, got %r" % (
+
+-                        self.model._meta.object_name, obj,
+
+-                    ))
+
+-                setattr(obj, self.field.name, self.instance)
+
+-
+
+-            if bulk:
+
+-                pks = []
+
+-                for obj in objs:
+
+-                    check_and_update_obj(obj)
+
+-                    if obj._state.adding or obj._state.db != db:
+
+-                        raise ValueError(
+
+-                            "%r instance isn't saved. Use bulk=False or save "
+
+-                            "the object first." % obj
+
+-                        )
+
+-                    pks.append(obj.pk)
+
+-                self.model._base_manager.using(db).filter(pk__in=pks).update(**{
+
+-                    self.field.name: self.instance,
+
+-                })
+
+-            else:
+
+-                with transaction.atomic(using=db, savepoint=False):
+
+-                    for obj in objs:
+
+-                        check_and_update_obj(obj)
+
+-                        obj.save()
+
+-        add.alters_data = True
+
+-
+
+-        def create(self, **kwargs):
+
+-            kwargs[self.field.name] = self.instance
+
+-            db = router.db_for_write(self.model, instance=self.instance)
+
+-            return super(RelatedManager, self.db_manager(db)).create(**kwargs)
+
+-        create.alters_data = True
+
+-
+
+-        def get_or_create(self, **kwargs):
+
+-            kwargs[self.field.name] = self.instance
+
+-            db = router.db_for_write(self.model, instance=self.instance)
+
+-            return super(RelatedManager, self.db_manager(db)).get_or_create(**kwargs)
+
+-        get_or_create.alters_data = True
+
+-
+
+-        def update_or_create(self, **kwargs):
+
+-            kwargs[self.field.name] = self.instance
+
+-            db = router.db_for_write(self.model, instance=self.instance)
+
+-            return super(RelatedManager, self.db_manager(db)).update_or_create(**kwargs)
+
+-        update_or_create.alters_data = True
+
+-
+
+-        # remove() and clear() are only provided if the ForeignKey can have a value of null.
+
+-        if rel.field.null:
+
+-            def remove(self, *objs, bulk=True):
+
+-                if not objs:
+
+-                    return
+
+-                val = self.field.get_foreign_related_value(self.instance)
+
+-                old_ids = set()
+
+-                for obj in objs:
+
+-                    if not isinstance(obj, self.model):
+
+-                        raise TypeError("'%s' instance expected, got %r" % (
+
+-                            self.model._meta.object_name, obj,
+
+-                        ))
+
+-                    # Is obj actually part of this descriptor set?
+
+-                    if self.field.get_local_related_value(obj) == val:
+
+-                        old_ids.add(obj.pk)
+
+-                    else:
+
+-                        raise self.field.remote_field.model.DoesNotExist(
+
+-                            "%r is not related to %r." % (obj, self.instance)
+
+-                        )
+
+-                self._clear(self.filter(pk__in=old_ids), bulk)
+
+-            remove.alters_data = True
+
+-
+
+-            def clear(self, *, bulk=True):
+
+-                self._clear(self, bulk)
+
+-            clear.alters_data = True
+
+-
+
+-            def _clear(self, queryset, bulk):
+
+-                self._remove_prefetched_objects()
+
+-                db = router.db_for_write(self.model, instance=self.instance)
+
+-                queryset = queryset.using(db)
+
+-                if bulk:
+
+-                    # `QuerySet.update()` is intrinsically atomic.
+
+-                    queryset.update(**{self.field.name: None})
+
+-                else:
+
+-                    with transaction.atomic(using=db, savepoint=False):
+
+-                        for obj in queryset:
+
+-                            setattr(obj, self.field.name, None)
+
+-                            obj.save(update_fields=[self.field.name])
+
+-            _clear.alters_data = True
+
+-
+
+-        def set(self, objs, *, bulk=True, clear=False):
+
+-            # Force evaluation of `objs` in case it's a queryset whose value
+
+-            # could be affected by `manager.clear()`. Refs #19816.
+
+-            objs = tuple(objs)
+
+-
+
+-            if self.field.null:
+
+-                db = router.db_for_write(self.model, instance=self.instance)
+
+-                with transaction.atomic(using=db, savepoint=False):
+
+-                    if clear:
+
+-                        self.clear(bulk=bulk)
+
+-                        self.add(*objs, bulk=bulk)
+
+-                    else:
+
+-                        old_objs = set(self.using(db).all())
+
+-                        new_objs = []
+
+-                        for obj in objs:
+
+-                            if obj in old_objs:
+
+-                                old_objs.remove(obj)
+
+-                            else:
+
+-                                new_objs.append(obj)
+
+-
+
+-                        self.remove(*old_objs, bulk=bulk)
+
+-                        self.add(*new_objs, bulk=bulk)
+
+-            else:
+
+-                self.add(*objs, bulk=bulk)
+
+-        set.alters_data = True
+
+-
+
+-    return RelatedManager
+
++                        self.model._meta.object_name,
+
+ 
+
+ 
+
+ class ManyToManyDescriptor(ReverseManyToOneDescriptor):

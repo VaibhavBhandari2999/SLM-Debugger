@@ -1,0 +1,63 @@
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -228,7 +228,12 @@
+ 
+
+ def mulrowcol(row, col, K):
+
+     """
+
+-    Multiplies two lists representing row and column element-wise.
+
++    Multiplies two lists representing row and column element-wise and returns the sum of the products.
+
++
+
++    Parameters:
+
++    row (list): A list of elements representing the row.
+
++    col (list): A list of elements representing the column.
+
++    K (Ring): The ring in which the arithmetic operations are performed.
+
+ 
+
+     Gotcha: Here the column is represented as a list contrary to the norm
+
+     where it is represented as a list of one element lists. The reason is
+
+@@ -243,10 +248,13 @@
+     >>> from sympy import ZZ
+
+ 
+
+     >>> a = [ZZ(2), ZZ(4), ZZ(6)]
+
+-    >>> mulrowcol(a, a, ZZ)
+
+-    56
+
+-
+
+-    """
+
++    >>> b = [ZZ(1), ZZ(2), ZZ(3)]
+
++    >>> mulrowcol(a, b, ZZ)
+
++    28
+
++
+
++    """
+
++    if len(row) != len(col):
+
++        raise ValueError("Row and column lists must be of the same length.")
+
+     result = K.zero
+
+     for i in range(len(row)):
+
+         result += row[i]*col[i]

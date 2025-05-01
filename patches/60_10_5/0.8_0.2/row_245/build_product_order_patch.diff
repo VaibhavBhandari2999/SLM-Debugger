@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/245/sympy_sympy/sympy/polys/orderings.py
++++ b/decoupled/60/0.8_0.2/245/sympy_sympy/sympy/polys/orderings.py
+@@ -253,6 +253,10 @@
+             return False
+
+         return self.seq == other.seq
+
+ 
+
++from sympy.polys.orderings import MonomialOrder, build_product_order
+
++from sympy.polys.polytools import Poly
+
++from sympy.abc import x, y, z, t
+
++
+
+ def build_product_order(arg, gens):
+
+     """
+
+     Build a monomial order on ``gens``.
+
+@@ -282,5 +286,12 @@
+ 
+
+         def makelambda(var):
+
+             return _ItemGetter(gens2idx[g] for g in var)
+
+-        order.append((monomial_key(name), makelambda(var)))
+
+-    return ProductOrder(*order)
+
++        order.append((name, makelambda(var)))
+
++    return MonomialOrder(*order)
+
++
+
++# Example usage
+
++var('a b c x')
+
++p = Poly([a, 1, b, 2, c, 3], x)
+
++O = build_product_order((("lex", x),), [x])
+
++p.set_order(O)
+
++print(p)

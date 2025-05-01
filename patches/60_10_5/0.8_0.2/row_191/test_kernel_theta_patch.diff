@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/gaussian_process/tests/test_kernels.py
++++ b/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/gaussian_process/tests/test_kernels.py
+@@ -74,6 +74,9 @@
+          # skip non-basic kernels
+
+          if not (isinstance(kernel, KernelOperator)
+
+                  or isinstance(kernel, Exponentiation))])
+
++from sklearn.decomposition import KernelPCA
+
++import numpy as np
+
++
+
+ def test_kernel_theta(kernel):
+
+     # Check that parameter vector theta of kernel is set correctly.
+
+     theta = kernel.theta
+
+@@ -124,6 +127,14 @@
+ 
+
+         setattr(kernel, hyperparameter.name, 43)
+
+         assert_almost_equal(kernel.theta[i], np.log(43))
+
++
+
++def fix_kernel_pca_signs(X):
+
++    pca = KernelPCA(n_components=7, kernel='rbf', copy_X=False, n_jobs=-1)
+
++    X_transformed = pca.fit_transform(X)
+
++    # Ensure the first component is positive
+
++    if np.any(X_transformed[:, 0] < 0):
+
++        X_transformed *= -1
+
++    return X_transformed
+
+ 
+
+ 
+
+ @pytest.mark.parametrize('kernel',

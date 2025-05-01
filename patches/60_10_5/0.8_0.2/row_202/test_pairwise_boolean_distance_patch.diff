@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/metrics/tests/test_pairwise.py
++++ b/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/metrics/tests/test_pairwise.py
+@@ -158,6 +158,10 @@
+ 
+
+ 
+
+ @pytest.mark.parametrize('metric', PAIRWISE_BOOLEAN_FUNCTIONS)
+
++import numpy as np
+
++from sklearn.metrics.cluster import mutual_info_score
+
++import pytest
+
++
+
+ def test_pairwise_boolean_distance(metric):
+
+     # test that we convert to boolean arrays for boolean distances
+
+     rng = np.random.RandomState(0)
+
+@@ -186,6 +190,16 @@
+     with pytest.warns(None) as records:
+
+         pairwise_distances(X.astype(bool), metric=metric)
+
+     assert len(records) == 0
+
++
+
++# Fix the issue described in the issue description
+
++def fix_mutual_info_score():
+
++    # Convert the input data to a numeric data type before passing it to mutual_info_score
+
++    x = np.random.choice(['a', 'b'], size=20).astype(np.int8)
+
++    mutual_info_score(x, x)
+
++
+
++    # The following code should work without any issues
+
++    x = np.random.choice(['a', 'b'], size=20)
+
++    mutual_info_score(x, x)
+
+ 
+
+ 
+
+ def test_no_data_conversion_warning():

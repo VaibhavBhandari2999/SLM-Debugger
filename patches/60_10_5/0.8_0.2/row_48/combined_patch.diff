@@ -1,0 +1,692 @@
+--- a/decoupled/60/0.8_0.2/48/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/48/django_django/django/db/models/fields/related_descriptors.py
+@@ -287,7 +287,7 @@
+     ``Restaurant.place`` is a ``ForwardOneToOneDescriptor`` instance.
+
+     """
+
+ 
+
+-    def get_object(self, instance):
+
++def get_object(self, instance):
+
+         if self.field.remote_field.parent_link:
+
+             deferred = instance.get_deferred_fields()
+
+             # Because it's a parent link, all the data is available in the
+
+@@ -304,6 +304,12 @@
+                 obj._state.adding = instance._state.adding
+
+                 obj._state.db = instance._state.db
+
+                 return obj
+
++
+
++            # Check if the queryset is empty and return an empty queryset if so
+
++            queryset = self.field.queryset(instance)
+
++            if not queryset.exists():
+
++                return QuerySet.none()
+
++
+
+         return super().get_object(instance)
+
+ 
+
+     def __set__(self, instance, value):
+
+
+--- a/decoupled/60/0.8_0.2/48/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/48/django_django/django/db/models/sql/query.py
+@@ -644,91 +644,91 @@
+         self.order_by = rhs.order_by or self.order_by
+
+         self.extra_order_by = rhs.extra_order_by or self.extra_order_by
+
+ 
+
+-    def deferred_to_data(self, target, callback):
+
+-        """
+
+-        Convert the self.deferred_loading data structure to an alternate data
+
+-        structure, describing the field that *will* be loaded. This is used to
+
+-        compute the columns to select from the database and also by the
+
+-        QuerySet class to work out which fields are being initialized on each
+
+-        model. Models that have all their fields included aren't mentioned in
+
+-        the result, only those that have field restrictions in place.
+
+-
+
+-        The "target" parameter is the instance that is populated (in place).
+
+-        The "callback" is a function that is called whenever a (model, field)
+
+-        pair need to be added to "target". It accepts three parameters:
+
+-        "target", and the model and list of fields being added for that model.
+
+-        """
+
+-        field_names, defer = self.deferred_loading
+
+-        if not field_names:
+
+-            return
+
+-        orig_opts = self.get_meta()
+
+-        seen = {}
+
+-        must_include = {orig_opts.concrete_model: {orig_opts.pk}}
+
+-        for field_name in field_names:
+
+-            parts = field_name.split(LOOKUP_SEP)
+
+-            cur_model = self.model._meta.concrete_model
+
+-            opts = orig_opts
+
+-            for name in parts[:-1]:
+
+-                old_model = cur_model
+
+-                if name in self._filtered_relations:
+
+-                    name = self._filtered_relations[name].relation_name
+
+-                source = opts.get_field(name)
+
+-                if is_reverse_o2o(source):
+
+-                    cur_model = source.related_model
+
+-                else:
+
+-                    cur_model = source.remote_field.model
+
+-                opts = cur_model._meta
+
+-                # Even if we're "just passing through" this model, we must add
+
+-                # both the current model's pk and the related reference field
+
+-                # (if it's not a reverse relation) to the things we select.
+
+-                if not is_reverse_o2o(source):
+
+-                    must_include[old_model].add(source)
+
+-                add_to_dict(must_include, cur_model, opts.pk)
+
+-            field = opts.get_field(parts[-1])
+
+-            is_reverse_object = field.auto_created and not field.concrete
+
+-            model = field.related_model if is_reverse_object else field.model
+
+-            model = model._meta.concrete_model
+
+-            if model == opts.model:
+
+-                model = cur_model
+
+-            if not is_reverse_o2o(field):
+
+-                add_to_dict(seen, model, field)
+
+-
+
+-        if defer:
+
+-            # We need to load all fields for each model, except those that
+
+-            # appear in "seen" (for all models that appear in "seen"). The only
+
+-            # slight complexity here is handling fields that exist on parent
+
+-            # models.
+
+-            workset = {}
+
+-            for model, values in seen.items():
+
+-                for field in model._meta.local_fields:
+
+-                    if field not in values:
+
+-                        m = field.model._meta.concrete_model
+
+-                        add_to_dict(workset, m, field)
+
+-            for model, values in must_include.items():
+
+-                # If we haven't included a model in workset, we don't add the
+
+-                # corresponding must_include fields for that model, since an
+
+-                # empty set means "include all fields". That's why there's no
+
+-                # "else" branch here.
+
+-                if model in workset:
+
+-                    workset[model].update(values)
+
+-            for model, values in workset.items():
+
+-                callback(target, model, values)
+
+-        else:
+
+-            for model, values in must_include.items():
+
+-                if model in seen:
+
+-                    seen[model].update(values)
+
+-                else:
+
+-                    # As we've passed through this model, but not explicitly
+
+-                    # included any fields, we have to make sure it's mentioned
+
+-                    # so that only the "must include" fields are pulled in.
+
+-                    seen[model] = values
+
+-            # Now ensure that every model in the inheritance chain is mentioned
+
+-            # in the parent list. Again, it must be mentioned to ensure that
+
+-            # only "must include" fields are pulled in.
+
+-            for model in orig_opts.get_parent_list():
+
+-                seen.setdefault(model, set())
+
+-            for model, values in seen.items():
+
+-                callback(target, model, values)
+
++def deferred_to_data(self, target, callback):
+
++    """
+
++    Convert the self.deferred_loading data structure to an alternate data
+
++    structure, describing the field that *will* be loaded. This is used to
+
++    compute the columns to select from the database and also by the
+
++    QuerySet class to work out which fields are being initialized on each
+
++    model. Models that have all their fields included aren't mentioned in
+
++    the result, only those that have field restrictions in place.
+
++
+
++    The "target" parameter is the instance that is populated (in place).
+
++    The "callback" is a function that is called whenever a (model, field)
+
++    pair need to be added to "target". It accepts three parameters:
+
++    "target", and the model and list of fields being added for that model.
+
++    """
+
++    field_names, defer = self.deferred_loading
+
++    if not field_names:
+
++        return
+
++    orig_opts = self.get_meta()
+
++    seen = {}
+
++    must_include = {orig_opts.concrete_model: {orig_opts.pk}}
+
++    for field_name in field_names:
+
++        parts = field_name.split(LOOKUP_SEP)
+
++        cur_model = self.model._meta.concrete_model
+
++        opts = orig_opts
+
++        for name in parts[:-1]:
+
++            old_model = cur_model
+
++            if name in self._filtered_relations:
+
++                name = self._filtered_relations[name].relation_name
+
++            source = opts.get_field(name)
+
++            if is_reverse_o2o(source):
+
++                cur_model = source.related_model
+
++            else:
+
++                cur_model = source.remote_field.model
+
++            opts = cur_model._meta
+
++            # Even if we're "just passing through" this model, we must add
+
++            # both the current model's pk and the related reference field
+
++            # (if it's not a reverse relation) to the things we select.
+
++            if not is_reverse_o2o(source):
+
++                add_to_dict(must_include, old_model, source)
+
++            add_to_dict(must_include, cur_model, opts.pk)
+
++        field = opts.get_field(parts[-1])
+
++        is_reverse_object = field.auto_created and not field.concrete
+
++        model = field.related_model if is_reverse_object else field.model
+
++        model = model._meta.concrete_model
+
++        if model == opts.model:
+
++            model = cur_model
+
++        if not is_reverse_o2o(field):
+
++            add_to_dict(seen, model, field)
+
++
+
++    if defer:
+
++        # We need to load all fields for each model, except those that
+
++        # appear in "seen" (for all models that appear in "seen"). The only
+
++        # slight complexity here is handling fields that exist on parent
+
++        # models.
+
++        workset = {}
+
++        for model, values in seen.items():
+
++            for field in model._meta.local_fields:
+
++                if field not in values:
+
++                    m = field.model._meta.concrete_model
+
++                    add_to_dict(workset, m, field)
+
++        for model, values in must_include.items():
+
++            # If we haven't included a model in workset, we don't add the
+
++            # corresponding must_include fields for that model, since an
+
++            # empty set means "include all fields". That's why there's no
+
++            # "else" branch here.
+
++            if model in workset:
+
++                workset[model].update(values)
+
++        for model, values in workset.items():
+
++            callback(target, model, values)
+
++    else:
+
++        for model, values in must_include.items():
+
++            if model in seen:
+
++                seen[model].update(values)
+
++            else:
+
++                # As we've passed through this model, but not explicitly
+
++                # included any fields, we have to make sure it's mentioned
+
++                # so that only the "must include" fields are pulled in.
+
++                seen[model] = values
+
++        # Now ensure that every model in the inheritance chain is mentioned
+
++        # in the parent list. Again, it must be mentioned to ensure that
+
++        # only "must include" fields are pulled in.
+
++        for model in orig_opts.get_parent_list():
+
++            seen.setdefault(model, set())
+
++        for model, values in seen.items():
+
++            callback(target, model, values)
+
+ 
+
+     def table_alias(self, table_name, create=False, filtered_relation=None):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/48/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/48/django_django/django/db/models/fields/related_descriptors.py
+@@ -572,7 +572,7 @@
+             return manager_class(self.instance)
+
+         do_not_call_in_templates = True
+
+ 
+
+-        def _apply_rel_filters(self, queryset):
+
++def _apply_rel_filters(self, queryset):
+
+             """
+
+             Filter the queryset for the instance this manager is bound to.
+
+             """
+
+@@ -605,6 +605,32 @@
+                 queryset._known_related_objects = {self.field: {rel_obj_id: self.instance}}
+
+             return queryset
+
+ 
+
++# To fix the form issue, we need to modify the queryset in the form to handle the empty case correctly.
+
++# Here is the modified form code:
+
++
+
++class ArticleForm(forms.ModelForm):
+
++    publications = forms.ModelMultipleChoiceField(
+
++        Publication.objects.filter(id__lt=2).union(
+
++            Publication.objects.filter(id__gt=5)
+
++        ),
+
++        required=False,
+
++    )
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        # Ensure that when the form is submitted with no selections, only the objects matching the empty queryset are added.
+
++        if not self.data:
+
++            self.initial['publications'] = []
+
++
+
++    def save(self, commit=True):
+
++        instance = super().save(commit=False)
+
++        if not self.cleaned_data['publications']:
+
++            instance.publications.clear()
+
++        else:
+
++            instance.publications.set(self.cleaned_data['publications'])
+
++        if commit:
+
++            instance.save()
+
++        return instance
+
++
+
+         def _remove_prefetched_objects(self):
+
+             try:
+
+                 self.instance._prefetched_objects_cache.pop(self.field.remote_field.get_cache_name())
+
+
+--- a/decoupled/60/0.8_0.2/48/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/48/django_django/django/db/models/sql/query.py
+@@ -543,7 +543,7 @@
+         compiler = q.get_compiler(using=using)
+
+         return '\n'.join(compiler.explain_query())
+
+ 
+
+-    def combine(self, rhs, connector):
+
++def combine(self, rhs, connector):
+
+         """
+
+         Merge the 'rhs' query into the current one (with any 'rhs' effects
+
+         being applied *after* (that is, "to the right of") anything in the
+
+@@ -615,7 +615,12 @@
+         # one.
+
+         w = rhs.where.clone()
+
+         w.relabel_aliases(change_map)
+
+-        self.where.add(w, connector)
+
++        if connector == OR and not w:
+
++            # If the rhs where-clause is empty, we need to ensure that the
+
++            # current where-clause is not affected.
+
++            self.where = Q()
+
++        else:
+
++            self.where.add(w, connector)
+
+ 
+
+         # Selection columns and extra extensions are those provided by 'rhs'.
+
+         if rhs.select:
+
+@@ -625,24 +630,7 @@
+ 
+
+         if connector == OR:
+
+             # It would be nice to be able to handle this, but the queries don't
+
+-            # really make sense (or return consistent value sets). Not worth
+
+-            # the extra complexity when you can write a real query instead.
+
+-            if self.extra and rhs.extra:
+
+-                raise ValueError("When merging querysets using 'or', you cannot have extra(select=...) on both sides.")
+
+-        self.extra.update(rhs.extra)
+
+-        extra_select_mask = set()
+
+-        if self.extra_select_mask is not None:
+
+-            extra_select_mask.update(self.extra_select_mask)
+
+-        if rhs.extra_select_mask is not None:
+
+-            extra_select_mask.update(rhs.extra_select_mask)
+
+-        if extra_select_mask:
+
+-            self.set_extra_mask(extra_select_mask)
+
+-        self.extra_tables += rhs.extra_tables
+
+-
+
+-        # Ordering uses the 'rhs' ordering, unless it has none, in which case
+
+-        # the current ordering is used.
+
+-        self.order_by = rhs.order_by or self.order_by
+
+-        self.extra_order_by = rhs.extra_order_by or self.extra_order_by
+
++            # really make sense (
+
+ 
+
+     def deferred_to_data(self, target, callback):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/48/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/48/django_django/django/db/models/query_utils.py
+@@ -281,32 +281,27 @@
+     return False, ()
+
+ 
+
+ 
+
+-def check_rel_lookup_compatibility(model, target_opts, field):
+
+-    """
+
+-    Check that self.model is compatible with target_opts. Compatibility
+
+-    is OK if:
+
+-      1) model and opts match (where proxy inheritance is removed)
+
+-      2) model is parent of opts' model or the other way around
+
+-    """
+
+-    def check(opts):
+
+-        return (
+
+-            model._meta.concrete_model == opts.concrete_model or
+
+-            opts.concrete_model in model._meta.get_parent_list() or
+
+-            model in opts.get_parent_list()
+
+-        )
+
+-    # If the field is a primary key, then doing a query against the field's
+
+-    # model is ok, too. Consider the case:
+
+-    # class Restaurant(models.Model):
+
+-    #     place = OneToOneField(Place, primary_key=True):
+
+-    # Restaurant.objects.filter(pk__in=Restaurant.objects.all()).
+
+-    # If we didn't have the primary key check, then pk__in (== place__in) would
+
+-    # give Place's opts as the target opts, but Restaurant isn't compatible
+
+-    # with that. This logic applies only to primary keys, as when doing __in=qs,
+
+-    # we are going to turn this into __in=qs.values('pk') later on.
+
+-    return (
+
+-        check(target_opts) or
+
+-        (getattr(field, 'primary_key', False) and check(field.model._meta))
+
++from django import forms
+
++from django.contrib import admin
+
++from django.db import models
+
++
+
++class Publication(models.Model):
+
++    pass
+
++
+
++class Article(models.Model):
+
++    publications = models.ManyToManyField(to=Publication, blank=True, null=True)
+
++
+
++class ArticleForm(forms.ModelForm):
+
++    publications = forms.ModelMultipleChoiceField(
+
++        queryset=Publication.objects.filter(id__lt=2) | Publication.objects.filter(id__gt=5),
+
++        required=False,
+
+     )
+
++    class Meta:
+
++        model = Article
+
++        fields = ["publications"]
+
++
+
++class ArticleAdmin(admin.ModelAdmin):
+
++    form = ArticleForm
+
+ 
+
+ 
+
+ class FilteredRelation:
+
+

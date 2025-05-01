@@ -1,0 +1,98 @@
+--- a/decoupled/60/0.8_0.2/24/django_django/django/utils/safestring.py
++++ b/decoupled/60/0.8_0.2/24/django_django/django/utils/safestring.py
+@@ -47,17 +47,37 @@
+     return wrapped
+
+ 
+
+ 
+
+-def mark_safe(s):
+
++from datetime import datetime
+
++import re
+
++
+
++def parse_http_date(date_string):
+
+     """
+
+-    Explicitly mark a string as safe for (HTML) output purposes. The returned
+
+-    object can be used everywhere a string is appropriate.
+
++    Parse an HTTP-date as defined in RFC 7231, section 7.1.1.1.
+
++    """
+
++    # Regular expression to match HTTP date format
+
++    http_date_re = re.compile(r'^(\d{2}) (\w{3}) (\d{2}) (\d{2}):(\d{2}):(\d{2}) (\w{3})$', re.IGNORECASE)
+
++    match = http_date_re.match(date_string)
+
++    if not match:
+
++        raise ValueError("Invalid HTTP date format")
+
+ 
+
+-    If used on a method as a decorator, mark the returned data as safe.
+
++    # Extract the components from the match
+
++    day, month_name, year, hour, minute, second, weekday_name = match.groups()
+
+ 
+
+-    Can be called multiple times on a single string.
+
+-    """
+
+-    if hasattr(s, '__html__'):
+
+-        return s
+
+-    if callable(s):
+
+-        return _safety_decorator(mark_safe, s)
+
+-    return SafeString(s)
+
++    # Map month names to numbers
+
++    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
++    month = months.index(month_name[:3]) + 1
+
++
+
++    # Convert year to integer
+
++    year = int(year)
+
++    if year < 50:  # If the year is 0-49, it's in the 21st century
+
++        year += 2000
+
++    else:  # If the year is 50-99, it's in the 20th century
+
++        year += 1900
+
++
+
++    # Create a datetime object
+
++    try:
+
++        date = datetime(int(year), int(month), int(day), int(hour), int(minute), int(second))
+
++    except ValueError as e:
+
++        raise ValueError(f"Invalid date: {e}")
+
++
+
++    return date

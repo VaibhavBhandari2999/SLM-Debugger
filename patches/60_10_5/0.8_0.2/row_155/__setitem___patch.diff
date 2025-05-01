@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/155/psf_requests/requests/packages/urllib3/packages/ordered_dict.py
++++ b/decoupled/60/0.8_0.2/155/psf_requests/requests/packages/urllib3/packages/ordered_dict.py
+@@ -42,7 +42,7 @@
+             self.__map = {}
+
+         self.__update(*args, **kwds)
+
+ 
+
+-    def __setitem__(self, key, value, dict_setitem=dict.__setitem__):
+
++def __setitem__(self, key, value, dict_setitem=dict.__setitem__):
+
+         'od.__setitem__(i, y) <==> od[i]=y'
+
+         # Setting a new item creates a new link which goes at the end of the linked
+
+         # list, and the inherited dictionary is updated with the new key/value pair.
+
+@@ -50,6 +50,15 @@
+             root = self.__root
+
+             last = root[0]
+
+             last[1] = root[0] = self.__map[key] = [last, root, key]
+
++        # Check if the value is a list and handle accordingly
+
++        if isinstance(value, list):
+
++            # If it's a list, set each function in the list as a separate hook
+
++            for func in value:
+
++                if callable(func):
+
++                    self[key].append(func)
+
++        else:
+
++            # If it's not a list, set it as a single hook
+
++            self[key] = [value] if callable(value) else [value]
+
+         dict_setitem(self, key, value)
+
+ 
+
+     def __delitem__(self, key, dict_delitem=dict.__delitem__):

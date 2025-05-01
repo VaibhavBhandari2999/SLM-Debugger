@@ -1,0 +1,510 @@
+
+
+--- a/decoupled/60/0.8_0.2/88/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/88/django_django/django/db/models/deletion.py
+@@ -95,29 +95,57 @@
+         # parent.
+
+         self.dependencies = defaultdict(set)  # {model: {models}}
+
+ 
+
+-    def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+-        """
+
+-        Add 'objs' to the collection of objects to be deleted.  If the call is
+
+-        the result of a cascade, 'source' should be the model that caused it,
+
+-        and 'nullable' should be set to True if the relation can be null.
+
+-
+
+-        Return a list of all objects that were not already collected.
+
+-        """
+
+-        if not objs:
+
+-            return []
+
+-        new_objs = []
+
+-        model = objs[0].__class__
+
+-        instances = self.data[model]
+
+-        for obj in objs:
+
+-            if obj not in instances:
+
+-                new_objs.append(obj)
+
+-        instances.update(new_objs)
+
+-        # Nullable relationships can be ignored -- they are nulled out before
+
+-        # deleting, and therefore do not affect the order in which objects have
+
+-        # to be deleted.
+
+-        if source is not None and not nullable:
+
+-            self.add_dependency(source, model, reverse_dependency=reverse_dependency)
+
+-        return new_objs
+
++from django.db import connection, models
+
++from django.db.migrations.executor import MigrationExecutor
+
++from django.db.migrations.recorder import MigrationRecorder
+
++
+
++class MigrationRecorder(MigrationRecorder):
+
++    def ensure_schema(self, connection=None):
+
++        if connection is None:
+
++            connection = connection or self.connection
+
++        if not self.has_table(connection):
+
++            if self.router.allow_migrate(connection.alias, self.model):
+
++                self.create_model_table(connection)
+
++            else:
+
++                # If the router does not allow migration, do not create the table
+
++                pass
+
++
+
++    def has_table(self, connection=None):
+
++        if connection is None:
+
++            connection = connection or self.connection
+
++        return self.model._meta.db_table in connection.introspection.table_names(connection)
+
++
+
++    def create_model_table(self, connection):
+
++        with connection.schema_editor() as editor:
+
++            editor.create_model(self.model)
+
++
+
++    def has_applied(self, app_label, migration_name, connection=None):
+
++        if connection is None:
+
++            connection = connection or self.connection
+
++        return (app_label, migration_name) in self.applied_migrations(connection)
+
++
+
++    def applied_migrations(self, connection=None):
+
++        if connection is None:
+
++            connection = connection or self.connection
+
++        return self._applied_migrations(connection)
+
++
+
++    def record_applied(self, app_label, migration_name, connection=None):
+
++        if connection is None:
+
++            connection = connection or self.connection
+
++        if self.router.allow_migrate(connection.alias, self.model):
+
++            self.applied_migrations[connection].add((app_label, migration_name))
+
++        else:
+
++            # If the router does not allow migration, do not record the migration
+
++            pass
+
++
+
++    def record_unapplied(self, app_label, migration_name, connection=None):
+
++        if connection is None:
+
++            connection = connection or self.connection
+
++        if self.router.allow_migrate(connection.alias, self.model):
+
++            self.unapplied_migrations[connection].add((app_label, migration_name))
+
++        else:
+
++            # If the router does not allow migration, do not record the migration
+
++            pass
+
+ 
+
+     def add_dependency(self, model, dependency, reverse_dependency=False):
+
+         if reverse_dependency:
+
+
+--- a/decoupled/60/0.8_0.2/88/django_django/django/db/migrations/optimizer.py
++++ b/decoupled/60/0.8_0.2/88/django_django/django/db/migrations/optimizer.py
+@@ -9,33 +9,65 @@
+     nothing.
+
+     """
+
+ 
+
+-    def optimize(self, operations, app_label):
+
+-        """
+
+-        Main optimization entry point. Pass in a list of Operation instances,
+
+-        get out a new list of Operation instances.
+
++def optimize(self, operations, app_label, db_alias='default'):
+
++    """
+
++    Main optimization entry point. Pass in a list of Operation instances,
+
++    get out a new list of Operation instances.
+
+ 
+
+-        Unfortunately, due to the scope of the optimization (two combinable
+
+-        operations might be separated by several hundred others), this can't be
+
+-        done as a peephole optimization with checks/output implemented on
+
+-        the Operations themselves; instead, the optimizer looks at each
+
+-        individual operation and scans forwards in the list to see if there
+
+-        are any matches, stopping at boundaries - operations which can't
+
+-        be optimized over (RunSQL, operations on the same field/model, etc.)
+
++    Unfortunately, due to the scope of the optimization (two combinable
+
++    operations might be separated by several hundred others), this can't be
+
++    done as a peephole optimization with checks/output implemented on
+
++    the Operations themselves; instead, the optimizer looks at each
+
++    individual operation and scans forwards in the list to see if there
+
++    are any matches, stopping at boundaries - operations which can't
+
++    be optimized over (RunSQL, operations on the same field/model, etc.)
+
+ 
+
+-        The inner loop is run until the starting list is the same as the result
+
+-        list, and then the result is returned. This means that operation
+
+-        optimization must be stable and always return an equal or shorter list.
+
+-        """
+
+-        # Internal tracking variable for test assertions about # of loops
+
+-        if app_label is None:
+
+-            raise TypeError('app_label must be a str.')
+
+-        self._iterations = 0
+
+-        while True:
+
+-            result = self.optimize_inner(operations, app_label)
+
+-            self._iterations += 1
+
+-            if result == operations:
+
+-                return result
+
+-            operations = result
+
++    The inner loop is run until the starting list is the same as the result
+
++    list, and then the result is returned. This means that operation
+
++    optimization must be stable and always return an equal or shorter list.
+
++    """
+
++    # Internal tracking variable for test assertions about # of loops
+
++    if app_label is None:
+
++        raise TypeError('app_label must be a str.')
+
++    self._iterations = 0
+
++    while True:
+
++        result = self.optimize_inner(operations, app_label, db_alias)
+
++        self._iterations += 1
+
++        if result == operations:
+
++            return result
+
++        operations = result
+
++
+
++def optimize_inner(self, operations, app_label, db_alias='default'):
+
++    """
+
++    Inner optimization loop that respects the database router's rules.
+
++    """
+
++    optimized_operations = []
+
++    i = 0
+
++    while i < len(operations):
+
++        operation = operations[i]
+
++        if not self.router.allow_migrate(db_alias, operation.model):
+
++            # Skip operations that should not be applied to this database
+
++            i += 1
+
++            continue
+
++
+
++        # Check if the operation can be optimized with the next operations
+
++        j = i + 1
+
++        while j < len(operations) and self.can_optimize(operation, operations[j], app_label):
+
++            j += 1
+
++
+
++        # Add the optimized operations to the list
+
++        optimized_operations.extend(operations[i:j])
+
++        i = j
+
++
+
++    return optimized_operations
+
++
+
++def can_optimize(self, operation1, operation2, app_label):
+
++    """
+
++    Check if two operations can be optimized together.
+
++    """
+
++    # Implement the logic to check if the operations can be optimized
+
++    # This is a placeholder for the actual implementation
+
++    return True  # Placeholder return value
+
+ 
+
+     def optimize_inner(self, operations, app_label):
+
+         """Inner optimization loop."""
+
+
+
+
+--- a/decoupled/60/0.8_0.2/88/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/88/django_django/django/db/models/deletion.py
+@@ -161,41 +161,43 @@
+             signals.post_delete.has_listeners(model)
+
+         )
+
+ 
+
+-    def can_fast_delete(self, objs, from_field=None):
+
+-        """
+
+-        Determine if the objects in the given queryset-like or single object
+
+-        can be fast-deleted. This can be done if there are no cascades, no
+
+-        parents and no signal listeners for the object class.
+
+-
+
+-        The 'from_field' tells where we are coming from - we need this to
+
+-        determine if the objects are in fact to be deleted. Allow also
+
+-        skipping parent -> child -> parent chain preventing fast delete of
+
+-        the child.
+
+-        """
+
+-        if from_field and from_field.remote_field.on_delete is not CASCADE:
+
+-            return False
+
+-        if hasattr(objs, '_meta'):
+
+-            model = objs._meta.model
+
+-        elif hasattr(objs, 'model') and hasattr(objs, '_raw_delete'):
+
+-            model = objs.model
+
+-        else:
+
+-            return False
+
+-        if self._has_signal_listeners(model):
+
+-            return False
+
+-        # The use of from_field comes from the need to avoid cascade back to
+
+-        # parent when parent delete is cascading to child.
+
+-        opts = model._meta
+
+-        return (
+
+-            all(link == from_field for link in opts.concrete_model._meta.parents.values()) and
+
+-            # Foreign keys pointing to this model.
+
+-            all(
+
+-                related.field.remote_field.on_delete is DO_NOTHING
+
+-                for related in get_candidate_relations_to_delete(opts)
+
+-            ) and (
+
+-                # Something like generic foreign key.
+
+-                not any(hasattr(field, 'bulk_related_objects') for field in opts.private_fields)
+
+-            )
+
++def can_fast_delete(self, objs, from_field=None, db=None):
+
++    """
+
++    Determine if the objects in the given queryset-like or single object
+
++    can be fast-deleted. This can be done if there are no cascades, no
+
++    parents and no signal listeners for the object class.
+
++
+
++    The 'from_field' tells where we are coming from - we need this to
+
++    determine if the objects are in fact to be deleted. Allow also
+
++    skipping parent -> child -> parent chain preventing fast delete of
+
++    the child.
+
++    """
+
++    if from_field and from_field.remote_field.on_delete is not CASCADE:
+
++        return False
+
++    if hasattr(objs, '_meta'):
+
++        model = objs._meta.model
+
++    elif hasattr(objs, 'model') and hasattr(objs, '_raw_delete'):
+
++        model = objs.model
+
++    else:
+
++        return False
+
++    if self._has_signal_listeners(model):
+
++        return False
+
++    # The use of from_field comes from the need to avoid cascade back to
+
++    # parent when parent delete is cascading to child.
+
++    opts = model._meta
+
++    if db is None:
+
++        db = router.db_for_write(model, instance=objs)  # Use the router to determine the correct database
+
++    return (
+
++        all(link == from_field for link in opts.concrete_model._meta.parents.values()) and
+
++        # Foreign keys pointing to this model.
+
++        all(
+
++            related.field.remote_field.on_delete is DO_NOTHING
+
++            for related in get_candidate_relations_to_delete(opts)
+
++        ) and (
+
++            # Something like generic foreign key.
+
++            not any(hasattr(field, 'bulk_related_objects') for field in opts.private_fields)
+
+         )
+
++    )
+
+ 
+
+     def get_del_batches(self, objs, fields):
+
+         """
+
+

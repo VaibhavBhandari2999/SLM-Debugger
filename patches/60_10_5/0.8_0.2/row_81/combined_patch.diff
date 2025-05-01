@@ -1,0 +1,460 @@
+--- a/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
+@@ -357,6 +357,21 @@
+         """
+
+         return self.prepopulated_fields
+
+ 
+
++from django.urls import reverse
+
++from django.utils.http import quote
+
++
+
++class CustomAdminSite(admin.AdminSite):
+
++    def get_admin_url(self, remote_obj, url_name):
+
++        """
+
++        Generate a URL for the given object and URL name.
+
++        """
+
++        url = reverse(
+
++            url_name,
+
++            args=[quote(remote_obj.pk)],
+
++            current_app=self.name
+
++        )
+
++        return url
+
++
+
+     def get_queryset(self, request):
+
+         """
+
+         Return a QuerySet of all model instances that can be edited by the
+
+
+--- a/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
+@@ -427,50 +427,50 @@
+             LOOKUP_SEP.join(relation_parts + [part])
+
+         }.isdisjoint(valid_lookups)
+
+ 
+
+-    def to_field_allowed(self, request, to_field):
+
+-        """
+
+-        Return True if the model associated with this admin should be
+
+-        allowed to be referenced by the specified field.
+
+-        """
+
+-        opts = self.model._meta
+
+-
+
+-        try:
+
+-            field = opts.get_field(to_field)
+
+-        except FieldDoesNotExist:
+
+-            return False
+
+-
+
+-        # Always allow referencing the primary key since it's already possible
+
+-        # to get this information from the change view URL.
+
+-        if field.primary_key:
+
++def to_field_allowed(self, request, to_field):
+
++    """
+
++    Return True if the model associated with this admin should be
+
++    allowed to be referenced by the specified field.
+
++    """
+
++    opts = self.model._meta
+
++
+
++    try:
+
++        field = opts.get_field(to_field)
+
++    except FieldDoesNotExist:
+
++        return False
+
++
+
++    # Always allow referencing the primary key since it's already possible
+
++    # to get this information from the change view URL.
+
++    if field.primary_key:
+
++        return True
+
++
+
++    # Allow reverse relationships to models defining m2m fields if they
+
++    # target the specified field.
+
++    for many_to_many in opts.many_to_many:
+
++        if many_to_many.m2m_target_field_name() == to_field:
+
+             return True
+
+ 
+
+-        # Allow reverse relationships to models defining m2m fields if they
+
+-        # target the specified field.
+
+-        for many_to_many in opts.many_to_many:
+
+-            if many_to_many.m2m_target_field_name() == to_field:
+
+-                return True
+
+-
+
+-        # Make sure at least one of the models registered for this site
+
+-        # references this field through a FK or a M2M relationship.
+
+-        registered_models = set()
+
+-        for model, admin in self.admin_site._registry.items():
+
+-            registered_models.add(model)
+
+-            for inline in admin.inlines:
+
+-                registered_models.add(inline.model)
+
+-
+
+-        related_objects = (
+
+-            f for f in opts.get_fields(include_hidden=True)
+
+-            if (f.auto_created and not f.concrete)
+
+-        )
+
+-        for related_object in related_objects:
+
+-            related_model = related_object.related_model
+
+-            remote_field = related_object.field.remote_field
+
+-            if (any(issubclass(model, related_model) for model in registered_models) and
+
+-                    hasattr(remote_field, 'get_related_field') and
+
+-                    remote_field.get_related_field() == field):
+
+-                return True
+
+-
+
+-        return False
+
++    # Make sure at least one of the models registered for this site
+
++    # references this field through a FK or a M2M relationship.
+
++    registered_models = set()
+
++    for model, admin in self.admin_site._registry.items():
+
++        registered_models.add(model)
+
++        for inline in admin.inlines:
+
++            registered_models.add(inline.model)
+
++
+
++    related_objects = (
+
++        f for f in opts.get_fields(include_hidden=True)
+
++        if (f.auto_created and not f.concrete)
+
++    )
+
++    for related_object in related_objects:
+
++        related_model = related_object.related_model
+
++        remote_field = related_object.field.remote_field
+
++        if (any(issubclass(model, related_model) for model in registered_models) and
+
++                hasattr(remote_field, 'get_related_field') and
+
++                remote_field.get_related_field() == field):
+
++            return True
+
++
+
++    return False
+
+ 
+
+     def has_add_permission(self, request):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
+@@ -924,32 +924,16 @@
+             choices.append(choice)
+
+         return choices
+
+ 
+
+-    def get_action(self, action):
+
+-        """
+
+-        Return a given action from a parameter, which can either be a callable,
+
+-        or the name of a method on the ModelAdmin.  Return is a tuple of
+
+-        (callable, name, description).
+
+-        """
+
+-        # If the action is a callable, just use it.
+
+-        if callable(action):
+
+-            func = action
+
+-            action = action.__name__
+
+-
+
+-        # Next, look for a method. Grab it off self.__class__ to get an unbound
+
+-        # method instead of a bound one; this ensures that the calling
+
+-        # conventions are the same for functions and methods.
+
+-        elif hasattr(self.__class__, action):
+
+-            func = getattr(self.__class__, action)
+
+-
+
+-        # Finally, look for a named method on the admin site
+
+-        else:
+
+-            try:
+
+-                func = self.admin_site.get_action(action)
+
+-            except KeyError:
+
+-                return None
+
+-
+
+-        description = self._get_action_description(func, action)
+
+-        return func, action, description
+
++def get_admin_url(self, obj, url_name):
+
++    """
+
++    Return the admin URL for the given object and URL name.
+
++    """
+
++    url = reverse(
+
++        url_name,
+
++        args=[quote(obj.pk)],
+
++        current_app=self.admin_site.name
+
++    )
+
++    return url
+
+ 
+
+     def get_list_display(self, request):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/81/django_django/tests/admin_custom_urls/tests.py
++++ b/decoupled/60/0.8_0.2/81/django_django/tests/admin_custom_urls/tests.py
+@@ -66,22 +66,23 @@
+         response = self.client.post(reverse('admin_custom_urls:admin_custom_urls_action_add'), post_data)
+
+         self.assertContains(response, 'Action added through a popup')
+
+ 
+
+-    def test_admin_URLs_no_clash(self):
+
+-        # Should get the change_view for model instance with PK 'add', not show
+
+-        # the add_view
+
+-        url = reverse('admin_custom_urls:%s_action_change' % Action._meta.app_label, args=(quote('add'),))
+
+-        response = self.client.get(url)
+
+-        self.assertContains(response, 'Change action')
+
++def test_admin_URLs_no_clash(self):
+
++    # Should get the change_view for model instance with PK 'add', not show
+
++    # the add_view
+
++    url = reverse('admin_custom_urls:%s_action_change' % Action._meta.app_label, args=(quote('add'),), current_app='my_custom_admin_site')
+
++    response = self.client.get(url)
+
++    self.assertContains(response, 'Change action')
+
+ 
+
+-        # Should correctly get the change_view for the model instance with the
+
+-        # funny-looking PK (the one with a 'path/to/html/document.html' value)
+
+-        url = reverse(
+
+-            'admin_custom_urls:%s_action_change' % Action._meta.app_label,
+
+-            args=(quote("path/to/html/document.html"),)
+
+-        )
+
+-        response = self.client.get(url)
+
+-        self.assertContains(response, 'Change action')
+
+-        self.assertContains(response, 'value="path/to/html/document.html"')
+
++    # Should correctly get the change_view for the model instance with the
+
++    # funny-looking PK (the one with a 'path/to/html/document.html' value)
+
++    url = reverse(
+
++        'admin_custom_urls:%s_action_change' % Action._meta.app_label,
+
++        args=(quote("path/to/html/document.html"),),
+
++        current_app='my_custom_admin_site'
+
++    )
+
++    response = self.client.get(url)
+
++    self.assertContains(response, 'Change action')
+
++    self.assertContains(response, 'value="path/to/html/document.html"')
+
+ 
+
+     def test_post_save_add_redirect(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/81/django_django/django/contrib/admin/options.py
+@@ -958,17 +958,16 @@
+         """
+
+         return self.list_display
+
+ 
+
+-    def get_list_display_links(self, request, list_display):
+
+-        """
+
+-        Return a sequence containing the fields to be displayed as links
+
+-        on the changelist. The list_display parameter is the list of fields
+
+-        returned by get_list_display().
+
+-        """
+
+-        if self.list_display_links or self.list_display_links is None or not list_display:
+
+-            return self.list_display_links
+
+-        else:
+
+-            # Use only the first item in list_display as link
+
+-            return list(list_display)[:1]
+
++def get_admin_url(self, obj, url_name):
+
++    """
+
++    Return an admin URL for the given object and URL name.
+
++    """
+
++    url = reverse(
+
++        url_name,
+
++        args=[quote(obj.pk)],
+
++        current_app=self.admin_site.name
+
++    )
+
++    return url
+
+ 
+
+     def get_list_filter(self, request):
+
+         """
+
+

@@ -1,0 +1,619 @@
+--- a/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -338,6 +338,12 @@
+     source = fn.read_bytes()
+
+     strfn = str(fn)
+
+     tree = ast.parse(source, filename=strfn)
+
++    
+
++    # Check if the first node is a docstring
+
++    if isinstance(tree.body[0], ast.Expr) and isinstance(tree.body[0].value, ast.Str):
+
++        # Remove the docstring node
+
++        tree.body.pop(0)
+
++    
+
+     rewrite_asserts(tree, source, strfn, config)
+
+     co = compile(tree, strfn, "exec", dont_inherit=True)
+
+     return stat, co
+
+
+--- a/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/config/__init__.py
++++ b/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/config/__init__.py
+@@ -893,6 +893,39 @@
+                 new_package_files.append(new_fn)
+
+         if new_package_files:
+
+             yield from _iter_rewritable_modules(new_package_files)
+
++
+
++def _read_first_line_of_file(file_path: str) -> str:
+
++    """Read the first line of a file."""
+
++    with open(file_path, 'r', encoding='utf-8') as file:
+
++        return file.readline().strip()
+
++
+
++def _is_docstring(line: str) -> bool:
+
++    """Check if the line is a docstring."""
+
++    return line.startswith('"""') or line.startswith("'''")
+
++
+
++def _rewritable_module_names(package_files: Iterable[str]) -> Iterator[str]:
+
++    """Given an iterable of file names in a source distribution, return the "names" that should
+
++    be marked for assertion rewrite.
+
++
+
++    This function ensures that the first line of the file is not a docstring before processing.
+
++    """
+
++    package_files = list(package_files)
+
++    seen_some = False
+
++    for fn in package_files:
+
++        is_simple_module = "/" not in fn and fn.endswith(".py")
+
++        is_package = fn.count("/") == 1 and fn.endswith("__init__.py")
+
++        if is_simple_module:
+
++            module_name, _ = os.path.splitext(fn)
+
++            # we ignore "setup.py" at the root of the distribution
+
++            # as well as editable installation finder modules made by setuptools
+
++            if module_name != "setup" and not module_name.startswith("__editable__"):
+
++                seen_some = True
+
++                first_line = _read_first_line_of_file(fn)
+
++                if not _is_docstring(first_line):
+
++                    yield module_name
+
++        elif is_package:
+
++            package_name = os.path.dirname(fn)
+
++            seen_some = True
+
+ 
+
+ 
+
+ @final
+
+
+--- a/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -124,7 +124,7 @@
+     ) -> Optional[types.ModuleType]:
+
+         return None  # default behaviour is fine
+
+ 
+
+-    def exec_module(self, module: types.ModuleType) -> None:
+
++def exec_module(self, module: types.ModuleType) -> None:
+
+         assert module.__spec__ is not None
+
+         assert module.__spec__.origin is not None
+
+         fn = Path(module.__spec__.origin)
+
+@@ -164,6 +164,12 @@
+                     self._writing_pyc = False
+
+         else:
+
+             state.trace(f"found cached rewritten pyc for {fn}")
+
++        # Ensure docstring is a string before checking for "PYTEST_DONT_REWRITE"
+
++        docstring = getattr(module, '__doc__', '')
+
++        if docstring and "PYTEST_DONT_REWRITE" in docstring:
+
++            state.trace(f"docstring contains PYTEST_DONT_REWRITE: {docstring}")
+
++        else:
+
++            state.trace(f"docstring does not contain PYTEST_DONT_REWRITE: {docstring}")
+
+         exec(co, module.__dict__)
+
+ 
+
+     def _early_rewrite_bailout(self, name: str, state: "AssertionState") -> bool:
+
+
+--- a/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1378,91 +1378,91 @@
+ 
+
+         return popen
+
+ 
+
+-    def run(
+
+-        self,
+
+-        *cmdargs: Union[str, "os.PathLike[str]"],
+
+-        timeout: Optional[float] = None,
+
+-        stdin: Union[NotSetType, bytes, IO[Any], int] = CLOSE_STDIN,
+
+-    ) -> RunResult:
+
+-        """Run a command with arguments.
+
+-
+
+-        Run a process using :py:class:`subprocess.Popen` saving the stdout and
+
+-        stderr.
+
+-
+
+-        :param cmdargs:
+
+-            The sequence of arguments to pass to :py:class:`subprocess.Popen`,
+
+-            with path-like objects being converted to :py:class:`str`
+
+-            automatically.
+
+-        :param timeout:
+
+-            The period in seconds after which to timeout and raise
+
+-            :py:class:`Pytester.TimeoutExpired`.
+
+-        :param stdin:
+
+-            Optional standard input.
+
+-
+
+-            - If it is :py:attr:`CLOSE_STDIN` (Default), then this method calls
+
+-              :py:class:`subprocess.Popen` with ``stdin=subprocess.PIPE``, and
+
+-              the standard input is closed immediately after the new command is
+
+-              started.
+
+-
+
+-            - If it is of type :py:class:`bytes`, these bytes are sent to the
+
+-              standard input of the command.
+
+-
+
+-            - Otherwise, it is passed through to :py:class:`subprocess.Popen`.
+
+-              For further information in this case, consult the document of the
+
+-              ``stdin`` parameter in :py:class:`subprocess.Popen`.
+
+-        :returns:
+
+-            The result.
+
+-        """
+
+-        __tracebackhide__ = True
+
+-
+
+-        cmdargs = tuple(os.fspath(arg) for arg in cmdargs)
+
+-        p1 = self.path.joinpath("stdout")
+
+-        p2 = self.path.joinpath("stderr")
+
+-        print("running:", *cmdargs)
+
+-        print("     in:", Path.cwd())
+
+-
+
+-        with p1.open("w", encoding="utf8") as f1, p2.open("w", encoding="utf8") as f2:
+
+-            now = timing.time()
+
+-            popen = self.popen(
+
+-                cmdargs,
+
+-                stdin=stdin,
+
+-                stdout=f1,
+
+-                stderr=f2,
+
+-                close_fds=(sys.platform != "win32"),
+
++def run(
+
++    self,
+
++    *cmdargs: Union[str, "os.PathLike[str]"],
+
++    timeout: Optional[float] = None,
+
++    stdin: Union[NotSetType, bytes, IO[Any], int] = CLOSE_STDIN,
+
++) -> RunResult:
+
++    """Run a command with arguments.
+
++
+
++    Run a process using :py:class:`subprocess.Popen` saving the stdout and
+
++    stderr.
+
++
+
++    :param cmdargs:
+
++        The sequence of arguments to pass to :py:class:`subprocess.Popen`,
+
++        with path-like objects being converted to :py:class:`str`
+
++        automatically.
+
++    :param timeout:
+
++        The period in seconds after which to timeout and raise
+
++        :py:class:`Pytester.TimeoutExpired`.
+
++    :param stdin:
+
++        Optional standard input.
+
++
+
++        - If it is :py:attr:`CLOSE_STDIN` (Default), then this method calls
+
++          :py:class:`subprocess.Popen` with ``stdin=subprocess.PIPE``, and
+
++          the standard input is closed immediately after the new command is
+
++          started.
+
++
+
++        - If it is of type :py:class:`bytes`, these bytes are sent to the
+
++          standard input of the command.
+
++
+
++        - Otherwise, it is passed through to :py:class:`subprocess.Popen`.
+
++          For further information in this case, consult the document of the
+
++          ``stdin`` parameter in :py:class:`subprocess.Popen`.
+
++    :returns:
+
++        The result.
+
++    """
+
++    __tracebackhide__ = True
+
++
+
++    cmdargs = tuple(os.fspath(arg) for arg in cmdargs)
+
++    p1 = self.path.joinpath("stdout")
+
++    p2 = self.path.joinpath("stderr")
+
++    print("running:", *cmdargs)
+
++    print("     in:", Path.cwd())
+
++
+
++    with p1.open("w", encoding="utf8") as f1, p2.open("w", encoding="utf8") as f2:
+
++        now = timing.time()
+
++        popen = self.popen(
+
++            cmdargs,
+
++            stdin=stdin,
+
++            stdout=f1,
+
++            stderr=f2,
+
++            close_fds=(sys.platform != "win32"),
+
++        )
+
++        if popen.stdin is not None:
+
++            popen.stdin.close()
+
++
+
++        def handle_timeout() -> None:
+
++            __tracebackhide__ = True
+
++
+
++            timeout_message = (
+
++                "{seconds} second timeout expired running:"
+
++                " {command}".format(seconds=timeout, command=cmdargs)
+
+             )
+
+-            if popen.stdin is not None:
+
+-                popen.stdin.close()
+
+-
+
+-            def handle_timeout() -> None:
+
+-                __tracebackhide__ = True
+
+-
+
+-                timeout_message = (
+
+-                    "{seconds} second timeout expired running:"
+
+-                    " {command}".format(seconds=timeout, command=cmdargs)
+
+-                )
+
+-
+
+-                popen.kill()
+
+-                popen.wait()
+
+-                raise self.TimeoutExpired(timeout_message)
+
+-
+
+-            if timeout is None:
+
+-                ret = popen.wait()
+
+-            else:
+
+-                try:
+
+-                    ret = popen.wait(timeout)
+
+-                except subprocess.TimeoutExpired:
+
+-                    handle_timeout()
+
+-
+
+-        with p1.open(encoding="utf8") as f1, p2.open(encoding="utf8") as f2:
+
+-            out = f1.read().splitlines()
+
+-            err = f2.read().splitlines()
+
+-
+
+-        self._dump_lines(out, sys.stdout)
+
+-        self._dump_lines(err, sys.stderr)
+
+-
+
+-        with contextlib.suppress(ValueError):
+
+-            ret = ExitCode(ret)
+
+-        return RunResult(ret, out, err, timing.time() - now)
+
++
+
++            popen.kill()
+
++            popen.wait()
+
++            raise self.TimeoutExpired(timeout_message)
+
++
+
++        if timeout is None:
+
++            ret = popen.wait()
+
++        else:
+
++            try:
+
++                ret = popen.wait(timeout)
+
++            except subprocess.TimeoutExpired:
+
++                handle_timeout()
+
++
+
++    with p1.open(encoding="utf8") as f1, p2.open(encoding="utf8") as f2:
+
++        out = f1.read().splitlines()
+
++        err = f2.read().splitlines()
+
++
+
++    self._dump_lines(out, sys.stdout)
+
++    self._dump_lines(err, sys.stderr)
+
++
+
++    with contextlib.suppress(ValueError):
+
++        ret = ExitCode(ret)
+
++    return RunResult(ret, out, err, timing.time() - now)
+
+ 
+
+     def _dump_lines(self, lines, fp):
+
+         try:
+
+
+--- a/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/167/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1647,26 +1647,33 @@
+         __tracebackhide__ = True
+
+         self._match_lines(lines2, fnmatch, "fnmatch", consecutive=consecutive)
+
+ 
+
+-    def re_match_lines(
+
+-        self, lines2: Sequence[str], *, consecutive: bool = False
+
+-    ) -> None:
+
+-        """Check lines exist in the output (using :func:`python:re.match`).
+
+-
+
+-        The argument is a list of lines which have to match using ``re.match``.
+
+-        If they do not match a pytest.fail() is called.
+
+-
+
+-        The matches and non-matches are also shown as part of the error message.
+
+-
+
+-        :param lines2: string patterns to match.
+
+-        :param consecutive: match lines consecutively?
+
+-        """
+
+-        __tracebackhide__ = True
+
+-        self._match_lines(
+
+-            lines2,
+
+-            lambda name, pat: bool(re.match(pat, name)),
+
+-            "re.match",
+
+-            consecutive=consecutive,
+
+-        )
+
++def re_match_lines(
+
++    self, lines2: Sequence[str], *, consecutive: bool = False
+
++) -> None:
+
++    """Check lines exist in the output (using :func:`python:re.match`).
+
++
+
++    The argument is a list of lines which have to match using ``re.match``.
+
++    If they do not match a pytest.fail() is called.
+
++
+
++    The matches and non-matches are also shown as part of the error message.
+
++
+
++    :param lines2: string patterns to match.
+
++    :param consecutive: match lines consecutively?
+
++    """
+
++    __tracebackhide__ = True
+
++
+
++    # Check if the first line is a docstring or a number
+
++    first_line = lines2[0] if lines2 else ""
+
++    if first_line.startswith('"""') or first_line.startswith("'''"):
+
++        # If it's a docstring, skip it
+
++        lines2 = lines2[1:]
+
++
+
++    self._match_lines(
+
++        lines2,
+
++        lambda name, pat: bool(re.match(pat, name)),
+
++        "re.match",
+
++        consecutive=consecutive,
+
++    )
+
+ 
+
+     def _match_lines(
+
+         self,
+
+

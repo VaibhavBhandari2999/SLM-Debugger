@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/63/django_django/django/template/smartif.py
++++ b/decoupled/60/0.8_0.2/63/django_django/django/template/smartif.py
+@@ -40,6 +40,8 @@
+         return "(" + " ".join(out) + ")"
+
+ 
+
+ 
+
++import logging
+
++
+
+ def infix(bp, func):
+
+     """
+
+     Create an infix operator, given a binding power and a function that
+
+@@ -56,10 +58,11 @@
+         def eval(self, context):
+
+             try:
+
+                 return func(context, self.first, self.second)
+
+-            except Exception:
+
++            except Exception as e:
+
+                 # Templates shouldn't throw exceptions when rendering.  We are
+
+                 # most likely to get exceptions for things like {% if foo in bar
+
+                 # %} where 'bar' does not support 'in', so default to False
+
++                logging.exception("Exception occurred during evaluation of template expression")
+
+                 return False
+
+ 
+
+     return Operator

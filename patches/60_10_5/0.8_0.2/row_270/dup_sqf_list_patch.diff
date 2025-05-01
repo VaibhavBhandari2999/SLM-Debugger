@@ -1,0 +1,24 @@
+--- a/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
++++ b/decoupled/60/0.8_0.2/270/sympy_sympy/sympy/polys/sqfreetools.py
+@@ -328,7 +328,10 @@
+         g, p, q = dup_inner_gcd(p, h, K)
+
+ 
+
+         if all or dup_degree(g) > 0:
+
+-            result.append((g, i))
+
++            if result and result[-1][0] == g:
+
++                result[-1] = (g, result[-1][1] + i)
+
++            else:
+
++                result.append((g, i))
+
+ 
+
+         i += 1
+
+ 

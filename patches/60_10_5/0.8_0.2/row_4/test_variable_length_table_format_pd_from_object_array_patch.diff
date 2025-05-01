@@ -1,0 +1,84 @@
+--- a/decoupled/60/0.8_0.2/4/astropy_astropy/astropy/io/fits/tests/test_table.py
++++ b/decoupled/60/0.8_0.2/4/astropy_astropy/astropy/io/fits/tests/test_table.py
+@@ -2588,22 +2588,25 @@
+         for code in ('PJ()', 'QJ()'):
+
+             test(code)
+
+ 
+
+-    def test_variable_length_table_format_pd_from_object_array(self):
+
+-        def test(format_code):
+
+-            a = np.array([np.array([7.2e-20, 7.3e-20]), np.array([0.0]),
+
+-                          np.array([0.0])], 'O')
+
+-            acol = fits.Column(name='testa', format=format_code, array=a)
+
+-            tbhdu = fits.BinTableHDU.from_columns([acol])
+
+-            with ignore_warnings():
+
+-                tbhdu.writeto(self.temp('newtable.fits'), overwrite=True)
+
+-            with fits.open(self.temp('newtable.fits')) as tbhdu1:
+
+-                assert tbhdu1[1].columns[0].format.endswith('D(2)')
+
+-                for j in range(3):
+
+-                    for i in range(len(a[j])):
+
+-                        assert tbhdu1[1].data.field(0)[j][i] == a[j][i]
+
+-
+
+-        for code in ('PD()', 'QD()'):
+
+-            test(code)
+
++def test_variable_length_table_format_pd_from_object_array(self):
+
++    def test(format_code):
+
++        a = np.array([np.array([7.2e-20, 7.3e-20]), np.array([0.0]),
+
++                      np.array([0.0])], 'O')
+
++        # Replace exponent separator in floating point numbers
+
++        output_field = fits.Column(name='testa', format=format_code, array=a).format
+
++        output_field = output_field.replace(encode_ascii('E'), encode_ascii('D'))
+
++        acol = fits.Column(name='testa', format=output_field, array=a)
+
++        tbhdu = fits.BinTableHDU.from_columns([acol])
+
++        with ignore_warnings():
+
++            tbhdu.writeto(self.temp('newtable.fits'), overwrite=True)
+
++        with fits.open(self.temp('newtable.fits')) as tbhdu1:
+
++            assert tbhdu1[1].columns[0].format.endswith('D(2)')
+
++            for j in range(3):
+
++                for i in range(len(a[j])):
+
++                    assert tbhdu1[1].data.field(0)[j][i] == a[j][i]
+
++
+
++    for code in ('PD()', 'QD()'):
+
++        test(code)
+
+ 
+
+     def test_variable_length_table_format_pd_from_list(self):
+
+         def test(format_code):

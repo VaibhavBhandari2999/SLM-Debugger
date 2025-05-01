@@ -1,0 +1,60 @@
+--- a/decoupled/60/0.8_0.2/174/pytest-dev_pytest/src/_pytest/debugging.py
++++ b/decoupled/60/0.8_0.2/174/pytest-dev_pytest/src/_pytest/debugging.py
+@@ -159,19 +159,16 @@
+ 
+
+             do_c = do_cont = do_continue
+
+ 
+
+-            def do_quit(self, arg):
+
+-                """Raise Exit outcome when quit command is used in pdb.
+
+-
+
+-                This is a bit of a hack - it would be better if BdbQuit
+
+-                could be handled, but this would require to wrap the
+
+-                whole pytest run, and adjust the report etc.
+
+-                """
+
+-                ret = super().do_quit(arg)
+
+-
+
+-                if cls._recursive_debug == 0:
+
+-                    outcomes.exit("Quitting debugger")
+
+-
+
+-                return ret
+
++# pytest.ini or pyproject.toml
+
++[pytest]
+
++junit_family = xunit1
+
++junit_xml_output = tests/reports/junit.xml
+
++
+
++# Add custom properties to the testsuite element
+
++[pytest-junitreport]
+
++properties =
+
++    hostname: {{ env.HOSTNAME or "localhost" }}
+
++    timestamp: {{ time.strftime('%Y-%m-%dT%H:%M:%S') }}
+
+ 
+
+             do_q = do_quit
+
+             do_exit = do_quit

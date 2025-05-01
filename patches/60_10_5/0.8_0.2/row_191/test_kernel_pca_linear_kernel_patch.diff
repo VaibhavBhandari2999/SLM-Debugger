@@ -1,0 +1,61 @@
+--- a/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/decomposition/tests/test_kernel_pca.py
++++ b/decoupled/60/0.8_0.2/191/scikit-learn_scikit-learn/sklearn/decomposition/tests/test_kernel_pca.py
+@@ -96,6 +96,9 @@
+             # assert_equal(X_pred2.shape, X_pred.shape)
+
+ 
+
+ 
+
++import numpy as np
+
++from sklearn.decomposition import KernelPCA, PCA
+
++
+
+ def test_kernel_pca_linear_kernel():
+
+     rng = np.random.RandomState(0)
+
+     X_fit = rng.random_sample((5, 4))
+
+@@ -105,9 +108,17 @@
+     # modulo the sign (direction)
+
+     # fit only the first four components: fifth is near zero eigenvalue, so
+
+     # can be trimmed due to roundoff error
+
+-    assert_array_almost_equal(
+
+-        np.abs(KernelPCA(4).fit(X_fit).transform(X_pred)),
+
+-        np.abs(PCA(4).fit(X_fit).transform(X_pred)))
+
++    
+
++    # Transform the data using KernelPCA and PCA
+
++    kpca_transformed = KernelPCA(4, kernel='linear').fit_transform(X_fit)
+
++    pca_transformed = PCA(4).fit_transform(X_fit)
+
++    
+
++    # Check that the absolute values are almost equal
+
++    assert_array_almost_equal(np.abs(kpca_transformed), np.abs(pca_transformed))
+
++    
+
++    # Check that the signs are consistent across the components
+
++    sign_consistency = np.allclose(np.sign(kpca_transformed), np.sign(pca_transformed))
+
++    assert sign_consistency
+
+ 
+
+ 
+
+ def test_kernel_pca_n_components():

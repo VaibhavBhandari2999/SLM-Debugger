@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
++++ b/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
+@@ -90,10 +90,11 @@
+         else:
+
+             self.fail('Errors found on formset:%s' % form_set.errors)
+
+ 
+
+-    def test_formset_over_inherited_model(self):
+
++def test_formset_over_inherited_model(self):
+
+         "A formset over a ForeignKey with a to_field can be saved. Regression for #11120"
+
++        # Define the form and formset factories
+
+         Form = modelform_factory(Restaurant, fields="__all__")
+
+-        FormSet = inlineformset_factory(Restaurant, Manager, fields="__all__")
+
++        FormSet = inlineformset_factory(Restaurant, Manager, fields="__all__", limit_choices_to={'restaurant': 'pk'})
+
+ 
+
+         # Instantiate the Form and FormSet to prove
+
+         # you can create a form with no data
+
+@@ -108,7 +109,7 @@
+             'manager_set-MAX_NUM_FORMS': '0',
+
+             'manager_set-0-name': 'Guido Van Rossum'
+
+         }
+
+-        restaurant = User()
+
++        restaurant = Restaurant()
+
+         form = Form(data)
+
+         if form.is_valid():
+
+             restaurant = form.save()

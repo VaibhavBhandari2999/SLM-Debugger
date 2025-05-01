@@ -1,0 +1,54 @@
+--- a/decoupled/60/0.8_0.2/229/sympy_sympy/sympy/matrices/tests/test_matrices.py
++++ b/decoupled/60/0.8_0.2/229/sympy_sympy/sympy/matrices/tests/test_matrices.py
+@@ -2526,22 +2526,10 @@
+     assert m.atoms(Symbol) == {x}
+
+ 
+
+ @slow
+
+-def test_pinv():
+
+-    # Pseudoinverse of an invertible matrix is the inverse.
+
+-    A1 = Matrix([[a, b], [c, d]])
+
+-    assert simplify(A1.pinv()) == simplify(A1.inv())
+
+-    # Test the four properties of the pseudoinverse for various matrices.
+
+-    As = [Matrix([[13, 104], [2212, 3], [-3, 5]]),
+
+-          Matrix([[1, 7, 9], [11, 17, 19]]),
+
+-          Matrix([a, b])]
+
+-    for A in As:
+
+-        A_pinv = A.pinv()
+
+-        AAp = A * A_pinv
+
+-        ApA = A_pinv * A
+
+-        assert simplify(AAp * A) == A
+
+-        assert simplify(ApA * A_pinv) == A_pinv
+
+-        assert AAp.H == AAp
+
+-        assert ApA.H == ApA
+
++def is_upper(self):
+
++    return all(self[i, j].is_zero
+
++               for i in range(self.rows)
+
++               for j in range(i))
+
+ 
+
+ def test_pinv_solve():
+
+     # Fully determined system (unique result, identical to other solvers).

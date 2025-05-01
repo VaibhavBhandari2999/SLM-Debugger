@@ -1,0 +1,28 @@
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dask.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dask.py
+@@ -1518,6 +1518,13 @@
+ 
+
+     with raise_if_dask_computes():
+
+         assert getattr(var1, compat)(var2.transpose("y", "x"))
+
++
+
++    # Fix for the issue with chunked DataArray
+
++    foo = xr.DataArray(da.zeros((10, 10), chunks=2), dims=("x", "y"))
+
++    update_dict = {"foo": foo}
+
++    ds = xr.Dataset({"foo": foo, "bar": ("x", [1, 2, 3])})
+
++    ds.update(update_dict)
+
++    assert ds.foo.chunks == ((2,), (2,))
+
+ 
+
+ 
+
+ @pytest.mark.parametrize(

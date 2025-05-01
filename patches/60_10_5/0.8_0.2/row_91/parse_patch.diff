@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/91/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/91/django_django/django/template/base.py
+@@ -452,7 +452,7 @@
+     def __repr__(self):
+
+         return '<%s tokens=%r>' % (self.__class__.__qualname__, self.tokens)
+
+ 
+
+-    def parse(self, parse_until=None):
+
++def parse(self, parse_until=None):
+
+         """
+
+         Iterate through the parser tokens and compiles each one into a node.
+
+ 

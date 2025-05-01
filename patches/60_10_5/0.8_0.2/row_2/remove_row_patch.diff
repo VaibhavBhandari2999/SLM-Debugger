@@ -1,0 +1,144 @@
+--- a/decoupled/60/0.8_0.2/2/astropy_astropy/astropy/table/table.py
++++ b/decoupled/60/0.8_0.2/2/astropy_astropy/astropy/table/table.py
+@@ -2660,43 +2660,42 @@
+ 
+
+         self.columns.__setitem__(name, col, validated=True)
+
+ 
+
+-    def remove_row(self, index):
+
+-        """
+
+-        Remove a row from the table.
+
++from astropy.io import ascii
+
++
+
++class Table:
+
++    @classmethod
+
++    def read(cls, filename, format='ascii.qdp', **kwargs):
+
++        """
+
++        Read a QDP file into a Table.
+
+ 
+
+         Parameters
+
+         ----------
+
+-        index : int
+
+-            Index of row to remove
+
++        filename : str
+
++            Name of the file to read.
+
++        format : str
+
++            Format name, in this case 'ascii.qdp'.
+
++        **kwargs : dict
+
++            Additional keyword arguments to pass to the reader.
+
+ 
+
+         Examples
+
+         --------
+
+-        Create a table with three columns 'a', 'b' and 'c'::
+
+-
+
+-            >>> t = Table([[1, 2, 3], [0.1, 0.2, 0.3], ['x', 'y', 'z']],
+
+-            ...           names=('a', 'b', 'c'))
+
+-            >>> print(t)
+
++        Read a QDP file into a Table:
+
++
+
++        >>> from astropy.table import Table
+
++        >>> t = Table.read('test.qdp', format='ascii.qdp')
+
++        >>> print(t)
+
+              a   b   c
+
+             --- --- ---
+
+-              1 0.1   x
+
+-              2 0.2   y
+
+-              3 0.3   z
+
+-
+
+-        Remove row 1 from the table::
+
+-
+
+-            >>> t.remove_row(1)
+
+-            >>> print(t)
+
+-             a   b   c
+
+-            --- --- ---
+
+-              1 0.1   x
+
+-              3 0.3   z
+
+-
+
+-        To remove several rows at the same time use remove_rows.
+
+-        """
+
+-        # check the index against the types that work with np.delete
+
+-        if not isinstance(index, (int, np.integer)):
+
+-            raise TypeError("Row index must be an integer")
+
+-        self.remove_rows(index)
+
++              1 0.5   1
+
++              2 0.5   2
+
++        """
+
++        # Read the file with the ascii.qdp reader
+
++        table = ascii.read(filename, format='qdp', **kwargs)
+
++
+
++        # Convert all commands to lower case to handle both upper and lower case
+
++        table._qdp_commands = [cmd.lower() for cmd in table._qdp_commands]
+
++
+
++        return table
+
+ 
+
+     def remove_rows(self, row_specifier):
+
+         """

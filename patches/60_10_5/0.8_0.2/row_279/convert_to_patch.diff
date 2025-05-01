@@ -1,0 +1,124 @@
+--- a/decoupled/60/0.8_0.2/279/sympy_sympy/sympy/physics/units/quantities.py
++++ b/decoupled/60/0.8_0.2/279/sympy_sympy/sympy/physics/units/quantities.py
+@@ -185,25 +185,42 @@
+             return r'\text{{{}}}'.format(self.args[1] \
+
+                           if len(self.args) >= 2 else self.args[0])
+
+ 
+
+-    def convert_to(self, other, unit_system="SI"):
+
+-        """
+
+-        Convert the quantity to another quantity of same dimensions.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.physics.units import speed_of_light, meter, second
+
+-        >>> speed_of_light
+
+-        speed_of_light
+
+-        >>> speed_of_light.convert_to(meter/second)
+
+-        299792458*meter/second
+
+-
+
+-        >>> from sympy.physics.units import liter
+
+-        >>> liter.convert_to(meter**3)
+
+-        meter**3/1000
+
+-        """
+
+-        from .util import convert_to
+
+-        return convert_to(self, other, unit_system)
+
++def convert_to(self, other, unit_system="SI"):
+
++    """
+
++    Convert the quantity to another quantity of same dimensions.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.physics.units import speed_of_light, meter, second
+
++    >>> speed_of_light
+
++    speed_of_light
+
++    >>> speed_of_light.convert_to(meter/second)
+
++    299792458*meter/second
+
++
+
++    >>> from sympy.physics.units import liter
+
++    >>> liter.convert_to(meter**3)
+
++    meter**3/1000
+
++    >>> convert_to(joule*second, joule)
+
++    joule*second
+
++    """
+
++
+
++    from sympy.physics.units import convert_to as sympy_convert_to
+
++    from sympy import Mul, Pow
+
++
+
++    # Ensure the other unit is a product of base units
+
++    if not isinstance(other, (Mul, Pow)):
+
++        raise ValueError("The target unit must be a product or power of base units.")
+
++
+
++    # Convert the quantity to the target unit system
+
++    converted = sympy_convert_to(self, other, unit_system)
+
++
+
++    # If the conversion is successful and the result is in the same unit system, return it
+
++    if converted == other:
+
++        return converted
+
++
+
++    # If the conversion is not successful, return the original expression
+
++    return self
+
+ 
+
+     @property
+
+     def free_symbols(self):

@@ -1,0 +1,50 @@
+--- a/decoupled/60/0.8_0.2/31/django_django/django/db/models/functions/comparison.py
++++ b/decoupled/60/0.8_0.2/31/django_django/django/db/models/functions/comparison.py
+@@ -14,19 +14,11 @@
+         extra_context['db_type'] = self.output_field.cast_db_type(connection)
+
+         return super().as_sql(compiler, connection, **extra_context)
+
+ 
+
+-    def as_sqlite(self, compiler, connection, **extra_context):
+
+-        db_type = self.output_field.db_type(connection)
+
+-        if db_type in {'datetime', 'time'}:
+
+-            # Use strftime as datetime/time don't keep fractional seconds.
+
+-            template = 'strftime(%%s, %(expressions)s)'
+
+-            sql, params = super().as_sql(compiler, connection, template=template, **extra_context)
+
+-            format_string = '%H:%M:%f' if db_type == 'time' else '%Y-%m-%d %H:%M:%f'
+
+-            params.insert(0, format_string)
+
+-            return sql, params
+
+-        elif db_type == 'date':
+
+-            template = 'date(%(expressions)s)'
+
+-            return super().as_sql(compiler, connection, template=template, **extra_context)
+
+-        return self.as_sql(compiler, connection, **extra_context)
+
++def modules(request, format='html'):
+
++    if format is None:
+
++        format = 'html'  # Set a default value if format is not provided
+
++    # Rest of the function remains the same
+
++    return render(request, f'{format}_template.html', context)
+
+ 
+
+     def as_mysql(self, compiler, connection, **extra_context):
+
+         # MySQL doesn't support explicit cast to float.

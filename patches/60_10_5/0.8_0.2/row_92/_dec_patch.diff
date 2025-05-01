@@ -1,0 +1,64 @@
+--- a/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
+@@ -61,23 +61,14 @@
+     # is passed to _dec,  it will eventually be a method of the class it is
+
+     # defined on. If 'obj' is a class, the 'name' is required to be the name
+
+     # of the method that will be decorated.
+
+-    def _dec(obj):
+
+-        if not isinstance(obj, type):
+
+-            return _multi_decorate(decorator, obj)
+
+-        if not (name and hasattr(obj, name)):
+
+-            raise ValueError(
+
+-                "The keyword argument `name` must be the name of a method "
+
+-                "of the decorated class: %s. Got '%s' instead." % (obj, name)
+
+-            )
+
+-        method = getattr(obj, name)
+
+-        if not callable(method):
+
+-            raise TypeError(
+
+-                "Cannot decorate '%s' as it isn't a callable attribute of "
+
+-                "%s (%s)." % (name, obj, method)
+
+-            )
+
+-        _wrapper = _multi_decorate(decorator, method)
+
+-        setattr(obj, name, _wrapper)
+
+-        return obj
+
++from django.utils.functional import SimpleLazyObject
+
++from operator import radd
+
++
+
++class SimpleLazyObject(SimpleLazyObject):
+
++    def __radd__(self, other):
+
++        if self._wrapped is None:
+
++            self._setup()
+
++        return radd(other, self._wrapped)
+
+ 
+
+     # Don't worry about making _dec look similar to a list/tuple as it's rather
+
+     # meaningless.

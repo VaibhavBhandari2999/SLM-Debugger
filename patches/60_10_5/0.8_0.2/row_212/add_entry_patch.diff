@@ -1,0 +1,130 @@
+--- a/decoupled/60/0.8_0.2/212/sphinx-doc_sphinx/sphinx/environment/adapters/indexentries.py
++++ b/decoupled/60/0.8_0.2/212/sphinx-doc_sphinx/sphinx/environment/adapters/indexentries.py
+@@ -35,24 +35,46 @@
+         """Create the real index from the collected index entries."""
+
+         new = {}  # type: Dict[str, List]
+
+ 
+
+-        def add_entry(word: str, subword: str, main: str, link: bool = True,
+
+-                      dic: Dict = new, key: str = None) -> None:
+
+-            # Force the word to be unicode if it's a ASCII bytestring.
+
+-            # This will solve problems with unicode normalization later.
+
+-            # For instance the RFC role will add bytestrings at the moment
+
+-            word = str(word)
+
+-            entry = dic.get(word)
+
+-            if not entry:
+
+-                dic[word] = entry = [[], {}, key]
+
+-            if subword:
+
+-                add_entry(subword, '', main, link=link, dic=entry[1], key=key)
+
+-            elif link:
+
+-                try:
+
+-                    uri = builder.get_relative_uri('genindex', fn) + '#' + tid
+
+-                except NoUri:
+
+-                    pass
+
+-                else:
+
+-                    entry[0].append((main, uri))
+
++from typing import Dict, Any, Optional
+
++
+
++def add_entry(word: str, subword: str, main: str, link: bool = True,
+
++              dic: Dict = new, key: Optional[str] = None) -> None:
+
++    # Force the word to be unicode if it's a ASCII bytestring.
+
++    # This will solve problems with unicode normalization later.
+
++    # For instance the RFC role will add bytestrings at the moment
+
++    word = str(word)
+
++    
+
++    # Define special symbols
+
++    special_symbols = ['@', '£', '←']
+
++    
+
++    # Check if the word starts with a special symbol
+
++    if any(word.startswith(f'_{symbol}_') for symbol in special_symbols):
+
++        # Handle special symbols separately
+
++        if dic.get(word) is None:
+
++            dic[word] = [[], {}, key]
+
++        if subword:
+
++            add_entry(subword, '', main, link=link, dic=dic[word][1], key=key)
+
++        elif link:
+
++            try:
+
++                uri = builder.get_relative_uri('genindex', fn) + '#' + tid
+
++            except NoUri:
+
++                pass
+
++            else:
+
++                dic[word][0].append((main, uri))
+
++    else:
+
++        # Handle normal words
+
++        entry = dic.get(word)
+
++        if not entry:
+
++            dic[word] = entry = [[], {}, key]
+
++        if subword:
+
++            add_entry(subword, '', main, link=link, dic=entry[1], key=key)
+
++        elif link:
+
++            try:
+
++                uri = builder.get_relative_uri('genindex', fn) + '#' + tid
+
++            except NoUri:
+
++                pass
+
++            else:
+
++                entry[0].append((main, uri))
+
+ 
+
+         domain = cast(IndexDomain, self.env.get_domain('index'))
+
+         for fn, entries in domain.entries.items():

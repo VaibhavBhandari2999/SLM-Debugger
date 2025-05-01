@@ -1,0 +1,118 @@
+--- a/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
++++ b/decoupled/60/0.8_0.2/213/sphinx-doc_sphinx/sphinx/testing/path.py
+@@ -88,17 +88,47 @@
+         """
+
+         shutil.rmtree(self, ignore_errors=ignore_errors, onerror=onerror)
+
+ 
+
+-    def copytree(self, destination: str, symlinks: bool = False) -> None:
+
+-        """
+
+-        Recursively copy a directory to the given `destination`. If the given
+
+-        `destination` does not exist it will be created.
+
+-
+
+-        :param symlinks:
+
+-            If ``True`` symbolic links in the source tree result in symbolic
+
+-            links in the destination tree otherwise the contents of the files
+
+-            pointed to by the symbolic links are copied.
+
+-        """
+
+-        shutil.copytree(self, destination, symlinks=symlinks)
+
++def copytree(self, destination: str, symlinks: bool = False) -> None:
+
++    """
+
++    Recursively copy a directory to the given `destination`. If the given
+
++    `destination` does not exist it will be created.
+
++
+
++    :param symlinks:
+
++        If ``True`` symbolic links in the source tree result in symbolic
+
++        links in the destination tree otherwise the contents of the files
+
++        pointed to by the symbolic links are copied.
+
++    """
+
++    # Bug Analysis:
+
++    # The current implementation of copytree simply copies the entire directory
+
++    # structure without creating the appropriate section directories for man pages.
+
++    # This results in all man pages being placed in a single-level directory: <build-dir>/man.
+
++    # To fix this, we need to create the appropriate section directories and place
+
++    # each man page in the correct section directory based on its section number.
+
++
+
++    # Fixed Function:
+
++    # We will modify the function to create the appropriate section directories
+
++    # and place each man page in the correct section directory.
+
++    # We will assume that the man pages are named in the format <name>.<section>.
+
++
+
++    # Create the destination directory if it does not exist
+
++    if not os.path.exists(destination):
+
++        os.makedirs(destination)
+
++
+
++    # Walk through the source directory and copy the man pages to the appropriate section directories
+
++    for root, dirs, files in os.walk(self):
+
++        for file in files:
+
++            # Check if the file is a man page
+
++            if file.endswith('.1') or file.endswith('.3') or file.endswith('.5') or file.endswith('.7') or file.endswith('.8'):
+
++                # Extract the section number from the file name
+
++                section = file[-2] if file.endswith('.1') or file.endswith('.8') else file[-3]
+
++                # Create the section directory if it does not exist
+
++                section_dir = os.path.join(destination, f'man/man{section}')
+
++                if not os.path.exists(section_dir):
+
++                    os.makedirs(section_dir)
+
++                # Copy the man page to the appropriate section directory
+
++                src_file = os.path.join(root, file)
+
++                dst_file = os.path.join(section_dir, file)
+
++                shutil.copy2(src_file, dst_file)
+
+ 
+
+     def movetree(self, destination: str) -> None:
+
+         """

@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
+@@ -19,6 +19,8 @@
+     update_wrapper(_wrapper, dummy)
+
+ 
+
+ 
+
++from functools import partial, wraps
+
++
+
+ def _multi_decorate(decorators, method):
+
+     """
+
+     Decorate `method` with one or more function decorators. `decorators` can be
+
+@@ -33,11 +35,8 @@
+         decorators = [decorators]
+
+ 
+
+     def _wrapper(self, *args, **kwargs):
+
+-        # bound_method has the signature that 'decorator' expects i.e. no
+
+-        # 'self' argument, but it's a closure over self so it can call
+
+-        # 'func'. Also, wrap method.__get__() in a function because new
+
+-        # attributes can't be set on bound method objects, only on functions.
+
+-        bound_method = partial(method.__get__(self, type(self)))
+
++        # Create a function that calls 'method' with 'self' and the provided arguments
+
++        bound_method = partial(lambda self, *args, **kwargs: method(self, *args, **kwargs), self)
+
+         for dec in decorators:
+
+             bound_method = dec(bound_method)
+
+         return bound_method(*args, **kwargs)

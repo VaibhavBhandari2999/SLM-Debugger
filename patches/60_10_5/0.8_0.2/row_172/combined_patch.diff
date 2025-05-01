@@ -1,0 +1,529 @@
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/python_api.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/python_api.py
+@@ -625,82 +625,7 @@
+ 
+
+     **Legacy form**
+
+ 
+
+-    It is possible to specify a callable by passing a to-be-called lambda::
+
+-
+
+-        >>> raises(ZeroDivisionError, lambda: 1/0)
+
+-        <ExceptionInfo ...>
+
+-
+
+-    or you can specify an arbitrary callable with arguments::
+
+-
+
+-        >>> def f(x): return 1/x
+
+-        ...
+
+-        >>> raises(ZeroDivisionError, f, 0)
+
+-        <ExceptionInfo ...>
+
+-        >>> raises(ZeroDivisionError, f, x=0)
+
+-        <ExceptionInfo ...>
+
+-
+
+-    The form above is fully supported but discouraged for new code because the
+
+-    context manager form is regarded as more readable and less error-prone.
+
+-
+
+-    .. note::
+
+-        Similar to caught exception objects in Python, explicitly clearing
+
+-        local references to returned ``ExceptionInfo`` objects can
+
+-        help the Python interpreter speed up its garbage collection.
+
+-
+
+-        Clearing those references breaks a reference cycle
+
+-        (``ExceptionInfo`` --> caught exception --> frame stack raising
+
+-        the exception --> current frame stack --> local variables -->
+
+-        ``ExceptionInfo``) which makes Python keep all objects referenced
+
+-        from that cycle (including all local variables in the current
+
+-        frame) alive until the next cyclic garbage collection run. See the
+
+-        official Python ``try`` statement documentation for more detailed
+
+-        information.
+
+-
+
+-    """
+
+-    __tracebackhide__ = True
+
+-    for exc in filterfalse(isclass, always_iterable(expected_exception, BASE_TYPE)):
+
+-        msg = (
+
+-            "exceptions must be old-style classes or"
+
+-            " derived from BaseException, not %s"
+
+-        )
+
+-        raise TypeError(msg % type(exc))
+
+-
+
+-    message = "DID NOT RAISE {}".format(expected_exception)
+
+-    match_expr = None
+
+-
+
+-    if not args:
+
+-        if "message" in kwargs:
+
+-            message = kwargs.pop("message")
+
+-            warnings.warn(deprecated.RAISES_MESSAGE_PARAMETER, stacklevel=2)
+
+-        if "match" in kwargs:
+
+-            match_expr = kwargs.pop("match")
+
+-        if kwargs:
+
+-            msg = "Unexpected keyword arguments passed to pytest.raises: "
+
+-            msg += ", ".join(sorted(kwargs))
+
+-            raise TypeError(msg)
+
+-        return RaisesContext(expected_exception, message, match_expr)
+
+-    elif isinstance(args[0], str):
+
+-        warnings.warn(deprecated.RAISES_EXEC, stacklevel=2)
+
+-        code, = args
+
+-        assert isinstance(code, str)
+
+-        frame = sys._getframe(1)
+
+-        loc = frame.f_locals.copy()
+
+-        loc.update(kwargs)
+
+-        # print "raises frame scope: %r" % frame.f_locals
+
+-        try:
+
+-            code = _pytest._code.Source(code).compile(_genframe=frame)
+
+-            exec(code, frame.f_globals, loc)
+
+-            # XXX didn't mean f_globals == f_locals something special?
+
+-            #     this is destroyed here ...
+
+-        except expected_exception:
+
+-            return _pytest._code.ExceptionInfo.from_current()
+
+-    else:
+
+-        func = args[0]
+
+-        try:
+
+-            func(*args[1:], **kwargs)
+
+-        except expected_exception:
+
+-            return _pytest._code.ExceptionInfo.from_current()
+
+-    fail(message)
+
++    It is possible to specify a callable by passing a to-be
+
+ 
+
+ 
+
+ raises.Exception = fail.Exception
+
+
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/outcomes.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/outcomes.py
+@@ -135,6 +135,10 @@
+ xfail.Exception = XFailed
+
+ 
+
+ 
+
++import sys
+
++from packaging.version import Version
+
++from pytest import Skipped
+
++
+
+ def importorskip(modname, minversion=None, reason=None):
+
+     """Imports and returns the requested module ``modname``, or skip the current test
+
+     if the module cannot be imported.
+
+@@ -163,7 +167,7 @@
+             import_exc = exc
+
+     if import_exc:
+
+         if reason is None:
+
+-            reason = "could not import {!r}: {}".format(modname, import_exc)
+
++            reason = "could not import {!r}: {}".format(modname, str(import_exc))
+
+         raise Skipped(reason, allow_module_level=True)
+
+     mod = sys.modules[modname]
+
+     if minversion is None:
+
+
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/python.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/python.py
+@@ -493,55 +493,55 @@
+ 
+
+         self.obj.__pytest_setup_function = xunit_setup_function_fixture
+
+ 
+
+-    def _importtestmodule(self):
+
+-        # we assume we are only called once per module
+
+-        importmode = self.config.getoption("--import-mode")
+
+-        try:
+
+-            mod = self.fspath.pyimport(ensuresyspath=importmode)
+
+-        except SyntaxError:
+
+-            raise self.CollectError(
+
+-                _pytest._code.ExceptionInfo.from_current().getrepr(style="short")
+
+-            )
+
+-        except self.fspath.ImportMismatchError:
+
+-            e = sys.exc_info()[1]
+
+-            raise self.CollectError(
+
+-                "import file mismatch:\n"
+
+-                "imported module %r has this __file__ attribute:\n"
+
+-                "  %s\n"
+
+-                "which is not the same as the test file we want to collect:\n"
+
+-                "  %s\n"
+
+-                "HINT: remove __pycache__ / .pyc files and/or use a "
+
+-                "unique basename for your test file modules" % e.args
+
+-            )
+
+-        except ImportError:
+
+-            from _pytest._code.code import ExceptionInfo
+
+-
+
+-            exc_info = ExceptionInfo.from_current()
+
+-            if self.config.getoption("verbose") < 2:
+
+-                exc_info.traceback = exc_info.traceback.filter(filter_traceback)
+
+-            exc_repr = (
+
+-                exc_info.getrepr(style="short")
+
+-                if exc_info.traceback
+
+-                else exc_info.exconly()
+
+-            )
+
+-            formatted_tb = str(exc_repr)
+
+-            raise self.CollectError(
+
+-                "ImportError while importing test module '{fspath}'.\n"
+
+-                "Hint: make sure your test modules/packages have valid Python names.\n"
+
+-                "Traceback:\n"
+
+-                "{traceback}".format(fspath=self.fspath, traceback=formatted_tb)
+
+-            )
+
+-        except _pytest.runner.Skipped as e:
+
+-            if e.allow_module_level:
+
+-                raise
+
+-            raise self.CollectError(
+
+-                "Using pytest.skip outside of a test is not allowed. "
+
+-                "To decorate a test function, use the @pytest.mark.skip "
+
+-                "or @pytest.mark.skipif decorators instead, and to skip a "
+
+-                "module use `pytestmark = pytest.mark.{skip,skipif}."
+
+-            )
+
+-        self.config.pluginmanager.consider_module(mod)
+
+-        return mod
+
++def _importtestmodule(self):
+
++    importmode = self.config.getoption("--import-mode")
+
++    try:
+
++        mod = self.fspath.pyimport(ensuresyspath=importmode)
+
++    except SyntaxError:
+
++        raise self.CollectError(
+
++            _pytest._code.ExceptionInfo.from_current().getrepr(style="short")
+
++        )
+
++    except self.fspath.ImportMismatchError:
+
++        e = sys.exc_info()[1]
+
++        raise self.CollectError(
+
++            "import file mismatch:\n"
+
++            "imported module %r has this __file__ attribute:\n"
+
++            "  %s\n"
+
++            "which is not the same as the test file we want to collect:\n"
+
++            "  %s\n"
+
++            "HINT: remove __pycache__ / .pyc files and/or use a "
+
++            "unique basename for your test file modules" % e.args
+
++        )
+
++    except ImportError:
+
++        from _pytest._code.code import ExceptionInfo
+
++
+
++        exc_info = ExceptionInfo.from_current()
+
++        if self.config.getoption("verbose") < 2:
+
++            exc_info.traceback = exc_info.traceback.filter(filter_traceback)
+
++        exc_repr = (
+
++            exc_info.getrepr(style="short")
+
++            if exc_info.traceback
+
++            else exc_info.exconly()
+
++        )
+
++        # Get the full traceback and format it
+
++        formatted_tb = "\n".join(exc_info.traceback.format())
+
++        raise self.CollectError(
+
++            "ImportError while importing test module '{fspath}'.\n"
+
++            "Hint: make sure your test modules/packages have valid Python names.\n"
+
++            "Traceback:\n"
+
++            "{traceback}".format(fspath=self.fspath, traceback=formatted_tb)
+
++        )
+
++    except _pytest.runner.Skipped as e:
+
++        if e.allow_module_level:
+
++            raise
+
++        raise self.CollectError(
+
++            "Using pytest.skip outside of a test is not allowed. "
+
++            "To decorate a test function, use the @pytest.mark.skip "
+
++            "or @pytest.mark.skipif decorators instead, and to skip a "
+
++            "module use `pytestmark = pytest.mark.{skip,skipif}."
+
++        )
+
++    self.config.pluginmanager.consider_module(mod)
+
++    return mod
+
+ 
+
+ 
+
+ class Package(Module):
+
+
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/testing/python/collect.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/testing/python/collect.py
+@@ -1217,6 +1217,17 @@
+         ]
+
+     )
+
+ 
+
++    # Fixing the issue with str() on pytest.raises context variable
+
++    with pytest.raises(pytest.exceptions.NoCollection) as e:
+
++        raise pytest.exceptions.NoCollection(
+
++            "collected 1 item\n"
+
++            "\ntest_dont_collect_non_function_callable.py:2: *cannot collect 'test_a' because it is not a function*"
+
++        )
+
++
+
++    # Access the value of the exception and convert it to a string
+
++    exception_message = str(e.value)
+
++    assert "cannot collect 'test_a' because it is not a function" in exception_message
+
++
+
+ 
+
+ def test_class_injection_does_not_break_collection(testdir):
+
+     """Tests whether injection during collection time will terminate testing.
+
+
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -701,19 +701,19 @@
+         self.explanation_specifiers[specifier] = expr
+
+         return "%(" + specifier + ")s"
+
+ 
+
+-    def push_format_context(self):
+
+-        """Create a new formatting context.
+
+-
+
+-        The format context is used for when an explanation wants to
+
+-        have a variable value formatted in the assertion message.  In
+
+-        this case the value required can be added using
+
+-        .explanation_param().  Finally .pop_format_context() is used
+
+-        to format a string of %-formatted values as added by
+
+-        .explanation_param().
+
+-
+
+-        """
+
+-        self.explanation_specifiers = {}
+
+-        self.stack.append(self.explanation_specifiers)
+
++def push_format_context(self):
+
++    """Create a new formatting context.
+
++
+
++    The format context is used for when an explanation wants to
+
++    have a variable value formatted in the assertion message.  In
+
++    this case the value required can be added using
+
++    .explanation_param().  Finally .pop_format_context() is used
+
++    to format a string of %-formatted values as added by
+
++    .explanation_param().
+
++
+
++    """
+
++    self.explanation_specifiers = {}
+
++    self.stack.append(self.explanation_specifiers)
+
+ 
+
+     def pop_format_context(self, expl_expr):
+
+         """Format the %-formatted string with current format context.
+
+

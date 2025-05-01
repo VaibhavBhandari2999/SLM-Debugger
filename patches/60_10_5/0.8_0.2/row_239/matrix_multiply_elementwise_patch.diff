@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/239/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/239/sympy_sympy/sympy/matrices/dense.py
+@@ -1319,6 +1319,8 @@
+     """
+
+     if A.shape != B.shape:
+
+         raise ShapeError()
+
++    if not isinstance(A, Matrix) or not isinstance(B, Matrix):
+
++        raise TypeError("Both operands must be matrices for the @ operator.")
+
+     shape = A.shape
+
+     return classof(A, B)._new(shape[0], shape[1],
+
+                               lambda i, j: A[i, j]*B[i, j])

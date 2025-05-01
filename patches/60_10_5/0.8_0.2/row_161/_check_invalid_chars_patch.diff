@@ -1,0 +1,86 @@
+--- a/decoupled/60/0.8_0.2/161/pylint-dev_pylint/pylint/checkers/unicode.py
++++ b/decoupled/60/0.8_0.2/161/pylint-dev_pylint/pylint/checkers/unicode.py
+@@ -473,20 +473,31 @@
+                 end_col_offset=None,
+
+             )
+
+ 
+
+-    def _check_invalid_chars(self, line: bytes, lineno: int, codec: str) -> None:
+
++def _check_invalid_chars(self, line: bytes, lineno: int, codec: str) -> None:
+
+         """Look for chars considered bad."""
+
++        # Extract note tags from the command line option
+
++        note_tags = self._get_note_tags()
+
++
+
+         matches = self._find_line_matches(line, codec)
+
+         for col, char in matches.items():
+
+-            self.add_message(
+
+-                char.human_code(),
+
+-                # Currently Nodes will lead to crashes of pylint
+
+-                # node=node,
+
+-                line=lineno,
+
+-                end_lineno=lineno,
+
+-                confidence=pylint.interfaces.HIGH,
+
+-                col_offset=col + 1,
+
+-                end_col_offset=col + len(char.unescaped) + 1,
+
+-            )
+
++            # Check if the character is a note tag and if it is in the list of note tags
+
++            if char.human_code() in note_tags or (char.human_code().isalpha() and char.human_code() in note_tags):
+
++                self.add_message(
+
++                    char.human_code(),
+
++                    # Currently Nodes will lead to crashes of pylint
+
++                    # node=node,
+
++                    line=lineno,
+
++                    end_lineno=lineno,
+
++                    confidence=pylint.interfaces.HIGH,
+
++                    col_offset=col + 1,
+
++                    end_col_offset=col + len(char.unescaped) + 1,
+
++                )
+
++
+
++    def _get_note_tags(self) -> List[str]:
+
++        """Extract note tags from the command line option."""
+
++        notes = self.config.notes
+
++        note_tags = [tag.strip() for tag in notes.split(',')]
+
++        return note_tags
+
+ 
+
+     def _check_bidi_chars(self, line: bytes, lineno: int, codec: str) -> None:
+
+         """Look for Bidirectional Unicode, if we use unicode."""

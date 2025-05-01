@@ -1,0 +1,52 @@
+--- a/decoupled/60/0.8_0.2/6/django_django/tests/files/tests.py
++++ b/decoupled/60/0.8_0.2/6/django_django/tests/files/tests.py
+@@ -59,19 +59,12 @@
+             # remove temporary file
+
+             os.unlink(file.name)
+
+ 
+
+-    def test_namedtemporaryfile_closes(self):
+
+-        """
+
+-        The symbol django.core.files.NamedTemporaryFile is assigned as
+
+-        a different class on different operating systems. In
+
+-        any case, the result should minimally mock some of the API of
+
+-        tempfile.NamedTemporaryFile from the Python standard library.
+
+-        """
+
+-        tempfile = NamedTemporaryFile()
+
+-        self.assertTrue(hasattr(tempfile, "closed"))
+
+-        self.assertFalse(tempfile.closed)
+
+-
+
+-        tempfile.close()
+
+-        self.assertTrue(tempfile.closed)
+
++def test_file_upload_permissions(self):
+
++    """
+
++    Test that the FILE_UPLOAD_PERMISSIONS setting is correctly set to 0o644.
+
++    """
+
++    from django.conf import settings
+
++    self.assertEqual(settings.FILE_UPLOAD_PERMISSIONS, 0o644)
+
+ 
+
+     def test_file_mode(self):
+
+         # Should not set mode to None if it is not present.

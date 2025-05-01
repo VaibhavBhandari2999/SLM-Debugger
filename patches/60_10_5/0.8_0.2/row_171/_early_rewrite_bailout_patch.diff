@@ -1,0 +1,172 @@
+--- a/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/171/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -178,43 +178,51 @@
+         self.modules[name] = co, pyc
+
+         return self
+
+ 
+
+-    def _early_rewrite_bailout(self, name, state):
+
+-        """
+
+-        This is a fast way to get out of rewriting modules. Profiling has
+
+-        shown that the call to imp.find_module (inside of the find_module
+
+-        from this class) is a major slowdown, so, this method tries to
+
+-        filter what we're sure won't be rewritten before getting to it.
+
+-        """
+
+-        if self.session is not None and not self._session_paths_checked:
+
+-            self._session_paths_checked = True
+
+-            for path in self.session._initialpaths:
+
+-                # Make something as c:/projects/my_project/path.py ->
+
+-                #     ['c:', 'projects', 'my_project', 'path.py']
+
+-                parts = str(path).split(os.path.sep)
+
+-                # add 'path' to basenames to be checked.
+
+-                self._basenames_to_check_rewrite.add(os.path.splitext(parts[-1])[0])
+
+-
+
+-        # Note: conftest already by default in _basenames_to_check_rewrite.
+
+-        parts = name.split(".")
+
+-        if parts[-1] in self._basenames_to_check_rewrite:
+
++def _early_rewrite_bailout(self, name, state):
+
++    """
+
++    This is a fast way to get out of rewriting modules. Profiling has
+
++    shown that the call to imp.find_module (inside of the find_module
+
++    from this class) is a major slowdown, so, this method tries to
+
++    filter what we're sure won't be rewritten before getting to it.
+
++    """
+
++    # Ensure that session paths are checked if the session is not None
+
++    if self.session is not None and not self._session_paths_checked:
+
++        self._session_paths_checked = True
+
++        for path in self.session._initialpaths:
+
++            # Make something as c:/projects/my_project/path.py ->
+
++            #     ['c:', 'projects', 'my_project', 'path.py']
+
++            parts = str(path).split(os.path.sep)
+
++            # Add 'path' to basenames to be checked.
+
++            self._basenames_to_check_rewrite.add(os.path.splitext(parts[-1])[0])
+
++
+
++    # For matching the name it must be as if it was a filename.
+
++    # Split the name by dots to get the module path
+
++    parts = name.split(".")
+
++    
+
++    # Check if the last part of the module name is in the set of basenames to check for rewrite
+
++    if parts[-1] in self._basenames_to_check_rewrite:
+
++        return False
+
++
+
++    # For matching the name it must be as if it was a filename.
+
++    # Construct the full path as if it was a filename
+
++    path = PurePath(os.path.sep.join(parts) + ".py")
+
++
+
++    # Check if the pattern contains subdirectories ("tests/**.py" for example)
+
++    # If it does, we can't bail out based on the name alone because we need to match against the full path
+
++    for pat in self.fnpats:
+
++        if os.path.dirname(pat):
+
+             return False
+
+-
+
+-        # For matching the name it must be as if it was a filename.
+
+-        path = PurePath(os.path.sep.join(parts) + ".py")
+
+-
+
+-        for pat in self.fnpats:
+
+-            # if the pattern contains subdirectories ("tests/**.py" for example) we can't bail out based
+
+-            # on the name alone because we need to match against the full path
+
+-            if os.path.dirname(pat):
+
+-                return False
+
+-            if fnmatch_ex(pat, path):
+
+-                return False
+
+-
+
+-        if self._is_marked_for_rewrite(name, state):
+
++        # Use fnmatch_ex to match the path against the pattern
+
++        if fnmatch_ex(pat, path):
+
+             return False
+
+ 
+
+-        state.trace("early skip of rewriting module: %s" % (name,))
+
+-        return True
+
++    # Check if the module is marked for rewrite
+
++    if self._is_marked_for_rewrite(name, state):
+
++        return False
+
++
+
++    # Log the early skip of rewriting the module
+
++    state.trace("early skip of rewriting module: %s" % (name,))
+
++    return True
+
+ 
+
+     def _should_rewrite(self, name, fn_pypath, state):
+
+         # always rewrite conftest files

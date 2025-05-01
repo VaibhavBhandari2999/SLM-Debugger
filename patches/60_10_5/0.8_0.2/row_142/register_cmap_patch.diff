@@ -1,0 +1,152 @@
+--- a/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/cm.py
++++ b/decoupled/60/0.8_0.2/142/matplotlib_matplotlib/lib/matplotlib/cm.py
+@@ -225,47 +225,34 @@
+ 
+
+ 
+
+ @_api.deprecated("3.7", alternative="``matplotlib.colormaps.register(name)``")
+
+-def register_cmap(name=None, cmap=None, *, override_builtin=False):
+
+-    """
+
+-    Add a colormap to the set recognized by :func:`get_cmap`.
+
+-
+
+-    Register a new colormap to be accessed by name ::
+
+-
+
+-        LinearSegmentedColormap('swirly', data, lut)
+
+-        register_cmap(cmap=swirly_cmap)
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    name : str, optional
+
+-       The name that can be used in :func:`get_cmap` or :rc:`image.cmap`
+
+-
+
+-       If absent, the name will be the :attr:`~matplotlib.colors.Colormap.name`
+
+-       attribute of the *cmap*.
+
+-
+
+-    cmap : matplotlib.colors.Colormap
+
+-       Despite being the second argument and having a default value, this
+
+-       is a required argument.
+
+-
+
+-    override_builtin : bool
+
+-
+
+-        Allow built-in colormaps to be overridden by a user-supplied
+
+-        colormap.
+
+-
+
+-        Please do not use this unless you are sure you need it.
+
+-    """
+
+-    _api.check_isinstance((str, None), name=name)
+
+-    if name is None:
+
+-        try:
+
+-            name = cmap.name
+
+-        except AttributeError as err:
+
+-            raise ValueError("Arguments must include a name or a "
+
+-                             "Colormap") from err
+
+-    # override_builtin is allowed here for backward compatibility
+
+-    # this is just a shim to enable that to work privately in
+
+-    # the global ColormapRegistry
+
+-    _colormaps._allow_override_builtin = override_builtin
+
+-    _colormaps.register(cmap, name=name, force=override_builtin)
+
+-    _colormaps._allow_override_builtin = False
+
++import matplotlib.pyplot as plt
+
++from cartopy.crs import PlateCarree
+
++from cartopy.mpl.geoaxes import GeoAxes
+
++from mpl_toolkits.axes_grid1 import AxesGrid
+
++
+
++# Fix the _tick_only method in AxesGrid
+
++def _tick_only(ax, bottom_on=False, left_on=False):
+
++    # Check if axis is a method (callable)
+
++    if callable(ax.axis):
+
++        # Call the method and get the axis instance
+
++        ax = ax.axis()
+
++    # Proceed with the original logic
+
++    if bottom_on:
+
++        ax.axis["bottom"].toggle(ticklabels=True, label=True)
+
++    else:
+
++        ax.axis["bottom"].toggle(ticklabels=False, label=False)
+
++    if left_on:
+
++        ax.axis["left"].toggle(ticklabels=True, label=True)
+
++    else:
+
++        ax.axis["left"].toggle(ticklabels=False, label=False)
+
++
+
++# Monkey patch the _tick_only method in AxesGrid
+
++AxesGrid._tick_only = _tick_only
+
++
+
++fig = plt.figure()
+
++axes_class = (GeoAxes, dict(map_projection=PlateCarree()))
+
++gr = AxesGrid(fig, 111, nrows_ncols=(1,1),
+
++              axes_class=axes_class)
+
+ 
+
+ 
+
+ def _get_cmap(name=None, lut=None):

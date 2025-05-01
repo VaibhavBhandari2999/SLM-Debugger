@@ -1,0 +1,228 @@
+--- a/decoupled/60/0.8_0.2/295/sympy_sympy/sympy/core/power.py
++++ b/decoupled/60/0.8_0.2/295/sympy_sympy/sympy/core/power.py
+@@ -1293,88 +1293,32 @@
+         else:
+
+             return result
+
+ 
+
+-    def as_real_imag(self, deep=True, **hints):
+
+-        if self.exp.is_Integer:
+
+-            from sympy.polys.polytools import poly
+
+-
+
+-            exp = self.exp
+
+-            re_e, im_e = self.base.as_real_imag(deep=deep)
+
+-            if not im_e:
+
+-                return self, S.Zero
+
+-            a, b = symbols('a b', cls=Dummy)
+
+-            if exp >= 0:
+
+-                if re_e.is_Number and im_e.is_Number:
+
+-                    # We can be more efficient in this case
+
+-                    expr = expand_multinomial(self.base**exp)
+
+-                    if expr != self:
+
+-                        return expr.as_real_imag()
+
+-
+
+-                expr = poly(
+
+-                    (a + b)**exp)  # a = re, b = im; expr = (a + b*I)**exp
+
+-            else:
+
+-                mag = re_e**2 + im_e**2
+
+-                re_e, im_e = re_e/mag, -im_e/mag
+
+-                if re_e.is_Number and im_e.is_Number:
+
+-                    # We can be more efficient in this case
+
+-                    expr = expand_multinomial((re_e + im_e*S.ImaginaryUnit)**-exp)
+
+-                    if expr != self:
+
+-                        return expr.as_real_imag()
+
+-
+
+-                expr = poly((a + b)**-exp)
+
+-
+
+-            # Terms with even b powers will be real
+
+-            r = [i for i in expr.terms() if not i[0][1] % 2]
+
+-            re_part = Add(*[cc*a**aa*b**bb for (aa, bb), cc in r])
+
+-            # Terms with odd b powers will be imaginary
+
+-            r = [i for i in expr.terms() if i[0][1] % 4 == 1]
+
+-            im_part1 = Add(*[cc*a**aa*b**bb for (aa, bb), cc in r])
+
+-            r = [i for i in expr.terms() if i[0][1] % 4 == 3]
+
+-            im_part3 = Add(*[cc*a**aa*b**bb for (aa, bb), cc in r])
+
+-
+
+-            return (re_part.subs({a: re_e, b: S.ImaginaryUnit*im_e}),
+
+-            im_part1.subs({a: re_e, b: im_e}) + im_part3.subs({a: re_e, b: -im_e}))
+
+-
+
+-        from sympy.functions.elementary.trigonometric import atan2, cos, sin
+
+-
+
+-        if self.exp.is_Rational:
+
+-            re_e, im_e = self.base.as_real_imag(deep=deep)
+
+-
+
+-            if im_e.is_zero and self.exp is S.Half:
+
+-                if re_e.is_extended_nonnegative:
+
+-                    return self, S.Zero
+
+-                if re_e.is_extended_nonpositive:
+
+-                    return S.Zero, (-self.base)**self.exp
+
+-
+
+-            # XXX: This is not totally correct since for x**(p/q) with
+
+-            #      x being imaginary there are actually q roots, but
+
+-            #      only a single one is returned from here.
+
+-            r = self.func(self.func(re_e, 2) + self.func(im_e, 2), S.Half)
+
+-
+
+-            t = atan2(im_e, re_e)
+
+-
+
+-            rp, tp = self.func(r, self.exp), t*self.exp
+
+-
+
+-            return rp*cos(tp), rp*sin(tp)
+
+-        elif self.base is S.Exp1:
+
+-            from sympy.functions.elementary.exponential import exp
+
+-            re_e, im_e = self.exp.as_real_imag()
+
+-            if deep:
+
+-                re_e = re_e.expand(deep, **hints)
+
+-                im_e = im_e.expand(deep, **hints)
+
+-            c, s = cos(im_e), sin(im_e)
+
+-            return exp(re_e)*c, exp(re_e)*s
+
++def _collect_factor_and_dimension(self, expr):
+
++    from sympy import exp, S
+
++
+
++    # Check if the expression is a sum and the second term is an exponent
+
++    if expr.is_Add and len(expr.args) == 2:
+
++        factor, dimension = expr.args[0], S.One
+
++        exponent = expr.args[1]
+
++        if exponent.is_Pow and exponent.base.is_Number and exponent.exp.is_Number:
+
++            # If the exponent is a number, it is dimensionless
+
++            dimension = S.One
+
+         else:
+
+-            from sympy.functions.elementary.complexes import im, re
+
+-            if deep:
+
+-                hints['complex'] = False
+
+-
+
+-                expanded = self.expand(deep, **hints)
+
+-                if hints.get('ignore') == expanded:
+
+-                    return None
+
+-                else:
+
+-                    return (re(expanded), im(expanded))
+
+-            else:
+
+-                return re(self), im(self)
+
++            # Otherwise, collect the factor and dimension of the exponent
+
++            factor, dimension = self._collect_factor_and_dimension(exponent)
+
++        return factor, dimension
+
++
+
++    # If the expression is not a sum, proceed with the original logic
+
++    factor = 1
+
++    dimension = S.One
+
++    for term in expr.args:
+
++        if term.is_Pow and term.base.is_Number and term.exp.is_Number:
+
++            # If the term is a number raised to a power, the power is dimensionless
+
++            continue
+
++        sub_factor, sub_dimension = self._collect_factor_and_dimension(term)
+
++        factor *= sub_factor
+
++        dimension *= sub_dimension
+
++    return factor, dimension
+
+ 
+
+     def _eval_derivative(self, s):
+
+         from sympy.functions.elementary.exponential import log

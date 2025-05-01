@@ -1,0 +1,71 @@
+--- a/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/139/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -1728,6 +1728,14 @@
+ 
+
+ 
+
+ @contextlib.contextmanager
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++import mplcursors as mpl
+
++import contextlib
+
++import time
+
++from pathlib import Path
+
++
+
++@contextlib.contextmanager
+
+ def _lock_path(path):
+
+     """
+
+     Context manager for locking a path.
+
+@@ -1764,6 +1772,20 @@
+         yield
+
+     finally:
+
+         lock_path.unlink()
+
++
+
++def plot_with_cursor():
+
++    x = np.arange(1, 11)    
+
++    y1 = x
+
++
+
++    with plt.ioff():  # Turn off interactive mode to ensure the figure is fully initialized
+
++        fig, ax = plt.subplots()
+
++        ax.scatter(x, y1)
+
++
+
++        with mpl.cursor(ax):  # Ensure the cursor is added to the correct axis
+
++            plt.ion()  # Turn on interactive mode
+
++            plt.show()
+
++
+
++plot_with_cursor()
+
+ 
+
+ 
+
+ def _topmost_artist(

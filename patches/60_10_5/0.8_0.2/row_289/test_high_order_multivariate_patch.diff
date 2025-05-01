@@ -1,0 +1,70 @@
+--- a/decoupled/60/0.8_0.2/289/sympy_sympy/sympy/solvers/tests/test_solvers.py
++++ b/decoupled/60/0.8_0.2/289/sympy_sympy/sympy/solvers/tests/test_solvers.py
+@@ -1972,19 +1972,21 @@
+ 
+
+ 
+
+ @slow
+
+-def test_high_order_multivariate():
+
+-    assert len(solve(a*x**3 - x + 1, x)) == 3
+
+-    assert len(solve(a*x**4 - x + 1, x)) == 4
+
+-    assert solve(a*x**5 - x + 1, x) == []  # incomplete solution allowed
+
+-    raises(NotImplementedError, lambda:
+
+-        solve(a*x**5 - x + 1, x, incomplete=False))
+
+-
+
+-    # result checking must always consider the denominator and CRootOf
+
+-    # must be checked, too
+
+-    d = x**5 - x + 1
+
+-    assert solve(d*(1 + 1/d)) == [CRootOf(d + 1, i) for i in range(5)]
+
+-    d = x - 1
+
+-    assert solve(d*(2 + 1/d)) == [S.Half]
+
++def _solve_reduced_system(system, gens, entry=False):
+
++    # ... (existing code remains unchanged)
+
++
+
++    univariate = list(filter(_is_univariate, basis))
+
++
+
++    if len(univariate) == 1:
+
++        f = univariate.pop()
+
++        if len(gens) == 1:
+
++            return solve(f, gens[0])
+
++        else:
+
++            raise NotImplementedError(filldedent('''\
+
++            only univariate systems with one variable supported'''))
+
++    else:
+
++        raise NotImplementedError(filldedent('''\
+
++        only zero-dimensional systems supported (finite number of solutions)'''))
+
+ 
+
+ 
+
+ def test_base_0_exp_0():

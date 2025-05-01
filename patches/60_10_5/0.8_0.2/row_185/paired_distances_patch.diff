@@ -1,0 +1,33 @@
+--- a/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/metrics/pairwise.py
++++ b/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/metrics/pairwise.py
+@@ -693,6 +693,7 @@
+     Returns
+
+     -------
+
+     distances : ndarray (n_samples, )
+
++        Array of distances between the pairs of samples.
+
+ 
+
+     Examples
+
+     --------
+
+@@ -713,6 +714,8 @@
+     elif callable(metric):
+
+         # Check the matrix first (it is usually done by the metric)
+
+         X, Y = check_paired_arrays(X, Y)
+
++        if len(X) == 0 or len(Y) == 0:
+
++            return np.array([], dtype=float)
+
+         distances = np.zeros(len(X))
+
+         for i in range(len(X)):
+
+             distances[i] = metric(X[i], Y[i])

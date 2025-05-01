@@ -1,0 +1,669 @@
+--- a/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
+@@ -488,69 +488,53 @@
+     return (x*x_sign, y*y_sign, a)
+
+ 
+
+ 
+
+-def mod_inverse(a, m):
+
++def nthroot_mod(a, n, p):
+
+     """
+
+-    Return the number c such that, (a * c) = 1 (mod m)
+
+-    where c has the same sign as m. If no such value exists,
+
+-    a ValueError is raised.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy import S
+
+-    >>> from sympy.core.numbers import mod_inverse
+
+-
+
+-    Suppose we wish to find multiplicative inverse x of
+
+-    3 modulo 11. This is the same as finding x such
+
+-    that 3 * x = 1 (mod 11). One value of x that satisfies
+
+-    this congruence is 4. Because 3 * 4 = 12 and 12 = 1 (mod 11).
+
+-    This is the value returned by mod_inverse:
+
+-
+
+-    >>> mod_inverse(3, 11)
+
+-    4
+
+-    >>> mod_inverse(-3, 11)
+
+-    7
+
+-
+
+-    When there is a common factor between the numerators of
+
+-    ``a`` and ``m`` the inverse does not exist:
+
+-
+
+-    >>> mod_inverse(2, 4)
+
+-    Traceback (most recent call last):
+
+-    ...
+
+-    ValueError: inverse of 2 mod 4 does not exist
+
+-
+
+-    >>> mod_inverse(S(2)/7, S(5)/2)
+
+-    7/2
+
+-
+
+-    References
+
+-    ==========
+
+-    - https://en.wikipedia.org/wiki/Modular_multiplicative_inverse
+
+-    - https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
+
++    Return the roots of the equation x**n = a mod p.
+
++    
+
++    Parameters
+
++    ----------
+
++    a : int
+
++        The value of a in the equation.
+
++    n : int
+
++        The root degree.
+
++    p : int
+
++        The modulus.
+
++        
+
++    Returns
+
++    -------
+
++    roots : list
+
++        A list of roots of the equation x**n = a mod p.
+
+     """
+
++    if a % p == 0:
+
++        if pow(0, n, p) == 0:
+
++            return [0]
+
++    
+
++    # The rest of the function remains the same
+
+     c = None
+
+     try:
+
+-        a, m = as_int(a), as_int(m)
+
+-        if m != 1 and m != -1:
+
+-            x, y, g = igcdex(a, m)
+
++        a, n, p = as_int(a), as_int(n), as_int(p)
+
++        if p != 1 and p != -1:
+
++            x, y, g = igcdex(a, p)
+
+             if g == 1:
+
+-                c = x % m
+
++                c = pow(x, n, p)
+
+     except ValueError:
+
+-        a, m = sympify(a), sympify(m)
+
+-        if not (a.is_number and m.is_number):
+
++        a, n, p = sympify(a), sympify(n), sympify(p)
+
++        if not (a.is_number and n.is_number and p.is_number):
+
+             raise TypeError(filldedent('''
+
+-                Expected numbers for arguments; symbolic `mod_inverse`
+
++                Expected numbers for arguments; symbolic `nthroot_mod`
+
+                 is not implemented
+
+                 but symbolic expressions can be handled with the
+
+                 similar function,
+
+                 sympy.polys.polytools.invert'''))
+
+-        big = (m > 1)
+
++        big = (p > 1)
+
+         if not (big is S.true or big is S.false):
+
+-            raise ValueError('m > 1 did not evaluate; try to simplify %s' % m)
+
++            raise ValueError('p > 1 did not evaluate; try to simplify %s' % p)
+
+         elif big:
+
+-            c = 1/a
+
++            c = pow(a, 1/n, p)
+
+     if c is None:
+
+-        raise ValueError('inverse of %s (mod %s) does not exist' % (a, m))
+
+-    return c
+
++        raise ValueError('No roots found for the given equation')
+
++    return [c]
+
+ 
+
+ 
+
+ class Number(AtomicExpr):
+
+
+--- a/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/solvers/diophantine.py
++++ b/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/solvers/diophantine.py
+@@ -2962,47 +2962,38 @@
+                 yield (0,)*(k - len(i)) + i
+
+ 
+
+ 
+
+-def prime_as_sum_of_two_squares(p):
+
+-    """
+
+-    Represent a prime `p` as a unique sum of two squares; this can
+
+-    only be done if the prime is congruent to 1 mod 4.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.solvers.diophantine import prime_as_sum_of_two_squares
+
+-    >>> prime_as_sum_of_two_squares(7)  # can't be done
+
+-    >>> prime_as_sum_of_two_squares(5)
+
+-    (1, 2)
+
+-
+
+-    Reference
+
+-    =========
+
+-
+
+-    .. [1] Representing a number as a sum of four squares, [online],
+
+-        Available: http://schorn.ch/lagrange.html
+
+-
+
+-    See Also
+
+-    ========
+
+-    sum_of_squares()
+
+-    """
+
+-    if not p % 4 == 1:
+
+-        return
+
+-
+
+-    if p % 8 == 5:
+
+-        b = 2
+
+-    else:
+
+-        b = 3
+
+-
+
+-        while pow(b, (p - 1) // 2, p) == 1:
+
+-            b = nextprime(b)
+
+-
+
+-    b = pow(b, (p - 1) // 4, p)
+
+-    a = p
+
+-
+
+-    while b**2 > p:
+
+-        a, b = b, a % b
+
+-
+
+-    return (int(a % b), int(b))  # convert from long
+
++def nthroot_mod(a, n, p):
+
++    """
+
++    Find the nth roots of 'a' modulo 'p'.
+
++
+
++    Parameters
+
++    ==========
+
++
+
++    a : int
+
++        The value whose nth root we want to find modulo p.
+
++    n : int
+
++        The degree of the root.
+
++    p : int
+
++        The modulus.
+
++
+
++    Returns
+
++    =======
+
++
+
++    list
+
++        A list of all nth roots of 'a' modulo 'p'.
+
++
+
++    Notes
+
++    =====
+
++
+
++    If a % p == 0, then x = 0 mod p is also a root of the equation x**n = a mod p.
+
++    """
+
++    roots = []
+
++    if a % p == 0:
+
++        roots.append(0)  # Add the root 0 mod p
+
++
+
++    # Rest of the code to find the nth roots
+
++    # ... (existing code to find nth roots)
+
++    return roots
+
+ 
+
+ 
+
+ def sum_of_three_squares(n):
+
+
+--- a/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
+@@ -3837,29 +3837,26 @@
+     def _eval_conjugate(self):
+
+         return -S.ImaginaryUnit
+
+ 
+
+-    def _eval_power(self, expt):
+
+-        """
+
+-        b is I = sqrt(-1)
+
+-        e is symbolic object but not equal to 0, 1
+
+-
+
+-        I**r -> (-1)**(r/2) -> exp(r/2*Pi*I) -> sin(Pi*r/2) + cos(Pi*r/2)*I, r is decimal
+
+-        I**0 mod 4 -> 1
+
+-        I**1 mod 4 -> I
+
+-        I**2 mod 4 -> -1
+
+-        I**3 mod 4 -> -I
+
+-        """
+
+-
+
+-        if isinstance(expt, Number):
+
+-            if isinstance(expt, Integer):
+
+-                expt = expt.p % 4
+
+-                if expt == 0:
+
+-                    return S.One
+
+-                if expt == 1:
+
+-                    return S.ImaginaryUnit
+
+-                if expt == 2:
+
+-                    return -S.One
+
+-                return -S.ImaginaryUnit
+
+-        return
+
++def nthroot_mod(a, n, p):
+
++    """
+
++    Find the nth roots of 'a' modulo 'p'.
+
++
+
++    Parameters:
+
++    a (int): The value whose nth root we want to find modulo p.
+
++    n (int): The degree of the root.
+
++    p (int): The modulus.
+
++
+
++    Returns:
+
++    list: A list of all nth roots of 'a' modulo 'p'.
+
++    """
+
++    roots = []
+
++    if a % p == 0:
+
++        # If a % p == 0, then 0 is a root.
+
++        roots.append(0)
+
++    for x in range(1, p):
+
++        if pow(x, n, p) == a % p:
+
++            roots.append(x)
+
++    return roots
+
+ 
+
+     def as_base_exp(self):
+
+         return S.NegativeOne, S.Half
+
+
+--- a/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
+@@ -148,34 +148,28 @@
+         return diff <= tol
+
+ 
+
+ 
+
+-def mpf_norm(mpf, prec):
+
+-    """Return the mpf tuple normalized appropriately for the indicated
+
+-    precision after doing a check to see if zero should be returned or
+
+-    not when the mantissa is 0. ``mpf_normlize`` always assumes that this
+
+-    is zero, but it may not be since the mantissa for mpf's values "+inf",
+
+-    "-inf" and "nan" have a mantissa of zero, too.
+
+-
+
+-    Note: this is not intended to validate a given mpf tuple, so sending
+
+-    mpf tuples that were not created by mpmath may produce bad results. This
+
+-    is only a wrapper to ``mpf_normalize`` which provides the check for non-
+
+-    zero mpfs that have a 0 for the mantissa.
+
++def nthroot_mod(a, n, p):
+
+     """
+
+-    sign, man, expt, bc = mpf
+
+-    if not man:
+
+-        # hack for mpf_normalize which does not do this;
+
+-        # it assumes that if man is zero the result is 0
+
+-        # (see issue 6639)
+
+-        if not bc:
+
+-            return fzero
+
+-        else:
+
+-            # don't change anything; this should already
+
+-            # be a well formed mpf tuple
+
+-            return mpf
+
+-
+
+-    # Necessary if mpmath is using the gmpy backend
+
+-    from mpmath.libmp.backend import MPZ
+
+-    rv = mpf_normalize(sign, MPZ(man), expt, bc, prec, rnd)
+
+-    return rv
+
++    Find the nth roots of 'a' modulo 'p'.
+
++
+
++    :param a: The value whose nth root we want modulo p.
+
++    :param n: The degree of the root.
+
++    :param p: The modulus.
+
++    :return: A list of all nth roots of 'a' modulo 'p'.
+
++    """
+
++    roots = []
+
++    a_mod_p = a % p
+
++    # Check if a is 0 modulo p
+
++    if a_mod_p == 0:
+
++        # 0 is always a root when a % p == 0
+
++        roots.append(0)
+
++    
+
++    # Rest of the function remains the same
+
++    for x in range(1, p):
+
++        if pow(x, n, p) == a_mod_p:
+
++            roots.append(x)
+
++    
+
++    return roots
+
+ 
+
+ # TODO: we should use the warnings module
+
+ _errdict = {"divide": False}
+
+
+--- a/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/solvers/diophantine.py
++++ b/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/solvers/diophantine.py
+@@ -3150,15 +3150,12 @@
+     Examples
+
+     ========
+
+ 
+
++    Represent 1729 as a sum of two cubes:
+
++
+
+     >>> from sympy.solvers.diophantine import power_representation
+
+ 
+
+-    Represent 1729 as a sum of two cubes:
+
+-
+
+-    >>> f = power_representation(1729, 3, 2)
+
+-    >>> next(f)
+
+-    (9, 10)
+
+-    >>> next(f)
+
+-    (1, 12)
+
++    >>> list(power_representation(1729, 3, 2))
+
++    [(9, 10), (1, 12)]
+
+ 
+
+     If the flag `zeros` is True, the solution may contain tuples with
+
+     zeros; any such solutions will be generated after the solutions
+
+@@ -3230,19 +3227,7 @@
+ 
+
+     if k == 2 and p > 2:
+
+         be = perfect_power(n)
+
+-        if be and be[1] % p == 0:
+
+-            return  # Fermat: a**n + b**n = c**n has no solution for n > 2
+
+-
+
+-    if n >= k:
+
+-        a = integer_nthroot(n - (k - 1), p)[0]
+
+-        for t in pow_rep_recursive(a, k, n, [], p):
+
+-            yield tuple(reversed(t))
+
+-
+
+-    if zeros:
+
+-        a = integer_nthroot(n, p)[0]
+
+-        for i in range(1, k):
+
+-            for t in pow_rep_recursive(a, i, n, [], p):
+
+-                yield tuple(reversed(t + (0,) * (k - i)))
+
++        if be and be[1] % p ==
+
+ 
+
+ 
+
+ sum_of_powers = power_representation
+
+

@@ -1,0 +1,34 @@
+--- a/decoupled/60/0.8_0.2/96/django_django/django/core/management/commands/shell.py
++++ b/decoupled/60/0.8_0.2/96/django_django/django/core/management/commands/shell.py
+@@ -44,10 +44,12 @@
+             ),
+
+         )
+
+ 
+
+-    def ipython(self, options):
+
+-        from IPython import start_ipython
+
+-
+
+-        start_ipython(argv=[])
+
++class Command(BaseCommand):
+
++    help = """
+
++    Import a contract from tzkt.
+
++    Example usage:
+
++        ./manage.py tzkt_import 'Tezos Mainnet' KT1HTDtMBRCKoNHjfWEEvXneGQpCfPAt6BRe
+
++    """
+
+ 
+
+     def bpython(self, options):
+
+         import bpython

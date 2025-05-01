@@ -1,0 +1,467 @@
+--- a/decoupled/60/0.8_0.2/35/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/35/django_django/django/db/models/deletion.py
+@@ -96,7 +96,7 @@
+         # parent.
+
+         self.dependencies = defaultdict(set)  # {model: {models}}
+
+ 
+
+-    def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
++def add(self, objs, source=None, nullable=False, reverse_dependency=False):
+
+         """
+
+         Add 'objs' to the collection of objects to be deleted.  If the call is
+
+         the result of a cascade, 'source' should be the model that caused it,
+
+@@ -108,16 +108,15 @@
+             return []
+
+         new_objs = []
+
+         model = objs[0].__class__
+
+-        instances = self.data[model]
+
++        instances = self.data.setdefault(model, [])
+
+         for obj in objs:
+
+             if obj not in instances:
+
+                 new_objs.append(obj)
+
+-        instances.update(new_objs)
+
+-        # Nullable relationships can be ignored -- they are nulled out before
+
+-        # deleting, and therefore do not affect the order in which objects have
+
+-        # to be deleted.
+
+-        if source is not None and not nullable:
+
+-            self.add_dependency(source, model, reverse_dependency=reverse_dependency)
+
++                instances.append(obj)  # Add to the list before saving
+
++        # Save all objects in a transaction to ensure correct order
+
++        with transaction.atomic():
+
++            for obj in new_objs:
+
++                obj.save()
+
+         return new_objs
+
+ 
+
+     def add_dependency(self, model, dependency, reverse_dependency=False):
+
+
+--- a/decoupled/60/0.8_0.2/35/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/35/django_django/django/db/models/fields/related_descriptors.py
+@@ -153,7 +153,7 @@
+         # Assuming the database enforces foreign keys, this won't fail.
+
+         return qs.get(self.field.get_reverse_related_filter(instance))
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
++def __get__(self, instance, cls=None):
+
+         """
+
+         Get the related instance through the forward relation.
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/35/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/35/django_django/django/db/models/fields/related_descriptors.py
+@@ -427,64 +427,13 @@
+         else:
+
+             return rel_obj
+
+ 
+
+-    def __set__(self, instance, value):
+
++def deserialize_db_from_string(self, serialized_data):
+
+         """
+
+-        Set the related instance through the reverse relation.
+
+-
+
+-        With the example above, when setting ``place.restaurant = restaurant``:
+
+-
+
+-        - ``self`` is the descriptor managing the ``restaurant`` attribute
+
+-        - ``instance`` is the ``place`` instance
+
+-        - ``value`` is the ``restaurant`` instance on the right of the equal sign
+
+-
+
+-        Keep in mind that ``Restaurant`` holds the foreign key to ``Place``.
+
++        Deserialize and save models from the serialized data.
+
+         """
+
+-        # The similarity of the code below to the code in
+
+-        # ForwardManyToOneDescriptor is annoying, but there's a bunch
+
+-        # of small differences that would make a common base class convoluted.
+
+-
+
+-        if value is None:
+
+-            # Update the cached related instance (if any) & clear the cache.
+
+-            # Following the example above, this would be the cached
+
+-            # ``restaurant`` instance (if any).
+
+-            rel_obj = self.related.get_cached_value(instance, default=None)
+
+-            if rel_obj is not None:
+
+-                # Remove the ``restaurant`` instance from the ``place``
+
+-                # instance cache.
+
+-                self.related.delete_cached_value(instance)
+
+-                # Set the ``place`` field on the ``restaurant``
+
+-                # instance to None.
+
+-                setattr(rel_obj, self.related.field.name, None)
+
+-        elif not isinstance(value, self.related.related_model):
+
+-            # An object must be an instance of the related class.
+
+-            raise ValueError(
+
+-                'Cannot assign "%r": "%s.%s" must be a "%s" instance.' % (
+
+-                    value,
+
+-                    instance._meta.object_name,
+
+-                    self.related.get_accessor_name(),
+
+-                    self.related.related_model._meta.object_name,
+
+-                )
+
+-            )
+
+-        else:
+
+-            if instance._state.db is None:
+
+-                instance._state.db = router.db_for_write(instance.__class__, instance=value)
+
+-            if value._state.db is None:
+
+-                value._state.db = router.db_for_write(value.__class__, instance=instance)
+
+-            if not router.allow_relation(value, instance):
+
+-                raise ValueError('Cannot assign "%r": the current database router prevents this relation.' % value)
+
+-
+
+-            related_pk = tuple(getattr(instance, field.attname) for field in self.related.field.foreign_related_fields)
+
+-            # Set the value of the related field to the value of the related object's related field
+
+-            for index, field in enumerate(self.related.field.local_related_fields):
+
+-                setattr(value, field.attname, related_pk[index])
+
+-
+
+-            # Set the related instance cache used by __get__ to avoid an SQL query
+
+-            # when accessing the attribute we just set.
+
+-            self.related.set_cached_value(instance, value)
+
+-
+
+-            # Set the forward accessor cache on the related object to the current
+
+-            # instance to avoid an extra SQL query if it's accessed later on.
+
+-            self.related.field.set_cached_value(value, instance)
+
++        with transaction.atomic(using=self.connection.alias):
+
++            for obj in serializers.deserialize("json", serialized_data, using=self.connection.alias):
+
++                obj.save()
+
+ 
+
+     def __reduce__(self):
+
+         # Same purpose as ForwardManyToOneDescriptor.__reduce__().
+
+
+--- a/decoupled/60/0.8_0.2/35/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/35/django_django/django/db/models/fields/related_descriptors.py
+@@ -380,52 +380,10 @@
+             self.related.field.set_cached_value(rel_obj, instance)
+
+         return queryset, rel_obj_attr, instance_attr, True, self.related.get_cache_name(), False
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
+-        """
+
+-        Get the related instance through the reverse relation.
+
+-
+
+-        With the example above, when getting ``place.restaurant``:
+
+-
+
+-        - ``self`` is the descriptor managing the ``restaurant`` attribute
+
+-        - ``instance`` is the ``place`` instance
+
+-        - ``cls`` is the ``Place`` class (unused)
+
+-
+
+-        Keep in mind that ``Restaurant`` holds the foreign key to ``Place``.
+
+-        """
+
+-        if instance is None:
+
+-            return self
+
+-
+
+-        # The related instance is loaded from the database and then cached
+
+-        # by the field on the model instance state. It can also be pre-cached
+
+-        # by the forward accessor (ForwardManyToOneDescriptor).
+
+-        try:
+
+-            rel_obj = self.related.get_cached_value(instance)
+
+-        except KeyError:
+
+-            related_pk = instance.pk
+
+-            if related_pk is None:
+
+-                rel_obj = None
+
+-            else:
+
+-                filter_args = self.related.field.get_forward_related_filter(instance)
+
+-                try:
+
+-                    rel_obj = self.get_queryset(instance=instance).get(**filter_args)
+
+-                except self.related.related_model.DoesNotExist:
+
+-                    rel_obj = None
+
+-                else:
+
+-                    # Set the forward accessor cache on the related object to
+
+-                    # the current instance to avoid an extra SQL query if it's
+
+-                    # accessed later on.
+
+-                    self.related.field.set_cached_value(rel_obj, instance)
+
+-            self.related.set_cached_value(instance, rel_obj)
+
+-
+
+-        if rel_obj is None:
+
+-            raise self.RelatedObjectDoesNotExist(
+
+-                "%s has no %s." % (
+
+-                    instance.__class__.__name__,
+
+-                    self.related.get_accessor_name()
+
+-                )
+
+-            )
+
+-        else:
+
+-            return rel_obj
+
++def deserialize_db_from_string(self, serialized_data):
+
++        with transaction.atomic(using=self.connection.alias):
+
++            for obj in serializers.deserialize("json", serialized_data, using=self.connection.alias):
+
++                obj.save()
+
+ 
+
+     def __set__(self, instance, value):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/35/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/35/django_django/django/db/models/deletion.py
+@@ -211,7 +211,7 @@
+         else:
+
+             return [objs]
+
+ 
+
+-    def collect(self, objs, source=None, nullable=False, collect_related=True,
+
++def collect(self, objs, source=None, nullable=False, collect_related=True,
+
+                 source_attr=None, reverse_dependency=False, keep_parents=False,
+
+                 fail_on_restricted=True):
+
+         """
+
+@@ -294,7 +294,8 @@
+                     sub_objs = sub_objs.only(*tuple(referenced_fields))
+
+                 if sub_objs:
+
+                     try:
+
+-                        field.remote_field.on_delete(self, field, sub_objs, self.using)
+
++                        with transaction.atomic(using=self.using):
+
++                            field.remote_field.on_delete(self, field, sub_objs, self.using)
+
+                     except ProtectedError as error:
+
+                         key = "'%s.%s'" % (field.model.__name__, field.name)
+
+                         protected_objects[key] += error.protected_objects
+
+@@ -306,42 +307,6 @@
+                     ', '.join(protected_objects),
+
+                 ),
+
+                 chain.from_iterable(protected_objects.values()),
+
+-            )
+
+-        for related_model, related_fields in model_fast_deletes.items():
+
+-            batches = self.get_del_batches(new_objs, related_fields)
+
+-            for batch in batches:
+
+-                sub_objs = self.related_objects(related_model, related_fields, batch)
+
+-                self.fast_deletes.append(sub_objs)
+
+-        for field in model._meta.private_fields:
+
+-            if hasattr(field, 'bulk_related_objects'):
+
+-                # It's something like generic foreign key.
+
+-                sub_objs = field.bulk_related_objects(new_objs, self.using)
+
+-                self.collect(sub_objs, source=model, nullable=True, fail_on_restricted=False)
+
+-
+
+-        if fail_on_restricted:
+
+-            # Raise an error if collected restricted objects (RESTRICT) aren't
+
+-            # candidates for deletion also collected via CASCADE.
+
+-            for related_model, instances in self.data.items():
+
+-                self.clear_restricted_objects_from_set(related_model, instances)
+
+-            for qs in self.fast_deletes:
+
+-                self.clear_restricted_objects_from_queryset(qs.model, qs)
+
+-            if self.restricted_objects.values():
+
+-                restricted_objects = defaultdict(list)
+
+-                for related_model, fields in self.restricted_objects.items():
+
+-                    for field, objs in fields.items():
+
+-                        if objs:
+
+-                            key = "'%s.%s'" % (related_model.__name__, field.name)
+
+-                            restricted_objects[key] += objs
+
+-                if restricted_objects:
+
+-                    raise RestrictedError(
+
+-                        'Cannot delete some instances of model %r because '
+
+-                        'they are referenced through restricted foreign keys: '
+
+-                        '%s.' % (
+
+-                            model.__name__,
+
+-                            ', '.join(restricted_objects),
+
+-                        ),
+
+-                        chain.from_iterable(restricted_objects.values()),
+
+-                    )
+
+ 
+
+     def related_objects(self, related_model, related_fields, objs):
+
+         """
+
+

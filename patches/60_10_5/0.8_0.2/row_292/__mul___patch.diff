@@ -1,0 +1,134 @@
+--- a/decoupled/60/0.8_0.2/292/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/292/sympy_sympy/sympy/matrices/common.py
+@@ -2740,35 +2740,37 @@
+         return self.applyfunc(lambda x: x % other)
+
+ 
+
+     @call_highest_priority('__rmul__')
+
+-    def __mul__(self, other):
+
+-        """Return self*other where other is either a scalar or a matrix
+
+-        of compatible dimensions.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix
+
+-        >>> A = Matrix([[1, 2, 3], [4, 5, 6]])
+
+-        >>> 2*A == A*2 == Matrix([[2, 4, 6], [8, 10, 12]])
+
+-        True
+
+-        >>> B = Matrix([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+
+-        >>> A*B
+
+-        Matrix([
+
+-        [30, 36, 42],
+
+-        [66, 81, 96]])
+
+-        >>> B*A
+
+-        Traceback (most recent call last):
+
+-        ...
+
+-        ShapeError: Matrices size mismatch.
+
+-        >>>
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        matrix_multiply_elementwise
+
+-        """
+
+-
+
+-        return self.multiply(other)
+
++def __mul__(self, other):
+
++    """Return self*other where other is either a scalar or a matrix
+
++    of compatible dimensions.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix
+
++    >>> A = Matrix([[1, 2, 3], [4, 5, 6]])
+
++    >>> 2*A == A*2 == Matrix([[2, 4, 6], [8, 10, 12]])
+
++    True
+
++    >>> B = Matrix([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+
++    >>> A*B
+
++    Matrix([
+
++    [30, 36, 42],
+
++    [66, 81, 96]])
+
++    >>> B*A
+
++    Traceback (most recent call last):
+
++    ...
+
++    ShapeError: Matrices size mismatch.
+
++    >>>
+
++
+
++    See Also
+
++    ========
+
++
+
++    matrix_multiply_elementwise
+
++    """
+
++
+
++    if isinstance(other, Array) and len(other) == 0:
+
++        return other.__class__([])
+
++    return self.multiply(other)
+
+ 
+
+     def multiply(self, other, dotprodsimp=None):
+
+         """Same as __mul__() but with optional simplification.

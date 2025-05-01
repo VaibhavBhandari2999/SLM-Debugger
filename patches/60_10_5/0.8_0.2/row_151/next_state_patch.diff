@@ -1,0 +1,92 @@
+--- a/decoupled/60/0.8_0.2/151/psf_requests/requests/packages/chardet/codingstatemachine.py
++++ b/decoupled/60/0.8_0.2/151/psf_requests/requests/packages/chardet/codingstatemachine.py
+@@ -39,20 +39,31 @@
+     def reset(self):
+
+         self._mCurrentState = eStart
+
+ 
+
+-    def next_state(self, c):
+
+-        # for each byte we get its class
+
+-        # if it is first byte, we also get byte length
+
+-        # PY3K: aBuf is a byte stream, so c is an int, not a byte
+
+-        byteCls = self._mModel['classTable'][wrap_ord(c)]
+
+-        if self._mCurrentState == eStart:
+
+-            self._mCurrentBytePos = 0
+
+-            self._mCurrentCharLen = self._mModel['charLenTable'][byteCls]
+
+-        # from byte's class and stateTable, we get its next state
+
+-        curr_state = (self._mCurrentState * self._mModel['classFactor']
+
+-                      + byteCls)
+
+-        self._mCurrentState = self._mModel['stateTable'][curr_state]
+
+-        self._mCurrentBytePos += 1
+
+-        return self._mCurrentState
+
++import requests
+
++from requests.exceptions import ConnectionError
+
++
+
++def fetch_and_parse(url):
+
++    try:
+
++        response = requests.get(url)
+
++        response.raise_for_status()  # Raise an HTTPError for bad responses
+
++        root = ElementTree.fromstring(response.text)
+
++    except requests.exceptions.RequestException as e:
+
++        raise ConnectionError(f"Failed to fetch and parse the URL: {url}", e)
+
++
+
++def next_state(self, c):
+
++    # for each byte we get its class
+
++    # if it is first byte, we also get byte length
+
++    # PY3K: aBuf is a byte stream, so c is an int, not a byte
+
++    byteCls = self._mModel['classTable'][wrap_ord(c)]
+
++    if self._mCurrentState == eStart:
+
++        self._mCurrentBytePos = 0
+
++        self._mCurrentCharLen = self._mModel['charLenTable'][byteCls]
+
++    # from byte's class and stateTable, we get its next state
+
++    curr_state = (self._mCurrentState * self._mModel['classFactor']
+
++                  + byteCls)
+
++    self._mCurrentState = self._mModel['stateTable'][curr_state]
+
++    self._mCurrentBytePos += 1
+
++    return self._mCurrentState
+
+ 
+
+     def get_current_charlen(self):
+
+         return self._mCurrentCharLen

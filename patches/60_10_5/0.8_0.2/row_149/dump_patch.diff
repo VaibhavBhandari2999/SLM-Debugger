@@ -1,0 +1,16 @@
+--- a/decoupled/60/0.8_0.2/149/pallets_flask/src/flask/json/__init__.py
++++ b/decoupled/60/0.8_0.2/149/pallets_flask/src/flask/json/__init__.py
+@@ -68,6 +68,7 @@
+         removed in Flask 2.1.
+
+     """
+
+     if current_app:
+
++        # Use the app's json.dump method to get the subdomain information
+
+         current_app.json.dump(obj, fp, **kwargs)
+
+     else:
+
+         kwargs.setdefault("default", _default)

@@ -1,0 +1,764 @@
+--- a/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -459,37 +459,44 @@
+         field = Model._meta.get_field('field')
+
+         self.assertEqual(field.check(), [])
+
+ 
+
+-    def test_foreign_object_to_non_unique_fields(self):
+
+-        class Person(models.Model):
+
+-            # Note that both fields are not unique.
+
+-            country_id = models.IntegerField()
+
+-            city_id = models.IntegerField()
+
+-
+
+-        class MMembership(models.Model):
+
+-            person_country_id = models.IntegerField()
+
+-            person_city_id = models.IntegerField()
+
+-
+
+-            person = models.ForeignObject(
+
+-                Person,
+
+-                on_delete=models.CASCADE,
+
+-                from_fields=['person_country_id', 'person_city_id'],
+
+-                to_fields=['country_id', 'city_id'],
+
+-            )
+
+-
+
+-        field = MMembership._meta.get_field('person')
+
+-        self.assertEqual(field.check(), [
+
+-            Error(
+
+-                "No subset of the fields 'country_id', 'city_id' on model 'Person' is unique.",
+
+-                hint=(
+
+-                    'Mark a single field as unique=True or add a set of '
+
+-                    'fields to a unique constraint (via unique_together or a '
+
+-                    'UniqueConstraint (without condition) in the model '
+
+-                    'Meta.constraints).'
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E310',
+
+-            )
+
+-        ])
+
++def test_foreign_object_to_non_unique_fields(self):
+
++    class Person(models.Model):
+
++        # Note that both fields are not unique.
+
++        country_id = models.IntegerField()
+
++        city_id = models.IntegerField()
+
++
+
++    class MMembership(models.Model):
+
++        person_country_id = models.IntegerField()
+
++        person_city_id = models.IntegerField()
+
++
+
++        person = models.ForeignObject(
+
++            Person,
+
++            on_delete=models.CASCADE,
+
++            from_fields=['person_country_id', 'person_city_id'],
+
++            to_fields=['country_id', 'city_id'],
+
++        )
+
++
+
++    # Check if the fields in the UniqueConstraint exist on the model
+
++    person_model_fields = {f.name for f in Person._meta.get_fields()}
+
++    to_fields = ['country_id', 'city_id']
+
++    missing_fields = [field for field in to_fields if field not in person_model_fields]
+
++    if missing_fields:
+
++        raise models.FieldDoesNotExist(f"Fields {missing_fields} do not exist on model 'Person'")
+
++
+
++    field = MMembership._meta.get_field('person')
+
++    self.assertEqual(field.check(), [
+
++        Error(
+
++            "No subset of the fields 'country_id', 'city_id' on model 'Person' is unique.",
+
++            hint=(
+
++                'Mark a single field as unique=True or add a set of '
+
++                'fields to a unique constraint (via unique_together or a '
+
++                'UniqueConstraint (without condition) in the model '
+
++                'Meta.constraints).'
+
++            ),
+
++            obj=field,
+
++            id='fields.E310',
+
++        )
+
++    ])
+
+ 
+
+     def test_foreign_object_to_partially_unique_field(self):
+
+         class Person(models.Model):
+
+
+--- a/decoupled/60/0.8_0.2/42/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/42/django_django/django/db/models/fields/related_descriptors.py
+@@ -287,24 +287,25 @@
+     ``Restaurant.place`` is a ``ForwardOneToOneDescriptor`` instance.
+
+     """
+
+ 
+
+-    def get_object(self, instance):
+
+-        if self.field.remote_field.parent_link:
+
+-            deferred = instance.get_deferred_fields()
+
+-            # Because it's a parent link, all the data is available in the
+
+-            # instance, so populate the parent model with this data.
+
+-            rel_model = self.field.remote_field.model
+
+-            fields = [field.attname for field in rel_model._meta.concrete_fields]
+
+-
+
+-            # If any of the related model's fields are deferred, fallback to
+
+-            # fetching all fields from the related model. This avoids a query
+
+-            # on the related model for every deferred field.
+
+-            if not any(field in fields for field in deferred):
+
+-                kwargs = {field: getattr(instance, field) for field in fields}
+
+-                obj = rel_model(**kwargs)
+
+-                obj._state.adding = instance._state.adding
+
+-                obj._state.db = instance._state.db
+
+-                return obj
+
+-        return super().get_object(instance)
+
++def get_object(self, instance):
+
++    if self.field.remote_field.parent_link:
+
++        deferred = instance.get_deferred_fields()
+
++        # Because it's a parent link, all the data is available in the
+
++        # instance, so populate the parent model with this data.
+
++        rel_model = self.field.remote_field.model
+
++        fields = [field.attname for field in rel_model._meta.concrete_fields]
+
++        unique_constraint_fields = [field.name for field in rel_model._meta.unique_constraints[0].fields if field.name in fields]
+
++
+
++        # If any of the related model's fields are deferred, fallback to
+
++        # fetching all fields from the related model. This avoids a query
+
++        # on the related model for every deferred field.
+
++        if not any(field in fields for field in deferred):
+
++            kwargs = {field: getattr(instance, field) for field in unique_constraint_fields}
+
++            obj = rel_model(**kwargs)
+
++            obj._state.adding = instance._state.adding
+
++            obj._state.db = instance._state.db
+
++            return obj
+
++    return super().get_object(instance)
+
+ 
+
+     def __set__(self, instance, value):
+
+         super().__set__(instance, value)
+
+
+--- a/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -1580,41 +1580,60 @@
+             ),
+
+         ])
+
+ 
+
+-    def test_superset_foreign_object(self):
+
+-        class Parent(models.Model):
+
+-            a = models.PositiveIntegerField()
+
+-            b = models.PositiveIntegerField()
+
+-            c = models.PositiveIntegerField()
+
+-
+
+-            class Meta:
+
+-                unique_together = (('a', 'b', 'c'),)
+
+-
+
+-        class Child(models.Model):
+
+-            a = models.PositiveIntegerField()
+
+-            b = models.PositiveIntegerField()
+
+-            value = models.CharField(max_length=255)
+
+-            parent = models.ForeignObject(
+
+-                Parent,
+
+-                on_delete=models.SET_NULL,
+
+-                from_fields=('a', 'b'),
+
+-                to_fields=('a', 'b'),
+
+-                related_name='children',
+
+-            )
+
+-
+
+-        field = Child._meta.get_field('parent')
+
+-        self.assertEqual(field.check(from_model=Child), [
+
+-            Error(
+
+-                "No subset of the fields 'a', 'b' on model 'Parent' is unique.",
+
+-                hint=(
+
+-                    'Mark a single field as unique=True or add a set of '
+
+-                    'fields to a unique constraint (via unique_together or a '
+
+-                    'UniqueConstraint (without condition) in the model '
+
+-                    'Meta.constraints).'
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E310',
+
+-            ),
+
+-        ])
+
++def test_superset_foreign_object(self):
+
++    class Parent(models.Model):
+
++        a = models.PositiveIntegerField()
+
++        b = models.PositiveIntegerField()
+
++        c = models.PositiveIntegerField()
+
++
+
++        class Meta:
+
++            unique_together = (('a', 'b', 'c'),)
+
++
+
++    class Child(models.Model):
+
++        a = models.PositiveIntegerField()
+
++        b = models.PositiveIntegerField()
+
++        value = models.CharField(max_length=255)
+
++        parent = models.ForeignObject(
+
++            Parent,
+
++            on_delete=models.SET_NULL,
+
++            from_fields=('a', 'b'),
+
++            to_fields=('a', 'b'),
+
++            related_name='children',
+
++        )
+
++
+
++    field = Child._meta.get_field('parent')
+
++    # Check for the existence of fields in the UniqueConstraint
+
++    unique_constraint_fields = Parent._meta.unique_constraints[0].fields
+
++    errors = []
+
++    for field_name in unique_constraint_fields:
+
++        if not hasattr(Parent, field_name):
+
++            errors.append(
+
++                Error(
+
++                    f"No field named '{field_name}' on model 'Parent'.",
+
++                    hint=(
+
++                        'Ensure that the field names in the UniqueConstraint '
+
++                        'exist on the related model.'
+
++                    ),
+
++                    obj=field,
+
++                    id='fields.E012',
+
++                )
+
++            )
+
++    if errors:
+
++        return errors
+
++
+
++    self.assertEqual(field.check(from_model=Child), [
+
++        Error(
+
++            "No subset of the fields 'a', 'b' on model 'Parent' is unique.",
+
++            hint=(
+
++                'Mark a single field as unique=True or add a set of '
+
++                'fields to a unique constraint (via unique_together or a '
+
++                'UniqueConstraint (without condition) in the model '
+
++                'Meta.constraints).'
+
++            ),
+
++            obj=field,
+
++            id='fields.E310',
+
++        ),
+
++    ])
+
+ 
+
+     def test_intersection_foreign_object(self):
+
+         class Parent(models.Model):
+
+
+--- a/decoupled/60/0.8_0.2/42/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/42/django_django/django/db/models/fields/related_descriptors.py
+@@ -117,36 +117,38 @@
+     def get_queryset(self, **hints):
+
+         return self.field.remote_field.model._base_manager.db_manager(hints=hints).all()
+
+ 
+
+-    def get_prefetch_queryset(self, instances, queryset=None):
+
+-        if queryset is None:
+
+-            queryset = self.get_queryset()
+
+-        queryset._add_hints(instance=instances[0])
+
+-
+
+-        rel_obj_attr = self.field.get_foreign_related_value
+
+-        instance_attr = self.field.get_local_related_value
+
+-        instances_dict = {instance_attr(inst): inst for inst in instances}
+
+-        related_field = self.field.foreign_related_fields[0]
+
+-        remote_field = self.field.remote_field
+
+-
+
+-        # FIXME: This will need to be revisited when we introduce support for
+
+-        # composite fields. In the meantime we take this practical approach to
+
+-        # solve a regression on 1.6 when the reverse manager in hidden
+
+-        # (related_name ends with a '+'). Refs #21410.
+
+-        # The check for len(...) == 1 is a special case that allows the query
+
+-        # to be join-less and smaller. Refs #21760.
+
+-        if remote_field.is_hidden() or len(self.field.foreign_related_fields) == 1:
+
+-            query = {'%s__in' % related_field.name: {instance_attr(inst)[0] for inst in instances}}
+
+-        else:
+
+-            query = {'%s__in' % self.field.related_query_name(): instances}
+
+-        queryset = queryset.filter(**query)
+
+-
+
+-        # Since we're going to assign directly in the cache,
+
+-        # we must manage the reverse relation cache manually.
+
+-        if not remote_field.multiple:
+
+-            for rel_obj in queryset:
+
+-                instance = instances_dict[rel_obj_attr(rel_obj)]
+
+-                remote_field.set_cached_value(rel_obj, instance)
+
+-        return queryset, rel_obj_attr, instance_attr, True, self.field.get_cache_name(), False
+
++def get_prefetch_queryset(self, instances, queryset=None):
+
++    if queryset is None:
+
++        queryset = self.get_queryset()
+
++    queryset._add_hints(instance=instances[0])
+
++
+
++    rel_obj_attr = self.field.get_foreign_related_value
+
++    instance_attr = self.field.get_local_related_value
+
++    instances_dict = {instance_attr(inst): inst for inst in instances}
+
++    related_field = self.field.foreign_related_fields[0]
+
++    remote_field = self.field.remote_field
+
++
+
++    # Validate the fields in the UniqueConstraint
+
++    model = self.model
+
++    for field_name in related_field.name, *related_field.related_model._meta.unique_together:
+
++        if not model._meta.get_field(field_name):
+
++            raise ValueError(f"Field '{field_name}' does not exist in model '{model.__name__}'")
+
++
+
++    # The check for len(...) == 1 is a special case that allows the query
+
++    # to be join-less and smaller. Refs #21760.
+
++    if remote_field.is_hidden() or len(self.field.foreign_related_fields) == 1:
+
++        query = {'%s__in' % related_field.name: {instance_attr(inst)[0] for inst in instances}}
+
++    else:
+
++        query = {'%s__in' % self.field.related_query_name(): instances}
+
++    queryset = queryset.filter(**query)
+
++
+
++    # Since we're going to assign directly in the cache,
+
++    # we must manage the reverse relation cache manually.
+
++    if not remote_field.multiple:
+
++        for rel_obj in queryset:
+
++            instance = instances_dict[rel_obj_attr(rel_obj)]
+
++            remote_field.set_cached_value(rel_obj, instance)
+
++    return queryset, rel_obj_attr, instance_attr, True, self.field.get_cache_name(), False
+
+ 
+
+     def get_object(self, instance):
+
+         qs = self.get_queryset(instance=instance)
+
+
+--- a/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/42/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -491,45 +491,52 @@
+             )
+
+         ])
+
+ 
+
+-    def test_foreign_object_to_partially_unique_field(self):
+
+-        class Person(models.Model):
+
+-            country_id = models.IntegerField()
+
+-            city_id = models.IntegerField()
+
+-
+
+-            class Meta:
+
+-                constraints = [
+
+-                    models.UniqueConstraint(
+
+-                        fields=['country_id', 'city_id'],
+
+-                        name='tfotpuf_partial_unique',
+
+-                        condition=models.Q(pk__gt=2),
+
+-                    ),
+
+-                ]
+
+-
+
+-        class MMembership(models.Model):
+
+-            person_country_id = models.IntegerField()
+
+-            person_city_id = models.IntegerField()
+
+-            person = models.ForeignObject(
+
+-                Person,
+
+-                on_delete=models.CASCADE,
+
+-                from_fields=['person_country_id', 'person_city_id'],
+
+-                to_fields=['country_id', 'city_id'],
+
+-            )
+
+-
+
+-        field = MMembership._meta.get_field('person')
+
+-        self.assertEqual(field.check(), [
+
+-            Error(
+
+-                "No subset of the fields 'country_id', 'city_id' on model "
+
+-                "'Person' is unique.",
+
+-                hint=(
+
+-                    'Mark a single field as unique=True or add a set of '
+
+-                    'fields to a unique constraint (via unique_together or a '
+
+-                    'UniqueConstraint (without condition) in the model '
+
+-                    'Meta.constraints).'
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E310',
+
+-            ),
+
+-        ])
+
++def test_foreign_object_to_partially_unique_field(self):
+
++    class Person(models.Model):
+
++        country_id = models.IntegerField()
+
++        city_id = models.IntegerField()
+
++
+
++        class Meta:
+
++            constraints = [
+
++                models.UniqueConstraint(
+
++                    fields=['country_id', 'city_id'],
+
++                    name='tfotpuf_partial_unique',
+
++                    condition=models.Q(pk__gt=2),
+
++                ),
+
++            ]
+
++
+
++    class MMembership(models.Model):
+
++        person_country_id = models.IntegerField()
+
++        person_city_id = models.IntegerField()
+
++        person = models.ForeignObject(
+
++            Person,
+
++            on_delete=models.CASCADE,
+
++            from_fields=['person_country_id', 'person_city_id'],
+
++            to_fields=['country_id', 'city_id'],
+
++        )
+
++
+
++    field = MMembership._meta.get_field('person')
+
++    # Check if the fields in the UniqueConstraint exist on the Person model
+
++    person_model = Person._meta
+
++    unique_fields = [f.name for f in person_model.fields]
+
++    for field_name in ['country_id', 'city_id']:
+
++        if field_name not in unique_fields:
+
++            raise models.FieldDoesNotExist(f"Field '{field_name}' does not exist on model 'Person'")
+
++
+
++    self.assertEqual(field.check(), [
+
++        Error(
+
++            "No subset of the fields 'country_id', 'city_id' on model "
+
++            "'Person' is unique.",
+
++            hint=(
+
++                'Mark a single field as unique=True or add a set of '
+
++                'fields to a unique constraint (via unique_together or a '
+
++                'UniqueConstraint (without condition) in the model '
+
++                'Meta.constraints).'
+
++            ),
+
++            obj=field,
+
++            id='fields.E310',
+
++        ),
+
++    ])
+
+ 
+
+     def test_foreign_object_to_unique_field_with_meta_constraint(self):
+
+         class Person(models.Model):
+
+

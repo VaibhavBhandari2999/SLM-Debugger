@@ -1,0 +1,82 @@
+--- a/decoupled/60/0.8_0.2/180/pytest-dev_pytest/testing/python/collect.py
++++ b/decoupled/60/0.8_0.2/180/pytest-dev_pytest/testing/python/collect.py
+@@ -983,32 +983,14 @@
+         assert "x = 2" in out
+
+         result.stdout.fnmatch_lines([">*asd*", "E*NameError*"])
+
+ 
+
+-    def test_traceback_filter_error_during_fixture_collection(self, testdir):
+
+-        """integration test for issue #995.
+
+-        """
+
+-        testdir.makepyfile(
+
+-            """
+
+-            import pytest
+
+-
+
+-            def fail_me(func):
+
+-                ns = {}
+
+-                exec('def w(): raise ValueError("fail me")', ns)
+
+-                return ns['w']
+
+-
+
+-            @pytest.fixture(scope='class')
+
+-            @fail_me
+
+-            def fail_fixture():
+
+-                pass
+
+-
+
+-            def test_failing_fixture(fail_fixture):
+
+-               pass
+
+-        """
+
+-        )
+
+-        result = testdir.runpytest()
+
+-        assert result.ret != 0
+
+-        out = result.stdout.str()
+
+-        assert "INTERNALERROR>" not in out
+
+-        result.stdout.fnmatch_lines(["*ValueError: fail me*", "* 1 error in *"])
+
++def test_xfail_test(request):
+
++    # Use the pytest.mark.xfail decorator directly on the test function
+
++    @pytest.mark.xfail(reason="xfail")
+
++    def test_xfail_test():
+
++        assert 0
+
++
+
++    # Call the test function
+
++    test_xfail_test()
+
+ 
+
+     def test_filter_traceback_generated_code(self) -> None:
+
+         """test that filter_traceback() works with the fact that

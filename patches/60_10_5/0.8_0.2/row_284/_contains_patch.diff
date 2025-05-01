@@ -1,0 +1,59 @@
+--- a/decoupled/60/0.8_0.2/284/sympy_sympy/sympy/matrices/expressions/sets.py
++++ b/decoupled/60/0.8_0.2/284/sympy_sympy/sympy/matrices/expressions/sets.py
+@@ -41,7 +41,7 @@
+     def set(self):
+
+         return self.args[2]
+
+ 
+
+-    def _contains(self, other):
+
++def _contains(self, other):
+
+         if not isinstance(other, MatrixExpr):
+
+             raise TypeError("{} should be an instance of MatrixExpr.".format(other))
+
+         if other.shape != self.shape:
+
+@@ -49,7 +49,19 @@
+             if are_symbolic:
+
+                 return None
+
+             return False
+
+-        return fuzzy_and(self.set.contains(x) for x in other)
+
++        # Temporarily remove assumptions on symbols
+
++        assumptions = {symbol: symbol.assumptions0 for symbol in other.shape + self.shape if symbol.is_Symbol}
+
++        for symbol, assumptions_dict in assumptions.items():
+
++            symbol.assumptions0 = {}
+
++        
+
++        try:
+
++            result = fuzzy_and(self.set.contains(x) for x in other)
+
++        finally:
+
++            # Reapply assumptions
+
++            for symbol, assumptions_dict in assumptions.items():
+
++                symbol.assumptions0 = assumptions_dict
+
++        
+
++        return result
+
+ 
+
+     @classmethod
+
+     def _check_dim(cls, dim):

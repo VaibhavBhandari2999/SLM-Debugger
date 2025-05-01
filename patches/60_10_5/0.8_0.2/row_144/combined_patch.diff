@@ -1,0 +1,499 @@
+--- a/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
+@@ -29,29 +29,33 @@
+     code that can be abstracted out should be put here.
+
+ 
+
+     """
+
+-    def establish_variables(self, data, **kws):
+
+-        """Extract variables from data or use directly."""
+
+-        self.data = data
+
+-
+
+-        # Validate the inputs
+
+-        any_strings = any([isinstance(v, str) for v in kws.values()])
+
+-        if any_strings and data is None:
+
+-            raise ValueError("Must pass `data` if using named variables.")
+
+-
+
+-        # Set the variables
+
+-        for var, val in kws.items():
+
+-            if isinstance(val, str):
+
+-                vector = data[val]
+
+-            elif isinstance(val, list):
+
+-                vector = np.asarray(val)
+
+-            else:
+
+-                vector = val
+
+-            if vector is not None and vector.shape != (1,):
+
+-                vector = np.squeeze(vector)
+
+-            if np.ndim(vector) > 1:
+
+-                err = "regplot inputs must be 1d"
+
+-                raise ValueError(err)
+
+-            setattr(self, var, vector)
+
++def establish_variables(self, data, **kws):
+
++    """Extract variables from data or use directly."""
+
++    self.data = data
+
++
+
++    # Validate the inputs
+
++    any_strings = any([isinstance(v, str) for v in kws.values()])
+
++    if any_strings and data is None:
+
++        raise ValueError("Must pass `data` if using named variables.")
+
++
+
++    # Handle missing data
+
++    if data is not None:
+
++        data = data.dropna()
+
++
+
++    # Set the variables
+
++    for var, val in kws.items():
+
++        if isinstance(val, str):
+
++            vector = data[val] if data is not None else None
+
++        elif isinstance(val, list):
+
++            vector = np.asarray(val)
+
++        else:
+
++            vector = val
+
++        if vector is not None and vector.shape != (1,):
+
++            vector = np.squeeze(vector)
+
++        if np.ndim(vector) > 1:
+
++            err = "regplot inputs must be 1d"
+
++            raise ValueError(err)
+
++        setattr(self, var, vector)
+
+ 
+
+     def dropna(self, *vars):
+
+         """Remove observations with missing data."""
+
+
+--- a/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
+@@ -373,39 +373,18 @@
+         if hasattr(self.y, "name"):
+
+             ax.set_ylabel(self.y.name)
+
+ 
+
+-    def scatterplot(self, ax, kws):
+
+-        """Draw the data."""
+
+-        # Treat the line-based markers specially, explicitly setting larger
+
+-        # linewidth than is provided by the seaborn style defaults.
+
+-        # This would ideally be handled better in matplotlib (i.e., distinguish
+
+-        # between edgewidth for solid glyphs and linewidth for line glyphs
+
+-        # but this should do for now.
+
+-        line_markers = ["1", "2", "3", "4", "+", "x", "|", "_"]
+
+-        if self.x_estimator is None:
+
+-            if "marker" in kws and kws["marker"] in line_markers:
+
+-                lw = mpl.rcParams["lines.linewidth"]
+
+-            else:
+
+-                lw = mpl.rcParams["lines.markeredgewidth"]
+
+-            kws.setdefault("linewidths", lw)
+
+-
+
+-            if not hasattr(kws['color'], 'shape') or kws['color'].shape[1] < 4:
+
+-                kws.setdefault("alpha", .8)
+
+-
+
+-            x, y = self.scatter_data
+
+-            ax.scatter(x, y, **kws)
+
+-        else:
+
+-            # TODO abstraction
+
+-            ci_kws = {"color": kws["color"]}
+
+-            if "alpha" in kws:
+
+-                ci_kws["alpha"] = kws["alpha"]
+
+-            ci_kws["linewidth"] = mpl.rcParams["lines.linewidth"] * 1.75
+
+-            kws.setdefault("s", 50)
+
+-
+
+-            xs, ys, cis = self.estimate_data
+
+-            if [ci for ci in cis if ci is not None]:
+
+-                for x, ci in zip(xs, cis):
+
+-                    ax.plot([x, x], ci, **ci_kws)
+
+-            ax.scatter(xs, ys, **kws)
+
++import numpy as np
+
++import matplotlib.pyplot as mpl
+
++
+
++def PolyFit(self, data, groupby, orient, scales):
+
++    """Fit a polynomial to the data."""
+
++    # Remove rows with missing values
+
++    data = data.dropna()
+
++    
+
++    if data.empty:
+
++        return np.array([])
+
++
+
++    return groupby.apply(data, self._fit_predict)
+
+ 
+
+     def lineplot(self, ax, kws):
+
+         """Draw the model."""
+
+
+--- a/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/external/docscrape.py
++++ b/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/external/docscrape.py
+@@ -635,57 +635,31 @@
+ 
+
+     extra_public_methods = ['__call__']
+
+ 
+
+-    def __init__(self, cls, doc=None, modulename='', func_doc=FunctionDoc,
+
+-                 config={}):
+
+-        if not inspect.isclass(cls) and cls is not None:
+
+-            raise ValueError(f"Expected a class or None, but got {cls!r}")
+
+-        self._cls = cls
+
+-
+
+-        if 'sphinx' in sys.modules:
+
+-            from sphinx.ext.autodoc import ALL
+
+-        else:
+
+-            ALL = object()
+
+-
+
+-        self.show_inherited_members = config.get(
+
+-                    'show_inherited_class_members', True)
+
+-
+
+-        if modulename and not modulename.endswith('.'):
+
+-            modulename += '.'
+
+-        self._mod = modulename
+
+-
+
+-        if doc is None:
+
+-            if cls is None:
+
+-                raise ValueError("No class or documentation string given")
+
+-            doc = pydoc.getdoc(cls)
+
+-
+
+-        NumpyDocString.__init__(self, doc)
+
+-
+
+-        _members = config.get('members', [])
+
+-        if _members is ALL:
+
+-            _members = None
+
+-        _exclude = config.get('exclude-members', [])
+
+-
+
+-        if config.get('show_class_members', True) and _exclude is not ALL:
+
+-            def splitlines_x(s):
+
+-                if not s:
+
+-                    return []
+
+-                else:
+
+-                    return s.splitlines()
+
+-            for field, items in [('Methods', self.methods),
+
+-                                 ('Attributes', self.properties)]:
+
+-                if not self[field]:
+
+-                    doc_list = []
+
+-                    for name in sorted(items):
+
+-                        if (name in _exclude or
+
+-                                (_members and name not in _members)):
+
+-                            continue
+
+-                        try:
+
+-                            doc_item = pydoc.getdoc(getattr(self._cls, name))
+
+-                            doc_list.append(
+
+-                                Parameter(name, '', splitlines_x(doc_item)))
+
+-                        except AttributeError:
+
+-                            pass  # method doesn't exist
+
+-                    self[field] = doc_list
+
++import numpy as np
+
++import pandas as pd
+
++
+
++class PolyFit:
+
++    def __init__(self, order, gridsize=100):
+
++        self.order = order
+
++        self.gridsize = gridsize
+
++
+
++    def __call__(self, data, groupby, orient, scales):
+
++        if groupby is not None:
+
++            data = data.groupby(groupby).apply(lambda x: x.dropna())
+
++        else:
+
++            data = data.dropna()
+
++
+
++        x = data.index.values
+
++        y = data.values
+
++
+
++        if len(x) < self.order + 1:
+
++            return np.zeros(self.gridsize), np.zeros(self.gridsize)
+
++
+
++        p = np.polyfit(x, y, self.order)
+
++        xx = np.linspace(x.min(), x.max(), self.gridsize)
+
++        yy = np.polyval(p, xx)
+
++
+
++        return xx, yy
+
+ 
+
+     @property
+
+     def methods(self):
+
+
+--- a/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
+@@ -151,7 +151,7 @@
+         return x, y
+
+ 
+
+     @property
+
+-    def estimate_data(self):
+
++def estimate_data(self):
+
+         """Data with a point estimate and CI for each discrete x value."""
+
+         x, y = self.x_discrete, self.y
+
+         vals = sorted(np.unique(x))
+
+@@ -160,7 +160,11 @@
+         for val in vals:
+
+ 
+
+             # Get the point estimate of the y variable
+
++            _x = x[x == val]
+
+             _y = y[x == val]
+
++            _x = _x[~np.isnan(_x)]
+
++            _y = _y[~np.isnan(_y)]
+
++
+
+             est = self.x_estimator(_y)
+
+             points.append(est)
+
+ 
+
+@@ -175,6 +179,7 @@
+                 else:
+
+                     if self.units is not None:
+
+                         units = self.units[x == val]
+
++                        units = units[~np.isnan(units)]
+
+                     boots = algo.bootstrap(_y,
+
+                                            func=self.x_estimator,
+
+                                            n_boot=self.n_boot,
+
+
+--- a/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/144/mwaskom_seaborn/seaborn/regression.py
+@@ -73,7 +73,7 @@
+     This does the computations and drawing for the `regplot` function, and
+
+     is thus also used indirectly by `lmplot`.
+
+     """
+
+-    def __init__(self, x, y, data=None, x_estimator=None, x_bins=None,
+
++def __init__(self, x, y, data=None, x_estimator=None, x_bins=None,
+
+                  x_ci="ci", scatter=True, fit_reg=True, ci=95, n_boot=1000,
+
+                  units=None, seed=None, order=1, logistic=False, lowess=False,
+
+                  robust=False, logx=False, x_partial=None, y_partial=None,
+
+@@ -132,6 +132,15 @@
+         # Save the range of the x variable for the grid later
+
+         if self.fit_reg:
+
+             self.x_range = self.x.min(), self.x.max()
+
++
+
++        # Ensure that the data is free of None values before fitting the polynomial
+
++        if self.fit_reg:
+
++            self.x, self.y = self._remove_none_values(self.x, self.y)
+
++
+
++    def _remove_none_values(self, x, y):
+
++        # Remove None values from x and y
+
++        valid_indices = ~np.isnan(x) & ~np.isnan(y)
+
++        return x[valid_indices], y[valid_indices]
+
+ 
+
+     @property
+
+     def scatter_data(self):
+
+

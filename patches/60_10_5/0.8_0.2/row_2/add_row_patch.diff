@@ -1,0 +1,172 @@
+--- a/decoupled/60/0.8_0.2/2/astropy_astropy/astropy/table/table.py
++++ b/decoupled/60/0.8_0.2/2/astropy_astropy/astropy/table/table.py
+@@ -3129,58 +3129,33 @@
+                 cols[name][idx] = val
+
+             raise
+
+ 
+
+-    def add_row(self, vals=None, mask=None):
+
+-        """Add a new row to the end of the table.
+
+-
+
+-        The ``vals`` argument can be:
+
+-
+
+-        sequence (e.g. tuple or list)
+
+-            Column values in the same order as table columns.
+
+-        mapping (e.g. dict)
+
+-            Keys corresponding to column names.  Missing values will be
+
+-            filled with np.zeros for the column dtype.
+
+-        `None`
+
+-            All values filled with np.zeros for the column dtype.
+
+-
+
+-        This method requires that the Table object "owns" the underlying array
+
+-        data.  In particular one cannot add a row to a Table that was
+
+-        initialized with copy=False from an existing array.
+
+-
+
+-        The ``mask`` attribute should give (if desired) the mask for the
+
+-        values. The type of the mask should match that of the values, i.e. if
+
+-        ``vals`` is an iterable, then ``mask`` should also be an iterable
+
+-        with the same length, and if ``vals`` is a mapping, then ``mask``
+
+-        should be a dictionary.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        vals : tuple, list, dict or None
+
+-            Use the specified values in the new row
+
+-        mask : tuple, list, dict or None
+
+-            Use the specified mask values in the new row
+
+-
+
+-        Examples
+
+-        --------
+
+-        Create a table with three columns 'a', 'b' and 'c'::
+
+-
+
+-           >>> t = Table([[1,2],[4,5],[7,8]], names=('a','b','c'))
+
+-           >>> print(t)
+
+-            a   b   c
+
+-           --- --- ---
+
+-             1   4   7
+
+-             2   5   8
+
+-
+
+-        Adding a new row with entries '3' in 'a', '6' in 'b' and '9' in 'c'::
+
+-
+
+-           >>> t.add_row([3,6,9])
+
+-           >>> print(t)
+
+-             a   b   c
+
+-             --- --- ---
+
+-             1   4   7
+
+-             2   5   8
+
+-             3   6   9
+
+-        """
+
+-        self.insert_row(len(self), vals, mask)
+
++from astropy.io import ascii
+
++
+
++class QdpFormat(ascii.QDP):
+
++    def read(self, *args, **kwargs):
+
++        # Override the read method to handle both uppercase and lowercase commands
+
++        def process_line(line):
+
++            # Convert the line to lowercase for case-insensitive comparison
+
++            line_lower = line.lower()
+
++            if line_lower.startswith('read'):
+
++                # Extract the column and data
+
++                parts = line_lower.split()
+
++                if len(parts) >= 4 and parts[1] in ('serr', 'scol'):
+
++                    col = int(parts[3])
+
++                    data = self._read_data(parts[2], col)
+
++                    return data
+
++            return super().process_line(line)
+
++
+
++        # Override the process_line method to handle both cases
+
++        self.process_line = process_line
+
++
+
++        # Call the original read method
+
++        return super().read(*args, **kwargs)
+
++
+
++# Example usage
+
++if __name__ == "__main__":
+
++    from astropy.table import Table
+
++    Table.read('test.qdp', format='ascii.qdp')
+
+ 
+
+     def insert_row(self, index, vals=None, mask=None):
+
+         """Add a new row before the given ``index`` position in the table.

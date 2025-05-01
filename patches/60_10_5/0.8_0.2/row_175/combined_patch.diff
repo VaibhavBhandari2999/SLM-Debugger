@@ -1,0 +1,969 @@
+--- a/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/debugging.py
++++ b/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/debugging.py
+@@ -164,19 +164,21 @@
+ 
+
+             do_c = do_cont = do_continue
+
+ 
+
+-            def do_quit(self, arg):
+
+-                """Raise Exit outcome when quit command is used in pdb.
+
+-
+
+-                This is a bit of a hack - it would be better if BdbQuit
+
+-                could be handled, but this would require to wrap the
+
+-                whole pytest run, and adjust the report etc.
+
+-                """
+
+-                ret = super().do_quit(arg)
+
+-
+
+-                if cls._recursive_debug == 0:
+
+-                    outcomes.exit("Quitting debugger")
+
+-
+
+-                return ret
+
++def do_quit(self, arg):
+
++    """Raise Exit outcome when quit command is used in pdb.
+
++
+
++    This is a bit of a hack - it would be better if BdbQuit
+
++    could be handled, but this would require to wrap the
+
++    whole pytest run, and adjust the report etc.
+
++    """
+
++    ret = super().do_quit(arg)
+
++
+
++    if cls._recursive_debug == 0:
+
++        # The original code was missing the import for the 'outcomes' module.
+
++        from pytest import outcomes
+
++        outcomes.exit("Quitting debugger")
+
++
+
++    return ret
+
+ 
+
+             do_q = do_quit
+
+             do_exit = do_quit
+
+
+--- a/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/debugging.py
++++ b/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/debugging.py
+@@ -125,86 +125,84 @@
+         return wrapped_cls
+
+ 
+
+     @classmethod
+
+-    def _get_pdb_wrapper_class(cls, pdb_cls, capman):
+
+-        import _pytest.config
+
+-
+
+-        class PytestPdbWrapper(pdb_cls):
+
+-            _pytest_capman = capman
+
+-            _continued = False
+
+-
+
+-            def do_debug(self, arg):
+
+-                cls._recursive_debug += 1
+
+-                ret = super().do_debug(arg)
+
+-                cls._recursive_debug -= 1
+
+-                return ret
+
+-
+
+-            def do_continue(self, arg):
+
+-                ret = super().do_continue(arg)
+
+-                if cls._recursive_debug == 0:
+
+-                    tw = _pytest.config.create_terminal_writer(cls._config)
+
+-                    tw.line()
+
+-
+
+-                    capman = self._pytest_capman
+
+-                    capturing = pytestPDB._is_capturing(capman)
+
+-                    if capturing:
+
+-                        if capturing == "global":
+
+-                            tw.sep(">", "PDB continue (IO-capturing resumed)")
+
+-                        else:
+
+-                            tw.sep(
+
+-                                ">",
+
+-                                "PDB continue (IO-capturing resumed for %s)"
+
+-                                % capturing,
+
+-                            )
+
+-                        capman.resume()
+
+-                    else:
+
+-                        tw.sep(">", "PDB continue")
+
+-                cls._pluginmanager.hook.pytest_leave_pdb(config=cls._config, pdb=self)
+
+-                self._continued = True
+
+-                return ret
+
+-
+
+-            do_c = do_cont = do_continue
+
+-
+
+-            def do_quit(self, arg):
+
+-                """Raise Exit outcome when quit command is used in pdb.
+
+-
+
+-                This is a bit of a hack - it would be better if BdbQuit
+
+-                could be handled, but this would require to wrap the
+
+-                whole pytest run, and adjust the report etc.
+
+-                """
+
+-                ret = super().do_quit(arg)
+
+-
+
+-                if cls._recursive_debug == 0:
+
+-                    outcomes.exit("Quitting debugger")
+
+-
+
+-                return ret
+
+-
+
+-            do_q = do_quit
+
+-            do_exit = do_quit
+
+-
+
+-            def setup(self, f, tb):
+
+-                """Suspend on setup().
+
+-
+
+-                Needed after do_continue resumed, and entering another
+
+-                breakpoint again.
+
+-                """
+
+-                ret = super().setup(f, tb)
+
+-                if not ret and self._continued:
+
+-                    # pdb.setup() returns True if the command wants to exit
+
+-                    # from the interaction: do not suspend capturing then.
+
+-                    if self._pytest_capman:
+
+-                        self._pytest_capman.suspend_global_capture(in_=True)
+
+-                return ret
+
+-
+
+-            def get_stack(self, f, t):
+
+-                stack, i = super().get_stack(f, t)
+
+-                if f is None:
+
+-                    # Find last non-hidden frame.
+
+-                    i = max(0, len(stack) - 1)
+
+-                    while i and stack[i][0].f_locals.get("__tracebackhide__", False):
+
+-                        i -= 1
+
+-                return stack, i
+
+-
+
+-        return PytestPdbWrapper
+
++def pytest_addoption(parser):
+
++    group = parser.getgroup("custom", "Custom options")
+
++    group.addoption(
+
++        "--c",
+
++        action="store_true",
+
++        dest="collect_only",
+
++        help="Equivalent to --collect-only",
+
++    )
+
++
+
++# Map the new option to --collect-only
+
++@pytest.hookimpl(tryfirst=True)
+
++def pytest_configure(config):
+
++    if config.option.collect_only:
+
++        config.option.collect_only = True
+
++        config.option.collect = True
+
++        config.option.run = False
+
++        config.option.runtest = False
+
++        config.option.runtestloop = False
+
++        config.option.runtestmod = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtestmodloop = False
+
++        config.option.runtest
+
+ 
+
+     @classmethod
+
+     def _init_pdb(cls, method, *args, **kwargs):
+
+
+--- a/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/python_api.py
++++ b/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/python_api.py
+@@ -580,7 +580,6 @@
+ 
+
+         __ https://docs.python.org/3/library/re.html#regular-expression-syntax
+
+ 
+
+-
+
+     .. currentmodule:: _pytest._code
+
+ 
+
+     Use ``pytest.raises`` as a context manager, which will capture the exception of the given
+
+@@ -661,58 +660,7 @@
+         ...
+
+         >>> raises(ZeroDivisionError, f, 0)
+
+         <ExceptionInfo ...>
+
+-        >>> raises(ZeroDivisionError, f, x=0)
+
+-        <ExceptionInfo ...>
+
+-
+
+-    The form above is fully supported but discouraged for new code because the
+
+-    context manager form is regarded as more readable and less error-prone.
+
+-
+
+-    .. note::
+
+-        Similar to caught exception objects in Python, explicitly clearing
+
+-        local references to returned ``ExceptionInfo`` objects can
+
+-        help the Python interpreter speed up its garbage collection.
+
+-
+
+-        Clearing those references breaks a reference cycle
+
+-        (``ExceptionInfo`` --> caught exception --> frame stack raising
+
+-        the exception --> current frame stack --> local variables -->
+
+-        ``ExceptionInfo``) which makes Python keep all objects referenced
+
+-        from that cycle (including all local variables in the current
+
+-        frame) alive until the next cyclic garbage collection run. See the
+
+-        official Python ``try`` statement documentation for more detailed
+
+-        information.
+
+-
+
+-    """
+
+-    __tracebackhide__ = True
+
+-    for exc in filterfalse(
+
+-        inspect.isclass, always_iterable(expected_exception, BASE_TYPE)
+
+-    ):
+
+-        msg = "exceptions must be derived from BaseException, not %s"
+
+-        raise TypeError(msg % type(exc))
+
+-
+
+-    message = "DID NOT RAISE {}".format(expected_exception)
+
+-
+
+-    if not args:
+
+-        if kwargs:
+
+-            msg = "Unexpected keyword arguments passed to pytest.raises: "
+
+-            msg += ", ".join(sorted(kwargs))
+
+-            msg += "\nUse context-manager form instead?"
+
+-            raise TypeError(msg)
+
+-        return RaisesContext(expected_exception, message, match)
+
+-    else:
+
+-        func = args[0]
+
+-        if not callable(func):
+
+-            raise TypeError(
+
+-                "{!r} object (type: {}) must be callable".format(func, type(func))
+
+-            )
+
+-        try:
+
+-            func(*args[1:], **kwargs)
+
+-        except expected_exception as e:
+
+-            # We just caught the exception - there is a traceback.
+
+-            assert e.__traceback__ is not None
+
+-            return _pytest._code.ExceptionInfo.from_exc_info(
+
+-                (type(e), e, e.__traceback__)
+
+-            )
+
+-    fail(message)
+
++        >>> raises(ZeroDivisionError, f,
+
+ 
+
+ 
+
+ raises.Exception = fail.Exception  # type: ignore
+
+
+--- a/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/python_api.py
++++ b/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/python_api.py
+@@ -130,19 +130,19 @@
+ 
+
+         return ApproxBase.__eq__(self, actual)
+
+ 
+
+-    def _yield_comparisons(self, actual):
+
+-        import numpy as np
+
+-
+
+-        # `actual` can either be a numpy array or a scalar, it is treated in
+
+-        # `__eq__` before being passed to `ApproxBase.__eq__`, which is the
+
+-        # only method that calls this one.
+
+-
+
+-        if np.isscalar(actual):
+
+-            for i in np.ndindex(self.expected.shape):
+
+-                yield actual, self.expected[i].item()
+
+-        else:
+
+-            for i in np.ndindex(self.expected.shape):
+
+-                yield actual[i].item(), self.expected[i].item()
+
++def _yield_comparisons(self, actual):
+
++    import numpy as np
+
++
+
++    # `actual` can either be a numpy array or a scalar, it is treated in
+
++    # `__eq__` before being passed to `ApproxBase.__eq__`, which is the
+
++    # only method that calls this one.
+
++
+
++    if np.isscalar(actual):
+
++        for i in np.ndindex(self.expected.shape):
+
++            yield actual, self.expected[i].item()
+
++    else:
+
++        for i in np.ndindex(self.expected.shape):
+
++            yield actual[i].item(), self.expected[i].item()
+
+ 
+
+ 
+
+ class ApproxMapping(ApproxBase):
+
+
+--- a/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/python.py
++++ b/decoupled/60/0.8_0.2/175/pytest-dev_pytest/src/_pytest/python.py
+@@ -916,87 +916,97 @@
+         self._ids = set()
+
+         self._arg2fixturedefs = fixtureinfo.name2fixturedefs
+
+ 
+
+-    def parametrize(self, argnames, argvalues, indirect=False, ids=None, scope=None):
+
+-        """ Add new invocations to the underlying test function using the list
+
+-        of argvalues for the given argnames.  Parametrization is performed
+
+-        during the collection phase.  If you need to setup expensive resources
+
+-        see about setting indirect to do it rather at test setup time.
+
+-
+
+-        :arg argnames: a comma-separated string denoting one or more argument
+
+-                       names, or a list/tuple of argument strings.
+
+-
+
+-        :arg argvalues: The list of argvalues determines how often a
+
+-            test is invoked with different argument values.  If only one
+
+-            argname was specified argvalues is a list of values.  If N
+
+-            argnames were specified, argvalues must be a list of N-tuples,
+
+-            where each tuple-element specifies a value for its respective
+
+-            argname.
+
+-
+
+-        :arg indirect: The list of argnames or boolean. A list of arguments'
+
+-            names (subset of argnames). If True the list contains all names from
+
+-            the argnames. Each argvalue corresponding to an argname in this list will
+
+-            be passed as request.param to its respective argname fixture
+
+-            function so that it can perform more expensive setups during the
+
+-            setup phase of a test rather than at collection time.
+
+-
+
+-        :arg ids: list of string ids, or a callable.
+
+-            If strings, each is corresponding to the argvalues so that they are
+
+-            part of the test id. If None is given as id of specific test, the
+
+-            automatically generated id for that argument will be used.
+
+-            If callable, it should take one argument (a single argvalue) and return
+
+-            a string or return None. If None, the automatically generated id for that
+
+-            argument will be used.
+
+-            If no ids are provided they will be generated automatically from
+
+-            the argvalues.
+
+-
+
+-        :arg scope: if specified it denotes the scope of the parameters.
+
+-            The scope is used for grouping tests by parameter instances.
+
+-            It will also override any fixture-function defined scope, allowing
+
+-            to set a dynamic scope using test context or configuration.
+
+-        """
+
+-        from _pytest.fixtures import scope2index
+
+-        from _pytest.mark import ParameterSet
+
+-
+
+-        argnames, parameters = ParameterSet._for_parametrize(
+
+-            argnames,
+
+-            argvalues,
+
+-            self.function,
+
+-            self.config,
+
+-            function_definition=self.definition,
+
+-        )
+
+-        del argvalues
+
+-
+
+-        if scope is None:
+
+-            scope = _find_parametrized_scope(argnames, self._arg2fixturedefs, indirect)
+
+-
+
+-        self._validate_if_using_arg_names(argnames, indirect)
+
+-
+
+-        arg_values_types = self._resolve_arg_value_types(argnames, indirect)
+
+-
+
+-        ids = self._resolve_arg_ids(argnames, ids, parameters, item=self.definition)
+
+-
+
+-        scopenum = scope2index(
+
+-            scope, descr="parametrize() call in {}".format(self.function.__name__)
+
+-        )
+
+-
+
+-        # create the new calls: if we are parametrize() multiple times (by applying the decorator
+
+-        # more than once) then we accumulate those calls generating the cartesian product
+
+-        # of all calls
+
+-        newcalls = []
+
+-        for callspec in self._calls or [CallSpec2(self)]:
+
+-            for param_index, (param_id, param_set) in enumerate(zip(ids, parameters)):
+
+-                newcallspec = callspec.copy()
+
+-                newcallspec.setmulti2(
+
+-                    arg_values_types,
+
+-                    argnames,
+
+-                    param_set.values,
+
+-                    param_id,
+
+-                    param_set.marks,
+
+-                    scopenum,
+
+-                    param_index,
+
+-                )
+
+-                newcalls.append(newcallspec)
+
+-        self._calls = newcalls
+
++def parametrize(self, argnames, argvalues, indirect=False, ids=None, scope=None):
+
++    """ Add new invocations to the underlying test function using the list
+
++    of argvalues for the given argnames.  Parametrization is performed
+
++    during the collection phase.  If you need to setup expensive resources
+
++    see about setting indirect to do it rather at test setup time.
+
++
+
++    :arg argnames: a comma-separated string denoting one or more argument
+
++                   names, or a list/tuple of argument strings.
+
++
+
++    :arg argvalues: The list of argvalues determines how often a
+
++        test is invoked with different argument values.  If only one
+
++        argname was specified argvalues is a list of values.  If N
+
++        argnames were specified, argvalues must be a list of N-tuples,
+
++        where each tuple-element specifies a value for its respective
+
++        argname.
+
++
+
++    :arg indirect: The list of argnames or boolean. A list of arguments'
+
++        names (subset of argnames). If True the list contains all names from
+
++        the argnames. Each argvalue corresponding to an argname in this list will
+
++        be passed as request.param to its respective argname fixture
+
++        function so that it can perform more expensive setups during the
+
++        setup phase of a test rather than at collection time.
+
++
+
++    :arg ids: list of string ids, or a callable.
+
++        If strings, each is corresponding to the argvalues so that they are
+
++        part of the test id. If None is given as id of specific test, the
+
++        automatically generated id for that argument will be used.
+
++        If callable, it should take one argument (a single argvalue) and return
+
++        a string or return None. If None, the automatically generated id for that
+
++        argument will be used.
+
++        If no ids are provided they will be generated automatically from
+
++        the argvalues.
+
++
+
++    :arg scope: if specified it denotes the scope of the parameters.
+
++        The scope is used for grouping tests by parameter instances.
+
++        It will also override any fixture-function defined scope, allowing
+
++        to set a dynamic scope using test context or configuration.
+
++    """
+
++    from _pytest.fixtures import scope2index
+
++    from _pytest.mark import ParameterSet
+
++
+
++    argnames, parameters = ParameterSet._for_parametrize(
+
++        argnames,
+
++        argvalues,
+
++        self.function,
+
++        self.config,
+
++        function_definition=self.definition,
+
++    )
+
++    del argvalues
+
++
+
++    if scope is None:
+
++        scope = _find_parametrized_scope(argnames, self._arg2fixturedefs, indirect)
+
++
+
++    self._validate_if_using_arg_names(argnames, indirect)
+
++
+
++    arg_values_types = self._resolve_arg_value_types(argnames, indirect)
+
++
+
++    ids = self._resolve_arg_ids(argnames, ids, parameters, item=self.definition)
+
++
+
++    scopenum = scope2index(
+
++        scope, descr="parametrize() call in {}".format(self.function.__name__)
+
++    )
+
++
+
++    # create the new calls: if we are parametrize() multiple times (by applying the decorator
+
++    # more than once) then we accumulate those calls generating the cartesian product
+
++    # of all calls
+
++    newcalls = []
+
++    for callspec in self._calls or [CallSpec2(self)]:
+
++        for param_index, (param_id, param_set) in enumerate(zip(ids, parameters)):
+
++            newcallspec = callspec.copy()
+
++            newcallspec.setmulti2(
+
++                arg_values_types,
+
++                argnames,
+
++                param_set.values,
+
++                param_id,
+
++                param_set.marks,
+
++                scopenum,
+
++                param_index,
+
++            )
+
++            newcalls.append(newcallspec)
+
++    self._calls = newcalls
+
++
+
++# Add a one-character shortcut for --collect-only
+
++def pytest_addoption(parser):
+
++    group = parser.getgroup("collect")
+
++    group.addoption(
+
++        "-c", "--collect-only", action="store_true", help="Run only the collection phase"
+
++    )
+
++
+
++def pytest_configure(config):
+
++    config.addinivalue_line("markers", "collect_only
+
+ 
+
+     def _resolve_arg_ids(self, argnames, ids, parameters, item):
+
+         """Resolves the actual ids for the given argnames, based on the ``ids`` parameter given
+
+

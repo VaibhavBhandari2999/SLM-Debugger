@@ -1,0 +1,89 @@
+--- a/decoupled/60/0.8_0.2/71/django_django/django/core/management/commands/makemigrations.py
++++ b/decoupled/60/0.8_0.2/71/django_django/django/core/management/commands/makemigrations.py
+@@ -59,7 +59,7 @@
+         )
+
+ 
+
+     @no_translations
+
+-    def handle(self, *app_labels, **options):
+
++def handle(self, *app_labels, **options):
+
+         self.verbosity = options['verbosity']
+
+         self.interactive = options['interactive']
+
+         self.dry_run = options['dry_run']
+
+@@ -162,34 +162,7 @@
+             }
+
+             changes = autodetector.arrange_for_graph(
+
+                 changes=changes,
+
+-                graph=loader.graph,
+
+-                migration_name=self.migration_name,
+
+-            )
+
+-            self.write_migration_files(changes)
+
+-            return
+
+-
+
+-        # Detect changes
+
+-        changes = autodetector.changes(
+
+-            graph=loader.graph,
+
+-            trim_to_apps=app_labels or None,
+
+-            convert_apps=app_labels or None,
+
+-            migration_name=self.migration_name,
+
+-        )
+
+-
+
+-        if not changes:
+
+-            # No changes? Tell them.
+
+-            if self.verbosity >= 1:
+
+-                if app_labels:
+
+-                    if len(app_labels) == 1:
+
+-                        self.stdout.write("No changes detected in app '%s'" % app_labels.pop())
+
+-                    else:
+
+-                        self.stdout.write("No changes detected in apps '%s'" % ("', '".join(app_labels)))
+
+-                else:
+
+-                    self.stdout.write("No changes detected")
+
+-        else:
+
+-            self.write_migration_files(changes)
+
+-            if check_changes:
+
+-                sys.exit(1)
+
++                graph=loader
+
+ 
+
+     def write_migration_files(self, changes):
+
+         """

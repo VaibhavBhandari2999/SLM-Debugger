@@ -1,0 +1,158 @@
+--- a/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1244,39 +1244,45 @@
+         modcol = self.getmodulecol(source)
+
+         return self.genitems([modcol])
+
+ 
+
+-    def getmodulecol(
+
+-        self,
+
+-        source: Union[str, "os.PathLike[str]"],
+
+-        configargs=(),
+
+-        *,
+
+-        withinit: bool = False,
+
+-    ):
+
+-        """Return the module collection node for ``source``.
+
+-
+
+-        Writes ``source`` to a file using :py:meth:`makepyfile` and then
+
+-        runs the pytest collection on it, returning the collection node for the
+
+-        test module.
+
+-
+
+-        :param source:
+
+-            The source code of the module to collect.
+
+-
+
+-        :param configargs:
+
+-            Any extra arguments to pass to :py:meth:`parseconfigure`.
+
+-
+
+-        :param withinit:
+
+-            Whether to also write an ``__init__.py`` file to the same
+
+-            directory to ensure it is a package.
+
+-        """
+
+-        if isinstance(source, os.PathLike):
+
+-            path = self.path.joinpath(source)
+
+-            assert not withinit, "not supported for paths"
+
+-        else:
+
+-            kw = {self._name: str(source)}
+
+-            path = self.makepyfile(**kw)
+
+-        if withinit:
+
+-            self.makepyfile(__init__="#")
+
+-        self.config = config = self.parseconfigure(path, *configargs)
+
+-        return self.getnode(config, path)
+
++import os
+
++import getpass
+
++from pathlib import Path
+
++
+
++def getmodulecol(
+
++    self,
+
++    source: Union[str, "os.PathLike[str]"],
+
++    configargs=(),
+
++    *,
+
++    withinit: bool = False,
+
++):
+
++    """Return the module collection node for ``source``.
+
++
+
++    Writes ``source`` to a file using :py:meth:`makepyfile` and then
+
++    runs the pytest collection on it, returning the collection node for the
+
++    test module.
+
++
+
++    :param source:
+
++        The source code of the module to collect.
+
++
+
++    :param configargs:
+
++        Any extra arguments to pass to :py:meth:`parseconfigure`.
+
++
+
++    :param withinit:
+
++        Whether to also write an ``__init__.py`` file to the same
+
++        directory to ensure it is a package.
+
++    """
+
++    if isinstance(source, os.PathLike):
+
++        path = self.path.joinpath(source)
+
++        assert not withinit, "not supported for paths"
+
++    else:
+
++        kw = {self._name: str(source)}
+
++        path = self.makepyfile(**kw)
+
++    if withinit:
+
++        self.makepyfile(__init__="#")
+
++    username = getpass.getuser().split("\\")[-1]  # Sanitize the username
+
++    username = "".join([c for c in username if c.isalnum() or c in "_-."])  # Remove illegal characters
+
++    self.config = config = self.parseconfigure(path, *configargs)
+
++    return self.getnode(config, path)
+
+ 
+
+     def collect_by_name(
+
+         self, modcol: Collector, name: str

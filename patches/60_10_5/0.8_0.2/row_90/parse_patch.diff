@@ -1,0 +1,74 @@
+--- a/decoupled/60/0.8_0.2/90/django_django/django/template/smartif.py
++++ b/decoupled/60/0.8_0.2/90/django_django/django/template/smartif.py
+@@ -186,13 +186,29 @@
+             self.pos += 1
+
+             return retval
+
+ 
+
+-    def parse(self):
+
+-        retval = self.expression()
+
+-        # Check that we have exhausted all the tokens
+
+-        if self.current_token is not EndToken:
+
+-            raise self.error_class("Unused '%s' at end of if expression." %
+
+-                                   self.current_token.display())
+
+-        return retval
+
++from django.contrib.messages.storage.base import Message
+
++from django.core.serializers.json import DjangoJSONEncoder
+
++
+
++class MessageEncoder:
+
++    def encode(self, message):
+
++        data = {
+
++            'level': message.level,
+
++            'message': message.message,
+
++            'extra_tags': message.extra_tags or '',
+
++        }
+
++        return DjangoJSONEncoder().encode(data)
+
++
+
++    def encode_message(self, message):
+
++        return self.encode(message)
+
++
+
++class MessageDecoder:
+
++    def decode(self, encoded_message):
+
++        data = DjangoJSONEncoder().decode(encoded_message)
+
++        return Message(
+
++            level=data['level'],
+
++            message=data['message'],
+
++            extra_tags=data['extra_tags'] or '',
+
++        )
+
+ 
+
+     def expression(self, rbp=0):
+
+         t = self.current_token

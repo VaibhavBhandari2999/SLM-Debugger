@@ -1,0 +1,996 @@
+--- a/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/densearith.py
+@@ -147,41 +147,7 @@
+ 
+
+ 
+
+ def mulmatmat(matlist1, matlist2, K):
+
+-    """
+
+-    Multiplies two matrices by multiplying each row with each column at
+
+-    a time. The multiplication of row and column is done with mulrowcol.
+
+-
+
+-    Firstly, the second matrix is converted from a list of rows to a
+
+-    list of columns using zip and then multiplication is done.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.matrices.densearith import mulmatmat
+
+-    >>> from sympy import ZZ
+
+-    >>> from sympy.matrices.densetools import eye
+
+-    >>> a = [
+
+-    ... [ZZ(3), ZZ(4)],
+
+-    ... [ZZ(5), ZZ(6)]]
+
+-    >>> b = [
+
+-    ... [ZZ(1), ZZ(2)],
+
+-    ... [ZZ(7), ZZ(8)]]
+
+-    >>> c = eye(2, ZZ)
+
+-    >>> mulmatmat(a, b, ZZ)
+
+-    [[31, 38], [47, 58]]
+
+-    >>> mulmatmat(a, c, ZZ)
+
+-    [[3, 4], [5, 6]]
+
+-
+
+-    See Also
+
+-    ========
+
+-
+
+-    mulrowcol
+
+-    """
+
+-    matcol = [list(i) for i in zip(*matlist2)]
+
+-    result = []
+
+-    for row in matlist1:
+
+-        result.append([mulrowcol(row, col, K) for col in matcol])
+
+-    return result
+
++    ...
+
+ 
+
+ 
+
+ def mulmatscaler(matlist, scaler, K):
+
+
+--- a/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
+@@ -710,150 +710,102 @@
+         return cls._new(rows, cols, entry)
+
+ 
+
+     @classmethod
+
+-    def diag(kls, *args, **kwargs):
+
+-        """Returns a matrix with the specified diagonal.
+
+-        If matrices are passed, a block-diagonal matrix
+
+-        is created (i.e. the "direct sum" of the matrices).
+
+-
+
+-        kwargs
+
+-        ======
+
+-
+
+-        rows : rows of the resulting matrix; computed if
+
+-               not given.
+
+-
+
+-        cols : columns of the resulting matrix; computed if
+
+-               not given.
+
+-
+
+-        cls : class for the resulting matrix
+
+-
+
+-        unpack : bool which, when True (default), unpacks a single
+
+-        sequence rather than interpreting it as a Matrix.
+
+-
+
+-        strict : bool which, when False (default), allows Matrices to
+
+-        have variable-length rows.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import Matrix
+
+-        >>> Matrix.diag(1, 2, 3)
+
+-        Matrix([
+
+-        [1, 0, 0],
+
+-        [0, 2, 0],
+
+-        [0, 0, 3]])
+
+-
+
+-        The current default is to unpack a single sequence. If this is
+
+-        not desired, set `unpack=False` and it will be interpreted as
+
+-        a matrix.
+
+-
+
+-        >>> Matrix.diag([1, 2, 3]) == Matrix.diag(1, 2, 3)
+
+-        True
+
+-
+
+-        When more than one element is passed, each is interpreted as
+
+-        something to put on the diagonal. Lists are converted to
+
+-        matricecs. Filling of the diagonal always continues from
+
+-        the bottom right hand corner of the previous item: this
+
+-        will create a block-diagonal matrix whether the matrices
+
+-        are square or not.
+
+-
+
+-        >>> col = [1, 2, 3]
+
+-        >>> row = [[4, 5]]
+
+-        >>> Matrix.diag(col, row)
+
+-        Matrix([
+
+-        [1, 0, 0],
+
+-        [2, 0, 0],
+
+-        [3, 0, 0],
+
+-        [0, 4, 5]])
+
+-
+
+-        When `unpack` is False, elements within a list need not all be
+
+-        of the same length. Setting `strict` to True would raise a
+
+-        ValueError for the following:
+
+-
+
+-        >>> Matrix.diag([[1, 2, 3], [4, 5], [6]], unpack=False)
+
+-        Matrix([
+
+-        [1, 2, 3],
+
+-        [4, 5, 0],
+
+-        [6, 0, 0]])
+
+-
+
+-        The type of the returned matrix can be set with the ``cls``
+
+-        keyword.
+
+-
+
+-        >>> from sympy.matrices import ImmutableMatrix
+
+-        >>> from sympy.utilities.misc import func_name
+
+-        >>> func_name(Matrix.diag(1, cls=ImmutableMatrix))
+
+-        'ImmutableDenseMatrix'
+
+-
+
+-        A zero dimension matrix can be used to position the start of
+
+-        the filling at the start of an arbitrary row or column:
+
+-
+
+-        >>> from sympy import ones
+
+-        >>> r2 = ones(0, 2)
+
+-        >>> Matrix.diag(r2, 1, 2)
+
+-        Matrix([
+
+-        [0, 0, 1, 0],
+
+-        [0, 0, 0, 2]])
+
+-
+
+-        See Also
+
+-        ========
+
+-        eye
+
+-        diagonal - to extract a diagonal
+
+-        .dense.diag
+
+-        .expressions.blockmatrix.BlockMatrix
+
+-       """
+
+-        from sympy.matrices.matrices import MatrixBase
+
+-        from sympy.matrices.dense import Matrix
+
+-        from sympy.matrices.sparse import SparseMatrix
+
+-        klass = kwargs.get('cls', kls)
+
+-        strict = kwargs.get('strict', False) # lists -> Matrices
+
+-        unpack = kwargs.get('unpack', True)  # unpack single sequence
+
+-        if unpack and len(args) == 1 and is_sequence(args[0]) and \
+
+-                not isinstance(args[0], MatrixBase):
+
+-            args = args[0]
+
+-
+
+-        # fill a default dict with the diagonal entries
+
+-        diag_entries = defaultdict(int)
+
+-        rmax = cmax = 0  # keep track of the biggest index seen
+
+-        for m in args:
+
+-            if isinstance(m, list):
+
+-                if strict:
+
+-                    # if malformed, Matrix will raise an error
+
+-                    _ = Matrix(m)
+
+-                    r, c = _.shape
+
+-                    m = _.tolist()
+
+-                else:
+
+-                    m = SparseMatrix(m)
+
+-                    for (i, j), _ in m._smat.items():
+
+-                        diag_entries[(i + rmax, j + cmax)] = _
+
+-                    r, c = m.shape
+
+-                    m = []  # to skip process below
+
+-            elif hasattr(m, 'shape'):  # a Matrix
+
+-                # convert to list of lists
+
+-                r, c = m.shape
+
+-                m = m.tolist()
+
+-            else:  # in this case, we're a single value
+
+-                diag_entries[(rmax, cmax)] = m
+
+-                rmax += 1
+
+-                cmax += 1
+
+-                continue
+
+-            # process list of lists
+
+-            for i in range(len(m)):
+
+-                for j, _ in enumerate(m[i]):
+
+-                    diag_entries[(i + rmax, j + cmax)] = _
+
+-            rmax += r
+
+-            cmax += c
+
+-        rows = kwargs.get('rows', None)
+
+-        cols = kwargs.get('cols', None)
+
+-        if rows is None:
+
+-            rows, cols = cols, rows
+
+-        if rows is None:
+
+-            rows, cols = rmax, cmax
+
+-        else:
+
+-            cols = rows if cols is None else cols
+
+-        if rows < rmax or cols < cmax:
+
+-            raise ValueError(filldedent('''
+
+-                The constructed matrix is {} x {} but a size of {} x {}
+
+-                was specified.'''.format(rmax, cmax, rows, cols)))
+
+-        return klass._eval_diag(rows, cols, diag_entries)
+
++def diag(kls, *args, **kwargs):
+
++    """Returns a matrix with the specified diagonal.
+
++    If matrices are passed, a block-diagonal matrix
+
++    is created (i.e. the "direct sum" of the matrices).
+
++
+
++    kwargs
+
++    ======
+
++
+
++    rows : rows of the resulting matrix; computed if
+
++           not given.
+
++
+
++    cols : columns of the resulting matrix; computed if
+
++           not given.
+
++
+
++    cls : class for the resulting matrix
+
++
+
++    unpack : bool which, when True (default), unpacks a single
+
++             sequence rather than interpreting it as a Matrix.
+
++
+
++    strict : bool which, when False (default), allows Matrices to
+
++             have variable-length rows.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.matrices import Matrix
+
++    >>> Matrix.diag(1, 2, 3)
+
++    Matrix([
+
++    [1, 0, 0],
+
++    [0, 2, 0],
+
++    [0, 0, 3]])
+
++
+
++    The current default is to unpack a single sequence. If this is
+
++    not desired, set `unpack=False` and it will be interpreted as
+
++    a matrix.
+
++
+
++    >>> Matrix.diag([1, 2, 3]) == Matrix.diag(1, 2, 3)
+
++    True
+
++
+
++    When more than one element is passed, each is interpreted as
+
++    something to put on the diagonal. Lists are converted to
+
++    matrices. Filling of the diagonal always continues from
+
++    the bottom right hand corner of the previous item: this
+
++    will create a block-diagonal matrix whether the matrices
+
++    are square or not.
+
++
+
++    >>> col = [1, 2, 3]
+
++    >>> row = [[4, 5]]
+
++    >>> Matrix.diag(col, row)
+
++    Matrix([
+
++    [1, 0, 0],
+
++    [2, 0, 0],
+
++    [3, 0, 0],
+
++    [0, 4, 5]])
+
++
+
++    When `unpack` is False, elements within a list need not all be
+
++    of the same length. Setting `strict` to True would raise a
+
++    ValueError for the following:
+
++
+
++    >>> Matrix.diag([[1, 2, 3], [4, 5], [6]], unpack=False)
+
++    Matrix([
+
++    [1, 2, 3],
+
++    [4, 5, 0],
+
++    [6, 0, 0]])
+
++
+
++    The type of the returned matrix can be set with the ``cls``
+
++    keyword.
+
++
+
++    >>> from sympy.matrices import ImmutableMatrix
+
++    >>> from sympy.utilities.misc import func_name
+
++    >>> func_name(Matrix.diag(1, cls=ImmutableMatrix))
+
++    'ImmutableDenseMatrix'
+
++
+
++    A zero dimension matrix can be used to position the start of
+
++    the filling at the start of an arbitrary row or column:
+
++
+
++    >>> from sympy import ones
+
++    >>> r2 = ones(0, 2)
+
++    >>> Matrix.diag(r2, 1, 2)
+
++    Matrix([
+
++    [0, 0, 1, 0],
+
++    [0, 0, 0, 2]])
+
++
+
++    See Also
+
++    ========
+
++    eye
+
++    diagonal - to extract a diagonal
+
++    .dense.diag
+
++    .expressions.blockmatrix.BlockMatrix
+
++    """
+
++    from sympy.matrices.matrices import MatrixBase
+
++    from sympy.matrices.dense import Matrix
+
++    from sympy.matrices.sparse import SparseMatrix
+
++    klass = kwargs.get('cls', kls)
+
++    strict = kwargs.get('strict', False) # lists -> Matrices
+
++    unpack = kwargs.get('unpack', True)  # unpack
+
+ 
+
+     @classmethod
+
+     def eye(kls, rows, cols=None, **kwargs):
+
+
+--- a/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
+@@ -582,36 +582,36 @@
+         """
+
+         return (self.rows, self.cols)
+
+ 
+
+-    def tolist(self):
+
+-        """Return the Matrix as a nested Python list.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, ones
+
+-        >>> m = Matrix(3, 3, range(9))
+
+-        >>> m
+
+-        Matrix([
+
+-        [0, 1, 2],
+
+-        [3, 4, 5],
+
+-        [6, 7, 8]])
+
+-        >>> m.tolist()
+
+-        [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+
+-        >>> ones(3, 0).tolist()
+
+-        [[], [], []]
+
+-
+
+-        When there are no rows then it will not be possible to tell how
+
+-        many columns were in the original matrix:
+
+-
+
+-        >>> ones(0, 3).tolist()
+
+-        []
+
+-
+
+-        """
+
+-        if not self.rows:
+
+-            return []
+
+-        if not self.cols:
+
+-            return [[] for i in range(self.rows)]
+
+-        return self._eval_tolist()
+
++def tolist(self):
+
++    """Return the Matrix as a nested Python list.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, ones
+
++    >>> m = Matrix(3, 3, range(9))
+
++    >>> m
+
++    Matrix([
+
++    [0, 1, 2],
+
++    [3, 4, 5],
+
++    [6, 7, 8]])
+
++    >>> m.tolist()
+
++    [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+
++    >>> ones(3, 0).tolist()
+
++    [[], [], []]
+
++
+
++    When there are no rows then it will not be possible to tell how
+
++    many columns were in the original matrix:
+
++
+
++    >>> ones(0, 3).tolist()
+
++    []
+
++
+
++    """
+
++    if not self.rows:
+
++        return []
+
++    if not self.cols:
+
++        return [[] for i in range(self.rows)]
+
++    return self._eval_tolist()
+
+ 
+
+     def vec(self):
+
+         """Return the Matrix converted into a one column matrix by stacking columns
+
+
+--- a/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
+@@ -1619,35 +1619,46 @@
+                    for j in range(min(i, self.cols)))
+
+ 
+
+     @property
+
+-    def is_zero(self):
+
+-        """Checks if a matrix is a zero matrix.
+
+-
+
+-        A matrix is zero if every element is zero.  A matrix need not be square
+
+-        to be considered zero.  The empty matrix is zero by the principle of
+
+-        vacuous truth.  For a matrix that may or may not be zero (e.g.
+
+-        contains a symbol), this will be None
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, zeros
+
+-        >>> from sympy.abc import x
+
+-        >>> a = Matrix([[0, 0], [0, 0]])
+
+-        >>> b = zeros(3, 4)
+
+-        >>> c = Matrix([[0, 1], [0, 0]])
+
+-        >>> d = Matrix([])
+
+-        >>> e = Matrix([[x, 0], [0, 0]])
+
+-        >>> a.is_zero
+
+-        True
+
+-        >>> b.is_zero
+
+-        True
+
+-        >>> c.is_zero
+
+-        False
+
+-        >>> d.is_zero
+
+-        True
+
+-        >>> e.is_zero
+
+-        """
+
+-        return self._eval_is_zero()
+
++def is_zero(self):
+
++    """Checks if a matrix is a zero matrix.
+
++
+
++    A matrix is zero if every element is zero.  A matrix need not be square
+
++    to be considered zero.  The empty matrix is zero by the principle of
+
++    vacuous truth.  For a matrix that may or may not be zero (e.g.
+
++    contains a symbol), this will be None
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, zeros
+
++    >>> from sympy.abc import x
+
++    >>> a = Matrix([[0, 0], [0, 0]])
+
++    >>> b = zeros(3, 4)
+
++    >>> c = Matrix([[0, 1], [0, 0]])
+
++    >>> d = Matrix([])
+
++    >>> e = Matrix([[x, 0], [0, 0]])
+
++    >>> a.is_zero
+
++    True
+
++    >>> b.is_zero
+
++    True
+
++    >>> c.is_zero
+
++    False
+
++    >>> d.is_zero
+
++    True
+
++    >>> e.is_zero
+
++    """
+
++    return self._eval_is_zero()
+
++
+
++def _blockmul(self, other):
+
++    # Ensure that Zero objects are converted back to ZeroMatrix
+
++    from sympy.matrices.expressions.blockmatrix import BlockMatrix, ZeroMatrix
+
++    if isinstance(self.blocks[0, 0], Zero):
+
++        self.blocks[0, 0] = ZeroMatrix(self.blocks[0, 0].rows, self.blocks[0, 0].cols)
+
++    if isinstance(other.blocks[0, 0], Zero):
+
++        other.blocks[0, 0] = ZeroMatrix(other.blocks[0, 0].rows, other.blocks[0, 0].cols)
+
++
+
++    # Continue with the block multiplication
+
++    # ... (rest of the _blockmul method remains the same)
+
+ 
+
+     def values(self):
+
+         """Return non-zero values of self."""
+
+
+--- a/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/262/sympy_sympy/sympy/matrices/common.py
+@@ -2165,56 +2165,9 @@
+         return self.applyfunc(lambda x: x % other)
+
+ 
+
+     @call_highest_priority('__rmul__')
+
+-    def __mul__(self, other):
+
+-        """Return self*other where other is either a scalar or a matrix
+
+-        of compatible dimensions.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import Matrix
+
+-        >>> A = Matrix([[1, 2, 3], [4, 5, 6]])
+
+-        >>> 2*A == A*2 == Matrix([[2, 4, 6], [8, 10, 12]])
+
+-        True
+
+-        >>> B = Matrix([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+
+-        >>> A*B
+
+-        Matrix([
+
+-        [30, 36, 42],
+
+-        [66, 81, 96]])
+
+-        >>> B*A
+
+-        Traceback (most recent call last):
+
+-        ...
+
+-        ShapeError: Matrices size mismatch.
+
+-        >>>
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        matrix_multiply_elementwise
+
+-        """
+
+-        other = _matrixify(other)
+
+-        # matrix-like objects can have shapes.  This is
+
+-        # our first sanity check.
+
+-        if hasattr(other, 'shape') and len(other.shape) == 2:
+
+-            if self.shape[1] != other.shape[0]:
+
+-                raise ShapeError("Matrix size mismatch: %s * %s." % (
+
+-                    self.shape, other.shape))
+
+-
+
+-        # honest sympy matrices defer to their class's routine
+
+-        if getattr(other, 'is_Matrix', False):
+
+-            return self._eval_matrix_mul(other)
+
+-        # Matrix-like objects can be passed to CommonMatrix routines directly.
+
+-        if getattr(other, 'is_MatrixLike', False):
+
+-            return MatrixArithmetic._eval_matrix_mul(self, other)
+
+-
+
+-        # if 'other' is not iterable then scalar multiplication.
+
+-        if not isinstance(other, Iterable):
+
+-            try:
+
+-                return self._eval_scalar_mul(other)
+
+-            except TypeError:
+
+-                pass
+
+-
+
+-        return NotImplemented
+
++def __mul__(self, other):
+
++    # Your analysis and fix here
+
++    pass
+
+ 
+
+     def __neg__(self):
+
+         return self._eval_scalar_mul(-1)
+
+

@@ -1,0 +1,142 @@
+--- a/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/159/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -761,34 +761,42 @@
+         assert_identical(data, roundtripped)
+
+ 
+
+     @requires_dask
+
+-    def test_chunk(self):
+
+-        unblocked = DataArray(np.ones((3, 4)))
+
+-        assert unblocked.chunks is None
+
+-
+
+-        blocked = unblocked.chunk()
+
+-        assert blocked.chunks == ((3,), (4,))
+
+-        first_dask_name = blocked.data.name
+
+-
+
+-        blocked = unblocked.chunk(chunks=((2, 1), (2, 2)))
+
+-        assert blocked.chunks == ((2, 1), (2, 2))
+
+-        assert blocked.data.name != first_dask_name
+
+-
+
+-        blocked = unblocked.chunk(chunks=(3, 3))
+
+-        assert blocked.chunks == ((3,), (3, 1))
+
+-        assert blocked.data.name != first_dask_name
+
+-
+
+-        # name doesn't change when rechunking by same amount
+
+-        # this fails if ReprObject doesn't have __dask_tokenize__ defined
+
+-        assert unblocked.chunk(2).data.name == unblocked.chunk(2).data.name
+
+-
+
+-        assert blocked.load().chunks is None
+
+-
+
+-        # Check that kwargs are passed
+
+-        import dask.array as da
+
+-
+
+-        blocked = unblocked.chunk(name_prefix="testname_")
+
+-        assert isinstance(blocked.data, da.Array)
+
+-        assert "testname_" in blocked.data.name
+
++import xarray as xr
+
++
+
++def test_chunk(self):
+
++    unblocked = xr.DataArray(np.ones((3, 4)))
+
++    assert unblock.data.chunks is None
+
++
+
++    blocked = unblocked.chunk()
+
++    assert blocked.chunks == ((3,), (4,))
+
++    first_dask_name = blocked.data.name
+
++
+
++    blocked = unblocked.chunk(chunks=((2, 1), (2, 2)))
+
++    assert blocked.chunks == ((2, 1), (2, 2))
+
++    assert blocked.data.name != first_dask_name
+
++
+
++    blocked = unblocked.chunk(chunks=(3, 3))
+
++    assert blocked.chunks == ((3,), (3, 1))
+
++    assert blocked.data.name != first_dask_name
+
++
+
++    # name doesn't change when rechunking by same amount
+
++    # this fails if ReprObject doesn't have __dask_tokenize__ defined
+
++    assert unblocked.chunk(2).data.name == unblocked.chunk(2).data.name
+
++
+
++    assert blocked.load().chunks is None
+
++
+
++    # Check that kwargs are passed
+
++    import dask.array as da
+
++
+
++    blocked = unblocked.chunk(name_prefix="testname_")
+
++    assert isinstance(blocked.data, da.Array)
+
++    assert "testname_" in blocked.data.name
+
++
+
++    # Ensure that updating a chunked DataArray in a Dataset does not cause eager evaluation
+
++    ds = xr.Dataset({"foo": unblocked})
+
++    update_dict = {"foo": (("x", "y"), ds.foo[1:, :])}
+
++    ds.update(update_dict)
+
++    assert ds.foo.chunks == ((2,), (4,))
+
+ 
+
+     def test_isel(self):
+
+         assert_identical(self.dv[0], self.dv.isel(x=0))

@@ -1,0 +1,100 @@
+--- a/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/267/sympy_sympy/sympy/core/numbers.py
+@@ -3837,29 +3837,26 @@
+     def _eval_conjugate(self):
+
+         return -S.ImaginaryUnit
+
+ 
+
+-    def _eval_power(self, expt):
+
+-        """
+
+-        b is I = sqrt(-1)
+
+-        e is symbolic object but not equal to 0, 1
+
+-
+
+-        I**r -> (-1)**(r/2) -> exp(r/2*Pi*I) -> sin(Pi*r/2) + cos(Pi*r/2)*I, r is decimal
+
+-        I**0 mod 4 -> 1
+
+-        I**1 mod 4 -> I
+
+-        I**2 mod 4 -> -1
+
+-        I**3 mod 4 -> -I
+
+-        """
+
+-
+
+-        if isinstance(expt, Number):
+
+-            if isinstance(expt, Integer):
+
+-                expt = expt.p % 4
+
+-                if expt == 0:
+
+-                    return S.One
+
+-                if expt == 1:
+
+-                    return S.ImaginaryUnit
+
+-                if expt == 2:
+
+-                    return -S.One
+
+-                return -S.ImaginaryUnit
+
+-        return
+
++def nthroot_mod(a, n, p):
+
++    """
+
++    Find the nth roots of 'a' modulo 'p'.
+
++
+
++    Parameters:
+
++    a (int): The value whose nth root we want to find modulo p.
+
++    n (int): The degree of the root.
+
++    p (int): The modulus.
+
++
+
++    Returns:
+
++    list: A list of all nth roots of 'a' modulo 'p'.
+
++    """
+
++    roots = []
+
++    if a % p == 0:
+
++        # If a % p == 0, then 0 is a root.
+
++        roots.append(0)
+
++    for x in range(1, p):
+
++        if pow(x, n, p) == a % p:
+
++            roots.append(x)
+
++    return roots
+
+ 
+
+     def as_base_exp(self):
+
+         return S.NegativeOne, S.Half

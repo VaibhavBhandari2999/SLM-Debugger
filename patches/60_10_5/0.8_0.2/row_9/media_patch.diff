@@ -1,0 +1,48 @@
+--- a/decoupled/60/0.8_0.2/9/django_django/django/forms/forms.py
++++ b/decoupled/60/0.8_0.2/9/django_django/django/forms/forms.py
+@@ -452,12 +452,19 @@
+         return data
+
+ 
+
+     @property
+
+-    def media(self):
+
++def media(self):
+
+         """Return all media required to render the widgets on this form."""
+
+-        media = Media()
+
++        js_list = []
+
++        css_list = []
+
+         for field in self.fields.values():
+
+-            media = media + field.widget.media
+
+-        return media
+
++            field_media = field.widget.media
+
++            js_list.extend(field_media.js)
+
++            css_list.extend(field_media.css)
+
++        # Remove duplicates while preserving order
+
++        seen = set()
+
++        js_list = [x for x in js_list if not (x in seen or seen.add(x))]
+
++        css_list = [x for x in css_list if not (x in seen or seen.add(x))]
+
++        return Media(css=dict((k, v) for k, v in zip(css_list, css_list)), js=js_list)
+
+ 
+
+     def is_multipart(self):
+
+         """

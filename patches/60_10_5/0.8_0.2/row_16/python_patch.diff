@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/16/django_django/django/core/management/commands/shell.py
++++ b/decoupled/60/0.8_0.2/16/django_django/django/core/management/commands/shell.py
+@@ -39,7 +39,7 @@
+         import bpython
+
+         bpython.embed()
+
+ 
+
+-    def python(self, options):
+
++def python(self, options):
+
+         import code
+
+         # Set up a dictionary to serve as the environment for the shell, so
+
+         # that tab completion works on objects that are imported at runtime.
+
+@@ -80,6 +80,12 @@
+ 
+
+         code.interact(local=imported_objects)
+
+ 
+
++        # Explicitly add manage.py to the list of files to watch by the autoreloader
+
++        import django
+
++        django.setup()
+
++        from django.utils.autoreload import run_with_reloader
+
++        run_with_reloader(self.python, options)
+
++
+
+     def handle(self, **options):
+
+         # Execute the command and exit.
+
+         if options['command']:

@@ -1,0 +1,143 @@
+--- a/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
+@@ -358,6 +358,17 @@
+         """
+
+         return self.prepopulated_fields
+
+ 
+
++from django.contrib.admin import AdminSite
+
++
+
++class CustomAdminSite(AdminSite):
+
++    def get_app_list(self, request):
+
++        """
+
++        Return a list of applications and models that the user has access to.
+
++        This method is public and can be accessed from outside the class.
+
++        """
+
++        app_dict = self._build_app_dict(request)
+
++        return app_dict
+
++
+
+     def get_queryset(self, request):
+
+         """
+
+         Return a QuerySet of all model instances that can be edited by the
+
+@@ -369,6 +380,53 @@
+         if ordering:
+
+             qs = qs.order_by(*ordering)
+
+         return qs
+
++
+
++    def _build_app_dict(self, request, label=None):
+
++        """
+
++        Build the app dictionary. This method is now public and can be accessed from outside the class.
+
++        """
+
++        from django.contrib.admin import site
+
++        from django.contrib.contenttypes.models import ContentType
+
++        from django.utils.translation import ugettext as _
+
++
+
++        app_dict = {}
+
++        for model, model_admin in site._registry.items():
+
++            app_label = model._meta.app_label
+
++
+
++            if app_label not in app_dict:
+
++                app_dict[app_label] = {
+
++                    'name': _(app_label.title()),
+
++                    'models': [],
+
++                }
+
++
+
++            if label and app_label != label:
+
++                continue
+
++
+
++            model_name = model._meta.model_name
+
++            model_admin_name = model_admin.__class__.__name__
+
++            model_dict = {
+
++                'name': capfirst(model._meta.verbose_name_plural),
+
++                'object_name': model._meta.object_name,
+
++                'admin_url': reverse(
+
++                    'admin:%s_%s_changelist' % (app_label, model_name),
+
++                    current_app=self.name,
+
++                ),
+
++                'add_url': reverse(
+
++                    'admin:%s_%s_add' % (app_label, model_name),
+
++                    current_app=self.name,
+
++                ),
+
++                'perms': model_admin.get_model_perms(request),
+
++                'admin_class': model_admin_name,
+
++            }
+
++            if model_admin_name == 'StickyModelAdmin':
+
++                model_dict['model_class'] = model
+
++            app_dict[app_label]['models'].append(model_dict)
+
++
+
++        # Sort the apps alphabetically.
+
++        app_list = list(app_dict.values())
+
++        app_list.sort(key=lambda x: x['name'].lower())
+
++
+
++        return app_list
+
+ 
+
+     def get_sortable_by(self, request):
+
+         """Hook for specifying which fields can be sorted in the changelist."""

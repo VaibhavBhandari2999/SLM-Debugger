@@ -1,0 +1,60 @@
+--- a/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
++++ b/decoupled/60/0.8_0.2/45/django_django/tests/template_tests/filter_tests/test_truncatewords.py
+@@ -29,11 +29,24 @@
+     def test_truncate(self):
+
+         self.assertEqual(truncatewords('A sentence with a few words in it', 1), 'A …')
+
+ 
+
+-    def test_truncate2(self):
+
+-        self.assertEqual(
+
+-            truncatewords('A sentence with a few words in it', 5),
+
+-            'A sentence with a few …',
+
+-        )
+
++from django.utils.text import slugify
+
++import re
+
++
+
++def slugify(text):
+
++    # Remove all dashes and underscores
+
++    text = re.sub(r'[-_]', '', text)
+
++    return slugify(text)
+
++
+
++def test_truncate2(self):
+
++    self.assertEqual(
+
++        truncatewords('A sentence with a few words in it', 5),
+
++        'A sentence with a few …',
+
++    )
+
++    # Test the new slugify function
+
++    self.assertEqual(
+
++        slugify("___This is a test ---"),
+
++        "thisisatest"
+
++    )
+
+ 
+
+     def test_overtruncate(self):
+
+         self.assertEqual(

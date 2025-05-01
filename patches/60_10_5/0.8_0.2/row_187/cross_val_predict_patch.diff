@@ -1,0 +1,66 @@
+--- a/decoupled/60/0.8_0.2/187/scikit-learn_scikit-learn/sklearn/cross_validation.py
++++ b/decoupled/60/0.8_0.2/187/scikit-learn_scikit-learn/sklearn/cross_validation.py
+@@ -1378,24 +1378,17 @@
+     # independent, and that it is pickle-able.
+
+     parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+                         pre_dispatch=pre_dispatch)
+
++
+
++    # Add a check for the n_neighbors parameter in NearestNeighbors
+
++    if isinstance(estimator, NearestNeighbors):
+
++        if not isinstance(estimator.n_neighbors, int):
+
++            raise TypeError("n_neighbors must be an integer, got {}"
+
++                            .format(type(estimator.n_neighbors).__name__))
+
++
+
+     preds_blocks = parallel(delayed(_fit_and_predict)(clone(estimator), X, y,
+
+                                                       train, test, verbose,
+
+                                                       fit_params)
+
+-                            for train, test in cv)
+
+-
+
+-    preds = [p for p, _ in preds_blocks]
+
+-    locs = np.concatenate([loc for _, loc in preds_blocks])
+
+-    if not _check_is_partition(locs, _num_samples(X)):
+
+-        raise ValueError('cross_val_predict only works for partitions')
+
+-    inv_locs = np.empty(len(locs), dtype=int)
+
+-    inv_locs[locs] = np.arange(len(locs))
+
+-
+
+-    # Check for sparse predictions
+
+-    if sp.issparse(preds[0]):
+
+-        preds = sp.vstack(preds, format=preds[0].format)
+
+-    else:
+
+-        preds = np.concatenate(preds)
+
+-    return preds[inv_locs]
+
++                            for train, test in
+
+ 
+
+ 
+
+ def _fit_and_predict(estimator, X, y, train, test, verbose, fit_params):

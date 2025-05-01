@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/external/tests/test_autowrap.py
++++ b/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/external/tests/test_autowrap.py
+@@ -144,20 +144,16 @@
+ 
+
+ def runtest_issue_15337(language, backend):
+
+     has_module('numpy')
+
+-    # NOTE : autowrap was originally designed to only accept an iterable for
+
+-    # the kwarg "helpers", but in issue 10274 the user mistakenly thought that
+
+-    # if there was only a single helper it did not need to be passed via an
+
+-    # iterable that wrapped the helper tuple. There were no tests for this
+
+-    # behavior so when the code was changed to accept a single tuple it broke
+
+-    # the original behavior. These tests below ensure that both now work.
+
+     a, b, c, d, e = symbols('a, b, c, d, e')
+
+     expr = (a - b + c - d + e)**13
+
+     exp_res = (1. - 2. + 3. - 4. + 5.)**13
+
+ 
+
++    # Ensure that the generated C function has the correct signature
+
+     f = autowrap(expr, language, backend, args=(a, b, c, d, e),
+
+                  helpers=('f1', a - b + c, (a, b, c)))
+
+     numpy.testing.assert_allclose(f(1, 2, 3, 4, 5), exp_res)
+
+ 
+
++    # Ensure that the generated C function has the correct signature
+
+     f = autowrap(expr, language, backend, args=(a, b, c, d, e),
+
+                  helpers=(('f1', a - b, (a, b)), ('f2', c - d, (c, d))))
+
+     numpy.testing.assert_allclose(f(1, 2, 3, 4, 5), exp_res)

@@ -1,0 +1,95 @@
+--- a/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/70/django_django/django/db/models/base.py
+@@ -1300,22 +1300,25 @@
+         return errors
+
+ 
+
+     @classmethod
+
+-    def _check_default_pk(cls):
+
+-        if (
+
+-            cls._meta.pk.auto_created and
+
+-            # Inherited PKs are checked in parents models.
+
+-            not (
+
+-                isinstance(cls._meta.pk, OneToOneField) and
+
+-                cls._meta.pk.remote_field.parent_link
+
+-            ) and
+
+-            not settings.is_overridden('DEFAULT_AUTO_FIELD') and
+
+-            not cls._meta.app_config._is_default_auto_field_overridden
+
+-        ):
+
++def _check_default_pk(cls):
+
++    if (
+
++        cls._meta.pk.auto_created and
+
++        # Inherited PKs are checked in parents models.
+
++        not (
+
++            isinstance(cls._meta.pk, OneToOneField) and
+
++            cls._meta.pk.remote_field.parent_link
+
++        ) and
+
++        not settings.is_overridden('DEFAULT_AUTO_FIELD') and
+
++        not cls._meta.app_config._is_default_auto_field_overridden
+
++    ):
+
++        # Check if the DEFAULT_AUTO_FIELD is a subclass of AutoField
+
++        default_auto_field = settings.DEFAULT_AUTO_FIELD.rsplit('.', 1)[-1]
+
++        default_auto_field_cls = apps.get_model(*default_auto_field.rsplit('.', 1))
+
++        if not issubclass(default_auto_field_cls, models.AutoField):
+
+             return [
+
+                 checks.Warning(
+
+                     f"Auto-created primary key used when not defining a "
+
+-                    f"primary key type, by default "
+
+-                    f"'{settings.DEFAULT_AUTO_FIELD}'.",
+
++                    f"primary key type, by default '{settings.DEFAULT_AUTO_FIELD}'.",
+
+                     hint=(
+
+                         f"Configure the DEFAULT_AUTO_FIELD setting or the "
+
+                         f"{cls._meta.app_config.__class__.__qualname__}."
+
+@@ -1326,7 +1329,7 @@
+                     id='models.W042',
+
+                 ),
+
+             ]
+
+-        return []
+
++    return []
+
+ 
+
+     @classmethod
+
+     def _check_swappable(cls):

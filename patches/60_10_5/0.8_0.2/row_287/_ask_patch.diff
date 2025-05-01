@@ -1,0 +1,24 @@
+--- a/decoupled/60/0.8_0.2/287/sympy_sympy/sympy/core/assumptions.py
++++ b/decoupled/60/0.8_0.2/287/sympy_sympy/sympy/core/assumptions.py
+@@ -525,6 +525,11 @@
+             if ret_val is not None:
+
+                 return ret_val
+
+ 
+
++    # If the fact is is_zero, we need to handle it specially
+
++    if fact == 'is_zero':
+
++        # Directly evaluate the expression to check if it is zero
+
++        return obj == 0
+
++
+
+     # Note: the result has already been cached
+
+     return None
+
+ 

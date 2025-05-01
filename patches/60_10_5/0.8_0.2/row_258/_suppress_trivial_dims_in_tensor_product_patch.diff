@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/codegen/array_utils.py
++++ b/decoupled/60/0.8_0.2/258/sympy_sympy/sympy/codegen/array_utils.py
+@@ -1400,12 +1400,22 @@
+                 mat_k1.append(mat)
+
+         else:
+
+             return mat_list
+
+-    if len(mat_k1) > 2:
+
++
+
++    # Contract over trivial dimensions
+
++    for mat in mat_11:
+
++        if mat.shape[0] == 1:
+
++            mat_k1[0] = mat_k1[0] * mat
+
++        else:
+
++            mat_k1[0] = mat * mat_k1[0]
+
++
+
++    if len(mat_k1) > 1:
+
++        a = MatMul.fromiter(mat_k1[:1])
+
++        b = MatMul.fromiter(mat_k1[1:])
+
++        return [a * b.T]
+
++    elif len(mat_k1) == 1:
+
++        return mat_k1
+
++    else:
+
+         return mat_list
+
+-    a = MatMul.fromiter(mat_k1[:1])
+
+-    b = MatMul.fromiter(mat_k1[1:])
+
+-    x = MatMul.fromiter(mat_11)
+
+-    return a*x*b.T
+
+ 
+
+ 
+
+ def _unfold_recognized_expr(expr):

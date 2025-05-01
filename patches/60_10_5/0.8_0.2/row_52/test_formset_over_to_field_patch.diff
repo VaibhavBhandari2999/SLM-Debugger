@@ -1,0 +1,85 @@
+--- a/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
++++ b/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
+@@ -14,10 +14,10 @@
+ 
+
+ 
+
+ class InlineFormsetTests(TestCase):
+
+-    def test_formset_over_to_field(self):
+
++def test_formset_over_to_field(self):
+
+         "A formset over a ForeignKey with a to_field can be saved. Regression for #10243"
+
+         Form = modelform_factory(User, fields="__all__")
+
+-        FormSet = inlineformset_factory(User, UserSite, fields="__all__")
+
++        FormSet = inlineformset_factory(User, UserSite, fields="__all__", limit_choices_to={'user': 'apollo13'})
+
+ 
+
+         # Instantiate the Form and FormSet to prove
+
+         # you can create a form with no data
+
+@@ -46,7 +46,7 @@
+             form_set.save()
+
+             usersite = UserSite.objects.all().values()
+
+             self.assertEqual(usersite[0]['data'], 10)
+
+-            self.assertEqual(usersite[0]['user_id'], 'apollo13')
+
++            self.assertEqual(usersite[0]['user_id'], user.id)
+
+         else:
+
+             self.fail('Errors found on formset:%s' % form_set.errors)
+
+ 
+
+@@ -64,7 +64,7 @@
+             form_set.save()
+
+             usersite = UserSite.objects.all().values()
+
+             self.assertEqual(usersite[0]['data'], 11)
+
+-            self.assertEqual(usersite[0]['user_id'], 'apollo13')
+
++            self.assertEqual(usersite[0]['user_id'], user.id)
+
+         else:
+
+             self.fail('Errors found on formset:%s' % form_set.errors)
+
+ 
+
+@@ -84,11 +84,8 @@
+             form_set.save()
+
+             usersite = UserSite.objects.all().values().order_by('data')
+
+             self.assertEqual(usersite[0]['data'], 11)
+
+-            self.assertEqual(usersite[0]['user_id'], 'apollo13')
+
++            self.assertEqual(usersite[0]['user_id'], user.id)
+
+             self.assertEqual(usersite[1]['data'], 42)
+
+-            self.assertEqual(usersite[1]['user_id'], 'apollo13')
+
+-        else:
+
+-            self.fail('Errors found on formset:%s' % form_set.errors)
+
+ 
+
+     def test_formset_over_inherited_model(self):
+
+         "A formset over a ForeignKey with a to_field can be saved. Regression for #11120"

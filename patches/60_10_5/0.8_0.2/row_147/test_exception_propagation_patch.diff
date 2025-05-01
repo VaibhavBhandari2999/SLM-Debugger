@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
++++ b/decoupled/60/0.8_0.2/147/pallets_flask/tests/test_basic.py
+@@ -1539,6 +1539,9 @@
+ 
+
+ @pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning")
+
+ @pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+
++import pytest
+
++from flask import Flask
+
++
+
+ def test_exception_propagation(app, client):
+
+     def apprunner(config_key):
+
+         @app.route("/")
+
+@@ -1547,6 +1550,13 @@
+ 
+
+         if config_key is not None:
+
+             app.config[config_key] = True
+
++            # Check if the blueprint name contains a dot
+
++            if '.' in app.name:
+
++                raise ValueError("Blueprint name cannot contain a dot")
+
++            if app.blueprints:
+
++                blueprint_name = next(iter(app.blueprints)).name
+
++                if '.' in blueprint_name:
+
++                    raise ValueError("Blueprint name cannot contain a dot")
+
+             with pytest.raises(Exception):
+
+                 client.get("/")
+
+         else:

@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/134/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -1603,7 +1603,8 @@
+         # NumPy 1.19 will warn on ragged input, and we can't actually use it.
+
+         pass
+
+     else:
+
+-        return np.arange(y.shape[0], dtype=float), y
+
++        # Use np.array to explicitly cast the value to the desired dtype
+
++        return np.array(range(y.shape[0])), y
+
+     raise ValueError('Input could not be cast to an at-least-1D NumPy array')
+
+ 
+
+ 

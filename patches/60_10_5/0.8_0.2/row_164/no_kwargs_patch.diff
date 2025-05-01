@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/arguments_differ.py
++++ b/decoupled/60/0.8_0.2/164/pylint-dev_pylint/tests/functional/a/arguments_differ.py
+@@ -68,8 +68,10 @@
+     def has_kwargs(self, arg):  # [arguments-differ]
+
+         "Not okay to lose capabilities. Also, type has changed."
+
+ 
+
+-    def no_kwargs(self, arg, **kwargs):  # [arguments-renamed]
+
+-        "Addition of kwargs does not violate LSP, but first argument's name has changed."
+
++def no_kwargs(self, arg, **kwargs):  # [arguments-renamed]
+
++    """
+
++    Addition of kwargs does not violate LSP, but first argument's name has changed.
+
++    """
+
+ 
+
+ 
+
+ class Super(object):

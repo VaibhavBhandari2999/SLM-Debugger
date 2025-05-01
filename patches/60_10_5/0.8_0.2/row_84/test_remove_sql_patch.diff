@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/84/django_django/tests/constraints/tests.py
++++ b/decoupled/60/0.8_0.2/84/django_django/tests/constraints/tests.py
+@@ -37,7 +37,7 @@
+         with self.assertRaisesMessage(NotImplementedError, msg):
+
+             c.create_sql(None, None)
+
+ 
+
+-    def test_remove_sql(self):
+
++def test_remove_sql(self):
+
+         c = BaseConstraint('name')
+
+         msg = 'This method must be implemented by a subclass.'
+
+         with self.assertRaisesMessage(NotImplementedError, msg):

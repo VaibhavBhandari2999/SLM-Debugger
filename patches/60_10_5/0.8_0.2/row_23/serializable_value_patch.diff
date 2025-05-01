@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/23/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/23/django_django/django/db/models/base.py
+@@ -642,7 +642,7 @@
+ 
+
+         self._state.db = db_instance._state.db
+
+ 
+
+-    def serializable_value(self, field_name):
+
++def serializable_value(self, field_name):
+
+         """
+
+         Return the value of the field name for this instance. If the field is
+
+         a foreign key, return the id value instead of the object. If there's
+
+@@ -657,6 +657,9 @@
+             field = self._meta.get_field(field_name)
+
+         except FieldDoesNotExist:
+
+             return getattr(self, field_name)
+
++        # Check if the field is an Enum
+
++        if isinstance(field, Enum):
+
++            return field.name
+
+         return getattr(self, field.attname)
+
+ 
+
+     def save(self, force_insert=False, force_update=False, using=None,

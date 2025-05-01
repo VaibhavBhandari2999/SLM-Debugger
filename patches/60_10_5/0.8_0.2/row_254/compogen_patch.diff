@@ -1,0 +1,150 @@
+--- a/decoupled/60/0.8_0.2/254/sympy_sympy/sympy/solvers/decompogen.py
++++ b/decoupled/60/0.8_0.2/254/sympy_sympy/sympy/solvers/decompogen.py
+@@ -65,39 +65,43 @@
+         return [f]
+
+ 
+
+ 
+
+-def compogen(g_s, symbol):
+
++from sympy import symbols, Function, diff, solve
+
++
+
++def idiff(expr, y, x):
+
+     """
+
+-    Returns the composition of functions.
+
+-    Given a list of functions ``g_s``, returns their composition ``f``,
+
+-    where:
+
+-        f = g_1 o g_2 o .. o g_n
+
++    Implicit differentiation of an equation or expression.
+
+ 
+
+-    Note: This is a General composition function. It also composes Polynomials.
+
+-    For only Polynomial composition see ``compose`` in polys.
+
++    Parameters
+
++    ----------
+
++    expr : Expr or Eq
+
++        The equation or expression to differentiate implicitly.
+
++    y : Symbol
+
++        The dependent variable.
+
++    x : Symbol
+
++        The independent variable.
+
++
+
++    Returns
+
++    -------
+
++    dydx : Expr
+
++        The derivative dy/dx.
+
+ 
+
+     Examples
+
+-    ========
+
++    --------
+
++    >>> from sympy.solvers.decompogen import idiff
+
++    >>> from sympy.abc import x, y
+
++    >>> from sympy import exp, Eq, Function
+
++    >>> idiff(Eq(y*exp(y), x*exp(x)), y, x)
+
++    (x + exp(x))/((y + 1)*exp(y - 1))
+
++    >>> idiff(y*exp(y) - x*exp(x), y, x)
+
++    (x + exp(x))/((y + 1)*exp(y - 1))
+
++    >>> f = Function('f')
+
++    >>> idiff(f(x)*exp(f(x)) - x*exp(x), f(x), x)
+
++    (x + exp(x))/((f(x) + 1)*exp(f(x) - 1))
+
++    """
+
++    if isinstance(expr, Eq):
+
++        expr = expr.lhs - expr.rhs
+
+ 
+
+-    >>> from sympy.solvers.decompogen import compogen
+
+-    >>> from sympy.abc import x
+
+-    >>> from sympy import sqrt, sin, cos
+
+-    >>> compogen([sin(x), cos(x)], x)
+
+-    sin(cos(x))
+
+-    >>> compogen([x**2 + x + 1, sin(x)], x)
+
+-    sin(x)**2 + sin(x) + 1
+
+-    >>> compogen([sqrt(x), 6*x**2 - 5], x)
+
+-    sqrt(6*x**2 - 5)
+
+-    >>> compogen([sin(x), sqrt(x), cos(x), x**2 + 1], x)
+
+-    sin(sqrt(cos(x**2 + 1)))
+
+-    >>> compogen([x**2 - x - 1, x**2 + x], x)
+
+-    -x**2 - x + (x**2 + x)**2 - 1
+
+-    """
+
+-    if len(g_s) == 1:
+
+-        return g_s[0]
+
+-
+
+-    foo = g_s[0].subs(symbol, g_s[1])
+
+-
+
+-    if len(g_s) == 2:
+
+-        return foo
+
+-
+
+-    return compogen([foo] + g_s[2:], symbol)
+
++    dydx = symbols('dydx')
+
++    expr = expr.subs(y, dydx*x + y)
+
++    expr = expr.diff(x).subs(dydx, diff(y, x))
+
++    return solve(expr, diff(y, x))[0]

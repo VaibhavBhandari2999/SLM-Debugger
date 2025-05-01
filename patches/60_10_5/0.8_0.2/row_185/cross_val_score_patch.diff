@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
++++ b/decoupled/60/0.8_0.2/185/scikit-learn_scikit-learn/sklearn/cross_validation.py
+@@ -1575,11 +1575,7 @@
+     # independent, and that it is pickle-able.
+
+     parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+                         pre_dispatch=pre_dispatch)
+
+-    scores = parallel(delayed(_fit_and_score)(clone(estimator), X, y, scorer,
+
+-                                              train, test, verbose, None,
+
+-                                              fit_params)
+
+-                      for train, test in cv)
+
+-    return np.array(scores)[:, 0]
+
++    scores = parallel(delayed(_fit_and_score)(clone(estimator), X
+
+ 
+
+ 
+
+ def _fit_and_score(estimator, X, y, scorer, train, test, verbose,

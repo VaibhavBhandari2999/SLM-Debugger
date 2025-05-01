@@ -1,0 +1,30 @@
+--- a/decoupled/60/0.8_0.2/162/pylint-dev_pylint/pylint/checkers/variables.py
++++ b/decoupled/60/0.8_0.2/162/pylint-dev_pylint/pylint/checkers/variables.py
+@@ -2609,8 +2609,12 @@
+             return module
+
+         return None
+
+ 
+
+-    def _check_all(self, node: nodes.Module, not_consumed):
+
+-        assigned = next(node.igetattr("__all__"))
+
++def _check_all(self, node: nodes.Module, not_consumed):
+
++        try:
+
++            assigned = next(node.igetattr("__all__"))
+
++        except astroid.AttributeInferenceError:
+
++            return
+
++
+
+         if assigned is astroid.Uninferable:
+
+             return
+
+         if not assigned.pytype() in {"builtins.list", "builtins.tuple"}:

@@ -1,0 +1,54 @@
+--- a/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
++++ b/decoupled/60/0.8_0.2/297/sympy_sympy/sympy/logic/algorithms/dpll.py
+@@ -264,25 +264,7 @@
+ 
+
+ 
+
+ def find_unit_clause(clauses, model):
+
+-    """
+
+-    A unit clause has only 1 variable that is not bound in the model.
+
+-
+
+-    >>> from sympy.abc import A, B, D
+
+-    >>> from sympy.logic.algorithms.dpll import find_unit_clause
+
+-    >>> find_unit_clause([A | B | D, B | ~D, A | ~B], {A:True})
+
+-    (B, False)
+
+-
+
+-    """
+
+-    for clause in clauses:
+
+-        num_not_in_model = 0
+
+-        for literal in disjuncts(clause):
+
+-            sym = literal_symbol(literal)
+
+-            if sym not in model:
+
+-                num_not_in_model += 1
+
+-                P, value = sym, not isinstance(literal, Not)
+
+-        if num_not_in_model == 1:
+
+-            return P, value
+
+-    return None, None
+
++    ...
+
+ 
+
+ 
+
+ def find_unit_clause_int_repr(clauses, model):

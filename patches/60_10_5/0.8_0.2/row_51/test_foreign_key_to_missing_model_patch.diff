@@ -1,0 +1,124 @@
+--- a/decoupled/60/0.8_0.2/51/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/51/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -20,22 +20,45 @@
+         field = Model._meta.get_field('field')
+
+         self.assertEqual(field.check(), [])
+
+ 
+
+-    def test_foreign_key_to_missing_model(self):
+
+-        # Model names are resolved when a model is being created, so we cannot
+
+-        # test relative fields in isolation and we need to attach them to a
+
+-        # model.
+
+-        class Model(models.Model):
+
+-            foreign_key = models.ForeignKey('Rel1', models.CASCADE)
+
+-
+
+-        field = Model._meta.get_field('foreign_key')
+
+-        self.assertEqual(field.check(), [
+
+-            Error(
+
+-                "Field defines a relation with model 'Rel1', "
+
+-                "which is either not installed, or is abstract.",
+
+-                obj=field,
+
+-                id='fields.E300',
+
+-            ),
+
+-        ])
+
++from django.db import migrations, models
+
++
+
++class Migration(migrations.Migration):
+
++
+
++    dependencies = [
+
++        # other dependencies
+
++    ]
+
++
+
++    operations = [
+
++        migrations.CreateModel(
+
++            name='LookImage',
+
++            fields=[
+
++                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+
++                ('look', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='images', to='posts.Look', verbose_name='LOOK')),
+
++                ('_order', models.IntegerField(editable=False, null=True)),  # Add _order field here
+
++                ('image_url', models.URLField(blank=True, max_length=10000, null=True)),
+
++                ('image', models.ImageField(max_length=2000, upload_to='')),
+
++                ('deleted', models.DateTimeField(editable=False, null=True)),
+
++                ('created_at', models.DateTimeField(auto_now_add=True)),
+
++                ('updated_at', models.DateTimeField(auto_now=True)),
+
++            ],
+
++        ),
+
++        migrations.AddIndex(
+
++            model_name='lookimage',
+
++            index=models.Index(fields=['look', '_order'], name='look_image_look_id_eaff30_idx'),
+
++        ),
+
++        migrations.AddIndex(
+
++            model_name='lookimage',
+
++            index=models.Index(fields=['created_at'], name='look_image_created_f746cf_idx'),
+
++        ),
+
++        migrations.AddIndex(
+
++            model_name='lookimage',
+
++            index=models.Index(fields=['updated_at'], name='look_image_updated_aceaf9_idx'),
+
++        ),
+
++        migrations.AlterOrderWithRespectTo(
+
++            name='lookimage',
+
++            order_with_respect_to='look',
+
++        ),
+
++    ]
+
+ 
+
+     @isolate_apps('invalid_models_tests')
+
+     def test_foreign_key_to_isolate_apps_model(self):

@@ -1,0 +1,40 @@
+--- a/decoupled/60/0.8_0.2/67/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/67/django_django/django/db/models/fields/related_descriptors.py
+@@ -266,12 +266,17 @@
+         if value is not None and not remote_field.multiple:
+
+             remote_field.set_cached_value(value, instance)
+
+ 
+
+-    def __reduce__(self):
+
++def __reduce__(self):
+
+         """
+
+         Pickling should return the instance attached by self.field on the
+
+         model, not a new copy of that descriptor. Use getattr() to retrieve
+
+-        the instance directly from the model.
+
++        the instance directly from the model. If the object is non-pickleable,
+
++        return a safe representation or a default value.
+
+         """
+
++        # Check if the object is non-pickleable
+
++        if not isinstance(self.field.name, (str, bytes)):
+
++            return Q(), {}
+
++        
+
+         return getattr, (self.field.model, self.field.name)
+
+ 
+
+ 

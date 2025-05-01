@@ -1,0 +1,79 @@
+--- a/decoupled/60/0.8_0.2/30/django_django/tests/migrations/test_autodetector.py
++++ b/decoupled/60/0.8_0.2/30/django_django/tests/migrations/test_autodetector.py
+@@ -1898,7 +1898,7 @@
+         self.assertOperationAttributes(changes, 'testapp', 0, 1, name="publisher_name")
+
+         self.assertOperationAttributes(changes, 'testapp', 0, 2, name="publisher")
+
+ 
+
+-    def test_foreign_key_removed_before_target_model(self):
+
++def test_foreign_key_removed_before_target_model(self):
+
+         """
+
+         Removing an FK and the model it targets in the same change must remove
+
+         the FK field before the model to maintain consistency.
+
+@@ -1911,6 +1911,30 @@
+         self.assertOperationTypes(changes, 'testapp', 0, ["RemoveField", "DeleteModel"])
+
+         self.assertOperationAttributes(changes, 'testapp', 0, 0, name="publisher")
+
+         self.assertOperationAttributes(changes, 'testapp', 0, 1, name="Publisher")
+
++
+
++    def fix_inner_class_field_reference(self):
+
++        """
+
++        Ensure that the inner class field is correctly referenced in the migration.
+
++        """
+
++        # Define the inner class field correctly
+
++        class Outer(object):
+
++            class Inner(models.CharField):
+
++                pass
+
++
+
++        class A(models.Model):
+
++            field = Outer.Inner(max_length=20)
+
++
+
++        # Generate the migration
+
++        with self.settings(USE_TZ=False):
+
++            call_command('makemigrations', 'testapp')
+
++
+
++        # Check the generated migration file
+
++        migration_file_path = os.path.join('testapp', '0001_initial.py')
+
++        with open(migration_file_path, 'r') as migration_file:
+
++            migration_content = migration_file.read()
+
++
+
++        # Ensure the inner class is correctly referenced
+
++        self.assertIn('testapp.models.Outer.Inner', migration_content)
+
+ 
+
+     @mock.patch('django.db.migrations.questioner.MigrationQuestioner.ask_not_null_addition',
+
+                 side_effect=AssertionError("Should not have prompted for not null addition"))

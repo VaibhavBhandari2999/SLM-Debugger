@@ -1,0 +1,106 @@
+--- a/decoupled/60/0.8_0.2/207/sphinx-doc_sphinx/sphinx/ext/autodoc/type_comment.py
++++ b/decoupled/60/0.8_0.2/207/sphinx-doc_sphinx/sphinx/ext/autodoc/type_comment.py
+@@ -76,32 +76,28 @@
+         return Signature(params)
+
+ 
+
+ 
+
+-def get_type_comment(obj: Any, bound_method: bool = False) -> Signature:
+
+-    """Get type_comment'ed FunctionDef object from living object.
+
++def setup(app):
+
++    app.add_config_value('ignored_base_classes', [], 'env')
+
+ 
+
+-    This tries to parse original code for living object and returns
+
+-    Signature for given *obj*.  It requires py38+ or typed_ast module.
+
+-    """
+
+-    try:
+
+-        source = getsource(obj)
+
+-        if source.startswith((' ', r'\t')):
+
+-            # subject is placed inside class or block.  To read its docstring,
+
+-            # this adds if-block before the declaration.
+
+-            module = ast_parse('if True:\n' + source)
+
+-            subject = cast(ast.FunctionDef, module.body[0].body[0])  # type: ignore
+
+-        else:
+
+-            module = ast_parse(source)
+
+-            subject = cast(ast.FunctionDef, module.body[0])  # type: ignore
+
++def automodule_skip_inherited(app, what, name, obj, skip, options):
+
++    if skip:
+
++        return skip
+
++    if app.config.ignored_base_classes and any(
+
++        issubclass(obj.__class__, base_class)
+
++        for base_class in app.config.ignored_base_classes
+
++    ):
+
++        return True
+
++    return None
+
+ 
+
+-        if getattr(subject, "type_comment", None):
+
+-            function = ast_parse(subject.type_comment, mode='func_type')
+
+-            return signature_from_ast(subject, bound_method, function)  # type: ignore
+
+-        else:
+
+-            return None
+
+-    except (OSError, TypeError):  # failed to load source code
+
+-        return None
+
+-    except SyntaxError:  # failed to parse type_comments
+
+-        return None
+
++def setup(app):
+
++    app.connect('autodoc-skip-member', automodule_skip_inherited)
+
++    app.add_config_value('ignored_base_classes', [], 'env')
+
++
+
++# Example usage in a .rst file
+
++.. automodule:: my_module
+
++   :members:
+
++   :inherited-members: [list, set, tuple]
+
++   :ignore-base-classes: [list, set, tuple]
+
+ 
+
+ 
+
+ def update_annotations_using_type_comments(app: Sphinx, obj: Any, bound_method: bool) -> None:

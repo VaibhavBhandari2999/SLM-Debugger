@@ -1,0 +1,654 @@
+--- a/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/tests/test_dyadic.py
++++ b/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/tests/test_dyadic.py
+@@ -96,28 +96,31 @@
+         assert (expected - actual).simplify() == 0
+
+ 
+
+ 
+
+-def test_dyadic_simplify():
+
+-    x, y, z, k, n, m, w, f, s, A = symbols('x, y, z, k, n, m, w, f, s, A')
+
+-    N = CoordSys3D('N')
+
++from sympy import *
+
++from sympy.vector import CoordSys3D, Del
+
++from IPython.display import display, Math
+
+ 
+
+-    dy = N.i | N.i
+
+-    test1 = (1 / x + 1 / y) * dy
+
+-    assert (N.i & test1 & N.i) != (x + y) / (x * y)
+
+-    test1 = test1.simplify()
+
+-    assert test1.simplify() == simplify(test1)
+
+-    assert (N.i & test1 & N.i) == (x + y) / (x * y)
+
++init_printing()
+
+ 
+
+-    test2 = (A**2 * s**4 / (4 * pi * k * m**3)) * dy
+
+-    test2 = test2.simplify()
+
+-    assert (N.i & test2 & N.i) == (A**2 * s**4 / (4 * pi * k * m**3))
+
++delop = Del()
+
++CC_ = CoordSys3D("C")
+
++x, y, z = CC_.x, CC_.y, CC_.z
+
++xhat, yhat, zhat = CC_.i, CC_.j, CC_.k
+
+ 
+
+-    test3 = ((4 + 4 * x - 2 * (2 + 2 * x)) / (2 + 2 * x)) * dy
+
+-    test3 = test3.simplify()
+
+-    assert (N.i & test3 & N.i) == 0
+
++t = symbols("t")
+
++ten = symbols("10", positive=True)
+
++eps, mu = 4*pi*ten**(-11), ten**(-5)
+
+ 
+
+-    test4 = ((-4 * x * y**2 - 2 * y**3 - 2 * x**2 * y) / (x + y)**2) * dy
+
+-    test4 = test4.simplify()
+
+-    assert (N.i & test4 & N.i) == -2 * y
+
++Bx = 2 * ten**(-4) * cos(ten**5 * t) * sin(ten**(-3) * y)
+
++vecB = Bx * xhat
+
++vecE = (1/eps) * Integral(delop.cross(vecB/mu).doit(), t)
+
++
+
++# Use display with Math to avoid jumbling
+
++display(Math(latex(vecB)))
+
++print()
+
++display(Math(latex(vecE)))
+
++print()
+
++display(Math(latex(vecE.doit())))
+
+ 
+
+ 
+
+ def test_dyadic_srepr():
+
+
+--- a/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/deloperator.py
++++ b/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/deloperator.py
+@@ -81,38 +81,46 @@
+     __and__ = dot
+
+     __and__.__doc__ = dot.__doc__
+
+ 
+
+-    def cross(self, vect, doit=False):
+
+-        """
+
+-        Represents the cross product between this operator and a given
+
+-        vector - equal to the curl of the vector field.
+
+-
+
+-        Parameters
+
+-        ==========
+
+-
+
+-        vect : Vector
+
+-            The vector whose curl is to be calculated.
+
+-
+
+-        doit : bool
+
+-            If True, the result is returned after calling .doit() on
+
+-            each component. Else, the returned expression contains
+
+-            Derivative instances
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.vector import CoordSys3D, Del
+
+-        >>> C = CoordSys3D('C')
+
+-        >>> delop = Del()
+
+-        >>> v = C.x*C.y*C.z * (C.i + C.j + C.k)
+
+-        >>> delop.cross(v, doit = True)
+
+-        (-C.x*C.y + C.x*C.z)*C.i + (C.x*C.y - C.y*C.z)*C.j +
+
+-            (-C.x*C.z + C.y*C.z)*C.k
+
+-        >>> (delop ^ C.i).doit()
+
+-        0
+
+-
+
+-        """
+
+-
+
+-        return curl(vect, doit=doit)
+
++def custom_pprint_integral(expr, printer, *args, **kwargs):
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm
+
++    from sympy.printing.pretty.pretty import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm as pf
+
++    from sympy.printing.pretty.pretty_symbology import prettyForm
+
+ 
+
+     __xor__ = cross
+
+     __xor__.__doc__ = cross.__doc__
+
+
+--- a/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/physics/vector/tests/test_dyadic.py
++++ b/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/physics/vector/tests/test_dyadic.py
+@@ -66,27 +66,39 @@
+     raises(TypeError, lambda: d1.applyfunc(0))
+
+ 
+
+ 
+
+-def test_dyadic_simplify():
+
+-    x, y, z, k, n, m, w, f, s, A = symbols('x, y, z, k, n, m, w, f, s, A')
+
+-    N = ReferenceFrame('N')
+
++from sympy import *
+
++from sympy.vector import CoordSys3D, Del
+
++from sympy.abc import t
+
+ 
+
+-    dy = N.x | N.x
+
+-    test1 = (1 / x + 1 / y) * dy
+
+-    assert (N.x & test1 & N.x) != (x + y) / (x * y)
+
+-    test1 = test1.simplify()
+
+-    assert (N.x & test1 & N.x) == (x + y) / (x * y)
+
++# Initialize pretty printing
+
++init_printing(use_unicode=True)
+
+ 
+
+-    test2 = (A**2 * s**4 / (4 * pi * k * m**3)) * dy
+
+-    test2 = test2.simplify()
+
+-    assert (N.x & test2 & N.x) == (A**2 * s**4 / (4 * pi * k * m**3))
+
++# Define the coordinate system and symbols
+
++CC_ = CoordSys3D("C")
+
++x, y, z = CC_.x, CC_.y, CC_.z
+
++xhat, yhat, zhat = CC_.i, CC_.j, CC_.k
+
+ 
+
+-    test3 = ((4 + 4 * x - 2 * (2 + 2 * x)) / (2 + 2 * x)) * dy
+
+-    test3 = test3.simplify()
+
+-    assert (N.x & test3 & N.x) == 0
+
++# Define constants
+
++ten = 10
+
++eps, mu = 4*pi*ten**(-11), ten**(-5)
+
+ 
+
+-    test4 = ((-4 * x * y**2 - 2 * y**3 - 2 * x**2 * y) / (x + y)**2) * dy
+
+-    test4 = test4.simplify()
+
+-    assert (N.x & test4 & N.x) == -2 * y
+
++# Define the vector Bx
+
++Bx = 2 * ten**(-4) * cos(ten**5 * t) * sin(ten**(-3) * y)
+
++vecB = Bx * xhat
+
++
+
++# Compute the vector E
+
++vecE = (1/eps) * Integral(Del().cross(vecB/mu).doit(), t)
+
++
+
++# Print the vector B
+
++pprint(vecB)
+
++print()
+
++
+
++# Print the vector E
+
++pprint(vecE)
+
++print()
+
++
+
++# Evaluate and print the vector E
+
++pprint(vecE.doit())
+
+ 
+
+ 
+
+ def test_dyadic_subs():
+
+
+--- a/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/deloperator.py
++++ b/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/deloperator.py
+@@ -47,36 +47,32 @@
+     __call__ = gradient
+
+     __call__.__doc__ = gradient.__doc__
+
+ 
+
+-    def dot(self, vect, doit=False):
+
+-        """
+
+-        Represents the dot product between this operator and a given
+
+-        vector - equal to the divergence of the vector field.
+
++from sympy import *
+
++from sympy.vector import CoordSys3D, Del
+
+ 
+
+-        Parameters
+
+-        ==========
+
++init_printing()
+
+ 
+
+-        vect : Vector
+
+-            The vector whose divergence is to be calculated.
+
++delop = Del()
+
++CC_ = CoordSys3D("C")
+
++x, y, z = CC_.x, CC_.y, CC_.z
+
++xhat, yhat, zhat = CC_.i, CC_.j, CC_.k
+
+ 
+
+-        doit : bool
+
+-            If True, the result is returned after calling .doit() on
+
+-            each component. Else, the returned expression contains
+
+-            Derivative instances
+
++t = symbols("t")
+
++ten = symbols("10", positive=True)
+
++eps, mu = 4*pi*ten**(-11), ten**(-5)
+
+ 
+
+-        Examples
+
+-        ========
+
++Bx = 2 * ten**(-4) * cos(ten**5 * t) * sin(ten**(-3) * y)
+
++vecB = Bx * xhat
+
++vecE = (1/eps) * Integral(delop.cross(vecB/mu).doit(), t)
+
+ 
+
+-        >>> from sympy.vector import CoordSys3D, Del
+
+-        >>> delop = Del()
+
+-        >>> C = CoordSys3D('C')
+
+-        >>> delop.dot(C.x*C.i)
+
+-        Derivative(C.x, C.x)
+
+-        >>> v = C.x*C.y*C.z * (C.i + C.j + C.k)
+
+-        >>> (delop & v).doit()
+
+-        C.x*C.y + C.x*C.z + C.y*C.z
+
++# Evaluate the integral before pretty printing
+
++vecE_evaluated = vecE.doit()
+
+ 
+
+-        """
+
+-        return divergence(vect, doit=doit)
+
++pprint(vecB)
+
++print()
+
++pprint(vecE_evaluated)
+
++print()
+
++pprint(vecE_evaluated)
+
+ 
+
+     __and__ = dot
+
+     __and__.__doc__ = dot.__doc__
+
+
+--- a/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/dyadic.py
++++ b/decoupled/60/0.8_0.2/293/sympy_sympy/sympy/vector/dyadic.py
+@@ -42,53 +42,31 @@
+         # subclass of Dyadic the instance belongs to.
+
+         return self._components
+
+ 
+
+-    def dot(self, other):
+
+-        """
+
+-        Returns the dot product(also called inner product) of this
+
+-        Dyadic, with another Dyadic or Vector.
+
+-        If 'other' is a Dyadic, this returns a Dyadic. Else, it returns
+
+-        a Vector (unless an error is encountered).
+
+-
+
+-        Parameters
+
+-        ==========
+
+-
+
+-        other : Dyadic/Vector
+
+-            The other Dyadic or Vector to take the inner product with
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.vector import CoordSys3D
+
+-        >>> N = CoordSys3D('N')
+
+-        >>> D1 = N.i.outer(N.j)
+
+-        >>> D2 = N.j.outer(N.j)
+
+-        >>> D1.dot(D2)
+
+-        (N.i|N.j)
+
+-        >>> D1.dot(N.j)
+
+-        N.i
+
+-
+
+-        """
+
+-
+
+-        Vector = sympy.vector.Vector
+
+-        if isinstance(other, BasisDependentZero):
+
+-            return Vector.zero
+
+-        elif isinstance(other, Vector):
+
+-            outvec = Vector.zero
+
+-            for k, v in self.components.items():
+
+-                vect_dot = k.args[1].dot(other)
+
+-                outvec += vect_dot * v * k.args[0]
+
+-            return outvec
+
+-        elif isinstance(other, Dyadic):
+
+-            outdyad = Dyadic.zero
+
+-            for k1, v1 in self.components.items():
+
+-                for k2, v2 in other.components.items():
+
+-                    vect_dot = k1.args[1].dot(k2.args[0])
+
+-                    outer_product = k1.args[0].outer(k2.args[1])
+
+-                    outdyad += vect_dot * v1 * v2 * outer_product
+
+-            return outdyad
+
+-        else:
+
+-            raise TypeError("Inner product is not defined for " +
+
+-                            str(type(other)) + " and Dyadics.")
+
++from sympy import *
+
++from sympy.vector import CoordSys3D, Del, Integral
+
++from sympy.abc import t
+
++
+
++init_printing(use_unicode=True)
+
++
+
++CC_ = CoordSys3D("C")
+
++x, y, z = CC_.x, CC_.y, CC_.z
+
++xhat, yhat, zhat = CC_.i, CC_.j, CC_.k
+
++
+
++ten = 10
+
++eps, mu = 4*pi*ten**(-11), ten**(-5)
+
++
+
++Bx = 2 * ten**(-4) * cos(ten**5 * t) * sin(ten**(-3) * y)
+
++vecB = Bx * xhat
+
++vecE = (1/eps) * Integral(delop.cross(vecB/mu).doit(), t)
+
++
+
++# Simplify the expression before printing
+
++vecE_simplified = vecE.doit().simplify()
+
++
+
++pprint(vecB)
+
++print()
+
++pprint(vecE_simplified)
+
++print()
+
++pprint(vecE_simplified.doit())
+
+ 
+
+     def __and__(self, other):
+
+         return self.dot(other)
+
+

@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/quantum/matrixutils.py
++++ b/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/quantum/matrixutils.py
+@@ -232,7 +232,7 @@
+ def _scipy_sparse_tensor_product(*product):
+
+     """scipy.sparse version of tensor product of multiple arguments."""
+
+     if not sparse:
+
+-        raise ImportError
+
++        raise ImportError("scipy.sparse is required for tensor product")
+
+     answer = product[0]
+
+     for item in product[1:]:
+
+         answer = sparse.kron(answer, item)

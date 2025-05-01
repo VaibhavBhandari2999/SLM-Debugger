@@ -1,0 +1,134 @@
+--- a/decoupled/60/0.8_0.2/135/matplotlib_matplotlib/lib/matplotlib/cbook.py
++++ b/decoupled/60/0.8_0.2/135/matplotlib_matplotlib/lib/matplotlib/cbook.py
+@@ -1725,42 +1725,30 @@
+ 
+
+ 
+
+ @contextlib.contextmanager
+
+-def _lock_path(path):
+
+-    """
+
+-    Context manager for locking a path.
+
+-
+
+-    Usage::
+
+-
+
+-        with _lock_path(path):
+
+-            ...
+
+-
+
+-    Another thread or process that attempts to lock the same path will wait
+
+-    until this context manager is exited.
+
+-
+
+-    The lock is implemented by creating a temporary file in the parent
+
+-    directory, so that directory must exist and be writable.
+
+-    """
+
+-    path = Path(path)
+
+-    lock_path = path.with_name(path.name + ".matplotlib-lock")
+
+-    retries = 50
+
+-    sleeptime = 0.1
+
+-    for _ in range(retries):
+
+-        try:
+
+-            with lock_path.open("xb"):
+
+-                break
+
+-        except FileExistsError:
+
+-            time.sleep(sleeptime)
+
+-    else:
+
+-        raise TimeoutError("""\
+
+-Lock error: Matplotlib failed to acquire the following lock file:
+
+-    {}
+
+-This maybe due to another process holding this lock file.  If you are sure no
+
+-other Matplotlib process is running, remove this file and try again.""".format(
+
+-            lock_path))
+
+-    try:
+
+-        yield
+
+-    finally:
+
+-        lock_path.unlink()
+
++import matplotlib.pyplot as plt
+
++from matplotlib.colors import LogNorm
+
++import numpy as np
+
++
+
++# create some random data to fill a 2d plot
+
++rng = np.random.default_rng(0)
+
++img = rng.uniform(1, 5, (25, 25))
+
++
+
++# set vmin and vmax before creating the colorbar
+
++vmin = 1
+
++vmax = 5
+
++
+
++# plot it
+
++fig, ax = plt.subplots(layout="constrained")
+
++plot = ax.pcolormesh(img, norm=LogNorm(vmin, vmax))
+
++cbar = fig.colorbar(plot, ax=ax)
+
++
+
++plt.ion()
+
++fig.show()
+
++plt.pause(0.5)
+
++
+
++plot.norm = LogNorm(vmin, vmax)
+
++plot.autoscale()
+
++plt.pause(0.5)
+
+ 
+
+ 
+
+ def _topmost_artist(

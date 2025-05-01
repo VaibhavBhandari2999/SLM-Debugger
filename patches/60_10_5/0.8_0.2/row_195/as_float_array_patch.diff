@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/195/scikit-learn_scikit-learn/sklearn/utils/validation.py
++++ b/decoupled/60/0.8_0.2/195/scikit-learn_scikit-learn/sklearn/utils/validation.py
+@@ -104,8 +104,7 @@
+     XT : {array, sparse matrix}
+
+         An array of type np.float
+
+     """
+
+-    if isinstance(X, np.matrix) or (not isinstance(X, np.ndarray)
+
+-                                    and not sp.issparse(X)):
+
++    if isinstance(X, np.matrix) or (not isinstance(X, np.ndarray) and not sp.issparse(X)):
+
+         return check_array(X, ['csr', 'csc', 'coo'], dtype=np.float64,
+
+                            copy=copy, force_all_finite=force_all_finite,
+
+                            ensure_2d=False)

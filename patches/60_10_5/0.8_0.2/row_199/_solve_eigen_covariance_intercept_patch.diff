@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/199/scikit-learn_scikit-learn/sklearn/linear_model/ridge.py
++++ b/decoupled/60/0.8_0.2/199/scikit-learn_scikit-learn/sklearn/linear_model/ridge.py
+@@ -1322,7 +1322,7 @@
+             hat_diag = hat_diag[:, np.newaxis]
+
+         return (1 - hat_diag) / alpha, (y - y_hat) / alpha
+
+ 
+
+-    def _solve_eigen_covariance_intercept(
+
++def _solve_eigen_covariance_intercept(
+
+             self, alpha, y, sqrt_sw, X_mean, eigvals, V, X):
+
+         """Compute dual coefficients and diagonal of G^-1
+
+ 
+
+@@ -1339,7 +1339,11 @@
+         intercept_sv[-1] = 1
+
+         intercept_dim = _find_smallest_angle(intercept_sv, V)
+
+         w = 1 / (eigvals + alpha)
+
+-        w[intercept_dim] = 1 / eigvals[intercept_dim]
+
++        # Ensure we don't divide by zero when eigvals[intercept_dim] is zero
+
++        if eigvals[intercept_dim] != 0:
+
++            w[intercept_dim] = 1 / eigvals[intercept_dim]
+
++        else:
+
++            w[intercept_dim] = 0  # or any other appropriate value to handle the case
+
+         A = (V * w).dot(V.T)
+
+         # add a column to X containing the square roots of sample weights
+
+         X_op = _X_CenterStackOp(X, X_mean, sqrt_sw)

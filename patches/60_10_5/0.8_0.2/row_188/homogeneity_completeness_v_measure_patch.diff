@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/188/scikit-learn_scikit-learn/sklearn/metrics/cluster/supervised.py
++++ b/decoupled/60/0.8_0.2/188/scikit-learn_scikit-learn/sklearn/metrics/cluster/supervised.py
+@@ -235,7 +235,7 @@
+     score values in any way.
+
+ 
+
+     V-Measure is furthermore symmetric: swapping ``labels_true`` and
+
+-    ``label_pred`` will give the same score. This does not hold for
+
++    ``labels_pred`` will give the same score. This does not hold for
+
+     homogeneity and completeness.
+
+ 
+
+     Read more in the :ref:`User Guide <homogeneity_completeness>`.

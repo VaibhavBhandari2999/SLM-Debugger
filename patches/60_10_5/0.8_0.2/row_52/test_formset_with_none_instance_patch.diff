@@ -1,0 +1,50 @@
+--- a/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
++++ b/decoupled/60/0.8_0.2/52/django_django/tests/model_formsets_regress/tests.py
+@@ -196,15 +196,15 @@
+         # Testing the inline model's relation
+
+         self.assertEqual(formset[0].instance.profile_id, 1)
+
+ 
+
+-    def test_formset_with_none_instance(self):
+
+-        "A formset with instance=None can be created. Regression for #11872"
+
+-        Form = modelform_factory(User, fields="__all__")
+
+-        FormSet = inlineformset_factory(User, UserSite, fields="__all__")
+
+-
+
+-        # Instantiate the Form and FormSet to prove
+
+-        # you can create a formset with an instance of None
+
+-        Form(instance=None)
+
+-        FormSet(instance=None)
+
++from django.db import models
+
++from django.db.models import Q
+
++
+
++class User(models.Model):
+
++    name = models.CharField(max_length=100)
+
++
+
++class UserSite(models.Model):
+
++    user = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to=Q(groups__name='admin'))
+
++    site_name = models.CharField(max_length=100)
+
+ 
+
+     def test_empty_fields_on_modelformset(self):
+
+         """

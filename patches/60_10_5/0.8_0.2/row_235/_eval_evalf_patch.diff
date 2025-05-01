@@ -1,0 +1,222 @@
+--- a/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/operations.py
++++ b/decoupled/60/0.8_0.2/235/sympy_sympy/sympy/core/operations.py
+@@ -293,57 +293,60 @@
+             return False
+
+         return is_in
+
+ 
+
++def _eval_evalf(self, prec):
+
++    """
+
++    Evaluate the parts of self that are numbers; if the whole thing
+
++    was a number with no functions it would have been evaluated, but
+
++    it wasn't so we must judiciously extract the numbers and reconstruct
+
++    the object. This is *not* simply replacing numbers with evaluated
+
++    numbers. Numbers should be handled in the largest pure-number
+
++    expression as possible. So the code below separates ``self`` into
+
++    number and non-number parts and evaluates the number parts and
+
++    walks the args of the non-number part recursively (doing the same
+
++    thing).
+
++    """
+
++    from .add import Add
+
++    from .mul import Mul
+
++    from .symbol import Symbol
+
++    from .function import AppliedUndef
+
++
+
++    if isinstance(self, (Mul, Add)):
+
++        x, tail = self.as_independent(Symbol, AppliedUndef)
+
++        if not (tail is self.identity or
+
++                isinstance(x, AssocOp) and x.is_Function or
+
++                x is self.identity and isinstance(tail, AssocOp)):
+
++            x = x._evalf(prec) if x is not self.identity else self.identity
+
++            args = []
+
++            tail_args = tuple(self.func.make_args(tail))
+
++            for a in tail_args:
+
++                newa = a._eval_evalf(prec)
+
++                if newa is None:
+
++                    args.append(a)
+
++                else:
+
++                    args.append(newa)
+
++            return self.func(x, *args)
+
++
+
++    # this is the same as above, but there were no pure-number args to
+
++    # deal with
+
++    args = []
+
++    for a in self.args:
+
++        newa = a._eval_evalf(prec)
+
++        if newa is None:
+
++            args.append(a)
+
++        else:
+
++            args.append(newa)
+
++    return self.func(*args)
+
++
+
++# Special case for the bell function
+
++def _eval_evalf_bell(self, prec):
+
++    if self.args[0] == oo:
+
++        return oo
+
++    return super(Bell, self)._eval_evalf(prec)
+
++
+
++# Assuming Bell is a subclass of Function
+
++class Bell(Function):
+
+     def _eval_evalf(self, prec):
+
+-        """
+
+-        Evaluate the parts of self that are numbers; if the whole thing
+
+-        was a number with no functions it would have been evaluated, but
+
+-        it wasn't so we must judiciously extract the numbers and reconstruct
+
+-        the object. This is *not* simply replacing numbers with evaluated
+
+-        numbers. Nunmbers should be handled in the largest pure-number
+
+-        expression as possible. So the code below separates ``self`` into
+
+-        number and non-number parts and evaluates the number parts and
+
+-        walks the args of the non-number part recursively (doing the same
+
+-        thing).
+
+-        """
+
+-        from .add import Add
+
+-        from .mul import Mul
+
+-        from .symbol import Symbol
+
+-        from .function import AppliedUndef
+
+-        if isinstance(self, (Mul, Add)):
+
+-            x, tail = self.as_independent(Symbol, AppliedUndef)
+
+-            # if x is an AssocOp Function then the _evalf below will
+
+-            # call _eval_evalf (here) so we must break the recursion
+
+-            if not (tail is self.identity or
+
+-                    isinstance(x, AssocOp) and x.is_Function or
+
+-                    x is self.identity and isinstance(tail, AssocOp)):
+
+-                # here, we have a number so we just call to _evalf with prec;
+
+-                # prec is not the same as n, it is the binary precision so
+
+-                # that's why we don't call to evalf.
+
+-                x = x._evalf(prec) if x is not self.identity else self.identity
+
+-                args = []
+
+-                tail_args = tuple(self.func.make_args(tail))
+
+-                for a in tail_args:
+
+-                    # here we call to _eval_evalf since we don't know what we
+
+-                    # are dealing with and all other _eval_evalf routines should
+
+-                    # be doing the same thing (i.e. taking binary prec and
+
+-                    # finding the evalf-able args)
+
+-                    newa = a._eval_evalf(prec)
+
+-                    if newa is None:
+
+-                        args.append(a)
+
+-                    else:
+
+-                        args.append(newa)
+
+-                return self.func(x, *args)
+
+-
+
+-        # this is the same as above, but there were no pure-number args to
+
+-        # deal with
+
+-        args = []
+
+-        for a in self.args:
+
+-            newa = a._eval_evalf(prec)
+
+-            if newa is None:
+
+-                args.append(a)
+
+-            else:
+
+-                args.append(newa)
+
+-        return self.func(*args)
+
++        return _eval_evalf_bell(self, prec)
+
+ 
+
+     @classmethod
+
+     def make_args(cls, expr):

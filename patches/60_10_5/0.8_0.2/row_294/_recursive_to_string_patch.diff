@@ -1,0 +1,24 @@
+--- a/decoupled/60/0.8_0.2/294/sympy_sympy/sympy/utilities/lambdify.py
++++ b/decoupled/60/0.8_0.2/294/sympy_sympy/sympy/utilities/lambdify.py
+@@ -958,7 +958,10 @@
+         if isinstance(arg, list):
+
+             left, right = "[]"
+
+         elif isinstance(arg, tuple):
+
+-            left, right = "()"
+
++            left, right = "()", 
+
++            if len(arg) == 1:
+
++                # Add a trailing comma for single-element tuples
+
++                arg = (arg[0],)
+
+         else:
+
+             raise NotImplementedError("unhandled type: %s, %s" % (type(arg), arg))
+
+         return left +', '.join(_recursive_to_string(doprint, e) for e in arg) + right

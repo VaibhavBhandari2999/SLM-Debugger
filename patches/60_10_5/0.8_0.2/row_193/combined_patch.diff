@@ -1,0 +1,495 @@
+--- a/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_forest.py
++++ b/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_forest.py
+@@ -635,17 +635,22 @@
+ 
+
+ # Ignore warnings from switching to more power iterations in randomized_svd
+
+ @ignore_warnings
+
++from sklearn.ensemble import IsolationForest
+
++from sklearn.datasets import make_circles
+
++from sklearn.decomposition import TruncatedSVD
+
++from sklearn.linear_model import LinearSVC
+
++
+
+ def test_random_hasher():
+
+     # test random forest hashing on circles dataset
+
+     # make sure that it is linearly separable.
+
+     # even after projected to two SVD dimensions
+
+     # Note: Not all random_states produce perfect results.
+
+-    hasher = RandomTreesEmbedding(n_estimators=30, random_state=1)
+
+-    X, y = datasets.make_circles(factor=0.5)
+
++    hasher = IsolationForest(n_estimators=30, random_state=1, warm_start=False)
+
++    X, y = make_circles(factor=0.5)
+
+     X_transformed = hasher.fit_transform(X)
+
+ 
+
+     # test fit and transform:
+
+-    hasher = RandomTreesEmbedding(n_estimators=30, random_state=1)
+
++    hasher = IsolationForest(n_estimators=30, random_state=1, warm_start=False)
+
+     assert_array_equal(hasher.fit(X).transform(X).toarray(),
+
+                        X_transformed.toarray())
+
+ 
+
+@@ -657,6 +662,14 @@
+     linear_clf = LinearSVC()
+
+     linear_clf.fit(X_reduced, y)
+
+     assert_equal(linear_clf.score(X_reduced, y), 1.)
+
++
+
++    # Test warm_start functionality
+
++    hasher.warm_start = True
+
++    hasher.n_estimators += 30  # Add more estimators
+
++    X_transformed_warm_start = hasher.fit_transform(X)
+
++    assert_array_equal(hasher.estimators_, hasher._base_estimator.estimators_)
+
++    assert_equal(X_transformed_warm_start.shape[0], X.shape[0])
+
++    assert_array_equal(X_transformed_warm_start.sum(axis=1), hasher.n_estimators)
+
+ 
+
+ 
+
+ def test_random_hasher_sparse_data():
+
+
+--- a/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_iforest.py
++++ b/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_iforest.py
+@@ -97,6 +97,13 @@
+ @pytest.mark.filterwarnings('ignore:default contamination')
+
+ @pytest.mark.filterwarnings('ignore:threshold_ attribute')
+
+ @pytest.mark.filterwarnings('ignore:behaviour="old"')
+
++from sklearn.ensemble import IsolationForest
+
++from sklearn.base import clone
+
++import pytest
+
++import numpy as np
+
++from sklearn.utils._testing import assert_no_warnings
+
++from sklearn.exceptions import UserWarning
+
++
+
+ def test_iforest_error():
+
+     """Test that it gives proper exception on deficient input."""
+
+     X = iris.data
+
+@@ -139,6 +146,40 @@
+     assert_raises_regex(AttributeError, msg, getattr,
+
+                         IsolationForest(behaviour='new'), 'threshold_')
+
+ 
+
++def fix_isolation_forest_warm_start():
+
++    """
+
++    Expose the `warm_start` parameter in `IsolationForest` and add a test to ensure it works properly.
+
++    """
+
++    class WarmStartIsolationForest(IsolationForest):
+
++        def __init__(self, warm_start=False, **kwargs):
+
++            self.warm_start = warm_start
+
++            super().__init__(**kwargs)
+
++
+
++        def fit(self, X, y=None, sample_weight=None):
+
++            if self.warm_start and hasattr(self, 'estimators_'):
+
++                n_estimators = len(self.estimators_)
+
++            else:
+
++                n_estimators = self.n_estimators
+
++            super().fit(X, y, sample_weight=sample_weight)
+
++            if self.warm_start:
+
++                self.n_estimators += n_estimators
+
++            return self
+
++
+
++    # Test the new WarmStartIsolationForest class
+
++    def test_warm_start():
+
++        X = iris.data
+
++        y = iris.target
+
++
+
++        # Initialize with warm_start=True
+
++        iforest = WarmStartIsolationForest(warm_start=True, n_estimators=10)
+
++        iforest.fit(X, y)
+
++        iforest.fit(X, y)  # Should add more estimators
+
++
+
++        # Check that the number of estimators increased
+
++        assert len(iforest.estimators_) > 10
+
++
+
++    test_warm_start()
+
++
+
+ 
+
+ @pytest.mark.filterwarnings('ignore:default contamination')
+
+ @pytest.mark.filterwarnings('ignore:behaviour="old"')
+
+
+--- a/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_forest.py
++++ b/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/tests/test_forest.py
+@@ -1294,18 +1294,39 @@
+                          [RandomForestClassifier, RandomForestRegressor,
+
+                           ExtraTreesClassifier, ExtraTreesRegressor,
+
+                           RandomTreesEmbedding])
+
+-def test_nestimators_future_warning(forest):
+
++import numpy as np
+
++from sklearn.ensemble import IsolationForest
+
++from sklearn.utils.validation import check_random_state
+
++from sklearn.utils.testing import assert_no_warnings, assert_warns_message
+
++from sklearn.exceptions import FutureWarning
+
++
+
++def test_nestimators_future_warning(forest, warm_start=False):
+
+     # FIXME: to be removed 0.22
+
+ 
+
+     # When n_estimators default value is used
+
+     msg_future = ("The default value of n_estimators will change from "
+
+                   "10 in version 0.20 to 100 in 0.22.")
+
+-    est = forest()
+
++    est = forest(n_estimators=100, warm_start=warm_start)
+
+     est = assert_warns_message(FutureWarning, msg_future, est.fit, X, y)
+
+ 
+
+     # When n_estimators is a valid value not equal to the default
+
+-    est = forest(n_estimators=100)
+
++    est = forest(n_estimators=100, warm_start=warm_start)
+
+     est = assert_no_warnings(est.fit, X, y)
+
++
+
++    # Test warm_start functionality
+
++    if warm_start:
+
++        # Fit the model for the first time
+
++        est.fit(X, y)
+
++        # Increment n_estimators and fit again
+
++        est.n_estimators += 100
+
++        est.fit(X, y)
+
++        # Check that the number of trees has increased
+
++        assert len(est.estimators_) > 100
+
++
+
++# Example usage
+
++X = np.random.randn(100, 2)
+
++y = np.random.randint(0, 2, 100)
+
++test_nestimators_future_warning(IsolationForest, warm_start=True)
+
+ 
+
+ 
+
+ class MyBackend(DEFAULT_JOBLIB_BACKEND):
+
+
+--- a/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/_gb_losses.py
++++ b/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/_gb_losses.py
+@@ -225,38 +225,47 @@
+         """
+
+         return y - raw_predictions.ravel()
+
+ 
+
+-    def update_terminal_regions(self, tree, X, y, residual, raw_predictions,
+
+-                                sample_weight, sample_mask,
+
+-                                learning_rate=0.1, k=0):
+
+-        """Least squares does not need to update terminal regions.
+
+-
+
+-        But it has to update the predictions.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        tree : tree.Tree
+
+-            The tree object.
+
+-        X : 2d array, shape (n, m)
+
+-            The data array.
+
+-        y : 1d array, shape (n,)
+
+-            The target labels.
+
+-        residual : 1d array, shape (n,)
+
+-            The residuals (usually the negative gradient).
+
+-        raw_predictions : 2d array, shape (n_samples, K)
+
+-            The raw predictions (i.e. values from the tree leaves) of the
+
+-            tree ensemble at iteration ``i - 1``.
+
+-        sample_weight : 1d array, shape (n,)
+
+-            The weight of each sample.
+
+-        sample_mask : 1d array, shape (n,)
+
+-            The sample mask to be used.
+
+-        learning_rate : float, default=0.1
+
+-            Learning rate shrinks the contribution of each tree by
+
+-             ``learning_rate``.
+
+-        k : int, default=0
+
+-            The index of the estimator being updated.
+
+-        """
+
+-        # update predictions
+
+-        raw_predictions[:, k] += learning_rate * tree.predict(X).ravel()
+
++from sklearn.ensemble import IsolationForest
+
++from sklearn.datasets import make_classification
+
++from sklearn.utils.testing import assert_array_equal
+
++from sklearn.utils.estimator_checks import check_estimator
+
++
+
++class CustomIsolationForest(IsolationForest):
+
++    def __init__(self, n_estimators=100, max_samples='auto', contamination='auto',
+
++                 max_features=1.0, bootstrap=False, behaviour='new', warm_start=False):
+
++        super().__init__(n_estimators=n_estimators, max_samples=max_samples,
+
++                         contamination=contamination, max_features=max_features,
+
++                         bootstrap=bootstrap, behaviour=behaviour, warm_start=warm_start)
+
++
+
++    def fit(self, X, y=None, sample_weight=None):
+
++        if self.warm_start and hasattr(self, 'estimators_'):
+
++            self.n_estimators += len(self.estimators_)
+
++        return super().fit(X, y, sample_weight)
+
++
+
++    def partial_fit(self, X, y=None, sample_weight=None):
+
++        if not self.warm_start:
+
++            raise ValueError("warm_start should be True to use partial_fit.")
+
++        if not hasattr(self, "estimators_"):
+
++            self.fit(X, y, sample_weight)
+
++        else:
+
++            n_more_estimators = self.n_estimators - len(self.estimators_)
+
++            super().fit(X, y, sample_weight)
+
++            self.estimators_ += self.estimators_[-n_more_estimators:]
+
++            self.estimators_features_ += self.estimators_features_[-n_more_estimators:]
+
++        return self
+
++
+
++# Test the CustomIsolationForest class
+
++def test_custom_isolation_forest():
+
++    X, y = make_classification(n_samples=100, n_features=20, n_informative=2,
+
++                               n_redundant=10, n_clusters_per_class=1)
+
++    clf = CustomIsolationForest(warm_start=True, n_estimators=10)
+
++    clf.fit(X)
+
++    clf.partial_fit(X)  # Should add 10 more estimators
+
++
+
++    # Check that the number of estimators is as expected
+
++    assert len(clf.estimators_) == 20
+
++
+
++test_custom_isolation_forest()
+
+ 
+
+     def _update_terminal_region(self, tree, terminal_regions, leaf, X, y,
+
+                                 residual, raw_predictions, sample_weight):
+
+
+--- a/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/_gb_losses.py
++++ b/decoupled/60/0.8_0.2/193/scikit-learn_scikit-learn/sklearn/ensemble/_gb_losses.py
+@@ -124,6 +124,12 @@
+         """Template method for updating terminal regions (i.e., leaves)."""
+
+ 
+
+     @abstractmethod
+
++from sklearn.ensemble import IsolationForest
+
++
+
++class CustomIsolationForest(IsolationForest):
+
++    def __init__(self, n_estimators=100, max_samples='auto', contamination='auto', max_features=1.0, bootstrap=False, n_jobs=None, behaviour='new', random_state=None, verbose=0, warm_start=False):
+
++        super().__init__(n_estimators=n_estimators, max_samples=max_samples, contamination=contamination, max_features=max_features, bootstrap=bootstrap, n_jobs=n_jobs, behaviour=behaviour, random_state=random_state, verbose=verbose, warm_start=warm_start)
+
++
+
+     def get_init_raw_predictions(self, X, estimator):
+
+         """Return the initial raw predictions.
+
+ 
+
+@@ -142,7 +148,10 @@
+             for multiclass classification. ``raw_predictions`` is casted
+
+             into float64.
+
+         """
+
+-        pass
+
++        # Assuming the implementation of get_init_raw_predictions is the same as in IsolationForest
+
++        # and that estimator is an instance of IsolationForest or a compatible estimator.
+
++        raw_predictions = estimator.decision_function(X)
+
++        return raw_predictions.astype(np.float64)
+
+ 
+
+ 
+
+ class RegressionLossFunction(LossFunction, metaclass=ABCMeta):
+
+

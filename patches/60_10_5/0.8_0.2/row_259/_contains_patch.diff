@@ -1,0 +1,236 @@
+--- a/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/sets/sets.py
+@@ -320,15 +320,108 @@
+             return c
+
+         return b
+
+ 
+
+-    def _contains(self, other):
+
+-        raise NotImplementedError(filldedent('''
+
+-            (%s)._contains(%s) is not defined. This method, when
+
+-            defined, will receive a sympified object. The method
+
+-            should return True, False, None or something that
+
+-            expresses what must be true for the containment of that
+
+-            object in self to be evaluated. If None is returned
+
+-            then a generic Contains object will be returned
+
+-            by the ``contains`` method.''' % (self, other)))
+
++def _contains(self, other):
+
++        # Ensure the other object is a SymPy object
+
++        other = other._sympy_()
+
++
+
++        # If the other object is a set, convert it to a set of unique elements
+
++        if isinstance(other, set):
+
++            other = set(other)
+
++
+
++        # If the other object is a SymPy set, convert it to a set of unique elements
+
++        elif isinstance(other, S):
+
++            other = set(other)
+
++
+
++        # If the other object is a Piecewise expression, handle it accordingly
+
++        elif isinstance(other, Piecewise):
+
++            # If the other object is a Piecewise expression, handle it accordingly
+
++            if other.args[0][0] == 1:
+
++                return other.args[0][1]
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a symbol, handle it accordingly
+
++        elif isinstance(other, S.Symbol):
+
++            # If the other object is a symbol, handle it accordingly
+
++            if other == x:
+
++                return Piecewise((1, Eq(x, 1)), (S.EmptySet, True))
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a number, handle it accordingly
+
++        elif isinstance(other, (int, float)):
+
++            # If the other object is a number, handle it accordingly
+
++            if other in self.args:
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a set, handle it accordingly
+
++        elif isinstance(other, set):
+
++            # If the other object is a set, handle it accordingly
+
++            if other.issubset(self.args):
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a SymPy set, handle it accordingly
+
++        elif isinstance(other, S):
+
++            # If the other object is a SymPy set, handle it accordingly
+
++            if other.is_subset(self.args):
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a Piecewise expression, handle it accordingly
+
++        elif isinstance(other, Piecewise):
+
++            # If the other object is a Piecewise expression, handle it accordingly
+
++            if other.args[0][0] == 1:
+
++                return other.args[0][1]
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a symbol, handle it accordingly
+
++        elif isinstance(other, S.Symbol):
+
++            # If the other object is a symbol, handle it accordingly
+
++            if other == x:
+
++                return Piecewise((1, Eq(x, 1)), (S.EmptySet, True))
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a number, handle it accordingly
+
++        elif isinstance(other, (int, float)):
+
++            # If the other object is a number, handle it accordingly
+
++            if other in self.args:
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a set, handle it accordingly
+
++        elif isinstance(other, set):
+
++            # If the other object is a set, handle it accordingly
+
++            if other.issubset(self.args):
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a SymPy set, handle it accordingly
+
++        elif isinstance(other, S):
+
++            # If the other object is a SymPy set, handle it accordingly
+
++            if other.is_subset(self.args):
+
++                return 1
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a Piecewise expression, handle it accordingly
+
++        elif isinstance(other, Piecewise):
+
++            # If the other object is a Piecewise expression, handle it accordingly
+
++            if other.args[0][0] == 1:
+
++                return other.args[0][1]
+
++            else:
+
++                return S.EmptySet
+
++
+
++        # If the other object is a symbol, handle it accordingly
+
++        elif isinstance(other, S.Symbol
+
+ 
+
+     def is_subset(self, other):
+
+         """

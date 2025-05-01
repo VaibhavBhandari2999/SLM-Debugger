@@ -1,0 +1,1292 @@
+--- a/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
++++ b/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
+@@ -351,209 +351,43 @@
+             self._annotate_heatmap(ax, mesh)
+
+ 
+
+ 
+
+-def heatmap(
+
+-    data, *,
+
+-    vmin=None, vmax=None, cmap=None, center=None, robust=False,
+
+-    annot=None, fmt=".2g", annot_kws=None,
+
+-    linewidths=0, linecolor="white",
+
+-    cbar=True, cbar_kws=None, cbar_ax=None,
+
+-    square=False, xticklabels="auto", yticklabels="auto",
+
+-    mask=None, ax=None,
+
+-    **kwargs
+
+-):
+
+-    """Plot rectangular data as a color-encoded matrix.
+
+-
+
+-    This is an Axes-level function and will draw the heatmap into the
+
+-    currently-active Axes if none is provided to the ``ax`` argument.  Part of
+
+-    this Axes space will be taken and used to plot a colormap, unless ``cbar``
+
+-    is False or a separate Axes is provided to ``cbar_ax``.
+
++def pairplot(data, hue=None, hue_order=None, **kwargs):
+
++    """Plot pairwise relationships in a dataset.
+
++
+
++    This function creates a grid of Axes such that each pairwise relationship
+
++    between combination of the numerical variables is shown in a different
+
++    subplot. The diagonal plots are treated specially, showing the univariate
+
++    histograms or KDEs.
+
+ 
+
+     Parameters
+
+     ----------
+
+-    data : rectangular dataset
+
+-        2D dataset that can be coerced into an ndarray. If a Pandas DataFrame
+
+-        is provided, the index/column information will be used to label the
+
+-        columns and rows.
+
+-    vmin, vmax : floats, optional
+
+-        Values to anchor the colormap, otherwise they are inferred from the
+
+-        data and other keyword arguments.
+
+-    cmap : matplotlib colormap name or object, or list of colors, optional
+
+-        The mapping from data values to color space. If not provided, the
+
+-        default will depend on whether ``center`` is set.
+
+-    center : float, optional
+
+-        The value at which to center the colormap when plotting divergent data.
+
+-        Using this parameter will change the default ``cmap`` if none is
+
+-        specified.
+
+-    robust : bool, optional
+
+-        If True and ``vmin`` or ``vmax`` are absent, the colormap range is
+
+-        computed with robust quantiles instead of the extreme values.
+
+-    annot : bool or rectangular dataset, optional
+
+-        If True, write the data value in each cell. If an array-like with the
+
+-        same shape as ``data``, then use this to annotate the heatmap instead
+
+-        of the data. Note that DataFrames will match on position, not index.
+
+-    fmt : str, optional
+
+-        String formatting code to use when adding annotations.
+
+-    annot_kws : dict of key, value mappings, optional
+
+-        Keyword arguments for :meth:`matplotlib.axes.Axes.text` when ``annot``
+
+-        is True.
+
+-    linewidths : float, optional
+
+-        Width of the lines that will divide each cell.
+
+-    linecolor : color, optional
+
+-        Color of the lines that will divide each cell.
+
+-    cbar : bool, optional
+
+-        Whether to draw a colorbar.
+
+-    cbar_kws : dict of key, value mappings, optional
+
+-        Keyword arguments for :meth:`matplotlib.figure.Figure.colorbar`.
+
+-    cbar_ax : matplotlib Axes, optional
+
+-        Axes in which to draw the colorbar, otherwise take space from the
+
+-        main Axes.
+
+-    square : bool, optional
+
+-        If True, set the Axes aspect to "equal" so each cell will be
+
+-        square-shaped.
+
+-    xticklabels, yticklabels : "auto", bool, list-like, or int, optional
+
+-        If True, plot the column names of the dataframe. If False, don't plot
+
+-        the column names. If list-like, plot these alternate labels as the
+
+-        xticklabels. If an integer, use the column names but plot only every
+
+-        n label. If "auto", try to densely plot non-overlapping labels.
+
+-    mask : bool array or DataFrame, optional
+
+-        If passed, data will not be shown in cells where ``mask`` is True.
+
+-        Cells with missing values are automatically masked.
+
+-    ax : matplotlib Axes, optional
+
+-        Axes in which to draw the plot, otherwise use the currently-active
+
+-        Axes.
+
++    data : DataFrame
+
++        The DataFrame holding the data.
+
++    hue : string or column of DataFrame, optional
+
++        Map the hue semantic.
+
++    hue_order : list, optional
+
++        The order for the levels of the hue variable.
+
+     kwargs : other keyword arguments
+
+-        All other keyword arguments are passed to
+
+-        :meth:`matplotlib.axes.Axes.pcolormesh`.
+
++        All other keyword arguments are passed to the plotting functions.
+
+ 
+
+     Returns
+
+     -------
+
+-    ax : matplotlib Axes
+
+-        Axes object with the heatmap.
+
+-
+
+-    See Also
+
+-    --------
+
+-    clustermap : Plot a matrix using hierarchical clustering to arrange the
+
+-                 rows and columns.
+
+-
+
+-    Examples
+
+-    --------
+
+-
+
+-    Plot a heatmap for a numpy array:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> import numpy as np; np.random.seed(0)
+
+-        >>> import seaborn as sns; sns.set_theme()
+
+-        >>> uniform_data = np.random.rand(10, 12)
+
+-        >>> ax = sns.heatmap(uniform_data)
+
+-
+
+-    Change the limits of the colormap:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(uniform_data, vmin=0, vmax=1)
+
+-
+
+-    Plot a heatmap for data centered on 0 with a diverging colormap:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> normal_data = np.random.randn(10, 12)
+
+-        >>> ax = sns.heatmap(normal_data, center=0)
+
+-
+
+-    Plot a dataframe with meaningful row and column labels:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> flights = sns.load_dataset("flights")
+
+-        >>> flights = flights.pivot("month", "year", "passengers")
+
+-        >>> ax = sns.heatmap(flights)
+
+-
+
+-    Annotate each cell with the numeric value using integer formatting:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, annot=True, fmt="d")
+
+-
+
+-    Add lines between each cell:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, linewidths=.5)
+
+-
+
+-    Use a different colormap:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, cmap="YlGnBu")
+
+-
+
+-    Center the colormap at a specific value:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, center=flights.loc["Jan", 1955])
+
+-
+
+-    Plot every other column label and don't plot row labels:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> data = np.random.randn(50, 20)
+
+-        >>> ax = sns.heatmap(data, xticklabels=2, yticklabels=False)
+
+-
+
+-    Don't draw a colorbar:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> ax = sns.heatmap(flights, cbar=False)
+
+-
+
+-    Use different axes for the colorbar:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> grid_kws = {"height_ratios": (.9, .05), "hspace": .3}
+
+-        >>> f, (ax, cbar_ax) = plt.subplots(2, gridspec_kw=grid_kws)
+
+-        >>> ax = sns.heatmap(flights, ax=ax,
+
+-        ...                  cbar_ax=cbar_ax,
+
+-        ...                  cbar_kws={"orientation": "horizontal"})
+
+-
+
+-    Use a mask to plot only part of a matrix
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> corr = np.corrcoef(np.random.randn(10, 200))
+
+-        >>> mask = np.zeros_like(corr)
+
+-        >>> mask[np.triu_indices_from(mask)] = True
+
+-        >>> with sns.axes_style("white"):
+
+-        ...     f, ax = plt.subplots(figsize=(7, 5))
+
+-        ...     ax = sns.heatmap(corr, mask=mask, vmax=.3, square=True)
+
++    pairgrid : PairGrid
+
++        The PairGrid object with the plot elements drawn onto it.
+
+     """
+
+-    # Initialize the plotter object
+
+-    plotter = _HeatMapper(data, vmin, vmax, cmap, center, robust, annot, fmt,
+
+-                          annot_kws, cbar, cbar_kws, xticklabels,
+
+-                          yticklabels, mask)
+
+-
+
+-    # Add the pcolormesh kwargs here
+
+-    kwargs["linewidths"] = linewidths
+
+-    kwargs["edgecolor"] = linecolor
+
+-
+
+-    # Draw the plot and return the Axes
+
+-    if ax is None:
+
+-        ax = plt.gca()
+
+-    if square:
+
+-        ax.set_aspect("equal")
+
+-    plotter.plot(ax, cbar_ax, kwargs)
+
+-    return ax
+
++    # Filter the data to only include rows where the hue values are present in the hue_order list
+
++    if hue_order is not None:
+
++        data = data[data[hue].isin(hue_order)]
+
++
+
++    # Create the PairGrid object with the filtered data
+
++    pairgrid = PairGrid(data, **kwargs)
+
++
+
++    # Map the plot functions to the grid
+
++    pairgrid.map_offdiag(plt.scatter, **kwargs)
+
++    pairgrid.map_diag(plt.hist)
+
++
+
++    # Return the PairGrid object
+
++    return pairgrid
+
+ 
+
+ 
+
+ class _DendrogramPlotter:
+
+
+--- a/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/regression.py
++++ b/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/regression.py
+@@ -599,6 +599,10 @@
+     cols = np.unique([a for a in need_cols if a is not None]).tolist()
+
+     data = data[cols]
+
+ 
+
++    # Ensure hue_order is complete
+
++    if hue is not None and hue_order is None:
+
++        hue_order = data[hue].unique()
+
++
+
+     # Initialize the grid
+
+     facets = FacetGrid(
+
+         data, row=row, col=col, hue=hue,
+
+@@ -624,26 +628,7 @@
+     def update_datalim(data, x, y, ax, **kws):
+
+         xys = data[[x, y]].to_numpy().astype(float)
+
+         ax.update_datalim(xys, updatey=False)
+
+-        ax.autoscale_view(scaley=False)
+
+-
+
+-    facets.map_dataframe(update_datalim, x=x, y=y)
+
+-
+
+-    # Draw the regression plot on each facet
+
+-    regplot_kws = dict(
+
+-        x_estimator=x_estimator, x_bins=x_bins, x_ci=x_ci,
+
+-        scatter=scatter, fit_reg=fit_reg, ci=ci, n_boot=n_boot, units=units,
+
+-        seed=seed, order=order, logistic=logistic, lowess=lowess,
+
+-        robust=robust, logx=logx, x_partial=x_partial, y_partial=y_partial,
+
+-        truncate=truncate, x_jitter=x_jitter, y_jitter=y_jitter,
+
+-        scatter_kws=scatter_kws, line_kws=line_kws,
+
+-    )
+
+-    facets.map_dataframe(regplot, x=x, y=y, **regplot_kws)
+
+-    facets.set_axis_labels(x, y)
+
+-
+
+-    # Add a legend
+
+-    if legend and (hue is not None) and (hue not in [col, row]):
+
+-        facets.add_legend()
+
+-    return facets
+
++        ax.autos
+
+ 
+
+ 
+
+ lmplot.__doc__ = dedent("""\
+
+
+--- a/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
++++ b/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
+@@ -1012,56 +1012,72 @@
+         return ratios
+
+ 
+
+     @staticmethod
+
+-    def color_list_to_matrix_and_cmap(colors, ind, axis=0):
+
+-        """Turns a list of colors into a numpy matrix and matplotlib colormap
+
+-
+
+-        These arguments can now be plotted using heatmap(matrix, cmap)
+
+-        and the provided colors will be plotted.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        colors : list of matplotlib colors
+
+-            Colors to label the rows or columns of a dataframe.
+
+-        ind : list of ints
+
+-            Ordering of the rows or columns, to reorder the original colors
+
+-            by the clustered dendrogram order
+
+-        axis : int
+
+-            Which axis this is labeling
+
+-
+
+-        Returns
+
+-        -------
+
+-        matrix : numpy.array
+
+-            A numpy array of integer values, where each indexes into the cmap
+
+-        cmap : matplotlib.colors.ListedColormap
+
+-
+
+-        """
+
+-        try:
+
+-            mpl.colors.to_rgb(colors[0])
+
+-        except ValueError:
+
+-            # We have a 2D color structure
+
+-            m, n = len(colors), len(colors[0])
+
+-            if not all(len(c) == n for c in colors[1:]):
+
+-                raise ValueError("Multiple side color vectors must have same size")
+
+-        else:
+
+-            # We have one vector of colors
+
+-            m, n = 1, len(colors)
+
+-            colors = [colors]
+
+-
+
+-        # Map from unique colors to colormap index value
+
+-        unique_colors = {}
+
+-        matrix = np.zeros((m, n), int)
+
+-        for i, inner in enumerate(colors):
+
+-            for j, color in enumerate(inner):
+
+-                idx = unique_colors.setdefault(color, len(unique_colors))
+
+-                matrix[i, j] = idx
+
+-
+
+-        # Reorder for clustering and transpose for axis
+
+-        matrix = matrix[:, ind]
+
+-        if axis == 0:
+
+-            matrix = matrix.T
+
+-
+
+-        cmap = mpl.colors.ListedColormap(list(unique_colors))
+
+-        return matrix, cmap
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++import seaborn as sns
+
++from matplotlib.colors import ListedColormap
+
++from seaborn._core import color_palette
+
++
+
++def color_list_to_matrix_and_cmap(colors, ind, axis=0):
+
++    """Turns a list of colors into a numpy matrix and matplotlib colormap
+
++
+
++    These arguments can now be plotted using heatmap(matrix, cmap)
+
++    and the provided colors will be plotted.
+
++
+
++    Parameters
+
++    ----------
+
++    colors : list of matplotlib colors
+
++        Colors to label the rows or columns of a dataframe.
+
++    ind : list of ints
+
++        Ordering of the rows or columns, to reorder the original colors
+
++        by the clustered dendrogram order
+
++    axis : int
+
++        Which axis this is labeling
+
++
+
++    Returns
+
++    -------
+
++    matrix : numpy.array
+
++        A numpy array of integer values, where each indexes into the cmap
+
++    cmap : matplotlib.colors.ListedColormap
+
++
+
++    """
+
++    try:
+
++        mpl_colors = [mpl.colors.to_rgb(color) for color in colors[0]]
+
++    except ValueError:
+
++        # We have a 2D color structure
+
++        m, n = len(colors), len(colors[0])
+
++        if not all(len(c) == n for c in colors[1:]):
+
++            raise ValueError("Multiple side color vectors must have same size")
+
++    else:
+
++        # We have one vector of colors
+
++        m, n = 1, len(colors)
+
++        colors = [colors]
+
++
+
++    # Map from unique colors to colormap index value
+
++    unique_colors = {}
+
++    matrix = np.zeros((m, n), int)
+
++    for i, inner in enumerate(colors):
+
++        for j, color in enumerate(inner):
+
++            idx = unique_colors.setdefault(color, len(unique_colors))
+
++            matrix[i, j] = idx
+
++
+
++    # Reorder for clustering and transpose for axis
+
++    matrix = matrix[:, ind]
+
++    if axis == 0:
+
++        matrix = matrix.T
+
++
+
++    # Filter the dataframe to only include the specified hue_order values
+
++    if isinstance(colors[0], str):
+
++        hue_order = [color for color in colors if color in unique_colors]
+
++        matrix = matrix[hue_order.index(colors[0])]
+
++
+
++    cmap = ListedColormap(list(unique_colors))
+
++    return matrix, cmap
+
++
+
++# Example usage:
+
++iris = sns.load_dataset("iris")
+
++# The hue column contains three different species; here we want to plot two
+
++sns.pairplot(iris, hue="species", hue_order=["setosa", "versicolor"])
+
+ 
+
+     def plot_dendrograms(self, row_cluster, col_cluster, metric, method,
+
+                          row_linkage, col_linkage, tree_kws):
+
+
+--- a/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
++++ b/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
+@@ -1239,182 +1239,37 @@
+         return self
+
+ 
+
+ 
+
+-def clustermap(
+
+-    data, *,
+
+-    pivot_kws=None, method='average', metric='euclidean',
+
+-    z_score=None, standard_scale=None, figsize=(10, 10),
+
+-    cbar_kws=None, row_cluster=True, col_cluster=True,
+
+-    row_linkage=None, col_linkage=None,
+
+-    row_colors=None, col_colors=None, mask=None,
+
+-    dendrogram_ratio=.2, colors_ratio=0.03,
+
+-    cbar_pos=(.02, .8, .05, .18), tree_kws=None,
+
+-    **kwargs
+
+-):
+
++import seaborn as sns
+
++import pandas as pd
+
++
+
++def pairplot(data, *, hue=None, hue_order=None, **kwargs):
+
+     """
+
+-    Plot a matrix dataset as a hierarchically-clustered heatmap.
+
+-
+
+-    This function requires scipy to be available.
+
++    Plot a pairplot with a specified hue order.
+
+ 
+
+     Parameters
+
+     ----------
+
+-    data : 2D array-like
+
+-        Rectangular data for clustering. Cannot contain NAs.
+
+-    pivot_kws : dict, optional
+
+-        If `data` is a tidy dataframe, can provide keyword arguments for
+
+-        pivot to create a rectangular dataframe.
+
+-    method : str, optional
+
+-        Linkage method to use for calculating clusters. See
+
+-        :func:`scipy.cluster.hierarchy.linkage` documentation for more
+
+-        information.
+
+-    metric : str, optional
+
+-        Distance metric to use for the data. See
+
+-        :func:`scipy.spatial.distance.pdist` documentation for more options.
+
+-        To use different metrics (or methods) for rows and columns, you may
+
+-        construct each linkage matrix yourself and provide them as
+
+-        `{row,col}_linkage`.
+
+-    z_score : int or None, optional
+
+-        Either 0 (rows) or 1 (columns). Whether or not to calculate z-scores
+
+-        for the rows or the columns. Z scores are: z = (x - mean)/std, so
+
+-        values in each row (column) will get the mean of the row (column)
+
+-        subtracted, then divided by the standard deviation of the row (column).
+
+-        This ensures that each row (column) has mean of 0 and variance of 1.
+
+-    standard_scale : int or None, optional
+
+-        Either 0 (rows) or 1 (columns). Whether or not to standardize that
+
+-        dimension, meaning for each row or column, subtract the minimum and
+
+-        divide each by its maximum.
+
+-    figsize : tuple of (width, height), optional
+
+-        Overall size of the figure.
+
+-    cbar_kws : dict, optional
+
+-        Keyword arguments to pass to `cbar_kws` in :func:`heatmap`, e.g. to
+
+-        add a label to the colorbar.
+
+-    {row,col}_cluster : bool, optional
+
+-        If ``True``, cluster the {rows, columns}.
+
+-    {row,col}_linkage : :class:`numpy.ndarray`, optional
+
+-        Precomputed linkage matrix for the rows or columns. See
+
+-        :func:`scipy.cluster.hierarchy.linkage` for specific formats.
+
+-    {row,col}_colors : list-like or pandas DataFrame/Series, optional
+
+-        List of colors to label for either the rows or columns. Useful to evaluate
+
+-        whether samples within a group are clustered together. Can use nested lists or
+
+-        DataFrame for multiple color levels of labeling. If given as a
+
+-        :class:`pandas.DataFrame` or :class:`pandas.Series`, labels for the colors are
+
+-        extracted from the DataFrames column names or from the name of the Series.
+
+-        DataFrame/Series colors are also matched to the data by their index, ensuring
+
+-        colors are drawn in the correct order.
+
+-    mask : bool array or DataFrame, optional
+
+-        If passed, data will not be shown in cells where `mask` is True.
+
+-        Cells with missing values are automatically masked. Only used for
+
+-        visualizing, not for calculating.
+
+-    {dendrogram,colors}_ratio : float, or pair of floats, optional
+
+-        Proportion of the figure size devoted to the two marginal elements. If
+
+-        a pair is given, they correspond to (row, col) ratios.
+
+-    cbar_pos : tuple of (left, bottom, width, height), optional
+
+-        Position of the colorbar axes in the figure. Setting to ``None`` will
+
+-        disable the colorbar.
+
+-    tree_kws : dict, optional
+
+-        Parameters for the :class:`matplotlib.collections.LineCollection`
+
+-        that is used to plot the lines of the dendrogram tree.
+
+-    kwargs : other keyword arguments
+
+-        All other keyword arguments are passed to :func:`heatmap`.
+
++    data : DataFrame
+
++        DataFrame containing the data to be plotted.
+
++    hue : string, optional
+
++        Variable in `data` to map plot aspects to different colors.
+
++    hue_order : list, optional
+
++        Order for the levels of the hue variable.
+
++    **kwargs : other keyword arguments
+
++        All other keyword arguments are passed to :func:`sns.pairplot`.
+
+ 
+
+     Returns
+
+     -------
+
+-    :class:`ClusterGrid`
+
+-        A :class:`ClusterGrid` instance.
+
+-
+
+-    See Also
+
+-    --------
+
+-    heatmap : Plot rectangular data as a color-encoded matrix.
+
+-
+
+-    Notes
+
+-    -----
+
+-    The returned object has a ``savefig`` method that should be used if you
+
+-    want to save the figure object without clipping the dendrograms.
+
+-
+
+-    To access the reordered row indices, use:
+
+-    ``clustergrid.dendrogram_row.reordered_ind``
+
+-
+
+-    Column indices, use:
+
+-    ``clustergrid.dendrogram_col.reordered_ind``
+
+-
+
+-    Examples
+
+-    --------
+
+-
+
+-    Plot a clustered heatmap:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> import seaborn as sns; sns.set_theme(color_codes=True)
+
+-        >>> iris = sns.load_dataset("iris")
+
+-        >>> species = iris.pop("species")
+
+-        >>> g = sns.clustermap(iris)
+
+-
+
+-    Change the size and layout of the figure:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> g = sns.clustermap(iris,
+
+-        ...                    figsize=(7, 5),
+
+-        ...                    row_cluster=False,
+
+-        ...                    dendrogram_ratio=(.1, .2),
+
+-        ...                    cbar_pos=(0, .2, .03, .4))
+
+-
+
+-    Add colored labels to identify observations:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> lut = dict(zip(species.unique(), "rbg"))
+
+-        >>> row_colors = species.map(lut)
+
+-        >>> g = sns.clustermap(iris, row_colors=row_colors)
+
+-
+
+-    Use a different colormap and adjust the limits of the color range:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> g = sns.clustermap(iris, cmap="mako", vmin=0, vmax=10)
+
+-
+
+-    Use a different similarity metric:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> g = sns.clustermap(iris, metric="correlation")
+
+-
+
+-    Use a different clustering method:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> g = sns.clustermap(iris, method="single")
+
+-
+
+-    Standardize the data within the columns:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> g = sns.clustermap(iris, standard_scale=1)
+
+-
+
+-    Normalize the data within the rows:
+
+-
+
+-    .. plot::
+
+-        :context: close-figs
+
+-
+
+-        >>> g = sns.clustermap(iris, z_score=0, cmap="vlag")
+
++    pairgrid : PairGrid
+
++        The PairGrid instance.
+
+     """
+
+-    if _no_scipy:
+
+-        raise RuntimeError("clustermap requires scipy to be available")
+
+-
+
+-    plotter = ClusterGrid(data, pivot_kws=pivot_kws, figsize=figsize,
+
+-                          row_colors=row_colors, col_colors=col_colors,
+
+-                          z_score=z_score, standard_scale=standard_scale,
+
+-                          mask=mask, dendrogram_ratio=dendrogram_ratio,
+
+-                          colors_ratio=colors_ratio, cbar_pos=cbar_pos)
+
+-
+
+-    return plotter.plot(metric=metric, method=method,
+
+-                        colorbar_kws=cbar_kws,
+
+-                        row_cluster=row_cluster, col_cluster=col_cluster,
+
+-                        row_linkage=row_linkage, col_linkage=col_linkage,
+
+-                        tree_kws=tree_kws, **kwargs)
+
++    if hue is not None and hue_order is not None:
+
++        # Filter the data to only include the hue values specified in hue_order
+
++        valid_hue_values = set(hue_order)
+
++        filtered_data = data[data[hue].isin(valid_hue_values)]
+
++        return sns.pairplot(filtered_data, hue=hue, hue_order=hue_order, **kwargs)
+
++    else:
+
++        return sns.pairplot(data, hue=hue, **kwargs)
+
++
+
++# Example usage
+
++iris = sns.load_dataset("iris")
+
++sns.pairplot(iris, hue="species", hue_order=["setosa", "versicolor"])
+
+
+--- a/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/_core/groupby.py
++++ b/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/_core/groupby.py
+@@ -24,7 +24,7 @@
+     - It increases future flexibility regarding alternate DataFrame libraries
+
+ 
+
+     """
+
+-    def __init__(self, order: list[str] | dict[str, list | None]):
+
++def __init__(self, order: list[str] | dict[str, list | None]):
+
+         """
+
+         Initialize the GroupBy from grouping variables and optional level orders.
+
+ 
+
+@@ -42,6 +42,22 @@
+ 
+
+         if isinstance(order, list):
+
+             order = {k: None for k in order}
+
++
+
++        # Ensure all hue values are in the hue_order, if provided
+
++        self.hue_order = order.get("hue", [])
+
++        self.hue_order_set = set(self.hue_order)
+
++
+
++        # Filter out hue values not in hue_order
+
++        self.valid_hue_values = {
+
++            species: idx
+
++            for idx, species in enumerate(iris["species"])
+
++            if species in self.hue_order_set
+
++        }
+
++
+
++        # Drop rows with invalid hue values if necessary
+
++        if len(self.valid_hue_values) < len(iris):
+
++            iris = iris[iris["species"].isin(self.hue_order_set)]
+
++
+
+         self.order = order
+
+ 
+
+     def _get_groups(self, data: DataFrame) -> MultiIndex:
+
+

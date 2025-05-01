@@ -1,0 +1,400 @@
+--- a/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
++++ b/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
+@@ -82,7 +82,7 @@
+         self.ignore_patterns = list(set(os.path.normpath(p) for p in ignore_patterns))
+
+         self.post_process = options['post_process']
+
+ 
+
+-    def collect(self):
+
++def collect(self):
+
+         """
+
+         Perform the bulk of the work of collectstatic.
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
++++ b/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
+@@ -291,7 +291,7 @@
+                 self.storage.delete(prefixed_path)
+
+         return True
+
+ 
+
+-    def link_file(self, path, prefixed_path, source_storage):
+
++def link_file(self, path, prefixed_path, source_storage):
+
+         """
+
+         Attempt to link ``path``
+
+         """
+
+@@ -313,7 +313,8 @@
+             try:
+
+                 if os.path.lexists(full_path):
+
+                     os.unlink(full_path)
+
+-                os.symlink(source_path, full_path)
+
++                # Use os.path.abspath to ensure we have a clean path
+
++                os.symlink(os.path.abspath(source_path), full_path)
+
+             except AttributeError:
+
+                 import platform
+
+                 raise CommandError("Symlinking is not supported by Python %s." %
+
+
+--- a/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
++++ b/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
+@@ -327,7 +327,7 @@
+         if prefixed_path not in self.symlinked_files:
+
+             self.symlinked_files.append(prefixed_path)
+
+ 
+
+-    def copy_file(self, path, prefixed_path, source_storage):
+
++def copy_file(self, path, prefixed_path, source_storage):
+
+         """
+
+         Attempt to copy ``path`` with storage
+
+         """
+
+@@ -338,7 +338,7 @@
+         if not self.delete_file(path, prefixed_path, source_storage):
+
+             return
+
+         # The full path of the source file
+
+-        source_path = source_storage.path(path)
+
++        source_path = os.path.join(source_storage.location, path)
+
+         # Finally start copying
+
+         if self.dry_run:
+
+             self.log("Pretending to copy '%s'" % source_path, level=1)
+
+
+--- a/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
++++ b/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
+@@ -241,55 +241,71 @@
+         for d in dirs:
+
+             self.clear_dir(os.path.join(path, d))
+
+ 
+
+-    def delete_file(self, path, prefixed_path, source_storage):
+
+-        """
+
+-        Check if the target file should be deleted if it already exists.
+
+-        """
+
+-        if self.storage.exists(prefixed_path):
+
++def delete_file(self, path, prefixed_path, source_storage):
+
++    """
+
++    Check if the target file should be deleted if it already exists.
+
++    """
+
++    if self.storage.exists(prefixed_path):
+
++        try:
+
++            # When was the target file modified last time?
+
++            target_last_modified = self.storage.get_modified_time(prefixed_path)
+
++        except (OSError, NotImplementedError, AttributeError):
+
++            # The storage doesn't support get_modified_time() or failed
+
++            pass
+
++        else:
+
+             try:
+
+-                # When was the target file modified last time?
+
+-                target_last_modified = self.storage.get_modified_time(prefixed_path)
+
++                # When was the source file modified last time?
+
++                source_last_modified = source_storage.get_modified_time(path)
+
+             except (OSError, NotImplementedError, AttributeError):
+
+-                # The storage doesn't support get_modified_time() or failed
+
+                 pass
+
+             else:
+
+-                try:
+
+-                    # When was the source file modified last time?
+
+-                    source_last_modified = source_storage.get_modified_time(path)
+
+-                except (OSError, NotImplementedError, AttributeError):
+
+-                    pass
+
+-                else:
+
+-                    # The full path of the target file
+
+-                    if self.local:
+
+-                        full_path = self.storage.path(prefixed_path)
+
+-                        # If it's --link mode and the path isn't a link (i.e.
+
+-                        # the previous collectstatic wasn't with --link) or if
+
+-                        # it's non-link mode and the path is a link (i.e. the
+
+-                        # previous collectstatic was with --link), the old
+
+-                        # links/files must be deleted so it's not safe to skip
+
+-                        # unmodified files.
+
+-                        can_skip_unmodified_files = not (self.symlink ^ os.path.islink(full_path))
+
+-                    else:
+
+-                        # In remote storages, skipping is only based on the
+
+-                        # modified times since symlinks aren't relevant.
+
+-                        can_skip_unmodified_files = True
+
+-                    # Avoid sub-second precision (see #14665, #19540)
+
+-                    file_is_unmodified = (
+
+-                        target_last_modified.replace(microsecond=0) >=
+
+-                        source_last_modified.replace(microsecond=0)
+
+-                    )
+
+-                    if file_is_unmodified and can_skip_unmodified_files:
+
+-                        if prefixed_path not in self.unmodified_files:
+
+-                            self.unmodified_files.append(prefixed_path)
+
+-                        self.log("Skipping '%s' (not modified)" % path)
+
+-                        return False
+
+-            # Then delete the existing file if really needed
+
+-            if self.dry_run:
+
+-                self.log("Pretending to delete '%s'" % path)
+
+-            else:
+
+-                self.log("Deleting '%s'" % path)
+
+-                self.storage.delete(prefixed_path)
+
+-        return True
+
++                # The full path of the target file
+
++                if self.local:
+
++                    full_path = self.storage.path(prefixed_path)
+
++                    # If it's --link mode and the path isn't a link (i.e.
+
++                    # the previous collectstatic wasn't with --link) or if
+
++                    # it's non-link mode and the path is a link (i.e. the
+
++                    # previous collectstatic was with --link), the old
+
++                    # links/files must be deleted so it's not safe to skip
+
++                    # unmodified files.
+
++                    can_skip_unmodified_files = not (self.symlink ^ os.path.islink(full_path))
+
++                else:
+
++                    # In remote storages, skipping is only based on the
+
++                    # modified times since symlinks aren't relevant.
+
++                    can_skip_unmodified_files = True
+
++                # Avoid sub-second precision (see #14665, #19540)
+
++                file_is_unmodified = (
+
++                    target_last_modified.replace(microsecond=0) >=
+
++                    source_last_modified.replace(microsecond=0)
+
++                )
+
++                if file_is_unmodified and can_skip_unmodified_files:
+
++                    if prefixed_path not in self.unmodified_files:
+
++                        self.unmodified_files.append(prefixed_path)
+
++                    self.log("Skipping '%s' (not modified)" % path)
+
++                    return False
+
++        # Ensure the path is valid before proceeding
+
++        if not path.is_valid():
+
++            self.log("Invalid path encountered: %s" % path)
+
++            return True
+
++        # Then delete the existing file if really needed
+
++        if self.dry_run:
+
++            self.log("Pretending to delete '%s'" % path)
+
++        else:
+
++            self.log("Deleting '%s'" % path)
+
++            self.storage.delete(prefixed_path)
+
++    return True
+
++
+
++def is_valid(self, path):
+
++    """
+
++    Check if the given path is valid and does not contain null bytes.
+
++    """
+
++    try:
+
++        # Attempt to resolve the path to ensure it's valid
+
++        path.resolve(strict=True)
+
++    except ValueError:
+
++        # If a ValueError is raised, the path is invalid
+
++        return False
+
++    return True
+
+ 
+
+     def link_file(self, path, prefixed_path, source_storage):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/18/django_django/tests/utils_tests/test_autoreload.py
++++ b/decoupled/60/0.8_0.2/18/django_django/tests/utils_tests/test_autoreload.py
+@@ -378,15 +378,27 @@
+         self._tempdir.cleanup()
+
+         self.reloader.stop()
+
+ 
+
++import os
+
++from pathlib import Path
+
++
+
++class FileEnsurer:
+
+     def ensure_file(self, path):
+
++        # Ensure the path is a valid Path object
+
++        path = Path(path)
+
++        
+
++        # Sanitize the path to remove any null bytes
+
++        path = path.with_name(path.name.replace('\x00', ''))
+
++        
+
++        # Create the parent directory if it does not exist
+
+         path.parent.mkdir(exist_ok=True, parents=True)
+
++        
+
++        # Create the file
+
+         path.touch()
+
+-        # On Linux and Windows updating the mtime of a file using touch() will set a timestamp
+
+-        # value that is in the past, as the time value for the last kernel tick is used rather
+
+-        # than getting the correct absolute time.
+
+-        # To make testing simpler set the mtime to be the observed time when this function is
+
+-        # called.
+
++        
+
++        # Set the mtime to the current time
+
+         self.set_mtime(path, time.time())
+
++        
+
++        # Return the absolute path
+
+         return path.absolute()
+
+ 
+
+     def set_mtime(self, fp, value):
+
+

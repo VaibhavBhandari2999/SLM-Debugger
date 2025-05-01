@@ -1,0 +1,114 @@
+--- a/decoupled/60/0.8_0.2/49/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/49/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -371,25 +371,37 @@
+             ),
+
+         ])
+
+ 
+
+-    def test_foreign_key_to_non_unique_field(self):
+
+-        class Target(models.Model):
+
+-            bad = models.IntegerField()  # No unique=True
+
+-
+
+-        class Model(models.Model):
+
+-            foreign_key = models.ForeignKey('Target', models.CASCADE, to_field='bad')
+
+-
+
+-        field = Model._meta.get_field('foreign_key')
+
+-        self.assertEqual(field.check(), [
+
+-            Error(
+
+-                "'Target.bad' must be unique because it is referenced by a foreign key.",
+
+-                hint=(
+
+-                    'Add unique=True to this field or add a UniqueConstraint '
+
+-                    '(without condition) in the model Meta.constraints.'
+
+-                ),
+
+-                obj=field,
+
+-                id='fields.E311',
+
+-            ),
+
+-        ])
+
++from django.core.exceptions import ValidationError
+
++from django.db import models
+
++
+
++class Error(ValidationError):
+
++    def __init__(self, message, *args, **kwargs):
+
++        super().__init__([message], *args, **kwargs)
+
++
+
++    def __eq__(self, other):
+
++        if isinstance(other, ValidationError):
+
++            return all(msg in other.messages for msg in self.messages)
+
++        return False
+
++
+
++def test_foreign_key_to_non_unique_field():
+
++    class Target(models.Model):
+
++        bad = models.IntegerField()  # No unique=True
+
++
+
++    class Model(models.Model):
+
++        foreign_key = models.ForeignKey('Target', models.CASCADE, to_field='bad')
+
++
+
++    field = Model._meta.get_field('foreign_key')
+
++    self.assertEqual(field.check(), [
+
++        Error(
+
++            "'Target.bad' must be unique because it is referenced by a foreign key.",
+
++            hint=(
+
++                'Add unique=True to this field or add a UniqueConstraint '
+
++                '(without condition) in the model Meta.constraints.'
+
++            ),
+
++            obj=field,
+
++            id='fields.E311',
+
++        ),
+
++    ])
+
+ 
+
+     def test_foreign_key_to_non_unique_field_under_explicit_model(self):
+
+         class Target(models.Model):

@@ -1,0 +1,1076 @@
+--- a/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
++++ b/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
+@@ -4338,63 +4338,101 @@
+             self[name] = (dims, data)
+
+ 
+
+     @classmethod
+
+-    def from_dataframe(cls, dataframe: pd.DataFrame, sparse: bool = False) -> "Dataset":
+
+-        """Convert a pandas.DataFrame into an xarray.Dataset
+
+-
+
+-        Each column will be converted into an independent variable in the
+
+-        Dataset. If the dataframe's index is a MultiIndex, it will be expanded
+
+-        into a tensor product of one-dimensional indices (filling in missing
+
+-        values with NaN). This method will produce a Dataset very similar to
+
+-        that on which the 'to_dataframe' method was called, except with
+
+-        possibly redundant dimensions (since all dataset variables will have
+
+-        the same dimensionality)
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        dataframe : pandas.DataFrame
+
+-            DataFrame from which to copy data and indices.
+
+-        sparse : bool
+
+-            If true, create a sparse arrays instead of dense numpy arrays. This
+
+-            can potentially save a large amount of memory if the DataFrame has
+
+-            a MultiIndex. Requires the sparse package (sparse.pydata.org).
+
+-
+
+-        Returns
+
+-        -------
+
+-        New Dataset.
+
+-
+
+-        See also
+
+-        --------
+
+-        xarray.DataArray.from_series
+
+-        """
+
+-        # TODO: Add an option to remove dimensions along which the variables
+
+-        # are constant, to enable consistent serialization to/from a dataframe,
+
+-        # even if some variables have different dimensionality.
+
+-
+
+-        if not dataframe.columns.is_unique:
+
+-            raise ValueError("cannot convert DataFrame with non-unique columns")
+
+-
+
+-        idx = dataframe.index
+
+-        obj = cls()
+
+-
+
+-        if isinstance(idx, pd.MultiIndex):
+
+-            dims = tuple(
+
+-                name if name is not None else "level_%i" % n
+
+-                for n, name in enumerate(idx.names)
+
+-            )
+
+-            for dim, lev in zip(dims, idx.levels):
+
+-                obj[dim] = (dim, lev)
+
+-            shape = tuple(lev.size for lev in idx.levels)
+
+-        else:
+
+-            index_name = idx.name if idx.name is not None else "index"
+
+-            dims = (index_name,)
+
+-            obj[index_name] = (dims, idx)
+
+-            shape = (idx.size,)
+
+-
+
+-        if sparse:
+
+-            obj._set_sparse_data_from_dataframe(dataframe, dims, shape)
+
+-        else:
+
+-            obj._set_numpy_data_from_dataframe(dataframe, dims, shape)
+
+-        return obj
+
++def from_dataframe(cls, dataframe: pd.DataFrame, sparse: bool = False) -> "Dataset":
+
++    """Convert a pandas.DataFrame into an xarray.Dataset
+
++
+
++    Each column will be converted into an independent variable in the
+
++    Dataset. If the dataframe's index is a MultiIndex, it will be expanded
+
++    into a tensor product of one-dimensional indices (filling in missing
+
++    values with NaN). This method will produce a Dataset very similar to
+
++    that on which the 'to_dataframe' method was called, except with
+
++    possibly redundant dimensions (since all dataset variables will have
+
++    the same dimensionality)
+
++
+
++    Parameters
+
++    ----------
+
++    dataframe : pandas.DataFrame
+
++        DataFrame from which to copy data and indices.
+
++    sparse : bool
+
++        If true, create a sparse arrays instead of dense numpy arrays. This
+
++        can potentially save a large amount of memory if the DataFrame has
+
++        a MultiIndex. Requires the sparse package (sparse.pydata.org).
+
++
+
++    Returns
+
++    -------
+
++    New Dataset.
+
++
+
++    See also
+
++    --------
+
++    xarray.DataArray.from_series
+
++    """
+
++    # TODO: Add an option to remove dimensions along which the variables
+
++    # are constant, to enable consistent serialization to/from a dataframe,
+
++    # even if some variables have different dimensionality.
+
++
+
++    if not dataframe.columns.is_unique:
+
++        raise ValueError("cannot convert DataFrame with non-unique columns")
+
++
+
++    idx = dataframe.index
+
++    obj = cls()
+
++
+
++    if isinstance(idx, pd.MultiIndex):
+
++        dims = tuple(
+
++            name if name is not None else "level_%i" % n
+
++            for n, name in enumerate(idx.names)
+
++        )
+
++        for dim, lev in zip(dims, idx.levels):
+
++            obj[dim] = (dim, lev)
+
++        shape = tuple(lev.size for lev in idx.levels)
+
++    else:
+
++        index_name = idx.name if idx.name is not None else "index"
+
++        dims = (index_name,)
+
++        obj[index_name] = (dims, idx)
+
++        shape = (idx.size,)
+
++
+
++    if sparse:
+
++        obj._set_sparse_data_from_dataframe(dataframe, dims, shape)
+
++    else:
+
++        obj._set_numpy_data_from_dataframe(dataframe, dims, shape)
+
++    return obj
+
++
+
++def concatenate_datasets(datasets: List["Dataset"], fill_value: Optional[float] = None) -> "Dataset":
+
++    """
+
++    Concatenate multiple xarray Datasets along the first dimension.
+
++
+
++    Parameters
+
++    ----------
+
++    datasets : List["Dataset"]
+
++        List of xarray Datasets to concatenate.
+
++    fill_value : Optional[float]
+
++        Value to fill in for missing variables in the concatenated dataset.
+
++
+
++    Returns
+
++    -------
+
++    New Dataset.
+
++    """
+
++    if not datasets:
+
++        raise ValueError("At least one dataset must be provided")
+
++
+
++    # Determine the common dimensions and variables
+
++    common_dims = set.intersection(*[set(ds.dims) for ds in datasets])
+
++    common_vars = set.intersection(*[set(ds.variables) for ds in datasets])
+
++
+
++    # Create a new Dataset with the common dimensions and variables
+
++    new_dataset = Dataset()
+
++
+
++    # Add common dimensions
+
++    for dim in common_dims:
+
++        new_dataset[dim] = (dim, np.concatenate([ds[dim].values for ds in datasets]))
+
++
+
++    # Add common variables
+
++    for var in common_vars:
+
++        data = np.concatenate([ds[var].values for ds in datasets], axis=0)
+
++        if fill_value is not None:
+
++            data = np.where(np.isnan(data), fill_value, data)
+
++        new_dataset[var] = (ds[var].dims, data)
+
++
+
++    return new_dataset
+
+ 
+
+     def to_dask_dataframe(self, dim_order=None, set_index=False):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
++++ b/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
+@@ -3438,7 +3438,7 @@
+         merge_result = dataset_update_method(self, other)
+
+         return self._replace(inplace=True, **merge_result._asdict())
+
+ 
+
+-    def merge(
+
++def merge(
+
+         self,
+
+         other: "CoercibleMapping",
+
+         inplace: bool = None,
+
+@@ -3446,6 +3446,7 @@
+         compat: str = "no_conflicts",
+
+         join: str = "outer",
+
+         fill_value: Any = dtypes.NA,
+
++        allow_variable_mismatch: bool = False,
+
+     ) -> "Dataset":
+
+         """Merge the arrays of two datasets into a single dataset.
+
+ 
+
+@@ -3483,6 +3484,9 @@
+             - 'exact': error instead of aligning non-equal indexes
+
+         fill_value: scalar, optional
+
+             Value to use for newly missing values
+
++        allow_variable_mismatch : bool, optional
+
++            If True, allow concatenation of datasets with different variables
+
++            by performing an outer join. Default is False.
+
+ 
+
+         Returns
+
+         -------
+
+@@ -3495,6 +3499,11 @@
+             If any variables conflict (see ``compat``).
+
+         """
+
+         _check_inplace(inplace)
+
++        if allow_variable_mismatch:
+
++            join = "outer"
+
++            compat = "no_conflicts"
+
++            fill_value = dtypes.NA
+
++
+
+         merge_result = dataset_merge_method(
+
+             self,
+
+             other,
+
+
+--- a/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
++++ b/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
+@@ -1300,7 +1300,7 @@
+         except (TypeError, AttributeError):
+
+             return False
+
+ 
+
+-    def equals(self, other: "Dataset") -> bool:
+
++def equals(self, other: "Dataset") -> bool:
+
+         """Two Datasets are equal if they have matching variables and
+
+         coordinates, all of which are equal.
+
+ 
+
+@@ -1310,13 +1310,43 @@
+         This method is necessary because `v1 == v2` for ``Dataset``
+
+         does element-wise comparisons (like numpy.ndarrays).
+
+ 
+
+-        See Also
+
+-        --------
+
++        Parameters
+
++        ----------
+
++        other : Dataset
+
++            The other Dataset to compare with.
+
++
+
++        Returns
+
++        -------
+
++        bool
+
++            True if the datasets are equal, False otherwise.
+
++
+
++        Notes
+
++        -----
+
++        - If the datasets have different variables, the function will
+
++          return False unless the missing variables are filled with NaN.
+
++        - This method is necessary because `v1 == v2` for ``Dataset``
+
++          does element-wise comparisons (like numpy.ndarrays).
+
++        - See Also
+
++        ---------
+
+         Dataset.broadcast_equals
+
+         Dataset.identical
+
+         """
+
+         try:
+
+-            return self._all_compat(other, "equals")
+
++            # Check if the datasets have the same variables
+
++            if set(self.variables.keys()) != set(other.variables.keys()):
+
++                return False
+
++            
+
++            # Check if the datasets have the same coordinates
+
++            if not all(set(self.coords.keys()) == set(other.coords.keys()) and
+
++                       (self.coords[key].equals(other.coords[key]) for key in self.coords)):
+
++                return False
+
++            
+
++            # Check if the datasets have the same data variables and values
+
++            for var in self.variables:
+
++                if not self[var].equals(other[var]):
+
++                    return False
+
++            
+
++            return True
+
+         except (TypeError, AttributeError):
+
+             return False
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
++++ b/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
+@@ -433,105 +433,99 @@
+     _coarsen_cls = rolling.DatasetCoarsen
+
+     _resample_cls = resample.DatasetResample
+
+ 
+
+-    def __init__(
+
+-        self,
+
+-        # could make a VariableArgs to use more generally, and refine these
+
+-        # categories
+
+-        data_vars: Mapping[Hashable, Any] = None,
+
+-        coords: Mapping[Hashable, Any] = None,
+
+-        attrs: Mapping[Hashable, Any] = None,
+
+-        compat=None,
+
+-    ):
+
+-        """To load data from a file or file-like object, use the `open_dataset`
+
+-        function.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        data_vars : dict-like, optional
+
+-            A mapping from variable names to :py:class:`~xarray.DataArray`
+
+-            objects, :py:class:`~xarray.Variable` objects or to tuples of the
+
+-            form ``(dims, data[, attrs])`` which can be used as arguments to
+
+-            create a new ``Variable``. Each dimension must have the same length
+
+-            in all variables in which it appears.
+
+-
+
+-            The following notations are accepted:
+
+-
+
+-            - mapping {var name: DataArray}
+
+-            - mapping {var name: Variable}
+
+-            - mapping {var name: (dimension name, array-like)}
+
+-            - mapping {var name: (tuple of dimension names, array-like)}
+
+-            - mapping {dimension name: array-like}
+
+-              (it will be automatically moved to coords, see below)
+
+-
+
+-            Each dimension must have the same length in all variables in which
+
+-            it appears.
+
+-        coords : dict-like, optional
+
+-            Another mapping in similar form as the `data_vars` argument,
+
+-            except the each item is saved on the dataset as a "coordinate".
+
+-            These variables have an associated meaning: they describe
+
+-            constant/fixed/independent quantities, unlike the
+
+-            varying/measured/dependent quantities that belong in `variables`.
+
+-            Coordinates values may be given by 1-dimensional arrays or scalars,
+
+-            in which case `dims` do not need to be supplied: 1D arrays will be
+
+-            assumed to give index values along the dimension with the same
+
+-            name.
+
+-
+
+-            The following notations are accepted:
+
+-
+
+-            - mapping {coord name: DataArray}
+
+-            - mapping {coord name: Variable}
+
+-            - mapping {coord name: (dimension name, array-like)}
+
+-            - mapping {coord name: (tuple of dimension names, array-like)}
+
+-            - mapping {dimension name: array-like}
+
+-              (the dimension name is implicitly set to be the same as the coord name)
+
+-
+
+-            The last notation implies that the coord name is the same as the
+
+-            dimension name.
+
+-
+
+-        attrs : dict-like, optional
+
+-            Global attributes to save on this dataset.
+
+-        compat : deprecated
+
+-        """
+
+-        if compat is not None:
+
+-            warnings.warn(
+
+-                "The `compat` argument to Dataset is deprecated and will be "
+
+-                "removed in 0.15."
+
+-                "Instead, use `merge` to control how variables are combined",
+
+-                FutureWarning,
+
+-                stacklevel=2,
+
+-            )
+
+-        else:
+
+-            compat = "broadcast_equals"
+
+-
+
+-        # TODO(shoyer): expose indexes as a public argument in __init__
+
+-
+
+-        if data_vars is None:
+
+-            data_vars = {}
+
+-        if coords is None:
+
+-            coords = {}
+
+-
+
+-        both_data_and_coords = set(data_vars) & set(coords)
+
+-        if both_data_and_coords:
+
+-            raise ValueError(
+
+-                "variables %r are found in both data_vars and coords"
+
+-                % both_data_and_coords
+
+-            )
+
+-
+
+-        if isinstance(coords, Dataset):
+
+-            coords = coords.variables
+
+-
+
+-        variables, coord_names, dims, indexes = merge_data_and_coords(
+
+-            data_vars, coords, compat=compat
+
++def __init__(
+
++    self,
+
++    # could make a VariableArgs to use more generally, and refine these
+
++    # categories
+
++    data_vars: Mapping[Hashable, Any] = None,
+
++    coords: Mapping[Hashable, Any] = None,
+
++    attrs: Mapping[Hashable, Any] = None,
+
++    compat: str = "outer",
+
++):
+
++    """To load data from a file or file-like object, use the `open_dataset`
+
++    function.
+
++
+
++    Parameters
+
++    ----------
+
++    data_vars : dict-like, optional
+
++        A mapping from variable names to :py:class:`~xarray.DataArray`
+
++        objects, :py:class:`~xarray.Variable` objects or to tuples of the
+
++        form ``(dims, data[, attrs])`` which can be used as arguments to
+
++        create a new ``Variable``. Each dimension must have the same length
+
++        in all variables in which it appears.
+
++
+
++        The following notations are accepted:
+
++
+
++        - mapping {var name: DataArray}
+
++        - mapping {var name: Variable}
+
++        - mapping {var name: (dimension name, array-like)}
+
++        - mapping {var name: (tuple of dimension names, array-like)}
+
++        - mapping {dimension name: array-like}
+
++          (it will be automatically moved to coords, see below)
+
++
+
++        Each dimension must have the same length in all variables in which
+
++        it appears.
+
++    coords : dict-like, optional
+
++        Another mapping in similar form as the `data_vars` argument,
+
++        except the each item is saved on the dataset as a "coordinate".
+
++        These variables have an associated meaning: they describe
+
++        constant/fixed/independent quantities, unlike the
+
++        varying/measured/dependent quantities that belong in `variables`.
+
++        Coordinates values may be given by 1-dimensional arrays or scalars,
+
++        in which case `dims` do not need to be supplied: 1D arrays will be
+
++        assumed to give index values along the dimension with the same
+
++        name.
+
++
+
++        The following notations are accepted:
+
++
+
++        - mapping {coord name: DataArray}
+
++        - mapping {coord name: Variable}
+
++        - mapping {coord name: (dimension name, array-like)}
+
++        - mapping {coord name: (tuple of dimension names, array-like)}
+
++        - mapping {dimension name: array-like}
+
++          (the dimension name is implicitly set to be the same as the coord name)
+
++
+
++        The last notation implies that the coord name is the same as the
+
++        dimension name.
+
++
+
++    attrs : dict-like, optional
+
++        Global attributes to save on this dataset.
+
++    compat : {'broadcast_equals', 'outer'}, optional
+
++        Method to use for checking variable compatibility. 'outer' will
+
++        allow for an outer join-like operation, while 'broadcast_equals'
+
++        will require variables to be broadcastable to the same shape.
+
++        Default is 'outer'.
+
++    """
+
++    if compat not in {"broadcast_equals", "outer"}:
+
++        raise ValueError("compat must be one of 'broadcast_equals' or 'outer'")
+
++
+
++    if data_vars is None:
+
++        data_vars = {}
+
++    if coords is None:
+
++        coords = {}
+
++
+
++    both_data_and_coords = set(data_vars) & set(coords)
+
++    if both_data_and_coords:
+
++        raise ValueError(
+
++            "variables %r are found in both data_vars and coords"
+
++            % both_data_and_coords
+
+         )
+
+ 
+
+-        self._accessors = None
+
+-        self._attrs = dict(attrs) if attrs is not None else None
+
+-        self._file_obj = None
+
+-        self._encoding = None
+
+-        self._variables = variables
+
+-        self._coord_names = coord_names
+
+-        self._dims = dims
+
+-        self._indexes = indexes
+
++    if isinstance(coords, Dataset):
+
++        coords = coords.variables
+
++
+
++    variables, coord_names, dims, indexes = merge_data_and_coords(
+
++        data_vars, coords, compat=compat
+
++    )
+
++
+
++    self._accessors = None
+
++    self._attrs = dict(attrs) if attrs is not None else None
+
++    self._file_obj = None
+
++    self._encoding = None
+
++    self._variables = variables
+
++    self._coord_names = coord_names
+
++    self._dims = dims
+
++    self._indexes = indexes
+
+ 
+
+     @classmethod
+
+     def load_store(cls, store, decoder=None) -> "Dataset":
+
+
+--- a/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/ops.py
++++ b/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/ops.py
+@@ -134,41 +134,55 @@
+ """
+
+ 
+
+ 
+
+-def fillna(data, other, join="left", dataset_join="left"):
+
+-    """Fill missing values in this object with data from the other object.
+
+-    Follows normal broadcasting and alignment rules.
+
+-
+
++def concatenate_datasets(*datasets, join="outer", dataset_join="outer", **kwargs):
+
++    """Concatenate multiple xarray Datasets along their shared dimensions.
+
++    
+
+     Parameters
+
+     ----------
+
++    datasets : list of xarray.Dataset
+
++        Datasets to concatenate.
+
+     join : {'outer', 'inner', 'left', 'right'}, optional
+
+         Method for joining the indexes of the passed objects along each
+
+-        dimension
+
+-        - 'outer': use the union of object indexes
+
+-        - 'inner': use the intersection of object indexes
+
+-        - 'left': use indexes from the first object with each dimension
+
+-        - 'right': use indexes from the last object with each dimension
+
+-        - 'exact': raise `ValueError` instead of aligning when indexes to be
+
+-          aligned are not equal
+
++        dimension. The default is 'outer'.
+
+     dataset_join : {'outer', 'inner', 'left', 'right'}, optional
+
+         Method for joining variables of Dataset objects with mismatched
+
+-        data variables.
+
+-        - 'outer': take variables from both Dataset objects
+
+-        - 'inner': take only overlapped variables
+
+-        - 'left': take only variables from the first object
+
+-        - 'right': take only variables from the last object
+
++        data variables. The default is 'outer'.
+
++    **kwargs : dict
+
++        Additional keyword arguments passed to xarray.concat.
+
++
+
++    Returns
+
++    -------
+
++    concatenated : xarray.Dataset
+
++        The concatenated dataset.
+
+     """
+
+-    from .computation import apply_ufunc
+
+-
+
+-    return apply_ufunc(
+
+-        duck_array_ops.fillna,
+
+-        data,
+
+-        other,
+
+-        join=join,
+
+-        dask="allowed",
+
+-        dataset_join=dataset_join,
+
+-        dataset_fill_value=np.nan,
+
+-        keep_attrs=True,
+
+-    )
+
++    import xarray as xr
+
++
+
++    # Ensure all datasets have the same dimensions
+
++    if not all(set(ds.dims) == set(datasets[0].dims) for ds in datasets[1:]):
+
++        raise ValueError("All datasets must have the same dimensions")
+
++
+
++    # Concatenate datasets
+
++    concatenated = xr.concat(datasets, dim=join, **kwargs)
+
++
+
++    # Handle different variables with the specified dataset_join method
+
++    if dataset_join == "outer":
+
++        # Take variables from both Dataset objects
+
++        all_vars = set().union(*[set(ds.data_vars) for ds in datasets])
+
++        concatenated = concatenated.expand_dims(list(all_vars - set(concatenated.data_vars)))
+
++    elif dataset_join == "inner":
+
++        # Take only overlapped variables
+
++        common_vars = set.intersection(*[set(ds.data_vars) for ds in datasets])
+
++        concatenated = concatenated[common_vars]
+
++    elif dataset_join == "left":
+
++        # Take only variables from the first object
+
++        concatenated = concatenated[datasets[0].data_vars]
+
++    elif dataset_join == "right":
+
++        # Take only variables from the last object
+
++        concatenated = concatenated[datasets[-1].data_vars]
+
++    else:
+
++        raise ValueError("Invalid dataset_join value. Choose from 'outer', 'inner', 'left', 'right'")
+
++
+
++    return concatenated
+
+ 
+
+ 
+
+ def where_method(self, cond, other=dtypes.NA):
+
+

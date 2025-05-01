@@ -1,0 +1,242 @@
+--- a/decoupled/60/0.8_0.2/291/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/291/sympy_sympy/sympy/matrices/common.py
+@@ -3045,44 +3045,82 @@
+         if self.rows is None or self.cols is None:
+
+             raise NotImplementedError("Cannot initialize matrix with given parameters")
+
+ 
+
+-    def __getitem__(self, key):
+
+-        def _normalize_slices(row_slice, col_slice):
+
+-            """Ensure that row_slice and col_slice do not have
+
+-            `None` in their arguments.  Any integers are converted
+
+-            to slices of length 1"""
+
+-            if not isinstance(row_slice, slice):
+
+-                row_slice = slice(row_slice, row_slice + 1, None)
+
+-            row_slice = slice(*row_slice.indices(self.rows))
+
+-
+
+-            if not isinstance(col_slice, slice):
+
+-                col_slice = slice(col_slice, col_slice + 1, None)
+
+-            col_slice = slice(*col_slice.indices(self.cols))
+
+-
+
+-            return (row_slice, col_slice)
+
+-
+
+-        def _coord_to_index(i, j):
+
+-            """Return the index in _mat corresponding
+
+-            to the (i,j) position in the matrix. """
+
+-            return i * self.cols + j
+
+-
+
+-        if isinstance(key, tuple):
+
+-            i, j = key
+
+-            if isinstance(i, slice) or isinstance(j, slice):
+
+-                # if the coordinates are not slices, make them so
+
+-                # and expand the slices so they don't contain `None`
+
+-                i, j = _normalize_slices(i, j)
+
+-
+
+-                rowsList, colsList = list(range(self.rows))[i], \
+
+-                                     list(range(self.cols))[j]
+
+-                indices = (i * self.cols + j for i in rowsList for j in
+
+-                           colsList)
+
+-                return self._new(len(rowsList), len(colsList),
+
+-                                 list(self.mat[i] for i in indices))
+
+-
+
+-            # if the key is a tuple of ints, change
+
+-            # it to an array index
+
+-            key = _coord_to_index(i, j)
+
+-        return self.mat[key]
+
++def __getitem__(self, key):
+
++    def _normalize_slices(row_slice, col_slice):
+
++        """Ensure that row_slice and col_slice do not have
+
++        `None` in their arguments.  Any integers are converted
+
++        to slices of length 1"""
+
++        if not isinstance(row_slice, slice):
+
++            row_slice = slice(row_slice, row_slice + 1, None)
+
++        row_slice = slice(*row_slice.indices(self.rows))
+
++
+
++        if not isinstance(col_slice, slice):
+
++            col_slice = slice(col_slice, col_slice + 1, None)
+
++        col_slice = slice(*col_slice.indices(self.cols))
+
++
+
++        return (row_slice, col_slice)
+
++
+
++    def _coord_to_index(i, j):
+
++        """Return the index in _mat corresponding
+
++        to the (i,j) position in the matrix. """
+
++        return i * self.cols + j
+
++
+
++    if isinstance(key, tuple):
+
++        i, j = key
+
++        if isinstance(i, slice) or isinstance(j, slice):
+
++            # if the coordinates are not slices, make them so
+
++            # and expand the slices so they don't contain `None`
+
++            i, j = _normalize_slices(i, j)
+
++
+
++            rowsList, colsList = list(range(self.rows))[i], \
+
++                                 list(range(self.cols))[j]
+
++            indices = (i * self.cols + j for i in rowsList for j in
+
++                       colsList)
+
++            return self._new(len(rowsList), len(colsList),
+
++                             list(self.mat[i] for i in indices))
+
++
+
++        # if the key is a tuple of ints, change
+
++        # it to an array index
+
++        key = _coord_to_index(i, j)
+
++    return self.mat[key]
+
++
+
++def sub_in_matrixsymbols(exp, matrices):
+
++    for matrix in matrices:
+
++        for i in range(matrix.shape[0]):
+
++            for j in range(matrix.shape[1]):
+
++                name = "%s_%d_%d" % (matrix.name, i, j)
+
++                sym = sp.symbols(name)
+
++                # Ensure that the matrix element is converted to a scalar
+
++                exp = exp.subs(matrix[i, j], sym)
+
++    return exp
+
++
+
++def t44(name):
+
++    return sp.Matrix(4, 4, lambda i, j: sp.symbols('%s_%d_%d' % (name, i, j)))
+
++
+
++# Construct matrices of symbols that work with our
+
++# expressions. (MatrixSymbols does not. But now it should work correctly.)
+
++a = t44("a")
+
++b = t44("b")
+
++
+
++# Set up expression. This is a just a simple example.
+
++e = a * b
+
++
+
++# Put in matrixsymbols. (Gives array-input in codegen.)
+
++e2 = sub_in_matrixsymbols(e, [sp.MatrixSymbol("a", 4, 4), sp.MatrixSymbol("b", 4, 4)])
+
++cse_subs, cse_reduced = sp.cse(e2)
+
++pprint((cse_subs, cse_reduced))
+
++
+
++# Codegen, etc..
+
++print "\nccode:"
+
++for sym, expr in cse_subs:
+
++    constants, not_c, c_expr = sympy.printing.ccode(
+
++        expr,
+
++        human=False,
+
++        assign_to=sympy.printing.ccode(sym),
+
++    )
+
++    assert not constants, constants
+
++    assert not not_c, not_c
+
++    print "%s\n" % c_expr
+
+ 
+
+     def __eq__(self, other):
+
+         try:

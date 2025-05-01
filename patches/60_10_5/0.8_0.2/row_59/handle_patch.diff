@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/59/django_django/django/core/management/commands/shell.py
++++ b/decoupled/60/0.8_0.2/59/django_django/django/core/management/commands/shell.py
+@@ -81,7 +81,7 @@
+ 
+
+         code.interact(local=imported_objects)
+
+ 
+
+-    def handle(self, **options):
+
++def handle(self, **options):
+
+         # Execute the command and exit.
+
+         if options['command']:
+
+             exec(options['command'])
+
+@@ -101,3 +101,13 @@
+             except ImportError:
+
+                 pass
+
+         raise CommandError("Couldn't import {} interface.".format(shell))
+
++
+
++    def __init__(self, argv=None):
+
++        self.argv = argv or sys.argv[:]
+
++        self.prog_name = os.path.basename(self.argv[0])
+
++        if self.prog_name == '__main__.py':
+
++            self.prog_name = 'python -m django'
+
++
+
++    def execute_from_command_line(self, argv=None):
+
++        utility = self(argv)
+
++        utility.execute()

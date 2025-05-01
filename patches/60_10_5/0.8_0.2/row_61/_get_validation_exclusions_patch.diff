@@ -1,0 +1,118 @@
+--- a/decoupled/60/0.8_0.2/61/django_django/django/forms/models.py
++++ b/decoupled/60/0.8_0.2/61/django_django/django/forms/models.py
+@@ -313,46 +313,18 @@
+         for formfield in self.fields.values():
+
+             apply_limit_choices_to_to_formfield(formfield)
+
+ 
+
+-    def _get_validation_exclusions(self):
+
+-        """
+
+-        For backwards-compatibility, exclude several types of fields from model
+
+-        validation. See tickets #12507, #12521, #12553.
+
+-        """
+
+-        exclude = []
+
+-        # Build up a list of fields that should be excluded from model field
+
+-        # validation and unique checks.
+
+-        for f in self.instance._meta.fields:
+
+-            field = f.name
+
+-            # Exclude fields that aren't on the form. The developer may be
+
+-            # adding these values to the model after form validation.
+
+-            if field not in self.fields:
+
+-                exclude.append(f.name)
+
+-
+
+-            # Don't perform model validation on fields that were defined
+
+-            # manually on the form and excluded via the ModelForm's Meta
+
+-            # class. See #12901.
+
+-            elif self._meta.fields and field not in self._meta.fields:
+
+-                exclude.append(f.name)
+
+-            elif self._meta.exclude and field in self._meta.exclude:
+
+-                exclude.append(f.name)
+
+-
+
+-            # Exclude fields that failed form validation. There's no need for
+
+-            # the model fields to validate them as well.
+
+-            elif field in self._errors:
+
+-                exclude.append(f.name)
+
+-
+
+-            # Exclude empty fields that are not required by the form, if the
+
+-            # underlying model field is required. This keeps the model field
+
+-            # from raising a required error. Note: don't exclude the field from
+
+-            # validation if the model field allows blanks. If it does, the blank
+
+-            # value may be included in a unique check, so cannot be excluded
+
+-            # from validation.
+
+-            else:
+
+-                form_field = self.fields[field]
+
+-                field_value = self.cleaned_data.get(field)
+
+-                if not f.blank and not form_field.required and field_value in form_field.empty_values:
+
+-                    exclude.append(f.name)
+
+-        return exclude
+
++from django.contrib import admin
+
++from django.utils.translation import gettext_lazy as _
+
++
+
++class MyInline(admin.TabularInline):
+
++    model = MyModel
+
++    verbose_name = _('My Model')
+
++    verbose_name_plural = verbose_name if verbose_name is not None else None
+
++
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        if self.verbose_name and not self.verbose_name_plural:
+
++            self.verbose_name_plural = self.verbose_name + 's'
+
+ 
+
+     def clean(self):
+
+         self._validate_unique = True

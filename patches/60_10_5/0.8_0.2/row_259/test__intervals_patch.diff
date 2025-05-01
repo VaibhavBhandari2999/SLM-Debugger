@@ -1,0 +1,30 @@
+--- a/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/functions/elementary/tests/test_piecewise.py
++++ b/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/functions/elementary/tests/test_piecewise.py
+@@ -1039,6 +1039,14 @@
+     assert Piecewise((1, Abs(x**(-2)) > 1), (0, True)
+
+         )._intervals(x) == [(-1, 0, 1, 0), (0, 1, 1, 0), (-oo, oo, 0, 1)]
+
+ 
+
++def _intervals(self, x):
+
++    # Remove duplicates and non-Eq generated zero-width intervals
+
++    intervals = []
+
++    for i, (start, end, expr1, expr2) in enumerate(self.args):
+
++        if i == 0 or (start, end) != (self.args[i-1][0], self.args[i-1][1]) or expr1 != self.args[i-1][2] or expr2 != self.args[i-1][3]:
+
++            intervals.append((start, end, expr1, expr2))
+
++    return intervals
+
++
+
+ 
+
+ def test_containment():
+
+     a, b, c, d, e = [1, 2, 3, 4, 5]

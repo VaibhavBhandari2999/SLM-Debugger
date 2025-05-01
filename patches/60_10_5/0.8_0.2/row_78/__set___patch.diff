@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/78/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/78/django_django/django/db/models/fields/related_descriptors.py
+@@ -427,7 +427,7 @@
+         else:
+
+             return rel_obj
+
+ 
+
+-    def __set__(self, instance, value):
+
++def __set__(self, instance, value):
+
+         """
+
+         Set the related instance through the reverse relation.
+
+ 
+
+@@ -441,7 +441,7 @@
+         """
+
+         # The similarity of the code below to the code in
+
+         # ForwardManyToOneDescriptor is annoying, but there's a bunch
+
+-        # of small differences that would make a common base class convoluted.
+
++        # of small differences that make a common base class convoluted.
+
+ 
+
+         if value is None:
+
+             # Update the cached related instance (if any) & clear the cache.
+
+@@ -485,6 +485,10 @@
+             # Set the forward accessor cache on the related object to the current
+
+             # instance to avoid an extra SQL query if it's accessed later on.
+
+             self.related.field.set_cached_value(value, instance)
+
++
+
++            # Check if the field is symmetrical and if a related_name is provided
+
++            if self.related.field.symmetrical and self.related.field.related_name:
+
++                raise ValueError("Cannot define a related_name on a symmetrical ManyToManyField.")
+
+ 
+
+     def __reduce__(self):
+
+         # Same purpose as ForwardManyToOneDescriptor.__reduce__().

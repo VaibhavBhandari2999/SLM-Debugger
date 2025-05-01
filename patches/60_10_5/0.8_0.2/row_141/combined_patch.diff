@@ -1,0 +1,265 @@
+--- a/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -1213,13 +1213,12 @@
+         return {side: mspines.Spine.linear_spine(self, side)
+
+                 for side in ['left', 'right', 'bottom', 'top']}
+
+ 
+
+-    def sharex(self, other):
+
++def sharex(self, other):
+
+         """
+
+         Share the x-axis with *other*.
+
+ 
+
+         This is equivalent to passing ``sharex=other`` when constructing the
+
+-        Axes, and cannot be used if the x-axis is already being shared with
+
+-        another Axes.
+
++        Axes, and cannot be used if the x-axis is already being shared.
+
+         """
+
+         _api.check_isinstance(_AxesBase, other=other)
+
+         if self._sharex is not None and other is not self._sharex:
+
+@@ -1229,7 +1228,7 @@
+         self.xaxis.major = other.xaxis.major  # Ticker instances holding
+
+         self.xaxis.minor = other.xaxis.minor  # locator and formatter.
+
+         x0, x1 = other.get_xlim()
+
+-        self.set_xlim(x0, x1, emit=False, auto=other.get_autoscalex_on())
+
++        self.set_xlim(x0, x1, auto=other.get_autoscalex_on())  # Removed emit=False
+
+         self.xaxis._scale = other.xaxis._scale
+
+ 
+
+     def sharey(self, other):
+
+
+--- a/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -346,7 +346,7 @@
+         seg = mlines.Line2D(x, y, **kw)
+
+         return seg, kw
+
+ 
+
+-    def _makefill(self, axes, x, y, kw, kwargs):
+
++def _makefill(self, axes, x, y, kw, kwargs):
+
+         # Polygon doesn't directly support unitized inputs.
+
+         x = axes.convert_xunits(x)
+
+         y = axes.convert_yunits(y)
+
+@@ -396,6 +396,12 @@
+                                fill=kwargs.get('fill', True),
+
+                                closed=kw['closed'])
+
+         seg.set(**kwargs)
+
++        # Trigger the xlim_changed callback
+
++        self.callbacks.process('xlim_changed', self)
+
++        # Call all of the other x-axes that are shared with this one
+
++        for other in self._shared_x_axes.get_siblings(self):
+
++            if other is not self:
+
++                other.set_xlim(self.viewLim.intervalx, auto=kw['auto'])
+
+         return seg, kwargs
+
+ 
+
+     def _plot_args(self, axes, tup, kwargs, *,
+
+
+--- a/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -1251,7 +1251,7 @@
+         self.set_ylim(y0, y1, emit=False, auto=other.get_autoscaley_on())
+
+         self.yaxis._scale = other.yaxis._scale
+
+ 
+
+-    def __clear(self):
+
++def __clear(self):
+
+         """Clear the Axes."""
+
+         # The actual implementation of clear() as long as clear() has to be
+
+         # an adapter delegating to the correct implementation.
+
+@@ -1356,27 +1356,7 @@
+         self.yaxis.set_clip_path(self.patch)
+
+ 
+
+         if self._sharex is not None:
+
+-            self.xaxis.set_visible(xaxis_visible)
+
+-            self.patch.set_visible(patch_visible)
+
+-        if self._sharey is not None:
+
+-            self.yaxis.set_visible(yaxis_visible)
+
+-            self.patch.set_visible(patch_visible)
+
+-
+
+-        # This comes last, as the call to _set_lim may trigger an autoscale (in
+
+-        # case of shared axes), requiring children to be already set up.
+
+-        for name, axis in self._axis_map.items():
+
+-            share = getattr(self, f"_share{name}")
+
+-            if share is not None:
+
+-                getattr(self, f"share{name}")(share)
+
+-            else:
+
+-                # Although the scale was set to linear as part of clear,
+
+-                # polar requires that _set_scale is called again
+
+-                if self.name == "polar":
+
+-                    axis._set_scale("linear")
+
+-                axis._set_lim(0, 1, auto=True)
+
+-        self._update_transScale()
+
+-
+
+-        self.stale = True
+
++            self.xaxis.set
+
+ 
+
+     def clear(self):
+
+         """Clear the Axes."""
+
+
+--- a/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -3265,7 +3265,7 @@
+             raise AttributeError(
+
+                 "This method only works with the ScalarFormatter") from err
+
+ 
+
+-    def locator_params(self, axis='both', tight=None, **kwargs):
+
++def locator_params(self, axis='both', tight=None, **kwargs):
+
+         """
+
+         Control behavior of major tick locators.
+
+ 
+
+@@ -3304,7 +3304,12 @@
+                 loc = self._axis_map[name].get_major_locator()
+
+                 loc.set_params(**kwargs)
+
+                 self._request_autoscale_view(name, tight=tight)
+
+-        self.stale = True
+
++        # Move the callback call outside of the if emit: statement
+
++        self.callbacks.process('xlim_changed', self)
+
++        # Call all of the other x-axes that are shared with this one
+
++        for other in self._shared_x_axes.get_siblings(self):
+
++            if other is not self:
+
++                other.set_xlim(self.viewLim.intervalx, auto=True)
+
+ 
+
+     def tick_params(self, axis='both', **kwargs):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -3148,7 +3148,7 @@
+         self.stale = True
+
+ 
+
+     @_docstring.dedent_interpd
+
+-    def grid(self, visible=None, which='major', axis='both', **kwargs):
+
++def grid(self, visible=None, which='major', axis='both', **kwargs):
+
+         """
+
+         Configure the grid lines.
+
+ 
+
+@@ -3187,8 +3187,12 @@
+         _api.check_in_list(['x', 'y', 'both'], axis=axis)
+
+         if axis in ['x', 'both']:
+
+             self.xaxis.grid(visible, which=which, **kwargs)
+
++            # Ensure xlim_changed is emitted after setting x-axis grid
+
++            self.callbacks.process('xlim_changed', self)
+
+         if axis in ['y', 'both']:
+
+             self.yaxis.grid(visible, which=which, **kwargs)
+
++            # Ensure xlim_changed is emitted after setting y-axis grid
+
++            self.callbacks.process('xlim_changed', self)
+
+ 
+
+     def ticklabel_format(self, *, axis='both', style='', scilimits=None,
+
+                          useOffset=None, useLocale=None, useMathText=None):
+
+

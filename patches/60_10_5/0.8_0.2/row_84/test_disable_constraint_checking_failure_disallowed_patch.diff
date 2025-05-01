@@ -1,0 +1,30 @@
+--- a/decoupled/60/0.8_0.2/84/django_django/tests/backends/sqlite/tests.py
++++ b/decoupled/60/0.8_0.2/84/django_django/tests/backends/sqlite/tests.py
+@@ -133,10 +133,10 @@
+             'Wrong SQL used to create an auto-increment column on SQLite'
+
+         )
+
+ 
+
+-    def test_disable_constraint_checking_failure_disallowed(self):
+
+-        """
+
+-        SQLite schema editor is not usable within an outer transaction if
+
+-        foreign key constraint checks are not disabled beforehand.
+
++def test_disable_constraint_checking_failure_disallowed(self):
+
++        """
+
++        Test that SQLite schema editor raises a NotSupportedError when
+
++        foreign key constraint checks are enabled within a transaction.
+
+         """
+
+         msg = (
+
+             'SQLite schema editor cannot be used while foreign key '

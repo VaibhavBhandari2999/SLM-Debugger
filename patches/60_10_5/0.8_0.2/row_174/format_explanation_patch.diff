@@ -1,0 +1,68 @@
+--- a/decoupled/60/0.8_0.2/174/pytest-dev_pytest/src/_pytest/assertion/util.py
++++ b/decoupled/60/0.8_0.2/174/pytest-dev_pytest/src/_pytest/assertion/util.py
+@@ -17,20 +17,19 @@
+ _assertion_pass = None
+
+ 
+
+ 
+
+-def format_explanation(explanation):
+
+-    """This formats an explanation
+
+-
+
+-    Normally all embedded newlines are escaped, however there are
+
+-    three exceptions: \n{, \n} and \n~.  The first two are intended
+
+-    cover nested explanations, see function and attribute explanations
+
+-    for examples (.visit_Call(), visit_Attribute()).  The last one is
+
+-    for when one explanation needs to span multiple lines, e.g. when
+
+-    displaying diffs.
+
+-    """
+
+-    explanation = explanation
+
+-    lines = _split_explanation(explanation)
+
+-    result = _format_lines(lines)
+
+-    return "\n".join(result)
+
++import pytest
+
++import xmlrunner
+
++
+
++class CustomXMLTestRunner(xmlrunner.XMLTestRunner):
+
++    def make_suite(self, test):
+
++        suite = super().make_suite(test)
+
++        suite.attrib['hostname'] = socket.gethostname()
+
++        suite.attrib['timestamp'] = datetime.datetime.now().isoformat()
+
++        return suite
+
++
+
++# Example usage
+
++if __name__ == "__main__":
+
++    pytest.main(["--junit-xml=report.xml", "-rA", "-v"], plugins=[CustomXMLTestRunner()])
+
+ 
+
+ 
+
+ def _split_explanation(explanation):

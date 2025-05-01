@@ -1,0 +1,232 @@
+--- a/decoupled/60/0.8_0.2/59/django_django/django/core/management/commands/shell.py
++++ b/decoupled/60/0.8_0.2/59/django_django/django/core/management/commands/shell.py
+@@ -39,12 +39,16 @@
+         import bpython
+
+         bpython.embed()
+
+ 
+
+-    def python(self, options):
+
++def python(self, options):
+
+         import code
+
++        import os
+
++        import traceback
+
++        from collections import OrderedDict
+
+ 
+
+         # Set up a dictionary to serve as the environment for the shell, so
+
+         # that tab completion works on objects that are imported at runtime.
+
+-        imported_objects = {}
+
++        imported_objects = OrderedDict()
+
++
+
+         try:  # Try activating rlcompleter, because it's handy.
+
+             import readline
+
+         except ImportError:
+
+@@ -65,7 +69,7 @@
+         # We want to honor both $PYTHONSTARTUP and .pythonrc.py, so follow system
+
+         # conventions and get $PYTHONSTARTUP first then .pythonrc.py.
+
+         if not options['no_startup']:
+
+-            for pythonrc in OrderedSet([os.environ.get("PYTHONSTARTUP"), os.path.expanduser('~/.pythonrc.py')]):
+
++            for pythonrc in OrderedDict([os.environ.get("PYTHONSTARTUP"), os.path.expanduser('~/.pythonrc.py')]):
+
+                 if not pythonrc:
+
+                     continue
+
+                 if not os.path.isfile(pythonrc):
+
+
+--- a/decoupled/60/0.8_0.2/59/django_django/django/core/management/commands/shell.py
++++ b/decoupled/60/0.8_0.2/59/django_django/django/core/management/commands/shell.py
+@@ -81,7 +81,7 @@
+ 
+
+         code.interact(local=imported_objects)
+
+ 
+
+-    def handle(self, **options):
+
++def handle(self, **options):
+
+         # Execute the command and exit.
+
+         if options['command']:
+
+             exec(options['command'])
+
+@@ -101,3 +101,13 @@
+             except ImportError:
+
+                 pass
+
+         raise CommandError("Couldn't import {} interface.".format(shell))
+
++
+
++    def __init__(self, argv=None):
+
++        self.argv = argv or sys.argv[:]
+
++        self.prog_name = os.path.basename(self.argv[0])
+
++        if self.prog_name == '__main__.py':
+
++            self.prog_name = 'python -m django'
+
++
+
++    def execute_from_command_line(self, argv=None):
+
++        utility = self(argv)
+
++        utility.execute()
+
+
+
+
+
+
+--- a/decoupled/60/0.8_0.2/59/django_django/django/utils/deconstruct.py
++++ b/decoupled/60/0.8_0.2/59/django_django/django/utils/deconstruct.py
+@@ -17,33 +17,33 @@
+             obj._constructor_args = (args, kwargs)
+
+             return obj
+
+ 
+
+-        def deconstruct(obj):
+
+-            """
+
+-            Return a 3-tuple of class import path, positional arguments,
+
+-            and keyword arguments.
+
+-            """
+
+-            # Fallback version
+
+-            if path:
+
+-                module_name, _, name = path.rpartition('.')
+
+-            else:
+
+-                module_name = obj.__module__
+
+-                name = obj.__class__.__name__
+
+-            # Make sure it's actually there and not an inner class
+
+-            module = import_module(module_name)
+
+-            if not hasattr(module, name):
+
+-                raise ValueError(
+
+-                    "Could not find object %s in %s.\n"
+
+-                    "Please note that you cannot serialize things like inner "
+
+-                    "classes. Please move the object into the main module "
+
+-                    "body to use migrations.\n"
+
+-                    "For more information, see "
+
+-                    "https://docs.djangoproject.com/en/%s/topics/migrations/#serializing-values"
+
+-                    % (name, module_name, get_docs_version()))
+
+-            return (
+
+-                path or '%s.%s' % (obj.__class__.__module__, name),
+
+-                obj._constructor_args[0],
+
+-                obj._constructor_args[1],
+
+-            )
+
++def deconstruct(obj):
+
++    """
+
++    Return a 3-tuple of class import path, positional arguments,
+
++    and keyword arguments.
+
++    """
+
++    # Fallback version
+
++    if path:
+
++        module_name, _, name = path.rpartition('.')
+
++    else:
+
++        module_name = obj.__module__
+
++        name = obj.__class__.__name__
+
++    # Make sure it's actually there and not an inner class
+
++    module = import_module(module_name)
+
++    if not hasattr(module, name):
+
++        raise ValueError(
+
++            "Could not find object %s in %s.\n"
+
++            "Please note that you cannot serialize things like inner "
+
++            "classes. Please move the object into the main module "
+
++            "body to use migrations.\n"
+
++            "For more information, see "
+
++            "https://docs.djangoproject.com/en/%s/topics/migrations/#serializing-values"
+
++            % (name, module_name, get_docs_version()))
+
++    return (
+
++        path or '%s.%s' % (obj.__class__.__module__, name),
+
++        obj._constructor_args[0],
+
++        obj._constructor_args[1],
+
++    )
+
+ 
+
+         klass.__new__ = staticmethod(__new__)
+
+         klass.deconstruct = deconstruct
+
+

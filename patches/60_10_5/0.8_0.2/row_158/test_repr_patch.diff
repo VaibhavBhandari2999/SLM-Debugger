@@ -1,0 +1,106 @@
+--- a/decoupled/60/0.8_0.2/158/pydata_xarray/xarray/tests/test_dataarray.py
++++ b/decoupled/60/0.8_0.2/158/pydata_xarray/xarray/tests/test_dataarray.py
+@@ -52,23 +52,35 @@
+         )
+
+         self.mda = DataArray([0, 1, 2, 3], coords={"x": self.mindex}, dims="x")
+
+ 
+
+-    def test_repr(self):
+
+-        v = Variable(["time", "x"], [[1, 2, 3], [4, 5, 6]], {"foo": "bar"})
+
+-        coords = {"x": np.arange(3, dtype=np.int64), "other": np.int64(0)}
+
+-        data_array = DataArray(v, coords, name="my_variable")
+
+-        expected = dedent(
+
+-            """\
+
+-            <xarray.DataArray 'my_variable' (time: 2, x: 3)>
+
+-            array([[1, 2, 3],
+
+-                   [4, 5, 6]])
+
+-            Coordinates:
+
+-              * x        (x) int64 0 1 2
+
+-                other    int64 0
+
+-            Dimensions without coordinates: time
+
+-            Attributes:
+
+-                foo:      bar"""
+
+-        )
+
+-        assert expected == repr(data_array)
+
++def test_repr_with_units(self):
+
++    # Define a variable with units
+
++    v = Variable(["time", "x"], [[1, 2, 3], [4, 5, 6]], {"units": "mm"})
+
++    coords = {"x": (["x"], np.arange(3, dtype=np.int64), {"units": "metres"}),
+
++              "other": (["other"], np.int64(0), {"units": "count"})}
+
++    data_array = DataArray(v, coords, name="my_variable")
+
++    
+
++    # Define the expected representation with units
+
++    expected = dedent(
+
++        """\
+
++        <xarray.DataArray 'my_variable' (time: 2, x: 3)>
+
++        array([[1, 2, 3],
+
++               [4, 5, 6]])
+
++        Coordinates:
+
++          * x        (x) int64 0 1 2 [metres]
+
++            other    int64 0 [count]
+
++        Dimensions without coordinates: time
+
++        Attributes:
+
++            units:   mm"""
+
++    )
+
++    
+
++    # Assert that the actual representation matches the expected one
+
++    assert expected == repr(data_array)
+
++
+
++# Explanation of changes:
+
++# 1. Added units to the variable `v` to represent the units of the data.
+
++# 2. Added units to the coordinates in the `coords` dictionary.
+
++# 3. Updated the `expected` string to include the units for the coordinates and data variables.
+
++# 4. Changed the function name to `test_repr_with_units` to reflect the addition of units in the representation.
+
+ 
+
+     def test_repr_multiindex(self):
+
+         expected = dedent(

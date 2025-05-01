@@ -1,0 +1,42 @@
+--- a/decoupled/60/0.8_0.2/66/django_django/django/core/serializers/base.py
++++ b/decoupled/60/0.8_0.2/66/django_django/django/core/serializers/base.py
+@@ -262,12 +262,19 @@
+             hasattr(Model, 'natural_key')):
+
+         natural_key = Model(**data).natural_key()
+
+         try:
+
++            # Ensure the primary key is set before saving the instance
+
+             data[Model._meta.pk.attname] = Model._meta.pk.to_python(
+
+                 default_manager.db_manager(db).get_by_natural_key(*natural_key).pk
+
+             )
+
++            # Create the instance with the primary key set
+
++            instance = Model(**data)
+
++            # Save the instance to ensure the primary key is correctly set
+
++            instance.save()
+
+         except Model.DoesNotExist:
+
+             pass
+
+-    return Model(**data)
+
++    else:
+
++        instance = Model(**data)
+
++    return instance
+
+ 
+
+ 
+
+ def deserialize_m2m_values(field, field_value, using, handle_forward_references):

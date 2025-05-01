@@ -1,0 +1,75 @@
+--- a/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
++++ b/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
+@@ -182,6 +182,9 @@
+         origin = Point([0]*len(self))
+
+         return Point.distance(origin, self)
+
+ 
+
++from sympy import Point, simplify, GeometryError
+
++
+
++class Point(Point):
+
+     def __add__(self, other):
+
+         """Add other to self by incrementing self's coordinates by
+
+         those of other.
+
+@@ -213,11 +216,24 @@
+         sympy.geometry.point.Point.translate
+
+ 
+
+         """
+
+-        try:
+
+-            s, o = Point._normalize_dimension(self, Point(other, evaluate=False))
+
+-        except TypeError:
+
++        if isinstance(other, Point):
+
++            s, o = Point._normalize_dimension(self, other)
+
++        elif isinstance(other, (int, float, sympy.Float)):
+
++            s = [self[i] + other for i in range(len(self))]
+
++            o = None
+
++        elif isinstance(other, sympy.Mul):
+
++            factor, point = other.as_two_terms()
+
++            if isinstance(point, Point):
+
++                s, o = Point._normalize_dimension(self, point)
+
++                s = [s[i] + factor * s[i] for i in range(len(s))]
+
++                o = None
+
++            else:
+
++                raise GeometryError("Don't know how to add {} and a Point object".format(other))
+
++        else:
+
+             raise GeometryError("Don't know how to add {} and a Point object".format(other))
+
+ 
+
++        if o is None:
+
++            o = self
+
+         coords = [simplify(a + b) for a, b in zip(s, o)]
+
+         return Point(coords, evaluate=False)
+
+ 

@@ -1,0 +1,76 @@
+--- a/decoupled/60/0.8_0.2/91/django_django/django/core/management/base.py
++++ b/decoupled/60/0.8_0.2/91/django_django/django/core/management/base.py
+@@ -533,18 +533,25 @@
+     def add_arguments(self, parser):
+
+         parser.add_argument('args', metavar='app_label', nargs='+', help='One or more application label.')
+
+ 
+
+-    def handle(self, *app_labels, **options):
+
+-        from django.apps import apps
+
+-        try:
+
+-            app_configs = [apps.get_app_config(app_label) for app_label in app_labels]
+
+-        except (LookupError, ImportError) as e:
+
+-            raise CommandError("%s. Are you sure your INSTALLED_APPS setting is correct?" % e)
+
+-        output = []
+
+-        for app_config in app_configs:
+
+-            app_output = self.handle_app_config(app_config, **options)
+
+-            if app_output:
+
+-                output.append(app_output)
+
+-        return '\n'.join(output)
+
++import os
+
++
+
++BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
++
+
++TEMPLATES = [
+
++    {
+
++        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
++        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+
++        'APP_DIRS': True,
+
++        'OPTIONS': {
+
++            'context_processors': [
+
++                'django.template.context_processors.debug',
+
++                'django.template.context_processors.request',
+
++                'django.contrib.auth.context_processors.auth',
+
++                'django.contrib.messages.context_processors.messages',
+
++            ],
+
++        },
+
++    },
+
++]
+
+ 
+
+     def handle_app_config(self, app_config, **options):
+
+         """

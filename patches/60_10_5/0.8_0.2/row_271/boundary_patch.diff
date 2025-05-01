@@ -1,0 +1,168 @@
+--- a/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
++++ b/decoupled/60/0.8_0.2/271/sympy_sympy/sympy/sets/sets.py
+@@ -526,34 +526,55 @@
+         return self._measure
+
+ 
+
+     @property
+
+-    def boundary(self):
+
+-        """
+
+-        The boundary or frontier of a set
+
+-
+
+-        A point x is on the boundary of a set S if
+
+-
+
+-        1.  x is in the closure of S.
+
+-            I.e. Every neighborhood of x contains a point in S.
+
+-        2.  x is not in the interior of S.
+
+-            I.e. There does not exist an open set centered on x contained
+
+-            entirely within S.
+
+-
+
+-        There are the points on the outer rim of S.  If S is open then these
+
+-        points need not actually be contained within S.
+
+-
+
+-        For example, the boundary of an interval is its start and end points.
+
+-        This is true regardless of whether or not the interval is open.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Interval
+
+-        >>> Interval(0, 1).boundary
+
+-        FiniteSet(0, 1)
+
+-        >>> Interval(0, 1, True, False).boundary
+
+-        FiniteSet(0, 1)
+
+-        """
+
+-        return self._boundary
+
++def uniq(lst):
+
++    """
+
++    Returns a list of unique elements in the order they appear.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> uniq([1, 2, 3, 1, 2, 3])
+
++    [1, 2, 3]
+
++    >>> uniq([1, 2, 2, 3, 3])
+
++    [1, 2, 3]
+
++
+
++    """
+
++    seen = set()
+
++    unique_list = []
+
++    for item in lst:
+
++        if item not in seen:
+
++            unique_list.append(item)
+
++            seen.add(item)
+
++    return unique_list
+
++
+
++def boundary(self):
+
++    """
+
++    The boundary or frontier of a set
+
++
+
++    A point x is on the boundary of a set S if
+
++
+
++    1.  x is in the closure of S.
+
++        I.e. Every neighborhood of x contains a point in S.
+
++    2.  x is not in the interior of S.
+
++        I.e. There does not exist an open set centered on x contained
+
++        entirely within S.
+
++
+
++    There are the points on the outer rim of S.  If S is open then these
+
++    points need not actually be contained within S.
+
++
+
++    For example, the boundary of an interval is its start and end points.
+
++    This is true regardless of whether or not the interval is open.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Interval
+
++    >>> Interval(0, 1).boundary
+
++    FiniteSet(0, 1)
+
++    >>> Interval(0, 1, True, False).boundary
+
++    FiniteSet(0, 1)
+
++    """
+
++    return self._boundary
+
+ 
+
+     @property
+
+     def is_open(self):

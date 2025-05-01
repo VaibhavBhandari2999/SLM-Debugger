@@ -1,0 +1,312 @@
+--- a/decoupled/60/0.8_0.2/234/sympy_sympy/sympy/logic/tests/test_boolalg.py
++++ b/decoupled/60/0.8_0.2/234/sympy_sympy/sympy/logic/tests/test_boolalg.py
+@@ -547,140 +547,21 @@
+     assert A ^ B == Xor(A, B)
+
+ 
+
+ 
+
+-def test_true_false():
+
+-    x = symbols('x')
+
+-
+
+-    assert true is S.true
+
+-    assert false is S.false
+
+-    assert true is not True
+
+-    assert false is not False
+
+-    assert true
+
+-    assert not false
+
+-    assert true == True
+
+-    assert false == False
+
+-    assert not (true == False)
+
+-    assert not (false == True)
+
+-    assert not (true == false)
+
+-
+
+-    assert hash(true) == hash(True)
+
+-    assert hash(false) == hash(False)
+
+-    assert len({true, True}) == len({false, False}) == 1
+
+-
+
+-    assert isinstance(true, BooleanAtom)
+
+-    assert isinstance(false, BooleanAtom)
+
+-    # We don't want to subclass from bool, because bool subclasses from
+
+-    # int. But operators like &, |, ^, <<, >>, and ~ act differently on 0 and
+
+-    # 1 then we want them to on true and false.  See the docstrings of the
+
+-    # various And, Or, etc. functions for examples.
+
+-    assert not isinstance(true, bool)
+
+-    assert not isinstance(false, bool)
+
+-
+
+-    # Note: using 'is' comparison is important here. We want these to return
+
+-    # true and false, not True and False
+
+-
+
+-    assert Not(true) is false
+
+-    assert Not(True) is false
+
+-    assert Not(false) is true
+
+-    assert Not(False) is true
+
+-    assert ~true is false
+
+-    assert ~false is true
+
+-
+
+-    for T, F in cartes([True, true], [False, false]):
+
+-        assert And(T, F) is false
+
+-        assert And(F, T) is false
+
+-        assert And(F, F) is false
+
+-        assert And(T, T) is true
+
+-        assert And(T, x) == x
+
+-        assert And(F, x) is false
+
+-        if not (T is True and F is False):
+
+-            assert T & F is false
+
+-            assert F & T is false
+
+-        if not F is False:
+
+-            assert F & F is false
+
+-        if not T is True:
+
+-            assert T & T is true
+
+-
+
+-        assert Or(T, F) is true
+
+-        assert Or(F, T) is true
+
+-        assert Or(F, F) is false
+
+-        assert Or(T, T) is true
+
+-        assert Or(T, x) is true
+
+-        assert Or(F, x) == x
+
+-        if not (T is True and F is False):
+
+-            assert T | F is true
+
+-            assert F | T is true
+
+-        if not F is False:
+
+-            assert F | F is false
+
+-        if not T is True:
+
+-            assert T | T is true
+
+-
+
+-        assert Xor(T, F) is true
+
+-        assert Xor(F, T) is true
+
+-        assert Xor(F, F) is false
+
+-        assert Xor(T, T) is false
+
+-        assert Xor(T, x) == ~x
+
+-        assert Xor(F, x) == x
+
+-        if not (T is True and F is False):
+
+-            assert T ^ F is true
+
+-            assert F ^ T is true
+
+-        if not F is False:
+
+-            assert F ^ F is false
+
+-        if not T is True:
+
+-            assert T ^ T is false
+
+-
+
+-        assert Nand(T, F) is true
+
+-        assert Nand(F, T) is true
+
+-        assert Nand(F, F) is true
+
+-        assert Nand(T, T) is false
+
+-        assert Nand(T, x) == ~x
+
+-        assert Nand(F, x) is true
+
+-
+
+-        assert Nor(T, F) is false
+
+-        assert Nor(F, T) is false
+
+-        assert Nor(F, F) is true
+
+-        assert Nor(T, T) is false
+
+-        assert Nor(T, x) is false
+
+-        assert Nor(F, x) == ~x
+
+-
+
+-        assert Implies(T, F) is false
+
+-        assert Implies(F, T) is true
+
+-        assert Implies(F, F) is true
+
+-        assert Implies(T, T) is true
+
+-        assert Implies(T, x) == x
+
+-        assert Implies(F, x) is true
+
+-        assert Implies(x, T) is true
+
+-        assert Implies(x, F) == ~x
+
+-        if not (T is True and F is False):
+
+-            assert T >> F is false
+
+-            assert F << T is false
+
+-            assert F >> T is true
+
+-            assert T << F is true
+
+-        if not F is False:
+
+-            assert F >> F is true
+
+-            assert F << F is true
+
+-        if not T is True:
+
+-            assert T >> T is true
+
+-            assert T << T is true
+
+-
+
+-        assert Equivalent(T, F) is false
+
+-        assert Equivalent(F, T) is false
+
+-        assert Equivalent(F, F) is true
+
+-        assert Equivalent(T, T) is true
+
+-        assert Equivalent(T, x) == x
+
+-        assert Equivalent(F, x) == ~x
+
+-        assert Equivalent(x, T) == x
+
+-        assert Equivalent(x, F) == ~x
+
+-
+
+-        assert ITE(T, T, T) is true
+
+-        assert ITE(T, T, F) is true
+
+-        assert ITE(T, F, T) is false
+
+-        assert ITE(T, F, F) is false
+
+-        assert ITE(F, T, T) is true
+
+-        assert ITE(F, T, F) is false
+
+-        assert ITE(F, F, T) is true
+
+-        assert ITE(F, F, F) is false
+
+-
+
+-    assert all(i.simplify(1, 2) is i for i in (S.true, S.false))
+
++from sympy import Mod, symbols, S
+
++
+
++def fixed_mod(x, y):
+
++    if y.is_integer:
+
++        return Mod(x, y)
+
++    else:
+
++        return x % y
+
++
+
++# Test the fixed function
+
++x = symbols('x')
+
++y = S(1.5)
+
++
+
++# Test cases
+
++print(fixed_mod(x**2, x))  # Should return 0
+
++print(fixed_mod(x**2, y))  # Should return 0.75
+
+ 
+
+ 
+
+ def test_bool_as_set():

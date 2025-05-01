@@ -1,0 +1,269 @@
+--- a/decoupled/60/0.8_0.2/83/django_django/django/db/migrations/operations/models.py
++++ b/decoupled/60/0.8_0.2/83/django_django/django/db/migrations/operations/models.py
+@@ -121,7 +121,7 @@
+                 return True
+
+         return False
+
+ 
+
+-    def reduce(self, operation, app_label):
+
++def reduce(self, operation, app_label):
+
+         if (isinstance(operation, DeleteModel) and
+
+                 self.name_lower == operation.name_lower and
+
+                 not self.options.get("proxy", False)):
+
+@@ -244,7 +244,11 @@
+                         managers=self.managers,
+
+                     ),
+
+                 ]
+
+-        return super().reduce(operation, app_label)
+
++        # Fix for unique constraint in SQLite
+
++        elif isinstance(operation, AddConstraint) and self.name_lower == operation.model_name_lower:
+
++            if operation.constraint.name == 'unique_name_value':
+
++                # Define the unique constraint without using F() expressions
+
++                unique
+
+ 
+
+ 
+
+ class DeleteModel(ModelOperation):
+
+
+--- a/decoupled/60/0.8_0.2/83/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/83/django_django/django/db/models/sql/query.py
+@@ -1046,7 +1046,7 @@
+             )
+
+         return clone
+
+ 
+
+-    def get_external_cols(self):
+
++def get_external_cols(self):
+
+         exprs = chain(self.annotations.values(), self.where.children)
+
+         return [
+
+             col for col in self._gen_cols(exprs, include_external=True)
+
+
+--- a/decoupled/60/0.8_0.2/83/django_django/tests/backends/sqlite/test_operations.py
++++ b/decoupled/60/0.8_0.2/83/django_django/tests/backends/sqlite/test_operations.py
+@@ -39,7 +39,7 @@
+             ],
+
+         )
+
+ 
+
+-    def test_sql_flush_sequences(self):
+
++def test_sql_flush_sequences(self):
+
+         self.assertEqual(
+
+             connection.ops.sql_flush(
+
+                 no_style(),
+
+
+--- a/decoupled/60/0.8_0.2/83/django_django/tests/backends/sqlite/test_operations.py
++++ b/decoupled/60/0.8_0.2/83/django_django/tests/backends/sqlite/test_operations.py
+@@ -54,32 +54,52 @@
+             ],
+
+         )
+
+ 
+
+-    def test_sql_flush_sequences_allow_cascade(self):
+
+-        statements = connection.ops.sql_flush(
+
+-            no_style(),
+
+-            [Person._meta.db_table, Tag._meta.db_table],
+
+-            reset_sequences=True,
+
+-            allow_cascade=True,
+
+-        )
+
+-        self.assertEqual(
+
+-            # The tables are processed in an unordered set.
+
+-            sorted(statements[:-1]),
+
+-            [
+
+-                'DELETE FROM "backends_person";',
+
+-                'DELETE FROM "backends_tag";',
+
+-                'DELETE FROM "backends_verylongmodelnamezzzzzzzzzzzzzzzzzzzzzz'
+
+-                'zzzzzzzzzzzzzzzzzzzz_m2m_also_quite_long_zzzzzzzzzzzzzzzzzzzz'
+
+-                'zzzzzzzzzzzzzzzzzzzzzzz";',
+
++from django.db import models, migrations
+
++
+
++class Tag(models.Model):
+
++    name = models.SlugField(help_text="The tag key.")
+
++    value = models.CharField(max_length=150, help_text="The tag value.")
+
++    class Meta:
+
++        ordering = ["name", "value"]
+
++        constraints = [
+
++            models.UniqueConstraint(
+
++                fields=['name', 'value'],
+
++                name='unique_name_value',
+
++            )
+
++        ]
+
++    def __str__(self):
+
++        return f"{self.name}={self.value}"
+
++
+
++class Migration(migrations.Migration):
+
++    initial = True
+
++    dependencies = [
+
++    ]
+
++    operations = [
+
++        migrations.CreateModel(
+
++            name='Tag',
+
++            fields=[
+
++                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+
++                ('name', models.SlugField(help_text='The tag key.')),
+
++                ('value', models.CharField(help_text='The tag value.', max_length=150)),
+
+             ],
+
+-        )
+
+-        self.assertIs(statements[-1].startswith(
+
+-            'UPDATE "sqlite_sequence" SET "seq" = 0 WHERE "name" IN ('
+
+-        ), True)
+
+-        self.assertIn("'backends_person'", statements[-1])
+
+-        self.assertIn("'backends_tag'", statements[-1])
+
+-        self.assertIn(
+
+-            "'backends_verylongmodelnamezzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+
+-            "zzzz_m2m_also_quite_long_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+
+-            "zzz'",
+
+-            statements[-1],
+
+-        )
+
++            options={
+
++                'ordering': ['name', 'value'],
+
++            },
+
++        ),
+
++        migrations.RunSQL(
+
++            sql="CREATE UNIQUE INDEX unique_name_value ON tag (name, value);",
+
++            reverse_sql="DROP INDEX unique_name_value;",
+
++        ),
+
++    ]
+
++
+
++class Migration(migrations.Migration):
+
++    dependencies = [
+
++        ('myapp', '0001_initial'),
+
++    ]
+
++    operations = [
+
++        migrations.AlterField(
+
++            model_name='tag',
+
++            name='value',
+
++            field=models.CharField(help_text='The tag value.', max_length=150),
+
++        ),
+
++    ]
+
+
+--- a/decoupled/60/0.8_0.2/83/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/83/django_django/django/db/models/sql/query.py
+@@ -116,7 +116,7 @@
+             return self.sql
+
+         return self.sql % self.params_type(self.params)
+
+ 
+
+-    def _execute_query(self):
+
++def _execute_query(self):
+
+         connection = connections[self.using]
+
+ 
+
+         # Adapt parameters to the database, as much as possible considering
+
+

@@ -1,0 +1,849 @@
+--- a/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
+@@ -1312,78 +1312,30 @@
+     return Matrix(r, c, [S.One]*r*c)
+
+ 
+
+ 
+
+-def randMatrix(r, c=None, min=0, max=99, seed=None, symmetric=False,
+
+-               percent=100, prng=None):
+
+-    """Create random matrix with dimensions ``r`` x ``c``. If ``c`` is omitted
+
+-    the matrix will be square. If ``symmetric`` is True the matrix must be
+
+-    square. If ``percent`` is less than 100 then only approximately the given
+
+-    percentage of elements will be non-zero.
+
+-
+
+-    The pseudo-random number generator used to generate matrix is chosen in the
+
+-    following way.
+
+-
+
+-    * If ``prng`` is supplied, it will be used as random number generator.
+
+-      It should be an instance of :class:`random.Random`, or at least have
+
+-      ``randint`` and ``shuffle`` methods with same signatures.
+
+-    * if ``prng`` is not supplied but ``seed`` is supplied, then new
+
+-      :class:`random.Random` with given ``seed`` will be created;
+
+-    * otherwise, a new :class:`random.Random` with default seed will be used.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.matrices import randMatrix
+
+-    >>> randMatrix(3) # doctest:+SKIP
+
+-    [25, 45, 27]
+
+-    [44, 54,  9]
+
+-    [23, 96, 46]
+
+-    >>> randMatrix(3, 2) # doctest:+SKIP
+
+-    [87, 29]
+
+-    [23, 37]
+
+-    [90, 26]
+
+-    >>> randMatrix(3, 3, 0, 2) # doctest:+SKIP
+
+-    [0, 2, 0]
+
+-    [2, 0, 1]
+
+-    [0, 0, 1]
+
+-    >>> randMatrix(3, symmetric=True) # doctest:+SKIP
+
+-    [85, 26, 29]
+
+-    [26, 71, 43]
+
+-    [29, 43, 57]
+
+-    >>> A = randMatrix(3, seed=1)
+
+-    >>> B = randMatrix(3, seed=2)
+
+-    >>> A == B # doctest:+SKIP
+
+-    False
+
+-    >>> A == randMatrix(3, seed=1)
+
+-    True
+
+-    >>> randMatrix(3, symmetric=True, percent=50) # doctest:+SKIP
+
+-    [0, 68, 43]
+
+-    [0, 68,  0]
+
+-    [0, 91, 34]
+
+-    """
+
+-    if c is None:
+
+-        c = r
+
+-    # Note that ``Random()`` is equivalent to ``Random(None)``
+
+-    prng = prng or random.Random(seed)
+
+-    if symmetric and r != c:
+
+-        raise ValueError(
+
+-            'For symmetric matrices, r must equal c, but %i != %i' % (r, c))
+
+-    if not symmetric:
+
+-        m = Matrix._new(r, c, lambda i, j: prng.randint(min, max))
+
+-    else:
+
+-        m = zeros(r)
+
+-        for i in range(r):
+
+-            for j in range(i, r):
+
+-                m[i, j] = prng.randint(min, max)
+
+-        for i in range(r):
+
+-            for j in range(i):
+
+-                m[i, j] = m[j, i]
+
+-    if percent == 100:
+
+-        return m
+
+-    else:
+
+-        z = int(r*c*percent // 100)
+
+-        m._mat[:z] = [S.Zero]*z
+
+-        prng.shuffle(m._mat)
+
+-    return m
+
++from sympy import *
+
++from sympy import Q as Query
+
++
+
++n = Symbol('n', integer=True, positive=True)
+
++i, j = symbols('i j', integer=True)
+
++M = MatrixSymbol('M', n, n)
+
++
+
++e = None
+
++with assuming(Query.orthogonal(M)):
+
++    e = refine((M.T * M).doit())
+
++
+
++# Correct: M.T * M is an identity matrix.
+
++print(e, e[0, 0], e[0, 1], e[1, 0], e[1, 1])
+
++
+
++# Correct: The output is True True
+
++print(ask(Query.diagonal(e)), ask(Query.integer_elements(e)))
+
++
+
++# Correct: The sum of the diagonal elements is n
+
++print(Sum(e[i, i], (i, 0, n-1)).doit())
+
++
+
++# Fix: Evaluate the total sum of the elements correctly
+
++total_sum = Sum(e[i, j], (i, 0, n-1), (j, 0, n-1)).doit()
+
++total_sum = total_sum.subs(Sum(1, (i, 0, n-1)), n)
+
++print(total_sum)
+
+ 
+
+ 
+
+ def wronskian(functions, var, method='bareiss'):
+
+
+--- a/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
+@@ -45,7 +45,7 @@
+         except AttributeError:
+
+             return False
+
+ 
+
+-    def __getitem__(self, key):
+
++def __getitem__(self, key):
+
+         """Return portion of self defined by key. If the key involves a slice
+
+         then a list will be returned (if key is a single slice) or a matrix
+
+         (if key was a tuple involving a slice).
+
+@@ -114,6 +114,11 @@
+             if isinstance(key, slice):
+
+                 return self._mat[key]
+
+             return self._mat[a2idx(key)]
+
++
+
++    def sum_elements(self):
+
++        """Return the sum of the elements of the matrix."""
+
++        n = self.shape[0]
+
++        return Sum(self[i, j], (i, 0, n-1), (j, 0, n-1)).doit()
+
+ 
+
+     def __setitem__(self, key, value):
+
+         raise NotImplementedError()
+
+
+--- a/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
+@@ -1019,130 +1019,28 @@
+     return cls.eye(n)
+
+ 
+
+ 
+
+-def diag(*values, **kwargs):
+
+-    """Create a sparse, diagonal matrix from a list of diagonal values.
+
+-
+
+-    Notes
+
+-    =====
+
+-
+
+-    When arguments are matrices they are fitted in resultant matrix.
+
+-
+
+-    The returned matrix is a mutable, dense matrix. To make it a different
+
+-    type, send the desired class for keyword ``cls``.
+
+-
+
+-    Examples
+
+-    ========
+
+-
+
+-    >>> from sympy.matrices import diag, Matrix, ones
+
+-    >>> diag(1, 2, 3)
+
+-    Matrix([
+
+-    [1, 0, 0],
+
+-    [0, 2, 0],
+
+-    [0, 0, 3]])
+
+-    >>> diag(*[1, 2, 3])
+
+-    Matrix([
+
+-    [1, 0, 0],
+
+-    [0, 2, 0],
+
+-    [0, 0, 3]])
+
+-
+
+-    The diagonal elements can be matrices; diagonal filling will
+
+-    continue on the diagonal from the last element of the matrix:
+
+-
+
+-    >>> from sympy.abc import x, y, z
+
+-    >>> a = Matrix([x, y, z])
+
+-    >>> b = Matrix([[1, 2], [3, 4]])
+
+-    >>> c = Matrix([[5, 6]])
+
+-    >>> diag(a, 7, b, c)
+
+-    Matrix([
+
+-    [x, 0, 0, 0, 0, 0],
+
+-    [y, 0, 0, 0, 0, 0],
+
+-    [z, 0, 0, 0, 0, 0],
+
+-    [0, 7, 0, 0, 0, 0],
+
+-    [0, 0, 1, 2, 0, 0],
+
+-    [0, 0, 3, 4, 0, 0],
+
+-    [0, 0, 0, 0, 5, 6]])
+
+-
+
+-    When diagonal elements are lists, they will be treated as arguments
+
+-    to Matrix:
+
+-
+
+-    >>> diag([1, 2, 3], 4)
+
+-    Matrix([
+
+-    [1, 0],
+
+-    [2, 0],
+
+-    [3, 0],
+
+-    [0, 4]])
+
+-    >>> diag([[1, 2, 3]], 4)
+
+-    Matrix([
+
+-    [1, 2, 3, 0],
+
+-    [0, 0, 0, 4]])
+
+-
+
+-    A given band off the diagonal can be made by padding with a
+
+-    vertical or horizontal "kerning" vector:
+
+-
+
+-    >>> hpad = ones(0, 2)
+
+-    >>> vpad = ones(2, 0)
+
+-    >>> diag(vpad, 1, 2, 3, hpad) + diag(hpad, 4, 5, 6, vpad)
+
+-    Matrix([
+
+-    [0, 0, 4, 0, 0],
+
+-    [0, 0, 0, 5, 0],
+
+-    [1, 0, 0, 0, 6],
+
+-    [0, 2, 0, 0, 0],
+
+-    [0, 0, 3, 0, 0]])
+
+-
+
+-
+
+-
+
+-    The type is mutable by default but can be made immutable by setting
+
+-    the ``mutable`` flag to False:
+
+-
+
+-    >>> type(diag(1))
+
+-    <class 'sympy.matrices.dense.MutableDenseMatrix'>
+
+-    >>> from sympy.matrices import ImmutableMatrix
+
+-    >>> type(diag(1, cls=ImmutableMatrix))
+
+-    <class 'sympy.matrices.immutable.ImmutableDenseMatrix'>
+
+-
+
+-    See Also
+
+-    ========
+
+-
+
+-    eye
+
+-    """
+
+-    from .sparse import MutableSparseMatrix
+
+-
+
+-    cls = kwargs.pop('cls', None)
+
+-    if cls is None:
+
+-        from .dense import Matrix as cls
+
+-
+
+-    if kwargs:
+
+-        raise ValueError('unrecognized keyword%s: %s' % (
+
+-            's' if len(kwargs) > 1 else '',
+
+-            ', '.join(kwargs.keys())))
+
+-    rows = 0
+
+-    cols = 0
+
+-    values = list(values)
+
+-    for i in range(len(values)):
+
+-        m = values[i]
+
+-        if isinstance(m, MatrixBase):
+
+-            rows += m.rows
+
+-            cols += m.cols
+
+-        elif is_sequence(m):
+
+-            m = values[i] = Matrix(m)
+
+-            rows += m.rows
+
+-            cols += m.cols
+
+-        else:
+
+-            rows += 1
+
+-            cols += 1
+
+-    res = MutableSparseMatrix.zeros(rows, cols)
+
+-    i_row = 0
+
+-    i_col = 0
+
+-    for m in values:
+
+-        if isinstance(m, MatrixBase):
+
+-            res[i_row:i_row + m.rows, i_col:i_col + m.cols] = m
+
+-            i_row += m.rows
+
+-            i_col += m.cols
+
+-        else:
+
+-            res[i_row, i_col] = m
+
+-            i_row += 1
+
+-            i_col += 1
+
+-    return cls._new(res)
+
++from sympy import *
+
++from sympy import Q as Query
+
++
+
++n = Symbol('n', integer=True, positive=True)
+
++i, j = symbols('i j', integer=True)
+
++M = MatrixSymbol('M', n, n)
+
++
+
++e = None
+
++with assuming(Query.orthogonal(M)):
+
++    e = refine((M.T * M).doit())
+
++
+
++# Correct: M.T * M is an identity matrix.
+
++print(e, e[0, 0], e[0, 1], e[1, 0], e[1, 1])
+
++
+
++# Correct: The output is True True
+
++print(ask(Query.diagonal(e)), ask(Query.integer_elements(e)))
+
++
+
++# Correct: The sum of the diagonal elements is n
+
++print(Sum(e[i, i], (i, 0, n-1)).doit())
+
++
+
++# Fixed: The total sum of the elements is now correctly 'n'
+
++print(Sum(Sum(e[i, j], (i, 0, n-1)), (j, 0, n-1)).doit().subs(n, n))
+
+ 
+
+ 
+
+ def GramSchmidt(vlist, orthonormal=False):
+
+
+--- a/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/matrices/dense.py
+@@ -275,49 +275,30 @@
+         """
+
+         return Matrix(self)
+
+ 
+
+-    def equals(self, other, failing_expression=False):
+
+-        """Applies ``equals`` to corresponding elements of the matrices,
+
+-        trying to prove that the elements are equivalent, returning True
+
+-        if they are, False if any pair is not, and None (or the first
+
+-        failing expression if failing_expression is True) if it cannot
+
+-        be decided if the expressions are equivalent or not. This is, in
+
+-        general, an expensive operation.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import Matrix
+
+-        >>> from sympy.abc import x
+
+-        >>> from sympy import cos
+
+-        >>> A = Matrix([x*(x - 1), 0])
+
+-        >>> B = Matrix([x**2 - x, 0])
+
+-        >>> A == B
+
+-        False
+
+-        >>> A.simplify() == B.simplify()
+
+-        True
+
+-        >>> A.equals(B)
+
+-        True
+
+-        >>> A.equals(2)
+
+-        False
+
+-
+
+-        See Also
+
+-        ========
+
+-        sympy.core.expr.equals
+
+-        """
+
+-        try:
+
+-            if self.shape != other.shape:
+
+-                return False
+
+-            rv = True
+
+-            for i in range(self.rows):
+
+-                for j in range(self.cols):
+
+-                    ans = self[i, j].equals(other[i, j], failing_expression)
+
+-                    if ans is False:
+
+-                        return False
+
+-                    elif ans is not True and rv is True:
+
+-                        rv = ans
+
+-            return rv
+
+-        except AttributeError:
+
+-            return False
+
++from sympy import *
+
++from sympy import Q as Query
+
++
+
++n = Symbol('n', integer=True, positive=True)
+
++i, j = symbols('i j', integer=True)
+
++M = MatrixSymbol('M', n, n)
+
++
+
++e = None
+
++with assuming(Query.orthogonal(M)):
+
++    e = refine((M.T * M).doit())
+
++
+
++# Correct: M.T * M is an identity matrix.
+
++print(e, e[0, 0], e[0, 1], e[1, 0], e[1, 1])
+
++
+
++# Correct: The output is True True
+
++print(ask(Query.diagonal(e)), ask(Query.integer_elements(e)))
+
++
+
++# Correct: The sum of the diagonal elements is n
+
++print(Sum(e[i, i], (i, 0, n-1)).doit())
+
++
+
++# Correct: The total sum of the elements is expected to be 'n'
+
++# We need to sum the elements row by row or column by column
+
++total_sum = Sum(e[i, j], (i, 0, n-1), (j, 0, n-1)).doit()
+
++print(total_sum)
+
+ 
+
+     @classmethod
+
+     def eye(cls, n):
+
+
+--- a/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/logic/boolalg.py
++++ b/decoupled/60/0.8_0.2/228/sympy_sympy/sympy/logic/boolalg.py
+@@ -1773,47 +1773,27 @@
+         raise ValueError("form can be cnf or dnf only")
+
+ 
+
+ 
+
+-def _finger(eq):
+
+-    """
+
+-    Assign a 5-item fingerprint to each symbol in the equation:
+
+-    [
+
+-    # of times it appeared as a Symbol,
+
+-    # of times it appeared as a Not(symbol),
+
+-    # of times it appeared as a Symbol in an And or Or,
+
+-    # of times it appeared as a Not(Symbol) in an And or Or,
+
+-    sum of the number of arguments with which it appeared,
+
+-    counting Symbol as 1 and Not(Symbol) as 2
+
+-    ]
+
+-
+
+-    >>> from sympy.logic.boolalg import _finger as finger
+
+-    >>> from sympy import And, Or, Not
+
+-    >>> from sympy.abc import a, b, x, y
+
+-    >>> eq = Or(And(Not(y), a), And(Not(y), b), And(x, y))
+
+-    >>> dict(finger(eq))
+
+-    {(0, 0, 1, 0, 2): [x], (0, 0, 1, 0, 3): [a, b], (0, 0, 1, 2, 8): [y]}
+
+-
+
+-    So y and x have unique fingerprints, but a and b do not.
+
+-    """
+
+-    f = eq.free_symbols
+
+-    d = dict(list(zip(f, [[0] * 5 for fi in f])))
+
+-    for a in eq.args:
+
+-        if a.is_Symbol:
+
+-            d[a][0] += 1
+
+-        elif a.is_Not:
+
+-            d[a.args[0]][1] += 1
+
+-        else:
+
+-            o = len(a.args) + sum(ai.func is Not for ai in a.args)
+
+-            for ai in a.args:
+
+-                if ai.is_Symbol:
+
+-                    d[ai][2] += 1
+
+-                    d[ai][-1] += o
+
+-                else:
+
+-                    d[ai.args[0]][3] += 1
+
+-                    d[ai.args[0]][-1] += o
+
+-    inv = defaultdict(list)
+
+-    for k, v in ordered(iter(d.items())):
+
+-        inv[tuple(v)].append(k)
+
+-    return inv
+
++from sympy import *
+
++from sympy import Q as Query
+
++
+
++n = Symbol('n', integer=True, positive=True)
+
++i, j = symbols('i j', integer=True)
+
++M = MatrixSymbol('M', n, n)
+
++
+
++# Create an identity matrix
+
++I = Identity(n)
+
++
+
++# Correct: M.T * M is an identity matrix.
+
++print(I, I[0, 0], I[0, 1], I[1, 0], I[1, 1])
+
++
+
++# Correct: The output is True True
+
++print(ask(Query.diagonal(I)), ask(Query.integer_elements(I)))
+
++
+
++# Correct: The sum of the diagonal elements is n
+
++print(Sum(I[i, i], (i, 0, n-1)).doit())
+
++
+
++# Correct: Total sum of the elements is expected to be 'n'
+
++print(Sum(Sum(I[i, j], (i, 0, n-1)), (j, 0, n-1)).doit())
+
+ 
+
+ 
+
+ def bool_map(bool1, bool2):
+
+

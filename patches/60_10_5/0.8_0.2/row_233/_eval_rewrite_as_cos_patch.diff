@@ -1,0 +1,36 @@
+--- a/decoupled/60/0.8_0.2/233/sympy_sympy/sympy/core/numbers.py
++++ b/decoupled/60/0.8_0.2/233/sympy_sympy/sympy/core/numbers.py
+@@ -3480,10 +3480,13 @@
+         I = S.ImaginaryUnit
+
+         return sin(I + S.Pi/2) - I*sin(I)
+
+ 
+
+-    def _eval_rewrite_as_cos(self):
+
+-        from sympy import cos
+
+-        I = S.ImaginaryUnit
+
+-        return cos(I) + I*cos(I + S.Pi/2)
+
++from sympy import Symbol, S, cos, ImaginaryUnit, pi
+
++
+
++def _eval_rewrite_as_cos(self):
+
++    I = ImaginaryUnit
+
++    expr = cos(I) + I*cos(I + pi/2)
+
++    simplified_expr = simplify(expr)
+
++    return simplified_expr
+
+ 
+
+     def _sage_(self):
+
+         import sage.all as sage

@@ -1,0 +1,16 @@
+--- a/decoupled/60/0.8_0.2/99/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/99/django_django/django/db/models/query_utils.py
+@@ -323,6 +323,7 @@
+     """
+
+ 
+
+     def check(opts):
+
++        # Use the concrete model for comparison
+
+         return (
+
+             model._meta.concrete_model == opts.concrete_model
+
+             or opts.concrete_model in model._meta.get_parent_list()

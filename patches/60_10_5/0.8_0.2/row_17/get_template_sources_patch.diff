@@ -1,0 +1,73 @@
+--- a/decoupled/60/0.8_0.2/17/django_django/django/template/loaders/filesystem.py
++++ b/decoupled/60/0.8_0.2/17/django_django/django/template/loaders/filesystem.py
+@@ -25,12 +25,13 @@
+         except FileNotFoundError:
+
+             raise TemplateDoesNotExist(origin)
+
+ 
+
+-    def get_template_sources(self, template_name):
+
++def get_template_sources(self, template_name):
+
+         """
+
+         Return an Origin object pointing to an absolute path in each directory
+
+         in template_dirs. For security reasons, if a path doesn't lie inside
+
+         one of the template_dirs it is excluded from the result set.
+
+         """
+
++        script_name = self.request.META.get('SCRIPT_NAME', '')
+
+         for template_dir in self.get_dirs():
+
+             try:
+
+                 name = safe_join(template_dir, template_name)
+
+@@ -39,8 +40,21 @@
+                 # (it might be inside another one, so this isn't fatal).
+
+                 continue
+
+ 
+
++            # Prepend SCRIPT_NAME to STATIC_URL or MEDIA_URL
+
++            static_url = settings.STATIC_URL
+
++            media_url = settings.MEDIA_URL
+
++            static_url = static_url.lstrip('/')
+
++            media_url = media_url.lstrip('/')
+
++            static_url = script_name + static_url
+
++            media_url = script_name + media_url
+
++
+
++            # Construct the full URL for the static file
+
++            static_url = static_url.rstrip('/') + '/' + name
+
++            media_url = media_url.rstrip('/') + '/' + name
+
++
+
+             yield Origin(
+
+                 name=name,
+
+                 template_name=template_name,
+
+                 loader=self,
+
++                url=static_url,  # Add the URL to the Origin object
+
+             )

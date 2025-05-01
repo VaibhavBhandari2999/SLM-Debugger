@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/146/mwaskom_seaborn/seaborn/matrix.py
++++ b/decoupled/60/0.8_0.2/146/mwaskom_seaborn/seaborn/matrix.py
+@@ -97,7 +97,7 @@
+ class _HeatMapper:
+
+     """Draw a heatmap plot of a matrix with nice labels and colormaps."""
+
+ 
+
+-    def __init__(self, data, vmin, vmax, cmap, center, robust, annot, fmt,
+
++def __init__(self, data, vmin, vmax, cmap, center, robust, annot, fmt,
+
+                  annot_kws, cbar, cbar_kws,
+
+                  xticklabels=True, yticklabels=True, mask=None):
+
+         """Initialize the plotting object."""
+
+@@ -105,6 +105,10 @@
+         # and an ndarray to pass to matplotlib
+
+         if isinstance(data, pd.DataFrame):
+
+             plot_data = data.values
+
++            # Ensure that the DataFrame is treated as a MultiIndex DataFrame
+
++            plot_data = data.values
+
++            data = data.copy()  # Ensure we have a copy to modify
+
++            data.columns = pd.MultiIndex.from_tuples(data.columns)
+
+         else:
+
+             plot_data = np.asarray(data)
+
+             data = pd.DataFrame(plot_data)

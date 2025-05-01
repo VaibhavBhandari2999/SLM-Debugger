@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/66/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/66/django_django/django/db/models/deletion.py
+@@ -162,7 +162,7 @@
+             signals.post_delete.has_listeners(model)
+
+         )
+
+ 
+
+-    def can_fast_delete(self, objs, from_field=None):
+
++def can_fast_delete(self, objs, from_field=None):
+
+         """
+
+         Determine if the objects in the given queryset-like or single object
+
+         can be fast-deleted. This can be done if there are no cascades, no

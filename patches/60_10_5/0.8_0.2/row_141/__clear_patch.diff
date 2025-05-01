@@ -1,0 +1,75 @@
+--- a/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -1251,7 +1251,7 @@
+         self.set_ylim(y0, y1, emit=False, auto=other.get_autoscaley_on())
+
+         self.yaxis._scale = other.yaxis._scale
+
+ 
+
+-    def __clear(self):
+
++def __clear(self):
+
+         """Clear the Axes."""
+
+         # The actual implementation of clear() as long as clear() has to be
+
+         # an adapter delegating to the correct implementation.
+
+@@ -1356,27 +1356,7 @@
+         self.yaxis.set_clip_path(self.patch)
+
+ 
+
+         if self._sharex is not None:
+
+-            self.xaxis.set_visible(xaxis_visible)
+
+-            self.patch.set_visible(patch_visible)
+
+-        if self._sharey is not None:
+
+-            self.yaxis.set_visible(yaxis_visible)
+
+-            self.patch.set_visible(patch_visible)
+
+-
+
+-        # This comes last, as the call to _set_lim may trigger an autoscale (in
+
+-        # case of shared axes), requiring children to be already set up.
+
+-        for name, axis in self._axis_map.items():
+
+-            share = getattr(self, f"_share{name}")
+
+-            if share is not None:
+
+-                getattr(self, f"share{name}")(share)
+
+-            else:
+
+-                # Although the scale was set to linear as part of clear,
+
+-                # polar requires that _set_scale is called again
+
+-                if self.name == "polar":
+
+-                    axis._set_scale("linear")
+
+-                axis._set_lim(0, 1, auto=True)
+
+-        self._update_transScale()
+
+-
+
+-        self.stale = True
+
++            self.xaxis.set
+
+ 
+
+     def clear(self):
+
+         """Clear the Axes."""

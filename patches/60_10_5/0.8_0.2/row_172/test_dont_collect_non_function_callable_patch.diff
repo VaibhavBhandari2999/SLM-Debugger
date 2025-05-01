@@ -1,0 +1,36 @@
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/testing/python/collect.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/testing/python/collect.py
+@@ -1217,6 +1217,17 @@
+         ]
+
+     )
+
+ 
+
++    # Fixing the issue with str() on pytest.raises context variable
+
++    with pytest.raises(pytest.exceptions.NoCollection) as e:
+
++        raise pytest.exceptions.NoCollection(
+
++            "collected 1 item\n"
+
++            "\ntest_dont_collect_non_function_callable.py:2: *cannot collect 'test_a' because it is not a function*"
+
++        )
+
++
+
++    # Access the value of the exception and convert it to a string
+
++    exception_message = str(e.value)
+
++    assert "cannot collect 'test_a' because it is not a function" in exception_message
+
++
+
+ 
+
+ def test_class_injection_does_not_break_collection(testdir):
+
+     """Tests whether injection during collection time will terminate testing.

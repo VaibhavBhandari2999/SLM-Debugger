@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/264/sympy_sympy/sympy/utilities/decorator.py
++++ b/decoupled/60/0.8_0.2/264/sympy_sympy/sympy/utilities/decorator.py
+@@ -175,6 +175,10 @@
+     return depends_on_deco
+
+ 
+
+ 
+
++import sympy
+
++import types
+
++import sys
+
++
+
+ def public(obj):
+
+     """
+
+     Append ``obj``'s name to global ``__all__`` variable (call site).
+
+@@ -223,6 +227,13 @@
+ 
+
+     return obj
+
+ 
+
++# Helper functions (assuming these are defined elsewhere)
+
++def get_function_globals(func):
+
++    return func.__globals__
+
++
+
++def get_function_name(func):
+
++    return func.__name__
+
++
+
+ 
+
+ def memoize_property(propfunc):
+
+     """Property decorator that caches the value of potentially expensive

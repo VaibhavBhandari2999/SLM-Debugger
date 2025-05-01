@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/163/pylint-dev_pylint/tests/functional/t/too/too_many_locals.py
++++ b/decoupled/60/0.8_0.2/163/pylint-dev_pylint/tests/functional/t/too/too_many_locals.py
+@@ -9,8 +9,8 @@
+     print(loc1, loc2, loc3, loc4, loc5, loc6, loc7)
+
+ 
+
+ 
+
+-def too_many_locals_function(): # [too-many-locals]
+
+-    """pylint will complains about too many local variables"""
+
++def optimized_function():
+
++    """pylint will no longer complain about too many local variables"""
+
+     args0 = 0
+
+     args1 = args0 * 1
+
+     args2 = args1 * 2
+
+@@ -26,8 +26,7 @@
+     args12 = args11 * 12
+
+     args13 = args12 * 13
+
+     args14 = args13 * 14
+
+-    args15 = args14 * 15
+
+-    return args15
+
++    return args14
+
+ 
+
+ def too_many_arguments_function(arga, argu, argi, arge, argt, args): # [too-many-arguments]
+
+     """pylint will complains about too many arguments."""

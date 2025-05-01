@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/32/django_django/tests/model_inheritance/tests.py
++++ b/decoupled/60/0.8_0.2/32/django_django/tests/model_inheritance/tests.py
+@@ -13,7 +13,7 @@
+ 
+
+ 
+
+ class ModelInheritanceTests(TestCase):
+
+-    def test_abstract(self):
+
++def test_abstract(self):
+
+         # The Student and Worker models both have 'name' and 'age' fields on
+
+         # them and inherit the __str__() method, just as with normal Python
+
+         # subclassing. This is useful if you want to factor out common
+
+@@ -45,6 +45,11 @@
+         # doesn't exist as a model).
+
+         with self.assertRaisesMessage(AttributeError, "'CommonInfo' has no attribute 'objects'"):
+
+             CommonInfo.objects.all()
+
++
+
++    def test_inherited_choices(self):
+
++        # Fixing the bug in the B model
+
++        b1 = B.objects.create(name="Baz", age=30, job="Office worker", field_foo="C")
+
++        self.assertEqual(b1.get_field_foo_display(), "output3")
+
+ 
+
+     def test_reverse_relation_for_different_hierarchy_tree(self):
+
+         # Even though p.supplier for a Place 'p' (a parent of a Supplier), a

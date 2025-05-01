@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/290/sympy_sympy/sympy/polys/densearith.py
+@@ -1694,7 +1694,11 @@
+     ExactQuotientFailed: [[2], [2]] does not divide [[1], [1, 0], []]
+
+ 
+
+     """
+
+-    q, r = dmp_div(f, g, u, K)
+
++    from sympy import Point2D
+
++
+
++    with sp.evaluate(False):
+
++        # Temporarily exit the evaluate context for Point2D construction
+
++        q, r = dmp_div(f, g, u, K)
+
+ 
+
+     if dmp_zero_p(r, u):
+
+         return q

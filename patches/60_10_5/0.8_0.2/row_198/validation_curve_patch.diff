@@ -1,0 +1,48 @@
+--- a/decoupled/60/0.8_0.2/198/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/198/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -1443,20 +1443,9 @@
+     cv = check_cv(cv, y, classifier=is_classifier(estimator))
+
+     scorer = check_scoring(estimator, scoring=scoring)
+
+ 
+
+-    parallel = Parallel(n_jobs=n_jobs, pre_dispatch=pre_dispatch,
+
+-                        verbose=verbose)
+
+-    out = parallel(delayed(_fit_and_score)(
+
+-        clone(estimator), X, y, scorer, train, test, verbose,
+
+-        parameters={param_name: v}, fit_params=None, return_train_score=True,
+
+-        error_score=error_score)
+
+-        # NOTE do not change order of iteration to allow one time cv splitters
+
+-        for train, test in cv.split(X, y, groups) for v in param_range)
+
+-    out = np.asarray(out)
+
+-    n_params = len(param_range)
+
+-    n_cv_folds = out.shape[0] // n_params
+
+-    out = out.reshape(n_cv_folds, n_params, 2).transpose((2, 1, 0))
+
+-
+
+-    return out[0], out[1]
+
++    # Validate the parameter range
+
++    valid_options = estimator.get_params()[param_name].get_params()['valid_options']
+
++    for param_value in param_range:
+
+ 
+
+ 
+
+ def _aggregate_score_dicts(scores):

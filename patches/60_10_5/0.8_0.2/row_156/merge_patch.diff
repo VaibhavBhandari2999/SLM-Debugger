@@ -1,0 +1,75 @@
+--- a/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
++++ b/decoupled/60/0.8_0.2/156/pydata_xarray/xarray/core/dataset.py
+@@ -3438,7 +3438,7 @@
+         merge_result = dataset_update_method(self, other)
+
+         return self._replace(inplace=True, **merge_result._asdict())
+
+ 
+
+-    def merge(
+
++def merge(
+
+         self,
+
+         other: "CoercibleMapping",
+
+         inplace: bool = None,
+
+@@ -3446,6 +3446,7 @@
+         compat: str = "no_conflicts",
+
+         join: str = "outer",
+
+         fill_value: Any = dtypes.NA,
+
++        allow_variable_mismatch: bool = False,
+
+     ) -> "Dataset":
+
+         """Merge the arrays of two datasets into a single dataset.
+
+ 
+
+@@ -3483,6 +3484,9 @@
+             - 'exact': error instead of aligning non-equal indexes
+
+         fill_value: scalar, optional
+
+             Value to use for newly missing values
+
++        allow_variable_mismatch : bool, optional
+
++            If True, allow concatenation of datasets with different variables
+
++            by performing an outer join. Default is False.
+
+ 
+
+         Returns
+
+         -------
+
+@@ -3495,6 +3499,11 @@
+             If any variables conflict (see ``compat``).
+
+         """
+
+         _check_inplace(inplace)
+
++        if allow_variable_mismatch:
+
++            join = "outer"
+
++            compat = "no_conflicts"
+
++            fill_value = dtypes.NA
+
++
+
+         merge_result = dataset_merge_method(
+
+             self,
+
+             other,

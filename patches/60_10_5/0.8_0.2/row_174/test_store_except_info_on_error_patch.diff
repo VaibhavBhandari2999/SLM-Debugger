@@ -1,0 +1,60 @@
+--- a/decoupled/60/0.8_0.2/174/pytest-dev_pytest/testing/test_runner.py
++++ b/decoupled/60/0.8_0.2/174/pytest-dev_pytest/testing/test_runner.py
+@@ -860,6 +860,29 @@
+     result.stdout.fnmatch_lines(["*test_fix*", "*fixture*'missing'*not found*"])
+
+ 
+
+ 
+
++import pytest
+
++import sys
+
++import os
+
++from datetime import datetime
+
++
+
++def pytest_configure(config):
+
++    """Customize the JUnit XML report to include hostname and timestamp."""
+
++    # Add hostname to the JUnit XML report
+
++    config._metadata['hostname'] = os.uname().nodename
+
++
+
++    # Add timestamp to the JUnit XML report
+
++    config._metadata['timestamp'] = datetime.now().isoformat()
+
++
+
++def pytest_xml_report_header(config):
+
++    """Add hostname and timestamp to the JUnit XML report header."""
+
++    return "Hostname: {}, Timestamp: {}".format(config._metadata['hostname'], config._metadata['timestamp'])
+
++
+
++def pytest_runtest_logreport(report):
+
++    """Log the report to include hostname and timestamp in the JUnit XML report."""
+
++    if report.when == "call":
+
++        report.nodeid += " (Hostname: {}, Timestamp: {})".format(config._metadata['hostname'], config._metadata['timestamp'])
+
++
+
++# Example usage of the pytest configuration
+
+ def test_store_except_info_on_error():
+
+     """ Test that upon test failure, the exception info is stored on
+
+     sys.last_traceback and friends.

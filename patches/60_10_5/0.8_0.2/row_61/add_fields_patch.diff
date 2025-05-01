@@ -1,0 +1,140 @@
+--- a/decoupled/60/0.8_0.2/61/django_django/django/forms/models.py
++++ b/decoupled/60/0.8_0.2/61/django_django/django/forms/models.py
+@@ -958,36 +958,40 @@
+         setattr(form.instance, self.fk.name, self.instance)
+
+         return super().save_new(form, commit=commit)
+
+ 
+
+-    def add_fields(self, form, index):
+
+-        super().add_fields(form, index)
+
+-        if self._pk_field == self.fk:
+
+-            name = self._pk_field.name
+
+-            kwargs = {'pk_field': True}
+
++def add_fields(self, form, index):
+
++    super().add_fields(form, index)
+
++    if self._pk_field == self.fk:
+
++        name = self._pk_field.name
+
++        kwargs = {'pk_field': True}
+
++    else:
+
++        # The foreign key field might not be on the form, so we poke at the
+
++        # Model field to get the label, since we need that for error messages.
+
++        name = self.fk.name
+
++        kwargs = {
+
++            'label': getattr(form.fields.get(name), 'label', capfirst(self.fk.verbose_name))
+
++        }
+
++
+
++    # The InlineForeignKeyField assumes that the foreign key relation is
+
++    # based on the parent model's pk. If this isn't the case, set to_field
+
++    # to correctly resolve the initial form value.
+
++    if self.fk.remote_field.field_name != self.fk.remote_field.model._meta.pk.name:
+
++        kwargs['to_field'] = self.fk.remote_field.field_name
+
++
+
++    # If we're adding a new object, ignore a parent's auto-generated key
+
++    # as it will be regenerated on the save request.
+
++    if self.instance._state.adding:
+
++        if kwargs.get('to_field') is not None:
+
++            to_field = self.instance._meta.get_field(kwargs['to_field'])
+
+         else:
+
+-            # The foreign key field might not be on the form, so we poke at the
+
+-            # Model field to get the label, since we need that for error messages.
+
+-            name = self.fk.name
+
+-            kwargs = {
+
+-                'label': getattr(form.fields.get(name), 'label', capfirst(self.fk.verbose_name))
+
+-            }
+
+-
+
+-        # The InlineForeignKeyField assumes that the foreign key relation is
+
+-        # based on the parent model's pk. If this isn't the case, set to_field
+
+-        # to correctly resolve the initial form value.
+
+-        if self.fk.remote_field.field_name != self.fk.remote_field.model._meta.pk.name:
+
+-            kwargs['to_field'] = self.fk.remote_field.field_name
+
+-
+
+-        # If we're adding a new object, ignore a parent's auto-generated key
+
+-        # as it will be regenerated on the save request.
+
+-        if self.instance._state.adding:
+
+-            if kwargs.get('to_field') is not None:
+
+-                to_field = self.instance._meta.get_field(kwargs['to_field'])
+
+-            else:
+
+-                to_field = self.instance._meta.pk
+
+-            if to_field.has_default():
+
+-                setattr(self.instance, to_field.attname, None)
+
+-
+
+-        form.fields[name] = InlineForeignKeyField(self.instance, **kwargs)
+
++            to_field = self.instance._meta.pk
+
++        if to_field.has_default():
+
++            setattr(self.instance, to_field.attname, None)
+
++
+
++    # Ensure verbose_name_plural is set based on verbose_name if provided
+
++    if self.fk.verbose_name:
+
++        kwargs['verbose_name_plural'] = self.fk.verbose_name + 's'
+
++
+
++    form.fields[name] = InlineForeignKeyField(self.instance, **kwargs)
+
+ 
+
+     def get_unique_error_message(self, unique_check):
+
+         unique_check = [field for field in unique_check if field != self.fk.name]

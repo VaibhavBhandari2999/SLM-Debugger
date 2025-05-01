@@ -1,0 +1,284 @@
+--- a/decoupled/60/0.8_0.2/268/sympy_sympy/sympy/core/expr.py
++++ b/decoupled/60/0.8_0.2/268/sympy_sympy/sympy/core/expr.py
+@@ -2522,73 +2522,74 @@
+             return True
+
+         return False
+
+ 
+
+-    def is_polynomial(self, *syms):
+
+-        r"""
+
+-        Return True if self is a polynomial in syms and False otherwise.
+
+-
+
+-        This checks if self is an exact polynomial in syms.  This function
+
+-        returns False for expressions that are "polynomials" with symbolic
+
+-        exponents.  Thus, you should be able to apply polynomial algorithms to
+
+-        expressions for which this returns True, and Poly(expr, \*syms) should
+
+-        work if and only if expr.is_polynomial(\*syms) returns True. The
+
+-        polynomial does not have to be in expanded form.  If no symbols are
+
+-        given, all free symbols in the expression will be used.
+
+-
+
+-        This is not part of the assumptions system.  You cannot do
+
+-        Symbol('z', polynomial=True).
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Symbol
+
+-        >>> x = Symbol('x')
+
+-        >>> ((x**2 + 1)**4).is_polynomial(x)
+
+-        True
+
+-        >>> ((x**2 + 1)**4).is_polynomial()
+
+-        True
+
+-        >>> (2**x + 1).is_polynomial(x)
+
+-        False
+
+-
+
+-
+
+-        >>> n = Symbol('n', nonnegative=True, integer=True)
+
+-        >>> (x**n + 1).is_polynomial(x)
+
+-        False
+
+-
+
+-        This function does not attempt any nontrivial simplifications that may
+
+-        result in an expression that does not appear to be a polynomial to
+
+-        become one.
+
+-
+
+-        >>> from sympy import sqrt, factor, cancel
+
+-        >>> y = Symbol('y', positive=True)
+
+-        >>> a = sqrt(y**2 + 2*y + 1)
+
+-        >>> a.is_polynomial(y)
+
+-        False
+
+-        >>> factor(a)
+
+-        y + 1
+
+-        >>> factor(a).is_polynomial(y)
+
+-        True
+
+-
+
+-        >>> b = (y**2 + 2*y + 1)/(y + 1)
+
+-        >>> b.is_polynomial(y)
+
+-        False
+
+-        >>> cancel(b)
+
+-        y + 1
+
+-        >>> cancel(b).is_polynomial(y)
+
+-        True
+
+-
+
+-        See also .is_rational_function()
+
+-
+
+-        """
+
+-        if syms:
+
+-            syms = set(map(sympify, syms))
+
+-        else:
+
+-            syms = self.free_symbols
+
+-
+
+-        if syms.intersection(self.free_symbols) == set([]):
+
+-            # constant polynomial
+
+-            return True
+
+-        else:
+
+-            return self._eval_is_polynomial(syms)
+
++def is_polynomial(self, *syms):
+
++    r"""
+
++    Return True if self is a polynomial in syms and False otherwise.
+
++
+
++    This checks if self is an exact polynomial in syms.  This function
+
++    returns False for expressions that are "polynomials" with symbolic
+
++    exponents.  Thus, you should be able to apply polynomial algorithms to
+
++    expressions for which this returns True, and Poly(expr, \*syms) should
+
++    work if and only if expr.is_polynomial(\*syms) returns True. The
+
++    polynomial does not have to be in expanded form.  If no symbols are
+
++    given, all free symbols in the expression will be used.
+
++
+
++    This is not part of the assumptions system.  You cannot do
+
++    Symbol('z', polynomial=True).
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Symbol
+
++    >>> x = Symbol('x')
+
++    >>> ((x**2 + 1)**4).is_polynomial(x)
+
++    True
+
++    >>> ((x**2 + 1)**4).is_polynomial()
+
++    True
+
++    >>> (2**x + 1).is_polynomial(x)
+
++    False
+
++
+
++
+
++    >>> n = Symbol('n', nonnegative=True, integer=True)
+
++    >>> (x**n + 1).is_polynomial(x)
+
++    False
+
++
+
++    This function does not attempt any nontrivial simplifications that may
+
++    result in an expression that does not appear to be a polynomial to
+
++    become one.
+
++
+
++    >>> from sympy import sqrt, factor, cancel
+
++    >>> y = Symbol('y', positive=True)
+
++    >>> a = sqrt(y**2 + 2*y + 1)
+
++    >>> a.is_polynomial(y)
+
++    False
+
++    >>> factor(a)
+
++    y + 1
+
++    >>> factor(a).is_polynomial(y)
+
++    True
+
++
+
++    >>> b = (y**2 + 2*y + 1)/(y + 1)
+
++    >>> b.is_polynomial(y)
+
++    False
+
++    >>> cancel(b)
+
++    y + 1
+
++    >>> cancel(b).is_polynomial(y)
+
++    True
+
++
+
++    See also .is_rational_function()
+
++
+
++    """
+
++    if syms:
+
++        syms = set(map(sympify, syms))
+
++    else:
+
++        syms = self.free_symbols
+
++
+
++    if syms.intersection(self.free_symbols) == set([]):
+
++        # constant polynomial
+
++        return True
+
++    else:
+
++        # Check if the expression has any arguments (i.e., it is not a leaf node)
+
++        return not any(arg.has(self) for arg in self.args)
+
+ 
+
+     def _eval_is_rational_function(self, syms):
+
+         if self.free_symbols.intersection(syms) == set([]):

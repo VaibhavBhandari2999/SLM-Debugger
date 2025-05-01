@@ -1,0 +1,57 @@
+--- a/decoupled/60/0.8_0.2/279/sympy_sympy/sympy/physics/units/util.py
++++ b/decoupled/60/0.8_0.2/279/sympy_sympy/sympy/physics/units/util.py
+@@ -109,10 +109,12 @@
+     return expr_scale_factor * Mul.fromiter((1/get_total_scale_factor(u) * u) ** p for u, p in zip(target_units, depmat))
+
+ 
+
+ 
+
++from sympy.physics.units import Dimension, Quantity, convert_to
+
++
+
+ def quantity_simplify(expr):
+
+     """Return an equivalent expression in which prefixes are replaced
+
+-    with numerical values and all units of a given dimension are the
+
+-    unified in a canonical manner.
+
++    with numerical values and all units of a given dimension are unified
+
++    in a canonical manner.
+
+ 
+
+     Examples
+
+     ========
+
+@@ -142,6 +144,13 @@
+         v = list(ordered(d[k]))
+
+         ref = v[0]/v[0].scale_factor
+
+         expr = expr.xreplace({vi: ref*vi.scale_factor for vi in v[1:]})
+
++
+
++    # Ensure the expression is in the desired units
+
++    try:
+
++        expr = convert_to(expr, expr)
+
++    except ValueError:
+
++        # If conversion is not valid, return the original expression
+
++        pass
+
+ 
+
+     return expr
+
+ 

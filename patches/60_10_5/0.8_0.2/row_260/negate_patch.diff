@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
++++ b/decoupled/60/0.8_0.2/260/sympy_sympy/sympy/matrices/densearith.py
+@@ -123,7 +123,7 @@
+ 
+
+     negaterow
+
+     """
+
+-    return [negaterow(row, K) for row in matlist]
+
++    return [[-elem for elem in row] for row in matlist]
+
+ 
+
+ 
+
+ def negaterow(row, K):

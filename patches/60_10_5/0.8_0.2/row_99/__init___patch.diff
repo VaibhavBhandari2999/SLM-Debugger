@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/99/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/99/django_django/django/db/models/deletion.py
+@@ -87,7 +87,7 @@
+ 
+
+ 
+
+ class Collector:
+
+-    def __init__(self, using, origin=None):
+
++def __init__(self, using, origin=None):
+
+         self.using = using
+
+         # A Model or QuerySet object.
+
+         self.origin = origin

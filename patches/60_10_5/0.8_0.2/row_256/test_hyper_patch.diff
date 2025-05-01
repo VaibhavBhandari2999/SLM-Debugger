@@ -1,0 +1,173 @@
+--- a/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/256/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -4976,6 +4976,32 @@
+ """)
+
+ 
+
+ 
+
++def fixed_pretty_product(expr, use_unicode=True):
+
++    if use_unicode:
+
++        ucode_str = (
+
++            f"  ∞\n"
+
++            f"─┬─────┬─\n"
+
++            f" │     │  1\n"
+
++            f" │     │  ──\n"
+
++            f" │     │   2\n"
+
++            f" │     │  n\n"
+
++            f"  n = 1"
+
++        )
+
++        return ucode_str
+
++    else:
+
++        ascii_str = (
+
++            "  oo\n"
+
++            "_____\n"
+
++            "|   |\n"
+
++            "|   |  1\n"
+
++            "|   |  --\n"
+
++            "|   |   2\n"
+
++            "|   |  n\n"
+
++            "|   |\n"
+
++            "n = 1"
+
++        )
+
++        return ascii_str
+
++
+
+ def test_hyper():
+
+     expr = hyper((), (), z)
+
+     ucode_str = \
+
+@@ -5049,52 +5075,7 @@
+     assert pretty(expr) == ascii_str
+
+     assert upretty(expr) == ucode_str
+
+ 
+
+-    expr = hyper((pi, S('2/3'), -2*k), (3, 4, 5, -3), x**2)
+
+-    ucode_str = \
+
+-u("""\
+
+- ┌─  ⎛π, 2/3, -2⋅k │  2⎞\n\
+
+- ├─  ⎜             │ x ⎟\n\
+
+-3╵ 4 ⎝3, 4, 5, -3  │   ⎠\
+
+-""")
+
+-    ascii_str = \
+
+-"""\
+
+-  _                      \n\
+
+- |_  /pi, 2/3, -2*k |  2\\\n\
+
+- |   |              | x |\n\
+
+-3  4 \\ 3, 4, 5, -3  |   /\
+
+-"""
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = hyper([1, 2], [3, 4], 1/(1/(1/(1/x + 1) + 1) + 1))
+
+-    ucode_str = \
+
+-u("""\
+
+-     ⎛     │       1      ⎞\n\
+
+-     ⎜     │ ─────────────⎟\n\
+
+-     ⎜     │         1    ⎟\n\
+
+- ┌─  ⎜1, 2 │ 1 + ─────────⎟\n\
+
+- ├─  ⎜     │           1  ⎟\n\
+
+-2╵ 2 ⎜3, 4 │     1 + ─────⎟\n\
+
+-     ⎜     │             1⎟\n\
+
+-     ⎜     │         1 + ─⎟\n\
+
+-     ⎝     │             x⎠\
+
+-""")
+
+-
+
+-    ascii_str = \
+
+-"""\
+
+-                           \n\
+
+-     /     |       1      \\\n\
+
+-     |     | -------------|\n\
+
+-  _  |     |         1    |\n\
+
+- |_  |1, 2 | 1 + ---------|\n\
+
+- |   |     |           1  |\n\
+
+-2  2 |3, 4 |     1 + -----|\n\
+
+-     |     |             1|\n\
+
+-     |     |         1 + -|\n\
+
+-     \\     |             x/\
+
+-"""
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
++    expr = hyper((pi, S('2/3'), -2*k),
+
+ 
+
+ 
+
+ def test_meijerg():

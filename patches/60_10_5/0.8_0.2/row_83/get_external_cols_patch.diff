@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/83/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/83/django_django/django/db/models/sql/query.py
+@@ -1046,7 +1046,7 @@
+             )
+
+         return clone
+
+ 
+
+-    def get_external_cols(self):
+
++def get_external_cols(self):
+
+         exprs = chain(self.annotations.values(), self.where.children)
+
+         return [
+
+             col for col in self._gen_cols(exprs, include_external=True)

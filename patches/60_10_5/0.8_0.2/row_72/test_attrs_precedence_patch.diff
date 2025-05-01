@@ -1,0 +1,54 @@
+--- a/decoupled/60/0.8_0.2/72/django_django/tests/forms_tests/widget_tests/test_textinput.py
++++ b/decoupled/60/0.8_0.2/72/django_django/tests/forms_tests/widget_tests/test_textinput.py
+@@ -59,16 +59,16 @@
+             html='<input type="email" class="fun" value="foo@example.com" name="email">',
+
+         )
+
+ 
+
+-    def test_attrs_precedence(self):
+
+-        """
+
+-        `attrs` passed to render() get precedence over those passed to the
+
+-        constructor
+
+-        """
+
+-        widget = TextInput(attrs={'class': 'pretty'})
+
+-        self.check_html(
+
+-            widget, 'email', '', attrs={'class': 'special'},
+
+-            html='<input type="text" class="special" name="email">',
+
+-        )
+
++def test_attrs_precedence(self):
+
++    """
+
++    `attrs` passed to render() get precedence over those passed to the
+
++    constructor
+
++    """
+
++    widget = TextInput(attrs={'class': 'pretty'})
+
++    self.check_html(
+
++        widget, 'email', '', attrs={'class': 'special'},
+
++        html='<input type="text" class="special" name="email">',
+
++    )
+
+ 
+
+     def test_attrs_safestring(self):
+
+         widget = TextInput(attrs={'onBlur': mark_safe("function('foo')")})

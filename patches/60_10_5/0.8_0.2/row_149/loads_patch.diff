@@ -1,0 +1,72 @@
+--- a/decoupled/60/0.8_0.2/149/pallets_flask/src/flask/json/__init__.py
++++ b/decoupled/60/0.8_0.2/149/pallets_flask/src/flask/json/__init__.py
+@@ -75,34 +75,7 @@
+ 
+
+ 
+
+ def loads(s: str | bytes, **kwargs: t.Any) -> t.Any:
+
+-    """Deserialize data as JSON.
+
+-
+
+-    If :data:`~flask.current_app` is available, it will use its
+
+-    :meth:`app.json.loads() <flask.json.provider.JSONProvider.loads>`
+
+-    method, otherwise it will use :func:`json.loads`.
+
+-
+
+-    :param s: Text or UTF-8 bytes.
+
+-    :param kwargs: Arguments passed to the ``loads`` implementation.
+
+-
+
+-    .. versionchanged:: 2.3
+
+-        The ``app`` parameter was removed.
+
+-
+
+-    .. versionchanged:: 2.2
+
+-        Calls ``current_app.json.loads``, allowing an app to override
+
+-        the behavior.
+
+-
+
+-    .. versionchanged:: 2.0
+
+-        ``encoding`` will be removed in Flask 2.1. The data must be a
+
+-        string or UTF-8 bytes.
+
+-
+
+-    .. versionchanged:: 1.0.3
+
+-        ``app`` can be passed directly, rather than requiring an app
+
+-        context for configuration.
+
+-    """
+
+-    if current_app:
+
+-        return current_app.json.loads(s, **kwargs)
+
+-
+
+-    return _json.loads(s, **kwargs)
+
++    ...
+
+ 
+
+ 
+
+ def load(fp: t.IO[t.AnyStr], **kwargs: t.Any) -> t.Any:

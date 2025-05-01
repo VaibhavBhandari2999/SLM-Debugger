@@ -1,0 +1,35 @@
+--- a/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
++++ b/decoupled/60/0.8_0.2/170/pytest-dev_pytest/src/_pytest/fixtures.py
+@@ -1244,7 +1244,7 @@
+         # separate parametrized setups
+
+         items[:] = reorder_items(items)
+
+ 
+
+-    def parsefactories(self, node_or_obj, nodeid=NOTSET, unittest=False):
+
++def parsefactories(self, node_or_obj, nodeid=NOTSET, unittest=False):
+
+         if nodeid is not NOTSET:
+
+             holderobj = node_or_obj
+
+         else:
+
+@@ -1282,7 +1282,7 @@
+                 nodeid,
+
+                 name,
+
+                 obj,
+
+-                marker.scope,
+
++                marker.scope,  # Use marker.scope to display the scope of the fixture
+
+                 marker.params,
+
+                 unittest=unittest,
+
+                 ids=marker.ids,

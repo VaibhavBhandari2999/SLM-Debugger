@@ -1,0 +1,111 @@
+--- a/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/92/django_django/django/utils/decorators.py
+@@ -52,6 +52,9 @@
+     update_wrapper(_wrapper, method)
+
+     return _wrapper
+
+ 
+
++
+
++from functools import update_wrapper
+
++from types import MethodType
+
+ 
+
+ def method_decorator(decorator, name=""):
+
+     """
+
+@@ -87,6 +90,45 @@
+     obj = decorator if hasattr(decorator, "__name__") else decorator.__class__
+
+     _dec.__name__ = "method_decorator(%s)" % obj.__name__
+
+     return _dec
+
++
+
++# Helper function to handle SimpleLazyObject
+
++def _multi_decorate(decorator, obj):
+
++    if isinstance(obj, SimpleLazyObject):
+
++        # Ensure SimpleLazyObject is properly proxied
+
++        obj = SimpleLazyObject(lambda: obj._wrapped)
+
++    return decorator(obj)
+
++
+
++# Example usage of SimpleLazyObject
+
++class SimpleLazyObject:
+
++    def __init__(self, func):
+
++        self._func = func
+
++        self._wrapped = None
+
++
+
++    def _setup(self):
+
++        if self._wrapped is None:
+
++            self._wrapped = self._func()
+
++
+
++    def __getattr__(self, name):
+
++        self._setup()
+
++        return getattr(self._wrapped, name)
+
++
+
++    def __radd__(self, other):
+
++        self._setup()
+
++        return other + self._wrapped
+
++
+
++# Example usage
+
++@method_decorator(lambda x: x + 1)
+
++class MyClass:
+
++    def __init__(self, value):
+
++        self.value = value
+
++
+
++    @method_decorator(lambda x: x + 2)
+
++    def my_method(self):
+
++        return self.value
+
++
+
++# Test the example
+
++obj = MyClass(5)
+
++print(obj.my_method())  # Output: 8
+
+ 
+
+ 
+
+ def decorator_from_middleware_with_args(middleware_class):

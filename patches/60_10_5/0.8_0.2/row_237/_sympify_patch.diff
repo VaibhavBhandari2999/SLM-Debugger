@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/237/sympy_sympy/sympy/core/sympify.py
++++ b/decoupled/60/0.8_0.2/237/sympy_sympy/sympy/core/sympify.py
+@@ -393,7 +393,7 @@
+     see: sympify
+
+ 
+
+     """
+
+-    return sympify(a, strict=True)
+
++    return sympify(a, strict=True).simplify()  # Added .simplify() to ensure the expression is simplified before substitution
+
+ 
+
+ 
+
+ def kernS(s):

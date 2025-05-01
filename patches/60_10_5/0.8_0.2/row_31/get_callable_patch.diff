@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/31/django_django/django/urls/utils.py
++++ b/decoupled/60/0.8_0.2/31/django_django/django/urls/utils.py
+@@ -49,6 +49,9 @@
+                     "Could not import '%s.%s'. View is not callable." %
+
+                     (mod_name, func_name)
+
+                 )
+
++            # Ensure the view function is called with the correct number of arguments
+
++            if view_func.__code__.co_argcount == 2:  # Check if the function expects 2 arguments
+
++                return lambda request: view_func(request, 'html')  # Default to 'html' if only one argument is provided
+
+             return view_func
+
+ 
+
+ 

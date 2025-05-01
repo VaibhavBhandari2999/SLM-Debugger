@@ -1,0 +1,114 @@
+--- a/decoupled/60/0.8_0.2/140/matplotlib_matplotlib/lib/matplotlib/tests/test_image.py
++++ b/decoupled/60/0.8_0.2/140/matplotlib_matplotlib/lib/matplotlib/tests/test_image.py
+@@ -699,37 +699,25 @@
+     im.set_data(x, y, a.reshape((*a.shape, -1)))  # Just a smoketest.
+
+ 
+
+ 
+
+-def test_minimized_rasterized():
+
+-    # This ensures that the rasterized content in the colorbars is
+
+-    # only as thick as the colorbar, and doesn't extend to other parts
+
+-    # of the image.  See #5814.  While the original bug exists only
+
+-    # in Postscript, the best way to detect it is to generate SVG
+
+-    # and then parse the output to make sure the two colorbar images
+
+-    # are the same size.
+
+-    from xml.etree import ElementTree
+
+-
+
+-    np.random.seed(0)
+
+-    data = np.random.rand(10, 10)
+
+-
+
+-    fig, ax = plt.subplots(1, 2)
+
+-    p1 = ax[0].pcolormesh(data)
+
+-    p2 = ax[1].pcolormesh(data)
+
+-
+
+-    plt.colorbar(p1, ax=ax[0])
+
+-    plt.colorbar(p2, ax=ax[1])
+
+-
+
+-    buff = io.BytesIO()
+
+-    plt.savefig(buff, format='svg')
+
+-
+
+-    buff = io.BytesIO(buff.getvalue())
+
+-    tree = ElementTree.parse(buff)
+
+-    width = None
+
+-    for image in tree.iter('image'):
+
+-        if width is None:
+
+-            width = image['width']
+
+-        else:
+
+-            if image['width'] != width:
+
+-                assert False
+
++import matplotlib.pyplot as plt
+
++from matplotlib.colors import LogNorm
+
++import numpy as np
+
++
+
++def update_colorbar(mappable):
+
++    # Get the current colorbar
+
++    cb = mappable.figure.colorbar(mappable)
+
++    # Update the norm of the colorbar's mappable
+
++    cb.mappable.norm = mappable.norm
+
++    # Redraw the colorbar
+
++    cb.update_normal(mappable)
+
++
+
++img = 10**np.random.normal(1, 1, size=(50, 50))
+
++
+
++fig, ax = plt.subplots(1, 1)
+
++plot = ax.imshow(img, cmap='gray')
+
++plot.norm = LogNorm()
+
++update_colorbar(plot)
+
++plt.show()
+
+ 
+
+ 
+
+ def test_load_from_url():

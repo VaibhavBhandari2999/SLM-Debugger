@@ -1,0 +1,131 @@
+--- a/decoupled/60/0.8_0.2/140/matplotlib_matplotlib/lib/matplotlib/tests/test_colors.py
++++ b/decoupled/60/0.8_0.2/140/matplotlib_matplotlib/lib/matplotlib/tests/test_colors.py
+@@ -852,6 +852,30 @@
+ 
+
+ @image_comparison(baseline_images=['boundarynorm_and_colorbar'],
+
+                   extensions=['png'], tol=1.0)
+
++import matplotlib.pyplot as plt
+
++from matplotlib.colors import LogNorm
+
++import numpy as np
+
++import matplotlib.colorbar as mcolorbar
+
++import matplotlib.cm as cm
+
++import matplotlib.colors as mcolors
+
++
+
++def update_colorbar.colorbar_update(mappable, colorbar):
+
++    """
+
++    Update the colorbar after changing the norm of the mappable object.
+
++    
+
++    Parameters:
+
++    mappable (matplotlib.cm.ScalarMappable): The mappable object whose norm has been changed.
+
++    colorbar (matplotlib.colorbar.Colorbar): The colorbar to be updated.
+
++    """
+
++    # Update the norm of the colorbar
+
++    colorbar.mappable.set_norm(mappable.norm)
+
++    
+
++    # Update the colorbar's image
+
++    colorbar.update_normal(mappable)
+
++    
+
++    # Force a redraw of the colorbar
+
++    colorbar.draw_all()
+
++
+
+ def test_boundarynorm_and_colorbarbase():
+
+     # Remove this line when this test image is regenerated.
+
+     plt.rcParams['pcolormesh.snap'] = False
+
+@@ -864,21 +888,32 @@
+ 
+
+     # Set the colormap and bounds
+
+     bounds = [-1, 2, 5, 7, 12, 15]
+
+-    cmap = mpl.colormaps['viridis']
+
++    cmap = cm.get_cmap('viridis')
+
+ 
+
+     # Default behavior
+
+     norm = mcolors.BoundaryNorm(bounds, cmap.N)
+
+     cb1 = mcolorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, extend='both',
+
+                                  orientation='horizontal', spacing='uniform')
+
++    
+
+     # New behavior
+
+     norm = mcolors.BoundaryNorm(bounds, cmap.N, extend='both')
+
+     cb2 = mcolorbar.ColorbarBase(ax2, cmap=cmap, norm=norm,
+
+                                  orientation='horizontal')
+
+-
+
++    
+
+     # User can still force to any extend='' if really needed
+
+     norm = mcolors.BoundaryNorm(bounds, cmap.N, extend='both')
+
+     cb3 = mcolorbar.ColorbarBase(ax3, cmap=cmap, norm=norm,
+
+                                  extend='neither', orientation='horizontal')
+
++    
+
++    # Change the norm of the first colorbar and update the colorbar
+
++    plot = ax1.imshow(np.random.rand(10, 10), cmap='viridis')
+
++    plot.norm = LogNorm()
+
++    update_colorbar.colorbar_update(plot, cb1)
+
++    
+
++    plt.show()
+
++
+
++# Run the test function
+
++test_boundarynorm_and_colorbarbase()
+
+ 
+
+ 
+
+ def test_cmap_and_norm_from_levels_and_colors2():

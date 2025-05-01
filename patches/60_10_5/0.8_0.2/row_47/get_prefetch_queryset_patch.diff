@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/47/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/47/django_django/django/db/models/fields/related_descriptors.py
+@@ -117,7 +117,7 @@
+     def get_queryset(self, **hints):
+
+         return self.field.remote_field.model._base_manager.db_manager(hints=hints).all()
+
+ 
+
+-    def get_prefetch_queryset(self, instances, queryset=None):
+
++def get_prefetch_queryset(self, instances, queryset=None):
+
+         if queryset is None:
+
+             queryset = self.get_queryset()
+
+         queryset._add_hints(instance=instances[0])

@@ -1,0 +1,108 @@
+--- a/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
++++ b/decoupled/60/0.8_0.2/206/scikit-learn_scikit-learn/sklearn/utils/estimator_checks.py
+@@ -4296,26 +4296,33 @@
+     return outputs
+
+ 
+
+ 
+
+-def _check_generated_dataframe(name, case, outputs_default, outputs_pandas):
+
+-    import pandas as pd
+
+-
+
+-    X_trans, feature_names_default = outputs_default
+
+-    df_trans, feature_names_pandas = outputs_pandas
+
+-
+
+-    assert isinstance(df_trans, pd.DataFrame)
+
+-    # We always rely on the output of `get_feature_names_out` of the
+
+-    # transformer used to generate the dataframe as a ground-truth of the
+
+-    # columns.
+
+-    expected_dataframe = pd.DataFrame(X_trans, columns=feature_names_pandas)
+
+-
+
+-    try:
+
+-        pd.testing.assert_frame_equal(df_trans, expected_dataframe)
+
+-    except AssertionError as e:
+
+-        raise AssertionError(
+
+-            f"{name} does not generate a valid dataframe in the {case} "
+
+-            "case. The generated dataframe is not equal to the expected "
+
+-            f"dataframe. The error message is: {e}"
+
+-        ) from e
+
++import pandas as pd
+
++from sklearn.base import BaseEstimator, TransformerMixin
+
++from sklearn import set_config
+
++from sklearn.pipeline import make_union
+
++
+
++index = pd.date_range(start="2020-01-01", end="2020-01-05", inclusive="left", freq="H")
+
++data = pd.DataFrame(index=index, data=[10] * len(index), columns=["value"])
+
++data["date"] = index.date
+
++
+
++class MyTransformer(BaseEstimator, TransformerMixin):
+
++    def fit(self, X: pd.DataFrame, y: pd.Series | None = None, **kwargs):
+
++        return self
+
++
+
++    def transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
+
++        # Group by date and sum the values
+
++        aggregated_data = X["value"].groupby(X["date"]).sum()
+
++        # Duplicate the aggregated data to match the number of rows in the input DataFrame
+
++        result = pd.DataFrame(aggregated_data).reset_index().set_index("date").reindex(X.index)
+
++        return result
+
++
+
++# This works.
+
++set_config(transform_output="default")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
++
+
++# This works now.
+
++set_config(transform_output="pandas")
+
++print(make_union(MyTransformer()).fit_transform(data))
+
+ 
+
+ 
+
+ def check_set_output_transform_pandas(name, transformer_orig):

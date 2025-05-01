@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/69/django_django/django/views/decorators/common.py
++++ b/decoupled/60/0.8_0.2/69/django_django/django/views/decorators/common.py
+@@ -1,11 +1,21 @@
+ from functools import wraps
+
+ 
+
++
+
++from functools import partial, wraps
+
+ 
+
+ def no_append_slash(view_func):
+
+     """
+
+     Mark a view function as excluded from CommonMiddleware's APPEND_SLASH
+
+     redirection.
+
+     """
+
++    # Check if the view_func is a functools.partial object
+
++    if isinstance(view_func, partial):
+
++        # Unwrap the partial object to get the underlying function and its arguments
+
++        view_func = view_func.func
+
++        # If the partial object has args or keywords, we can store them as well
+
++        view_func._partial_args = view_func.args
+
++        view_func._partial_keywords = view_func.keywords
+
++
+
+     # view_func.should_append_slash = False would also work, but decorators are
+
+     # nicer if they don't have side effects, so return a new function.
+
+     def wrapped_view(*args, **kwargs):

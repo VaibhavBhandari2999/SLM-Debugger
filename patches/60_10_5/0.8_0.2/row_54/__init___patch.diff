@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/54/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/54/django_django/django/db/models/base.py
+@@ -403,7 +403,7 @@
+ 
+
+ class Model(metaclass=ModelBase):
+
+ 
+
+-    def __init__(self, *args, **kwargs):
+
++def __init__(self, *args, **kwargs):
+
+         # Alias some things as locals to avoid repeat global lookups
+
+         cls = self.__class__
+
+         opts = self._meta
+
+@@ -503,6 +503,11 @@
+                 raise TypeError("%s() got an unexpected keyword argument '%s'" % (cls.__name__, kwarg))
+
+         super().__init__()
+
+         post_init.send(sender=cls, instance=self)
+
++
+
++    def __eq__(self, other):
+
++        if not isinstance(other, Field):
+
++            return False
+
++        if self
+
+ 
+
+     @classmethod
+
+     def from_db(cls, db, field_names, values):

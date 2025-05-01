@@ -1,0 +1,132 @@
+--- a/decoupled/60/0.8_0.2/94/django_django/django/db/backends/postgresql/base.py
++++ b/decoupled/60/0.8_0.2/94/django_django/django/db/backends/postgresql/base.py
+@@ -211,30 +211,41 @@
+         return conn_params
+
+ 
+
+     @async_unsafe
+
+-    def get_new_connection(self, conn_params):
+
+-        connection = Database.connect(**conn_params)
+
+-
+
+-        # self.isolation_level must be set:
+
+-        # - after connecting to the database in order to obtain the database's
+
+-        #   default when no value is explicitly specified in options.
+
+-        # - before calling _set_autocommit() because if autocommit is on, that
+
+-        #   will set connection.isolation_level to ISOLATION_LEVEL_AUTOCOMMIT.
+
+-        options = self.settings_dict["OPTIONS"]
+
+-        try:
+
+-            self.isolation_level = options["isolation_level"]
+
+-        except KeyError:
+
+-            self.isolation_level = connection.isolation_level
+
+-        else:
+
+-            # Set the isolation level to the value from OPTIONS.
+
+-            if self.isolation_level != connection.isolation_level:
+
+-                connection.set_session(isolation_level=self.isolation_level)
+
+-        # Register dummy loads() to avoid a round trip from psycopg2's decode
+
+-        # to json.dumps() to json.loads(), when using a custom decoder in
+
+-        # JSONField.
+
+-        psycopg2.extras.register_default_jsonb(
+
+-            conn_or_curs=connection, loads=lambda x: x
+
+-        )
+
+-        return connection
+
++def get_new_connection(self, conn_params):
+
++    connection = Database.connect(**conn_params)
+
++
+
++    # self.isolation_level must be set:
+
++    # - after connecting to the database in order to obtain the database's
+
++    #   default when no value is explicitly specified in options.
+
++    # - before calling _set_autocommit() because if autocommit is on, that
+
++    #   will set connection.isolation_level to ISOLATION_LEVEL_AUTOCOMMIT.
+
++    options = self.settings_dict["OPTIONS"]
+
++    try:
+
++        self.isolation_level = options["isolation_level"]
+
++    except KeyError:
+
++        self.isolation_level = connection.isolation_level
+
++    else:
+
++        # Set the isolation level to the value from OPTIONS.
+
++        if self.isolation_level != connection.isolation_level:
+
++            connection.set_session(isolation_level=self.isolation_level)
+
++    # Register dummy loads() to avoid a round trip from psycopg2's decode
+
++    # to json.dumps() to json.loads(), when using a custom decoder in
+
++    # JSONField.
+
++    psycopg2.extras.register_default_jsonb(
+
++        conn_or_curs=connection, loads=lambda x: x
+
++    )
+
++    return connection
+
++
+
++# Fix for the RenameIndex() issue
+
++def fix_rename_index_issue(self, app_label, editor, project_state, new_state):
+
++    # Check if the index is unnamed and needs to be restored
+
++    if not project_state.get_index_for_model(app_label, "model_name").name:
+
++        # Get the old index name
+
++        old_index_name = project_state.get_index_for_model(app_label, "model_name").name
+
++        # Rename the index back to its old name
+
++        editor.rename_index(app_label, "model_name", old_index_name)
+
++    # Proceed with the original operation
+
++    operation.database_forwards(app_label, editor, project_state, new_state)
+
+ 
+
+     def ensure_timezone(self):
+
+         if self.connection is None:

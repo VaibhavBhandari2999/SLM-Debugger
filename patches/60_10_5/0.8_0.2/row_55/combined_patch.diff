@@ -1,0 +1,695 @@
+--- a/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
+@@ -534,7 +534,11 @@
+     def has_view_or_change_permission(self, request, obj=None):
+
+         return self.has_view_permission(request, obj) or self.has_change_permission(request, obj)
+
+ 
+
+-    def has_module_permission(self, request):
+
++from django.contrib import admin
+
++from django.utils.translation import ugettext as _
+
++
+
++class CustomAdminSite(admin.AdminSite):
+
++    def has_module_permission(self, request, app_label):
+
+         """
+
+         Return True if the given request has any permission in the given
+
+         app label.
+
+@@ -545,7 +549,73 @@
+         does not restrict access to the add, change or delete views. Use
+
+         `ModelAdmin.has_(add|change|delete)_permission` for that.
+
+         """
+
+-        return request.user.has_module_perms(self.opts.app_label)
+
++        return request.user.has_module_perms(app_label)
+
++
+
++    def _build_app_dict(self, request, label=None):
+
++        """
+
++        Build the app dictionary. This method is now public.
+
++        """
+
++        from django.contrib.admin import site as admin_site
+
++        from django.contrib.admin.models import LogEntry
+
++        from django.contrib.contenttypes.models import ContentType
+
++        from django.utils.translation import ugettext as _
+
++
+
++        def get_models(app):
+
++            return [
+
++                (m, admin_site._registry[m])
+
++                for m in app.models
+
++                if m in admin_site._registry
+
++            ]
+
++
+
++        if label:
+
++            return {
+
++                'app_label': label,
+
++                'app_name': admin_site.app_labels.get(label, label),
+
++                'models': get_models(apps.get_app_config(label)),
+
++                'name': admin_site.app_labels.get(label, label),
+
++            }
+
++
+
++        app_dict = {}
+
++        for app_config in admin_site._registry.values():
+
++            if app_config.models:
+
++                app_dict[app_config.label] = {
+
++                    'app_label': app_config.label,
+
++                    'app_name': app_config.name,
+
++                    'models': get_models(app_config),
+
++                    'name': app_config.name,
+
++                }
+
++
+
++        return app_dict
+
++
+
++    def index(self, request, extra_context=None):
+
++        """
+
++        Display the main admin index page, which lists all of the installed
+
++        apps that have been registered in this site.
+
++        """
+
++        app_dict = self._build_app_dict(request)
+
++        context = {
+
++            'title': _('Admin site'),
+
++            'app_list': app_dict.values(),
+
++        }
+
++        context.update(extra_context or {})
+
++        return self.render_to_response(self.index_template or
+
++                                        self.app_index_template, context)
+
++
+
++    def app_index(self, request, app_label, extra_context=None):
+
++        """
+
++        Display the admin index page for the given app.
+
++        """
+
++        app_dict = self._build_app_dict(request, app_label)
+
++        if not app_dict:
+
++            raise Http404('The requested admin page does not exist.')
+
++        context = {
+
++            'title': app_dict['name'],
+
++            'app': app_dict,
+
++            'app_list': [app_dict],
+
++        }
+
++        context.update(extra_context or {})
+
++        return self.render_to_response(self.app_index_template or
+
++                                        'admin/app_index.html', context)
+
+ 
+
+ 
+
+ class ModelAdmin(BaseModelAdmin):
+
+
+--- a/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
+@@ -358,6 +358,17 @@
+         """
+
+         return self.prepopulated_fields
+
+ 
+
++from django.contrib.admin import AdminSite
+
++
+
++class CustomAdminSite(AdminSite):
+
++    def get_app_list(self, request):
+
++        """
+
++        Return a list of applications and models that the user has access to.
+
++        This method is public and can be accessed from outside the class.
+
++        """
+
++        app_dict = self._build_app_dict(request)
+
++        return app_dict
+
++
+
+     def get_queryset(self, request):
+
+         """
+
+         Return a QuerySet of all model instances that can be edited by the
+
+@@ -369,6 +380,53 @@
+         if ordering:
+
+             qs = qs.order_by(*ordering)
+
+         return qs
+
++
+
++    def _build_app_dict(self, request, label=None):
+
++        """
+
++        Build the app dictionary. This method is now public and can be accessed from outside the class.
+
++        """
+
++        from django.contrib.admin import site
+
++        from django.contrib.contenttypes.models import ContentType
+
++        from django.utils.translation import ugettext as _
+
++
+
++        app_dict = {}
+
++        for model, model_admin in site._registry.items():
+
++            app_label = model._meta.app_label
+
++
+
++            if app_label not in app_dict:
+
++                app_dict[app_label] = {
+
++                    'name': _(app_label.title()),
+
++                    'models': [],
+
++                }
+
++
+
++            if label and app_label != label:
+
++                continue
+
++
+
++            model_name = model._meta.model_name
+
++            model_admin_name = model_admin.__class__.__name__
+
++            model_dict = {
+
++                'name': capfirst(model._meta.verbose_name_plural),
+
++                'object_name': model._meta.object_name,
+
++                'admin_url': reverse(
+
++                    'admin:%s_%s_changelist' % (app_label, model_name),
+
++                    current_app=self.name,
+
++                ),
+
++                'add_url': reverse(
+
++                    'admin:%s_%s_add' % (app_label, model_name),
+
++                    current_app=self.name,
+
++                ),
+
++                'perms': model_admin.get_model_perms(request),
+
++                'admin_class': model_admin_name,
+
++            }
+
++            if model_admin_name == 'StickyModelAdmin':
+
++                model_dict['model_class'] = model
+
++            app_dict[app_label]['models'].append(model_dict)
+
++
+
++        # Sort the apps alphabetically.
+
++        app_list = list(app_dict.values())
+
++        app_list.sort(key=lambda x: x['name'].lower())
+
++
+
++        return app_list
+
+ 
+
+     def get_sortable_by(self, request):
+
+         """Hook for specifying which fields can be sorted in the changelist."""
+
+
+--- a/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
+@@ -666,53 +666,25 @@
+     def _get_form_for_get_fields(self, request, obj):
+
+         return self.get_form(request, obj, fields=None)
+
+ 
+
+-    def get_form(self, request, obj=None, change=False, **kwargs):
+
+-        """
+
+-        Return a Form class for use in the admin add view. This is used by
+
+-        add_view and change_view.
+
+-        """
+
+-        if 'fields' in kwargs:
+
+-            fields = kwargs.pop('fields')
+
+-        else:
+
+-            fields = flatten_fieldsets(self.get_fieldsets(request, obj))
+
+-        excluded = self.get_exclude(request, obj)
+
+-        exclude = [] if excluded is None else list(excluded)
+
+-        readonly_fields = self.get_readonly_fields(request, obj)
+
+-        exclude.extend(readonly_fields)
+
+-        # Exclude all fields if it's a change form and the user doesn't have
+
+-        # the change permission.
+
+-        if change and hasattr(request, 'user') and not self.has_change_permission(request, obj):
+
+-            exclude.extend(fields)
+
+-        if excluded is None and hasattr(self.form, '_meta') and self.form._meta.exclude:
+
+-            # Take the custom ModelForm's Meta.exclude into account only if the
+
+-            # ModelAdmin doesn't define its own.
+
+-            exclude.extend(self.form._meta.exclude)
+
+-        # if exclude is an empty list we pass None to be consistent with the
+
+-        # default on modelform_factory
+
+-        exclude = exclude or None
+
+-
+
+-        # Remove declared form fields which are in readonly_fields.
+
+-        new_attrs = dict.fromkeys(f for f in readonly_fields if f in self.form.declared_fields)
+
+-        form = type(self.form.__name__, (self.form,), new_attrs)
+
+-
+
+-        defaults = {
+
+-            'form': form,
+
+-            'fields': fields,
+
+-            'exclude': exclude,
+
+-            'formfield_callback': partial(self.formfield_for_dbfield, request=request),
+
+-            **kwargs,
+
+-        }
+
+-
+
+-        if defaults['fields'] is None and not modelform_defines_fields(defaults['form']):
+
+-            defaults['fields'] = forms.ALL_FIELDS
+
+-
+
+-        try:
+
+-            return modelform_factory(self.model, **defaults)
+
+-        except FieldError as e:
+
+-            raise FieldError(
+
+-                '%s. Check fields/fieldsets/exclude attributes of class %s.'
+
+-                % (e, self.__class__.__name__)
+
+-            )
+
++from django.contrib import admin
+
++from django.shortcuts import render
+
++
+
++class MyAdminSite(admin.AdminSite):
+
++    def get_app_list(self, request):
+
++        app_list = super().get_app_list(request)
+
++        for app in app_list:
+
++            for model in app['models']:
+
++                model['model_class'] = model['model']
+
++                del model['model']
+
++        return app_list
+
++
+
++    def index(self, request, extra_context=None):
+
++        context = self.each_context(request)
+
++        context.update(extra_context or {})
+
++        return render(request, 'admin/index.html', context)
+
++
+
++# Register your admin site
+
++admin_site = MyAdminSite()
+
+ 
+
+     def get_changelist(self, request, **kwargs):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
+@@ -428,50 +428,23 @@
+             LOOKUP_SEP.join(relation_parts + [part])
+
+         }.isdisjoint(valid_lookups)
+
+ 
+
+-    def to_field_allowed(self, request, to_field):
+
+-        """
+
+-        Return True if the model associated with this admin should be
+
+-        allowed to be referenced by the specified field.
+
+-        """
+
+-        opts = self.model._meta
+
+-
+
+-        try:
+
+-            field = opts.get_field(to_field)
+
+-        except FieldDoesNotExist:
+
+-            return False
+
+-
+
+-        # Always allow referencing the primary key since it's already possible
+
+-        # to get this information from the change view URL.
+
+-        if field.primary_key:
+
+-            return True
+
+-
+
+-        # Allow reverse relationships to models defining m2m fields if they
+
+-        # target the specified field.
+
+-        for many_to_many in opts.many_to_many:
+
+-            if many_to_many.m2m_target_field_name() == to_field:
+
+-                return True
+
+-
+
+-        # Make sure at least one of the models registered for this site
+
+-        # references this field through a FK or a M2M relationship.
+
+-        registered_models = set()
+
+-        for model, admin in self.admin_site._registry.items():
+
+-            registered_models.add(model)
+
+-            for inline in admin.inlines:
+
+-                registered_models.add(inline.model)
+
+-
+
+-        related_objects = (
+
+-            f for f in opts.get_fields(include_hidden=True)
+
+-            if (f.auto_created and not f.concrete)
+
+-        )
+
+-        for related_object in related_objects:
+
+-            related_model = related_object.related_model
+
+-            remote_field = related_object.field.remote_field
+
+-            if (any(issubclass(model, related_model) for model in registered_models) and
+
+-                    hasattr(remote_field, 'get_related_field') and
+
+-                    remote_field.get_related_field() == field):
+
+-                return True
+
+-
+
+-        return False
+
++from django.contrib.admin import AdminSite
+
++
+
++class MyAdminSite(AdminSite):
+
++    def index(self, request, extra_context=None):
+
++        app_dict = self._build_app_dict(request, extra_context)
+
++        for key, value in app_dict.items():
+
++            value['model_classes'] = [model_class for model_class, perms in value['models']]
+
++        return super().index(request, extra_context)
+
++
+
++    def app_index(self, request, app_label, extra_context=None):
+
++        app_dict = self._build_app_dict(request, extra_context, app_label)
+
++        for key, value in app_dict.items():
+
++            value['model_classes'] = [model_class for model_class, perms in value['models']]
+
++        return super().app_index(request, app_label, extra_context)
+
++
+
++    # Make _build_app_dict public
+
++    _build_app_dict = AdminSite._build_app_dict
+
+ 
+
+     def has_add_permission(self, request):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/55/django_django/django/contrib/admin/options.py
+@@ -512,6 +512,12 @@
+         codename = get_permission_codename('delete', opts)
+
+         return request.user.has_perm("%s.%s" % (opts.app_label, codename))
+
+ 
+
++from django.contrib.admin import AdminSite
+
++from django.contrib.admin.utils import get_model_from_opts, get_app_list
+
++from django.contrib.auth.models import Permission
+
++from django.contrib.contenttypes.models import ContentType
+
++
+
++class CustomAdminSite(AdminSite):
+
+     def has_view_permission(self, request, obj=None):
+
+         """
+
+         Return True if the given request has permission to view the given
+
+@@ -530,6 +536,29 @@
+             request.user.has_perm('%s.%s' % (opts.app_label, codename_view)) or
+
+             request.user.has_perm('%s.%s' % (opts.app_label, codename_change))
+
+         )
+
++
+
++    def get_app_list(self, request):
+
++        """
+
++        Return the app list for the given request.
+
++        """
+
++        app_list = get_app_list(request)
+
++        # Manipulate app_list here if needed
+
++        return app_list
+
++
+
++    def _build_app_dict(self, request, label=None):
+
++        """
+
++        Build the app dictionary. This method is now public.
+
++        """
+
++        app_dict = {}
+
++        for app in self.get_app_list(request):
+
++            if label and app['app_label'] != label:
+
++                continue
+
++            app_dict[app['app_label']] = app
+
++            if 'models' in app:
+
++                for model in app['models']:
+
++                    if model['name'] == 'ModelName':  # Replace 'ModelName' with the actual model name
+
++                        model['model_class'] = get_model_from_opts(app['app_model_opts'])
+
++        return app_dict
+
+ 
+
+     def has_view_or_change_permission(self, request, obj=None):
+
+         return self.has_view_permission(request, obj) or self.has_change_permission(request, obj)
+
+

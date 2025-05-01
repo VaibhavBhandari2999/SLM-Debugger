@@ -1,0 +1,98 @@
+--- a/decoupled/60/0.8_0.2/182/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/182/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -169,7 +169,26 @@
+             state.trace(f"found cached rewritten pyc for {fn}")
+
+         exec(co, module.__dict__)
+
+ 
+
+-    def _early_rewrite_bailout(self, name: str, state: "AssertionState") -> bool:
+
++import os
+
++import sys
+
++from pathlib import PurePath
+
++from fnmatch import fnmatch
+
++from pytest import skip
+
++from _pytest.mark import MarkGenerator
+
++
+
++class AssertionState:
+
++    def trace(self, message):
+
++        print(message)
+
++
+
++class AssertionRewriter:
+
++    def __init__(self, session, fnpats, _is_marked_for_rewrite):
+
++        self.session = session
+
++        self.fnpats = fnpats
+
++        self._is_marked_for_rewrite = _is_marked_for_rewrite
+
++        self._basenames_to_check_rewrite = set()
+
++        self._session_paths_checked = False
+
++
+
++    def _early_rewrite_bailout(self, name: str, state: AssertionState) -> bool:
+
+         """A fast way to get out of rewriting modules.
+
+ 
+
+         Profiling has shown that the call to PathFinder.find_spec (inside of
+
+@@ -199,7 +218,7 @@
+             # on the name alone because we need to match against the full path
+
+             if os.path.dirname(pat):
+
+                 return False
+
+-            if fnmatch_ex(pat, path):
+
++            if fnmatch(str(path), pat):
+
+                 return False
+
+ 
+
+         if self._is_marked_for_rewrite(name, state):
+
+@@ -207,6 +226,12 @@
+ 
+
+         state.trace(f"early skip of rewriting module: {name}")
+
+         return True
+
++
+
++    @staticmethod
+
++    def skip_module(reason: str):
+
++        """Skip the current module if the Python version is less than 3.8."""
+
++        if sys.version_info < (3, 8):
+
++            skip(reason=reason, allow_module_level=True)
+
+ 
+
+     def _should_rewrite(self, name: str, fn: str, state: "AssertionState") -> bool:
+
+         # always rewrite conftest files

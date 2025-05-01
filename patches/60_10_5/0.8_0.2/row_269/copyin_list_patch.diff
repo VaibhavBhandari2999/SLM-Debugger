@@ -1,0 +1,172 @@
+--- a/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/dense.py
+@@ -438,42 +438,49 @@
+         for k in range(0, self.rows):
+
+             self[k, i], self[k, j] = self[k, j], self[k, i]
+
+ 
+
+-    def copyin_list(self, key, value):
+
+-        """Copy in elements from a list.
+
+-
+
+-        Parameters
+
+-        ==========
+
+-
+
+-        key : slice
+
+-            The section of this matrix to replace.
+
+-        value : iterable
+
+-            The iterable to copy values from.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import eye
+
+-        >>> I = eye(3)
+
+-        >>> I[:2, 0] = [1, 2] # col
+
+-        >>> I
+
+-        Matrix([
+
+-        [1, 0, 0],
+
+-        [2, 1, 0],
+
+-        [0, 0, 1]])
+
+-        >>> I[1, :2] = [[3, 4]]
+
+-        >>> I
+
+-        Matrix([
+
+-        [1, 0, 0],
+
+-        [3, 4, 0],
+
+-        [0, 0, 1]])
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        copyin_matrix
+
+-        """
+
+-        if not is_sequence(value):
+
+-            raise TypeError("`value` must be an ordered iterable, not %s." % type(value))
+
++def copyin_list(self, key, value):
+
++    """Copy in elements from a list.
+
++
+
++    Parameters
+
++    ==========
+
++
+
++    key : slice
+
++        The section of this matrix to replace.
+
++    value : iterable
+
++        The iterable to copy values from.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.matrices import eye
+
++    >>> I = eye(3)
+
++    >>> I[:2, 0] = [1, 2] # col
+
++    >>> I
+
++    Matrix([
+
++    [1, 0, 0],
+
++    [2, 1, 0],
+
++    [0, 0, 1]])
+
++    >>> I[1, :2] = [[3, 4]]
+
++    >>> I
+
++    Matrix([
+
++    [1, 0, 0],
+
++    [3, 4, 0],
+
++    [0, 0, 1]])
+
++
+
++    See Also
+
++    ========
+
++
+
++    copyin_matrix
+
++    """
+
++    if not is_sequence(value):
+
++        raise TypeError("`value` must be an ordered iterable, not %s." % type(value))
+
++
+
++    # Check if there is only one block
+
++    if len(self.blocks) == 1:
+
++        # If there is only one block, convert it directly to a Matrix
+
++        return self.blocks[0].copyin_matrix(key, Matrix(value))
+
++    else:
+
++        # If there are multiple blocks, proceed with the original logic
+
+         return self.copyin_matrix(key, Matrix(value))
+
+ 
+
+     def copyin_matrix(self, key, value):

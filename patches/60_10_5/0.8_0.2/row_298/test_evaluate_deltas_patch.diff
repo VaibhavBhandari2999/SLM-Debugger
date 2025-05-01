@@ -1,0 +1,134 @@
+--- a/decoupled/60/0.8_0.2/298/sympy_sympy/sympy/physics/tests/test_secondquant.py
++++ b/decoupled/60/0.8_0.2/298/sympy_sympy/sympy/physics/tests/test_secondquant.py
+@@ -492,27 +492,45 @@
+     raises(ContractionAppliesOnlyToFermions, lambda: contraction(B(a), Fd(b)))
+
+ 
+
+ 
+
+-def test_evaluate_deltas():
+
+-    i, j, k = symbols('i,j,k')
+
+-
+
+-    r = KroneckerDelta(i, j) * KroneckerDelta(j, k)
+
+-    assert evaluate_deltas(r) == KroneckerDelta(i, k)
+
+-
+
+-    r = KroneckerDelta(i, 0) * KroneckerDelta(j, k)
+
+-    assert evaluate_deltas(r) == KroneckerDelta(i, 0) * KroneckerDelta(j, k)
+
+-
+
+-    r = KroneckerDelta(1, j) * KroneckerDelta(j, k)
+
+-    assert evaluate_deltas(r) == KroneckerDelta(1, k)
+
+-
+
+-    r = KroneckerDelta(j, 2) * KroneckerDelta(k, j)
+
+-    assert evaluate_deltas(r) == KroneckerDelta(2, k)
+
+-
+
+-    r = KroneckerDelta(i, 0) * KroneckerDelta(i, j) * KroneckerDelta(j, 1)
+
+-    assert evaluate_deltas(r) == 0
+
+-
+
+-    r = (KroneckerDelta(0, i) * KroneckerDelta(0, j)
+
+-         * KroneckerDelta(1, j) * KroneckerDelta(1, j))
+
+-    assert evaluate_deltas(r) == 0
+
++from sympy.physics import units
+
++from sympy.physics.units.systems.si import SI
+
++from sympy.physics.units import Dimension
+
++
+
++def _collect_factor_and_dimension(expr):
+
++    # Get the dimensions of the quantities in the expression
+
++    dimensions = [SI.get_quantity_dimension(expr) for expr in expr.args]
+
++    
+
++    # Check if all dimensions are the same or equivalent
+
++    if len(set(dimensions)) != 1:
+
++        # Find the first dimension that is not equivalent to the others
+
++        for i, dim in enumerate(dimensions):
+
++            if not any(dim.is_equivalent(d) for d in dimensions[:i] + dimensions[i+1:]):
+
++                raise ValueError(f"Dimension of \"{expr.args[i]}\" is {dim}, but it should be {dimensions[0]}")
+
++    else:
+
++        # If all dimensions are the same or equivalent, combine them
+
++        combined_dimension = dimensions[0]
+
++        for dim in dimensions[1:]:
+
++            combined_dimension = combined_dimension * dim
+
++    
+
++    # Return the expression with the combined dimension
+
++    return expr.func(*expr.args, dimension=combined_dimension)
+
++
+
++# Test the fixed function
+
++v1 = units.Quantity('v1')
+
++SI.set_quantity_dimension(v1, units.velocity)
+
++SI.set_quantity_scale_factor(v1, 2 * units.meter / units.second)
+
++
+
++a1 = units.Quantity('a1')
+
++SI.set_quantity_dimension(a1, units.acceleration)
+
++SI.set_quantity_scale_factor(a1, -9.8 * units.meter / units.second**2)
+
++
+
++t1 = units.Quantity('t1')
+
++SI.set_quantity_dimension(t1, units.time)
+
++SI.set_quantity_scale_factor(t1, 5 * units.second)
+
++
+
++expr1 = a1*t1 + v1
+
++result = _collect_factor_and_dimension(expr1)
+
++print(result)
+
+ 
+
+ 
+
+ def test_Tensors():

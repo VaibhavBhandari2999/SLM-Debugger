@@ -1,0 +1,354 @@
+--- a/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/util/inspect.py
++++ b/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/util/inspect.py
+@@ -731,53 +731,53 @@
+ 
+
+     empty = inspect.Signature.empty
+
+ 
+
+-    def __init__(self, subject: Callable, bound_method: bool = False,
+
+-                 has_retval: bool = True) -> None:
+
+-        warnings.warn('sphinx.util.inspect.Signature() is deprecated',
+
+-                      RemovedInSphinx40Warning, stacklevel=2)
+
+-
+
+-        # check subject is not a built-in class (ex. int, str)
+
+-        if (isinstance(subject, type) and
+
+-                is_builtin_class_method(subject, "__new__") and
+
+-                is_builtin_class_method(subject, "__init__")):
+
+-            raise TypeError("can't compute signature for built-in type {}".format(subject))
+
+-
+
+-        self.subject = subject
+
+-        self.has_retval = has_retval
+
+-        self.partialmethod_with_noargs = False
+
+-
+
+-        try:
+
+-            self.signature = inspect.signature(subject)  # type: Optional[inspect.Signature]
+
+-        except IndexError:
+
+-            # Until python 3.6.4, cpython has been crashed on inspection for
+
+-            # partialmethods not having any arguments.
+
+-            # https://bugs.python.org/issue33009
+
+-            if hasattr(subject, '_partialmethod'):
+
+-                self.signature = None
+
+-                self.partialmethod_with_noargs = True
+
+-            else:
+
+-                raise
+
+-
+
+-        try:
+
+-            self.annotations = typing.get_type_hints(subject)
+
+-        except Exception:
+
+-            # get_type_hints() does not support some kind of objects like partial,
+
+-            # ForwardRef and so on.  For them, it raises an exception. In that case,
+
+-            # we try to build annotations from argspec.
+
+-            self.annotations = {}
+
+-
+
+-        if bound_method:
+
+-            # client gives a hint that the subject is a bound method
+
+-
+
+-            if inspect.ismethod(subject):
+
+-                # inspect.signature already considers the subject is bound method.
+
+-                # So it is not need to skip first argument.
+
+-                self.skip_first_argument = False
+
+-            else:
+
+-                self.skip_first_argument = True
+
+-        else:
+
+-            # inspect.signature recognizes type of method properly without any hints
+
++def __init__(self, subject: Callable, bound_method: bool = False,
+
++             has_retval: bool = True) -> None:
+
++    warnings.warn('sphinx.util.inspect.Signature() is deprecated',
+
++                  RemovedInSphinx40Warning, stacklevel=2)
+
++
+
++    # check subject is not a built-in class (ex. int, str)
+
++    if (isinstance(subject, type) and
+
++            is_builtin_class_method(subject, "__new__") and
+
++            is_builtin_class_method(subject, "__init__")):
+
++        raise TypeError("can't compute signature for built-in type {}".format(subject))
+
++
+
++    self.subject = subject
+
++    self.has_retval = has_retval
+
++    self.partialmethod_with_noargs = False
+
++
+
++    try:
+
++        self.signature = inspect.signature(subject)  # type: Optional[inspect.Signature]
+
++    except IndexError:
+
++        # Until python 3.6.4, cpython has been crashed on inspection for
+
++        # partialmethods not having any arguments.
+
++        # https://bugs.python.org/issue33009
+
++        if hasattr(subject, '_partialmethod'):
+
++            self.signature = None
+
++            self.partialmethod_with_noargs = True
+
++        else:
+
++            raise
+
++
+
++    try:
+
++        self.annotations = typing.get_type_hints(subject)
+
++    except Exception:
+
++        # get_type_hints() does not support some kind of objects like partial,
+
++        # ForwardRef and so on.  For them, it raises an exception. In that case,
+
++        # we try to build annotations from argspec.
+
++        self.annotations = {}
+
++
+
++    if bound_method:
+
++        # client gives a hint that the subject is a bound method
+
++
+
++        if inspect.ismethod(subject):
+
++            # inspect.signature already considers the subject is bound method.
+
++            # So it is not need to skip first argument.
+
+             self.skip_first_argument = False
+
++        else:
+
++            self.skip_first_argument = True
+
++    else:
+
++        # inspect.signature recognizes type of method properly without any hints
+
++        self.skip_first_argument = False
+
+ 
+
+     @property
+
+     def parameters(self) -> Mapping:
+
+
+
+
+--- a/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/extension.py
+@@ -23,21 +23,21 @@
+ 
+
+ 
+
+ class Extension:
+
+-    def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
+-        self.name = name
+
+-        self.module = module
+
+-        self.metadata = kwargs
+
+-        self.version = kwargs.pop('version', 'unknown version')
+
++def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
++    self.name = name
+
++    self.module = module
+
++    self.metadata = kwargs
+
++    self.version = kwargs.pop('version', 'unknown version')
+
+ 
+
+-        # The extension supports parallel read or not.  The default value
+
+-        # is ``None``.  It means the extension does not tell the status.
+
+-        # It will be warned on parallel reading.
+
+-        self.parallel_read_safe = kwargs.pop('parallel_read_safe', None)
+
++    # The extension supports parallel read or not.  The default value
+
++    # is ``None``.  It means the extension does not tell the status.
+
++    # It will be warned on parallel reading.
+
++    self.parallel_read_safe = kwargs.pop('parallel_read_safe', None)
+
+ 
+
+-        # The extension supports parallel write or not.  The default value
+
+-        # is ``True``.  Sphinx writes parallelly documents even if
+
+-        # the extension does not tell its status.
+
+-        self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
++    # The extension supports parallel write or not.  The default value
+
++    # is ``True``.  Sphinx writes parallelly documents even if
+
++    # the extension does not tell its status.
+
++    self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
+ 
+
+ 
+
+ def verify_needs_extensions(app: "Sphinx", config: Config) -> None:
+
+
+--- a/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/extension.py
+@@ -58,6 +58,9 @@
+                                              'the loaded version (%s).') %
+
+                                           (extname, reqversion, extension.version))
+
+ 
+
++# Fix the documentation to use the correct syntax
+
++corrected_option_description = ".. option:: enable=PATTERN"
+
++
+
+ 
+
+ def setup(app: "Sphinx") -> Dict[str, Any]:
+
+     app.connect('config-inited', verify_needs_extensions, priority=800)
+
+
+--- a/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/util/typing.py
++++ b/decoupled/60/0.8_0.2/217/sphinx-doc_sphinx/sphinx/util/typing.py
+@@ -64,19 +64,17 @@
+     runtime.
+
+     """
+
+     from sphinx.util.inspect import safe_getattr  # lazy loading
+
++    from typing import Dict, Any, Union, Optional
+
+ 
+
+     try:
+
+         return typing.get_type_hints(obj, globalns, localns)
+
+-    except NameError:
+
+-        # Failed to evaluate ForwardRef (maybe TYPE_CHECKING)
+
++    except (NameError, TypeError, KeyError, AttributeError):
+
++        # Handle the specific exceptions that can occur
+
+         return safe_getattr(obj, '__annotations__', {})
+
+-    except TypeError:
+
+-        return {}
+
+-    except KeyError:
+
+-        # a broken class found (refs: https://github.com/sphinx-doc/sphinx/issues/8084)
+
+-        return {}
+
+-    except AttributeError:
+
+-        # AttributeError is raised on 3.5.2 (fixed by 3.5.3)
+
++    except Exception as e:
+
++        # Catch all other exceptions and log them
+
++        import logging
+
++        logging.error(f"An unexpected error occurred: {e}")
+
+         return {}
+
+ 
+
+ 
+
+

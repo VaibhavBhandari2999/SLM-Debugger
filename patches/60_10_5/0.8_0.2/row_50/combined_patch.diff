@@ -1,0 +1,782 @@
+--- a/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
++++ b/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
+@@ -50,69 +50,36 @@
+         self.sender_receivers_cache = weakref.WeakKeyDictionary() if use_caching else {}
+
+         self._dead_receivers = False
+
+ 
+
+-    def connect(self, receiver, sender=None, weak=True, dispatch_uid=None):
+
+-        """
+
+-        Connect receiver to sender for signal.
+
+-
+
+-        Arguments:
+
+-
+
+-            receiver
+
+-                A function or an instance method which is to receive signals.
+
+-                Receivers must be hashable objects.
+
+-
+
+-                If weak is True, then receiver must be weak referenceable.
+
+-
+
+-                Receivers must be able to accept keyword arguments.
+
+-
+
+-                If a receiver is connected with a dispatch_uid argument, it
+
+-                will not be added if another receiver was already connected
+
+-                with that dispatch_uid.
+
+-
+
+-            sender
+
+-                The sender to which the receiver should respond. Must either be
+
+-                a Python object, or None to receive events from any sender.
+
+-
+
+-            weak
+
+-                Whether to use weak references to the receiver. By default, the
+
+-                module will attempt to use weak references to the receiver
+
+-                objects. If this parameter is false, then strong references will
+
+-                be used.
+
+-
+
+-            dispatch_uid
+
+-                An identifier used to uniquely identify a particular instance of
+
+-                a receiver. This will usually be a string, though it may be
+
+-                anything hashable.
+
+-        """
+
+-        from django.conf import settings
+
+-
+
+-        # If DEBUG is on, check that we got a good receiver
+
+-        if settings.configured and settings.DEBUG:
+
+-            assert callable(receiver), "Signal receivers must be callable."
+
+-
+
+-            # Check for **kwargs
+
+-            if not func_accepts_kwargs(receiver):
+
+-                raise ValueError("Signal receivers must accept keyword arguments (**kwargs).")
+
+-
+
+-        if dispatch_uid:
+
+-            lookup_key = (dispatch_uid, _make_id(sender))
+
+-        else:
+
+-            lookup_key = (_make_id(receiver), _make_id(sender))
+
+-
+
+-        if weak:
+
+-            ref = weakref.ref
+
+-            receiver_object = receiver
+
+-            # Check for bound methods
+
+-            if hasattr(receiver, '__self__') and hasattr(receiver, '__func__'):
+
+-                ref = weakref.WeakMethod
+
+-                receiver_object = receiver.__self__
+
+-            receiver = ref(receiver)
+
+-            weakref.finalize(receiver_object, self._remove_receiver)
+
+-
+
+-        with self.lock:
+
+-            self._clear_dead_receivers()
+
+-            if not any(r_key == lookup_key for r_key, _ in self.receivers):
+
+-                self.receivers.append((lookup_key, receiver))
+
+-            self.sender_receivers_cache.clear()
+
++from django.contrib.syndication.views import add_item
+
++
+
++def add_item(feed, title, link, description, pubdate, author_email, author_name, author_link, comments=None, **kwargs):
+
++    """
+
++    Add an item to the feed.
+
++
+
++    Arguments:
+
++        feed: The feed object to which the item will be added.
+
++        title: The title of the item.
+
++        link: The URL of the item.
+
++        description: The description of the item.
+
++        pubdate: The publication date of the item.
+
++        author_email: The email of the author of the item.
+
++        author_name: The name of the author of the item.
+
++        author_link: The URL of the author of the item.
+
++        comments: The URL of the comments for the item.
+
++        **kwargs: Additional keyword arguments to be passed to the feed's add_item method.
+
++    """
+
++    # Add the item to the feed with the provided arguments
+
++    feed.add_item(
+
++        title=title,
+
++        link=link,
+
++        description=description,
+
++        pubdate=pubdate,
+
++        author_email=author_email,
+
++        author_name=author_name,
+
++        author_link=author_link,
+
++        comments=comments,
+
++        **kwargs
+
++    )
+
+ 
+
+     def disconnect(self, receiver=None, sender=None, dispatch_uid=None):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
++++ b/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
+@@ -153,31 +153,43 @@
+     def has_listeners(self, sender=None):
+
+         return bool(self._live_receivers(sender))
+
+ 
+
+-    def send(self, sender, **named):
+
+-        """
+
+-        Send signal from sender to all connected receivers.
+
+-
+
+-        If any receiver raises an error, the error propagates back through send,
+
+-        terminating the dispatch loop. So it's possible that all receivers
+
+-        won't be called if an error is raised.
+
+-
+
+-        Arguments:
+
+-
+
+-            sender
+
+-                The sender of the signal. Either a specific object or None.
+
+-
+
+-            named
+
+-                Named arguments which will be passed to receivers.
+
+-
+
+-        Return a list of tuple pairs [(receiver, response), ... ].
+
+-        """
+
+-        if not self.receivers or self.sender_receivers_cache.get(sender) is NO_RECEIVERS:
+
+-            return []
+
+-
+
+-        return [
+
+-            (receiver, receiver(signal=self, sender=sender, **named))
+
+-            for receiver in self._live_receivers(sender)
+
+-        ]
+
++def add_item(self, title, link, description, pubdate, comments=None, author=None, author_email=None, author_link=None, categories=None, unique_id=None, unique_id_is_permalink=None, enclosure=None, source=None, item_extra_kwargs=None):
+
++    """
+
++    Add an item to the feed.
+
++
+
++    :param title: The title of the item.
+
++    :param link: The link to the item.
+
++    :param description: The description of the item.
+
++    :param pubdate: The publication date of the item.
+
++    :param comments: The URL of the comments for the item.
+
++    :param author: The author of the item.
+
++    :param author_email: The email of the author.
+
++    :param author_link: The link to the author.
+
++    :param categories: A list of categories for the item.
+
++    :param unique_id: The unique identifier for the item.
+
++    :param unique_id_is_permalink: Whether the unique_id is a permalink.
+
++    :param enclosure: An enclosure for the item.
+
++    :param source: The source of the item.
+
++    :param item_extra_kwargs: Extra keyword arguments for the item.
+
++    """
+
++    item = {
+
++        'title': title,
+
++        'link': link,
+
++        'description': description,
+
++        'pubdate': pubdate,
+
++        'author': author,
+
++        'author_email': author_email,
+
++        'author_link': author_link,
+
++        'categories': categories,
+
++        'unique_id': unique_id,
+
++        'unique_id_is_permalink': unique_id_is_permalink,
+
++        'enclosure': enclosure,
+
++        'source': source,
+
++        'comments': comments,
+
++    }
+
++    if item_extra_kwargs:
+
++        item.update(item_extra_kwargs)
+
++    self.items.append(item)
+
+ 
+
+     def send_robust(self, sender, **named):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
++++ b/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
+@@ -27,28 +27,42 @@
+         receivers
+
+             { receiverkey (id) : weakref(receiver) }
+
+     """
+
+-    def __init__(self, providing_args=None, use_caching=False):
+
+-        """
+
+-        Create a new signal.
+
+-        """
+
+-        self.receivers = []
+
+-        if providing_args is not None:
+
+-            warnings.warn(
+
+-                'The providing_args argument is deprecated. As it is purely '
+
+-                'documentational, it has no replacement. If you rely on this '
+
+-                'argument as documentation, you can move the text to a code '
+
+-                'comment or docstring.',
+
+-                RemovedInDjango40Warning, stacklevel=2,
+
+-            )
+
+-        self.lock = threading.Lock()
+
+-        self.use_caching = use_caching
+
+-        # For convenience we create empty caches even if they are not used.
+
+-        # A note about caching: if use_caching is defined, then for each
+
+-        # distinct sender we cache the receivers that sender has in
+
+-        # 'sender_receivers_cache'. The cache is cleaned when .connect() or
+
+-        # .disconnect() is called and populated on send().
+
+-        self.sender_receivers_cache = weakref.WeakKeyDictionary() if use_caching else {}
+
+-        self._dead_receivers = False
+
++def add_item(self, title, link, description, pubdate, comments=None, author=None, author_email=None, author_link=None, categories=None, unique_id=None, unique_id_is_permalink=False, enclosure=None, source=None, extra_kwargs=None):
+
++    """
+
++    Add an item to the feed.
+
++    
+
++    :param comments: A URL to the comments for this item.
+
++    """
+
++    item = {
+
++        'title': title,
+
++        'link': link,
+
++        'description': description,
+
++        'pubdate': pubdate,
+
++        'unique_id': unique_id,
+
++        'unique_id_is_permalink': unique_id_is_permalink,
+
++        'enclosure': enclosure,
+
++        'source': source,
+
++    }
+
++    
+
++    if comments:
+
++        item['comments'] = comments
+
++    
+
++    if author:
+
++        item['author'] = author
+
++    
+
++    if author_email:
+
++        item['author_email'] = author_email
+
++    
+
++    if author_link:
+
++        item['author_link'] = author_link
+
++    
+
++    if categories:
+
++        item['categories'] = categories
+
++    
+
++    if extra_kwargs:
+
++        item.update(extra_kwargs)
+
++    
+
++    self.items.append(item)
+
+ 
+
+     def connect(self, receiver, sender=None, weak=True, dispatch_uid=None):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/50/django_django/tests/contenttypes_tests/test_views.py
++++ b/decoupled/60/0.8_0.2/50/django_django/tests/contenttypes_tests/test_views.py
+@@ -122,48 +122,37 @@
+         self.assertRedirects(response, expected_url, fetch_redirect_response=False)
+
+ 
+
+     @mock.patch('django.apps.apps.get_model')
+
+-    def test_shortcut_view_with_site_m2m(self, get_model):
+
+-        """
+
+-        When the object has a ManyToManyField to Site, redirect to the current
+
+-        site if it's attached to the object or to the domain of the first site
+
+-        found in the m2m relationship.
+
+-        """
+
+-        get_model.side_effect = lambda *args, **kwargs: MockSite if args[0] == 'sites.Site' else ModelWithM2MToSite
+
++from django.contrib.syndication.views import Feed
+
++from django.utils.feedgenerator import Atom1Feed
+
+ 
+
+-        # get_current_site() will lookup a Site object, so these must match the
+
+-        # domains in the MockSite model.
+
+-        MockSite.objects.bulk_create([
+
+-            MockSite(pk=1, domain='example.com'),
+
+-            MockSite(pk=self.site_2.pk, domain=self.site_2.domain),
+
+-            MockSite(pk=self.site_3.pk, domain=self.site_3.domain),
+
+-        ])
+
+-        ct = ContentType.objects.get_for_model(ModelWithM2MToSite)
+
+-        site_3_obj = ModelWithM2MToSite.objects.create(title='Not Linked to Current Site')
+
+-        site_3_obj.sites.add(MockSite.objects.get(pk=self.site_3.pk))
+
+-        expected_url = 'http://%s%s' % (self.site_3.domain, site_3_obj.get_absolute_url())
+
++class CustomFeed(Feed):
+
++    def item_comments(self, item):
+
++        # Example implementation of item_comments
+
++        return item.comments.all()
+
+ 
+
+-        with self.settings(SITE_ID=self.site_2.pk):
+
+-            # Redirects to the domain of the first Site found in the m2m
+
+-            # relationship (ordering is arbitrary).
+
+-            response = self.client.get('/shortcut/%s/%s/' % (ct.pk, site_3_obj.pk))
+
+-            self.assertRedirects(response, expected_url, fetch_redirect_response=False)
+
++    def add_item(self, item, comments=None):
+
++        # Add the item to the feed with the optional comments
+
++        super().add_item(item, extra_kwargs={'comments': comments})
+
+ 
+
+-        obj_with_sites = ModelWithM2MToSite.objects.create(title='Linked to Current Site')
+
+-        obj_with_sites.sites.set(MockSite.objects.all())
+
+-        shortcut_url = '/shortcut/%s/%s/' % (ct.pk, obj_with_sites.pk)
+
+-        expected_url = 'http://%s%s' % (self.site_2.domain, obj_with_sites.get_absolute_url())
+
++    def items(self):
+
++        # Example items to be included in the feed
+
++        return MyModel.objects.all().order_by('-pub_date')[:10]
+
+ 
+
+-        with self.settings(SITE_ID=self.site_2.pk):
+
+-            # Redirects to the domain of the Site matching the current site's
+
+-            # domain.
+
+-            response = self.client.get(shortcut_url)
+
+-            self.assertRedirects(response, expected_url, fetch_redirect_response=False)
+
++    def item_title(self, item):
+
++        return item.title
+
+ 
+
+-        with self.settings(SITE_ID=None, ALLOWED_HOSTS=[self.site_2.domain]):
+
+-            # Redirects to the domain of the Site matching the request's host
+
+-            # header.
+
+-            response = self.client.get(shortcut_url, SERVER_NAME=self.site_2.domain)
+
+-            self.assertRedirects(response, expected_url, fetch_redirect_response=False)
+
++    def item_description(self, item):
+
++        return item.description
+
++
+
++    def item_link(self, item):
+
++        return item.get_absolute_url()
+
++
+
++    def item_pubdate(self, item):
+
++        return item.pub_date
+
++
+
++    def item_comments(self, item):
+
++        # Example implementation of item_comments
+
++        return item.comments.all()
+
+ 
+
+ 
+
+ class ShortcutViewTests(TestCase):
+
+
+--- a/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
++++ b/decoupled/60/0.8_0.2/50/django_django/django/dispatch/dispatcher.py
+@@ -114,41 +114,41 @@
+                 self.receivers.append((lookup_key, receiver))
+
+             self.sender_receivers_cache.clear()
+
+ 
+
+-    def disconnect(self, receiver=None, sender=None, dispatch_uid=None):
+
+-        """
+
+-        Disconnect receiver from sender for signal.
+
+-
+
+-        If weak references are used, disconnect need not be called. The receiver
+
+-        will be removed from dispatch automatically.
+
+-
+
+-        Arguments:
+
+-
+
+-            receiver
+
+-                The registered receiver to disconnect. May be none if
+
+-                dispatch_uid is specified.
+
+-
+
+-            sender
+
+-                The registered sender to disconnect
+
+-
+
+-            dispatch_uid
+
+-                the unique identifier of the receiver to disconnect
+
+-        """
+
+-        if dispatch_uid:
+
+-            lookup_key = (dispatch_uid, _make_id(sender))
+
+-        else:
+
+-            lookup_key = (_make_id(receiver), _make_id(sender))
+
+-
+
+-        disconnected = False
+
+-        with self.lock:
+
+-            self._clear_dead_receivers()
+
+-            for index in range(len(self.receivers)):
+
+-                (r_key, _) = self.receivers[index]
+
+-                if r_key == lookup_key:
+
+-                    disconnected = True
+
+-                    del self.receivers[index]
+
+-                    break
+
+-            self.sender_receivers_cache.clear()
+
+-        return disconnected
+
++def disconnect(self, receiver=None, sender=None, dispatch_uid=None):
+
++    """
+
++    Disconnect receiver from sender for signal.
+
++
+
++    If weak references are used, disconnect need not be called. The receiver
+
++    will be removed from dispatch automatically.
+
++
+
++    Arguments:
+
++
+
++        receiver
+
++            The registered receiver to disconnect. May be none if
+
++            dispatch_uid is specified.
+
++
+
++        sender
+
++            The registered sender to disconnect
+
++
+
++        dispatch_uid
+
++            the unique identifier of the receiver to disconnect
+
++    """
+
++    if dispatch_uid:
+
++        lookup_key = (dispatch_uid, _make_id(sender))
+
++    else:
+
++        lookup_key = (_make_id(receiver), _make_id(sender))
+
++
+
++    disconnected = False
+
++    with self.lock:
+
++        self._clear_dead_receivers()
+
++        for index in range(len(self.receivers)):
+
++            (r_key, _) = self.receivers[index]
+
++            if r_key == lookup_key:
+
++                disconnected = True
+
++                del self.receivers[index]
+
++                break
+
++        self.sender_receivers_cache.clear()
+
++    return disconnected
+
+ 
+
+     def has_listeners(self, sender=None):
+
+         return bool(self._live_receivers(sender))
+
+

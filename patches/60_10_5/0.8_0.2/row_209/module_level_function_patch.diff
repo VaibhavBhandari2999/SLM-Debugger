@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/209/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -133,8 +133,8 @@
+         True if successful, False otherwise.
+
+ 
+
+         The return type is not optional. The ``Returns`` section may span
+
+-        multiple lines and paragraphs. Following lines should be indented to
+
+-        match the first line of the description.
+
++        multiple lines and paragraphs. Following lines
+
++        should be indented to match the first line of the description.
+
+ 
+
+         The ``Returns`` section supports any reStructuredText formatting,
+
+         including literal blocks::

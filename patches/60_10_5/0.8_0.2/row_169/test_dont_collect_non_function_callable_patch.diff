@@ -1,0 +1,26 @@
+--- a/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/python/collect.py
++++ b/decoupled/60/0.8_0.2/169/pytest-dev_pytest/testing/python/collect.py
+@@ -1208,6 +1208,12 @@
+         ]
+
+     )
+
+ 
+
++    # Unroll the iterable for better reports
+
++    for test_name in ["test_a", "test_real"]:
+
++        test_func = getattr(testdir.module, test_name, None)
+
++        if test_func is None or not callable(test_func):
+
++            assert False, f"Cannot collect '{test_name}' because it is not a function"
+
++
+
+ 
+
+ def test_class_injection_does_not_break_collection(testdir):
+
+     """Tests whether injection during collection time will terminate testing.

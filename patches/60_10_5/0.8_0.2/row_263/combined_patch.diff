@@ -1,0 +1,960 @@
+--- a/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
++++ b/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
+@@ -182,6 +182,9 @@
+         origin = Point([0]*len(self))
+
+         return Point.distance(origin, self)
+
+ 
+
++from sympy import Point, simplify, GeometryError
+
++
+
++class Point(Point):
+
+     def __add__(self, other):
+
+         """Add other to self by incrementing self's coordinates by
+
+         those of other.
+
+@@ -213,11 +216,24 @@
+         sympy.geometry.point.Point.translate
+
+ 
+
+         """
+
+-        try:
+
+-            s, o = Point._normalize_dimension(self, Point(other, evaluate=False))
+
+-        except TypeError:
+
++        if isinstance(other, Point):
+
++            s, o = Point._normalize_dimension(self, other)
+
++        elif isinstance(other, (int, float, sympy.Float)):
+
++            s = [self[i] + other for i in range(len(self))]
+
++            o = None
+
++        elif isinstance(other, sympy.Mul):
+
++            factor, point = other.as_two_terms()
+
++            if isinstance(point, Point):
+
++                s, o = Point._normalize_dimension(self, point)
+
++                s = [s[i] + factor * s[i] for i in range(len(s))]
+
++                o = None
+
++            else:
+
++                raise GeometryError("Don't know how to add {} and a Point object".format(other))
+
++        else:
+
+             raise GeometryError("Don't know how to add {} and a Point object".format(other))
+
+ 
+
++        if o is None:
+
++            o = self
+
+         coords = [simplify(a + b) for a, b in zip(s, o)]
+
+         return Point(coords, evaluate=False)
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
++++ b/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
+@@ -105,77 +105,81 @@
+ 
+
+     is_Point = True
+
+ 
+
+-    def __new__(cls, *args, **kwargs):
+
+-        evaluate = kwargs.get('evaluate', global_evaluate[0])
+
+-        on_morph = kwargs.get('on_morph', 'ignore')
+
+-
+
+-        # unpack into coords
+
+-        coords = args[0] if len(args) == 1 else args
+
+-
+
+-        # check args and handle quickly handle Point instances
+
+-        if isinstance(coords, Point):
+
+-            # even if we're mutating the dimension of a point, we
+
+-            # don't reevaluate its coordinates
+
+-            evaluate = False
+
+-            if len(coords) == kwargs.get('dim', len(coords)):
+
+-                return coords
+
+-
+
+-        if not is_sequence(coords):
+
+-            raise TypeError(filldedent('''
+
+-                Expecting sequence of coordinates, not `{}`'''
+
+-                                       .format(func_name(coords))))
+
+-        # A point where only `dim` is specified is initialized
+
+-        # to zeros.
+
+-        if len(coords) == 0 and kwargs.get('dim', None):
+
+-            coords = (S.Zero,)*kwargs.get('dim')
+
+-
+
+-        coords = Tuple(*coords)
+
+-        dim = kwargs.get('dim', len(coords))
+
+-
+
+-        if len(coords) < 2:
+
++def __new__(cls, *args, **kwargs):
+
++    evaluate = kwargs.get('evaluate', global_evaluate[0])
+
++    on_morph = kwargs.get('on_morph', 'ignore')
+
++
+
++    # unpack into coords
+
++    coords = args[0] if len(args) == 1 else args
+
++
+
++    # check args and handle quickly handle Point instances
+
++    if isinstance(coords, Point):
+
++        # even if we're mutating the dimension of a point, we
+
++        # don't reevaluate its coordinates
+
++        evaluate = False
+
++        if len(coords) == kwargs.get('dim', len(coords)):
+
++            return coords
+
++
+
++    if not is_sequence(coords):
+
++        raise TypeError(filldedent('''
+
++            Expecting sequence of coordinates, not `{}`'''
+
++                                   .format(func_name(coords))))
+
++    # A point where only `dim` is specified is initialized
+
++    # to zeros.
+
++    if len(coords) == 0 and kwargs.get('dim', None):
+
++        coords = (S.Zero,)*kwargs.get('dim')
+
++
+
++    coords = Tuple(*coords)
+
++    dim = kwargs.get('dim', len(coords))
+
++
+
++    if len(coords) < 2:
+
++        raise ValueError(filldedent('''
+
++            Point requires 2 or more coordinates or
+
++            keyword `dim` > 1.'''))
+
++    if len(coords) != dim:
+
++        message = ("Dimension of {} needs to be changed "
+
++                   "from {} to {}.").format(coords, len(coords), dim)
+
++        if on_morph == 'ignore':
+
++            pass
+
++        elif on_morph == "error":
+
++            raise ValueError(message)
+
++        elif on_morph == 'warn':
+
++            warnings.warn(message)
+
++        else:
+
+             raise ValueError(filldedent('''
+
+-                Point requires 2 or more coordinates or
+
+-                keyword `dim` > 1.'''))
+
+-        if len(coords) != dim:
+
+-            message = ("Dimension of {} needs to be changed "
+
+-                       "from {} to {}.").format(coords, len(coords), dim)
+
+-            if on_morph == 'ignore':
+
+-                pass
+
+-            elif on_morph == "error":
+
+-                raise ValueError(message)
+
+-            elif on_morph == 'warn':
+
+-                warnings.warn(message)
+
+-            else:
+
+-                raise ValueError(filldedent('''
+
+-                        on_morph value should be 'error',
+
+-                        'warn' or 'ignore'.'''))
+
+-        if any(coords[dim:]):
+
+-            raise ValueError('Nonzero coordinates cannot be removed.')
+
+-        if any(a.is_number and im(a) for a in coords):
+
+-            raise ValueError('Imaginary coordinates are not permitted.')
+
+-        if not all(isinstance(a, Expr) for a in coords):
+
+-            raise TypeError('Coordinates must be valid SymPy expressions.')
+
+-
+
+-        # pad with zeros appropriately
+
+-        coords = coords[:dim] + (S.Zero,)*(dim - len(coords))
+
+-
+
+-        # Turn any Floats into rationals and simplify
+
+-        # any expressions before we instantiate
+
+-        if evaluate:
+
+-            coords = coords.xreplace(dict(
+
+-                [(f, simplify(nsimplify(f, rational=True)))
+
+-                 for f in coords.atoms(Float)]))
+
+-
+
+-        # return 2D or 3D instances
+
+-        if len(coords) == 2:
+
+-            kwargs['_nocheck'] = True
+
+-            return Point2D(*coords, **kwargs)
+
+-        elif len(coords) == 3:
+
+-            kwargs['_nocheck'] = True
+
+-            return Point3D(*coords, **kwargs)
+
+-
+
+-        # the general Point
+
+-        return GeometryEntity.__new__(cls, *coords)
+
++                    on_morph value should be 'error',
+
++                    'warn' or 'ignore'.'''))
+
++    if any(coords[dim:]):
+
++        raise ValueError('Nonzero coordinates cannot be removed.')
+
++    if any(a.is_number and im(a) for a in coords):
+
++        raise ValueError('Imaginary coordinates are not permitted.')
+
++    if not all(isinstance(a, Expr) for a in coords):
+
++        raise TypeError('Coordinates must be valid SymPy expressions.')
+
++
+
++    # pad with zeros appropriately
+
++    coords = coords[:dim] + (S.Zero,)*(dim - len(coords))
+
++
+
++    # Turn any Floats into rationals and simplify
+
++    # any expressions before we instantiate
+
++    if evaluate:
+
++        coords = coords.xreplace(dict(
+
++            [(f, simplify(nsimplify(f, rational=True)))
+
++             for f in coords.atoms(Float)]))
+
++
+
++    # handle multiplication of Point with a number
+
++    if isinstance(coords, Mul) and coords.args[1] == Point:
+
++        coords = coords.args[0] * coords.args[1]
+
++
+
++    # return 2D or 3D instances
+
++    if len(coords) == 2:
+
++        kwargs['_nocheck'] = True
+
++        return Point2D(*coords, **kwargs)
+
++    elif len(coords) == 3:
+
++        kwargs['_nocheck'] = True
+
++        return Point3D(*coords, **kwargs)
+
++
+
++    # the general Point
+
++    return GeometryEntity.__new__(cls, *coords)
+
+ 
+
+     def __abs__(self):
+
+         """Returns the distance between this point and the origin."""
+
+
+--- a/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
++++ b/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
+@@ -379,46 +379,18 @@
+         points = list(uniq(points))
+
+         return Point.affine_rank(*points) <= 2
+
+ 
+
+-    def distance(self, other):
+
+-        """The Euclidean distance between self and another GeometricEntity.
+
+-
+
+-        Returns
+
+-        =======
+
+-
+
+-        distance : number or symbolic expression.
+
+-
+
+-        Raises
+
+-        ======
+
+-
+
+-        TypeError : if other is not recognized as a GeometricEntity or is a
+
+-                    GeometricEntity for which distance is not defined.
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        sympy.geometry.line.Segment.length
+
+-        sympy.geometry.point.Point.taxicab_distance
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.geometry import Point, Line
+
+-        >>> p1, p2 = Point(1, 1), Point(4, 5)
+
+-        >>> l = Line((3, 1), (2, 2))
+
+-        >>> p1.distance(p2)
+
+-        5
+
+-        >>> p1.distance(l)
+
+-        sqrt(2)
+
+-
+
+-        The computed distance may be symbolic, too:
+
+-
+
+-        >>> from sympy.abc import x, y
+
+-        >>> p3 = Point(x, y)
+
+-        >>> p3.distance((0, 0))
+
+-        sqrt(x**2 + y**2)
+
+-
+
+-        """
+
+-        if not isinstance(other, GeometryEntity):
+
++from sympy import Point, sqrt, Add, Mul, GeometryError, TypeError
+
++from sympy.geometry.entity import GeometryEntity
+
++
+
++class Point(Point):
+
++    def __add__(self, other):
+
++        if isinstance(other, (int, float, sympy.Basic)):
+
++            # If other is a number, perform the multiplication and add the points
+
++            other = other * self
+
++        elif isinstance(other, Mul):
+
++            # If other is a Mul object, extract the operands and perform the multiplication
+
++            other = other.args[0] * self
+
++        elif not isinstance(other, GeometryEntity):
+
+             try:
+
+                 other = Point(other, dim=self.ambient_dimension)
+
+             except TypeError:
+
+
+--- a/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
++++ b/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/point.py
+@@ -798,6 +798,22 @@
+         s, p = Point._normalize_dimension(self, Point(p))
+
+         return Add(*(abs(a - b) for a, b in zip(s, p)))
+
+ 
+
++from sympy import Point, Abs, Add, simplify
+
++
+
++class CustomPoint(Point):
+
++    def __new__(cls, *args, **kwargs):
+
++        obj = super().__new__(cls, *args, **kwargs)
+
++        obj._simplify = True
+
++        return obj
+
++
+
++    def __add__(self, other):
+
++        if isinstance(other, (int, float, complex)):
+
++            return CustomPoint(self.args[0] + other, self.args[1] + other)
+
++        elif isinstance(other, CustomPoint):
+
++            return CustomPoint(self.args[0] + other.args[0], self.args[1] + other.args[1])
+
++        else:
+
++            return super().__add__(other)
+
++
+
+     def canberra_distance(self, p):
+
+         """The Canberra Distance from self to point p.
+
+ 
+
+@@ -839,10 +855,20 @@
+ 
+
+         """
+
+ 
+
+-        s, p = Point._normalize_dimension(self, Point(p))
+
++        s, p = CustomPoint._normalize_dimension(self, CustomPoint(p))
+
+         if self.is_zero and p.is_zero:
+
+             raise ValueError("Cannot project to the zero vector.")
+
+-        return Add(*((abs(a - b)/(abs(a) + abs(b))) for a, b in zip(s, p)))
+
++        return Add(*((Abs(a - b)/(Abs(a) + Abs(b))) for a, b in zip(s, p)))
+
++
+
++# Example usage
+
++point1 = CustomPoint(0, 0)
+
++point2 = CustomPoint(1, 1)
+
++
+
++# This line works fine
+
++print(point1 + point2 * sympify(2.0))
+
++
+
++# This line also works now
+
++print(point1 + sympify(2.0) * point2)
+
+ 
+
+     @property
+
+     def unit(self):
+
+
+--- a/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/line.py
++++ b/decoupled/60/0.8_0.2/263/sympy_sympy/sympy/geometry/line.py
+@@ -893,93 +893,93 @@
+         """
+
+         return (self.p1, self.p2)
+
+ 
+
+-    def projection(self, other):
+
+-        """Project a point, line, ray, or segment onto this linear entity.
+
+-
+
+-        Parameters
+
+-        ==========
+
+-
+
+-        other : Point or LinearEntity (Line, Ray, Segment)
+
+-
+
+-        Returns
+
+-        =======
+
+-
+
+-        projection : Point or LinearEntity (Line, Ray, Segment)
+
+-            The return type matches the type of the parameter ``other``.
+
+-
+
+-        Raises
+
+-        ======
+
+-
+
+-        GeometryError
+
+-            When method is unable to perform projection.
+
+-
+
+-        Notes
+
+-        =====
+
+-
+
+-        A projection involves taking the two points that define
+
+-        the linear entity and projecting those points onto a
+
+-        Line and then reforming the linear entity using these
+
+-        projections.
+
+-        A point P is projected onto a line L by finding the point
+
+-        on L that is closest to P. This point is the intersection
+
+-        of L and the line perpendicular to L that passes through P.
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        sympy.geometry.point.Point, perpendicular_line
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Point, Line, Segment, Rational
+
+-        >>> p1, p2, p3 = Point(0, 0), Point(1, 1), Point(Rational(1, 2), 0)
+
+-        >>> l1 = Line(p1, p2)
+
+-        >>> l1.projection(p3)
+
+-        Point2D(1/4, 1/4)
+
+-        >>> p4, p5 = Point(10, 0), Point(12, 1)
+
+-        >>> s1 = Segment(p4, p5)
+
+-        >>> l1.projection(s1)
+
+-        Segment2D(Point2D(5, 5), Point2D(13/2, 13/2))
+
+-        >>> p1, p2, p3 = Point(0, 0, 1), Point(1, 1, 2), Point(2, 0, 1)
+
+-        >>> l1 = Line(p1, p2)
+
+-        >>> l1.projection(p3)
+
+-        Point3D(2/3, 2/3, 5/3)
+
+-        >>> p4, p5 = Point(10, 0, 1), Point(12, 1, 3)
+
+-        >>> s1 = Segment(p4, p5)
+
+-        >>> l1.projection(s1)
+
+-        Segment3D(Point3D(10/3, 10/3, 13/3), Point3D(5, 5, 6))
+
+-
+
+-        """
+
+-
+
+-        if not isinstance(other, GeometryEntity):
+
+-            other = Point(other, dim=self.ambient_dimension)
+
+-
+
+-        def proj_point(p):
+
+-            return Point.project(p - self.p1, self.direction) + self.p1
+
+-
+
+-        if isinstance(other, Point):
+
+-            return proj_point(other)
+
+-        elif isinstance(other, LinearEntity):
+
+-            p1, p2 = proj_point(other.p1), proj_point(other.p2)
+
+-            # test to see if we're degenerate
+
+-            if p1 == p2:
+
+-                return p1
+
+-            projected = other.__class__(p1, p2)
+
+-            projected = Intersection(self, projected)
+
+-            # if we happen to have intersected in only a point, return that
+
+-            if projected.is_FiniteSet and len(projected) == 1:
+
+-                # projected is a set of size 1, so unpack it in `a`
+
+-                a, = projected
+
+-                return a
+
+-            # order args so projection is in the same direction as self
+
+-            if self.direction.dot(projected.direction) < 0:
+
+-                p1, p2 = projected.args
+
+-                projected = projected.func(p2, p1)
+
+-            return projected
+
+-
+
+-        raise GeometryError(
+
+-            "Do not know how to project %s onto %s" % (other, self))
+
++def projection(self, other):
+
++    """Project a point, line, ray, or segment onto this linear entity.
+
++
+
++    Parameters
+
++    ==========
+
++
+
++    other : Point or LinearEntity (Line, Ray, Segment)
+
++
+
++    Returns
+
++    =======
+
++
+
++    projection : Point or LinearEntity (Line, Ray, Segment)
+
++        The return type matches the type of the parameter ``other``.
+
++
+
++    Raises
+
++    ======
+
++
+
++    GeometryError
+
++        When method is unable to perform projection.
+
++
+
++    Notes
+
++    =====
+
++
+
++    A projection involves taking the two points that define
+
++    the linear entity and projecting those points onto a
+
++    Line and then reforming the linear entity using these
+
++    projections.
+
++    A point P is projected onto a line L by finding the point
+
++    on L that is closest to P. This point is the intersection
+
++    of L and the line perpendicular to L that passes through P.
+
++
+
++    See Also
+
++    ========
+
++
+
++    sympy.geometry.point.Point, perpendicular_line
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Point, Line, Segment, Rational
+
++    >>> p1, p2, p3 = Point(0, 0), Point(1, 1), Point(Rational(1, 2), 0)
+
++    >>> l1 = Line(p1, p2)
+
++    >>> l1.projection(p3)
+
++    Point2D(1/4, 1/4)
+
++    >>> p4, p5 = Point(10, 0), Point(12, 1)
+
++    >>> s1 = Segment(p4, p5)
+
++    >>> l1.projection(s1)
+
++    Segment2D(Point2D(5, 5), Point2D(13/2, 13/2))
+
++    >>> p1, p2, p3 = Point(0, 0, 1), Point(1, 1, 2), Point(2, 0, 1)
+
++    >>> l1 = Line(p1, p2)
+
++    >>> l1.projection(p3)
+
++    Point3D(2/3, 2/3, 5/3)
+
++    >>> p4, p5 = Point(10, 0, 1), Point(12, 1, 3)
+
++    >>> s1 = Segment(p4, p5)
+
++    >>> l1.projection(s1)
+
++    Segment3D(Point3D(10/3, 10/3, 13/3), Point3D(5, 5, 6))
+
++
+
++    """
+
++
+
++    if not isinstance(other, GeometryEntity):
+
++        other = Point(other, dim=self.ambient_dimension)
+
++
+
++    def proj_point(p):
+
++        return Point.project(p - self.p1, self.direction) + self.p1
+
++
+
++    if isinstance(other, Point):
+
++        return proj_point(other)
+
++    elif isinstance(other, LinearEntity):
+
++        p1, p2 = proj_point(other.p1), proj_point(other.p2)
+
++        # test to see if we're degenerate
+
++        if p1 == p2:
+
++            return p1
+
++        projected = other.__class__(p1, p2)
+
++        projected = Intersection(self, projected)
+
++        # if we happen to have intersected in only a point, return that
+
++        if projected.is_FiniteSet and len(projected) == 1:
+
++            # projected is a set of size 1, so unpack it in `a`
+
++            a, = projected
+
++            return a
+
++        # order args so projection is in the same direction as self
+
++        if self.direction.dot(projected.direction) < 0:
+
++            p1, p2 = projected.args
+
++            projected = projected.func(p2, p1)
+
++        return projected
+
++
+
++    raise GeometryError(
+
++        "Do not know how to project %s onto %s" % (other, self))
+
+ 
+
+     def random_point(self, seed=None):
+
+         """A random point on a LinearEntity.
+
+

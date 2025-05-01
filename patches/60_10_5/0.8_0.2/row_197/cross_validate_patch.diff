@@ -1,0 +1,266 @@
+--- a/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/197/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -125,129 +125,11 @@
+         Whether to include train scores.
+
+         Computing training scores is used to get insights on how different
+
+         parameter settings impact the overfitting/underfitting trade-off.
+
+-        However computing the scores on the training set can be computationally
+
+-        expensive and is not strictly required to select the parameters that
+
+-        yield the best generalization performance.
+
++        However computing the training scores on the training set can be
+
++        computationally expensive and is not strictly required to select
+
++        the parameters that yield the best generalization performance.
+
+ 
+
+     return_estimator : boolean, default False
+
+-        Whether to return the estimators fitted on each split.
+
+-
+
+-    error_score : 'raise' or numeric
+
+-        Value to assign to the score if an error occurs in estimator fitting.
+
+-        If set to 'raise', the error is raised.
+
+-        If a numeric value is given, FitFailedWarning is raised. This parameter
+
+-        does not affect the refit step, which will always raise the error.
+
+-
+
+-    Returns
+
+-    -------
+
+-    scores : dict of float arrays of shape=(n_splits,)
+
+-        Array of scores of the estimator for each run of the cross validation.
+
+-
+
+-        A dict of arrays containing the score/time arrays for each scorer is
+
+-        returned. The possible keys for this ``dict`` are:
+
+-
+
+-            ``test_score``
+
+-                The score array for test scores on each cv split.
+
+-            ``train_score``
+
+-                The score array for train scores on each cv split.
+
+-                This is available only if ``return_train_score`` parameter
+
+-                is ``True``.
+
+-            ``fit_time``
+
+-                The time for fitting the estimator on the train
+
+-                set for each cv split.
+
+-            ``score_time``
+
+-                The time for scoring the estimator on the test set for each
+
+-                cv split. (Note time for scoring on the train set is not
+
+-                included even if ``return_train_score`` is set to ``True``
+
+-            ``estimator``
+
+-                The estimator objects for each cv split.
+
+-                This is available only if ``return_estimator`` parameter
+
+-                is set to ``True``.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn import datasets, linear_model
+
+-    >>> from sklearn.model_selection import cross_validate
+
+-    >>> from sklearn.metrics.scorer import make_scorer
+
+-    >>> from sklearn.metrics import confusion_matrix
+
+-    >>> from sklearn.svm import LinearSVC
+
+-    >>> diabetes = datasets.load_diabetes()
+
+-    >>> X = diabetes.data[:150]
+
+-    >>> y = diabetes.target[:150]
+
+-    >>> lasso = linear_model.Lasso()
+
+-
+
+-    Single metric evaluation using ``cross_validate``
+
+-
+
+-    >>> cv_results = cross_validate(lasso, X, y, cv=3)
+
+-    >>> sorted(cv_results.keys())
+
+-    ['fit_time', 'score_time', 'test_score']
+
+-    >>> cv_results['test_score']
+
+-    array([0.33150734, 0.08022311, 0.03531764])
+
+-
+
+-    Multiple metric evaluation using ``cross_validate``
+
+-    (please refer the ``scoring`` parameter doc for more information)
+
+-
+
+-    >>> scores = cross_validate(lasso, X, y, cv=3,
+
+-    ...                         scoring=('r2', 'neg_mean_squared_error'),
+
+-    ...                         return_train_score=True)
+
+-    >>> print(scores['test_neg_mean_squared_error'])
+
+-    [-3635.5... -3573.3... -6114.7...]
+
+-    >>> print(scores['train_r2'])
+
+-    [0.28010158 0.39088426 0.22784852]
+
+-
+
+-    See Also
+
+-    ---------
+
+-    :func:`sklearn.model_selection.cross_val_score`:
+
+-        Run cross-validation for single metric evaluation.
+
+-
+
+-    :func:`sklearn.model_selection.cross_val_predict`:
+
+-        Get predictions from each split of cross-validation for diagnostic
+
+-        purposes.
+
+-
+
+-    :func:`sklearn.metrics.make_scorer`:
+
+-        Make a scorer from a performance metric or loss function.
+
+-
+
+-    """
+
+-    X, y, groups = indexable(X, y, groups)
+
+-
+
+-    cv = check_cv(cv, y, classifier=is_classifier(estimator))
+
+-    scorers, _ = _check_multimetric_scoring(estimator, scoring=scoring)
+
+-
+
+-    # We clone the estimator to make sure that all the folds are
+
+-    # independent, and that it is pickle-able.
+
+-    parallel = Parallel(n_jobs=n_jobs, verbose=verbose,
+
+-                        pre_dispatch=pre_dispatch)
+
+-    scores = parallel(
+
+-        delayed(_fit_and_score)(
+
+-            clone(estimator), X, y, scorers, train, test, verbose, None,
+
+-            fit_params, return_train_score=return_train_score,
+
+-            return_times=True, return_estimator=return_estimator,
+
+-            error_score=error_score)
+
+-        for train, test in cv.split(X, y, groups))
+
+-
+
+-    zipped_scores = list(zip(*scores))
+
+-    if return_train_score:
+
+-        train_scores = zipped_scores.pop(0)
+
+-        train_scores = _aggregate_score_dicts(train_scores)
+
+-    if return_estimator:
+
+-        fitted_estimators = zipped_scores.pop()
+
+-    test_scores, fit_times, score_times = zipped_scores
+
+-    test_scores = _aggregate_score_dicts(test_scores)
+
+-
+
+-    ret = {}
+
+-    ret['fit_time'] = np.array(fit_times)
+
+-    ret['score_time'] = np.array(score_times)
+
+-
+
+-    if return_estimator:
+
+-        ret['estimator'] = fitted_estimators
+
+-
+
+-    for name in scorers:
+
+-        ret['test_%s' % name] = np.array(test_scores[name])
+
+-        if return_train_score:
+
+-            key = 'train_%s' % name
+
+-            ret[key] = np.array(train_scores[name])
+
+-
+
+-    return ret
+
+ 
+
+ 
+
+ def cross_val_score(estimator, X, y=None, groups=None, scoring=None, cv=None,

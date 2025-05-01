@@ -1,0 +1,120 @@
+--- a/decoupled/60/0.8_0.2/177/pytest-dev_pytest/testing/code/test_source.py
++++ b/decoupled/60/0.8_0.2/177/pytest-dev_pytest/testing/code/test_source.py
+@@ -624,29 +624,36 @@
+         )
+
+ 
+
+ 
+
+-def test_source_with_decorator() -> None:
+
+-    """Test behavior with Source / Code().source with regard to decorators."""
+
+-    from _pytest.compat import get_real_func
+
+-
+
+-    @pytest.mark.foo
+
+-    def deco_mark():
+
+-        assert False
+
+-
+
+-    src = inspect.getsource(deco_mark)
+
+-    assert str(Source(deco_mark, deindent=False)) == src
+
+-    assert src.startswith("    @pytest.mark.foo")
+
+-
+
+-    @pytest.fixture
+
+-    def deco_fixture():
+
+-        assert False
+
+-
+
+-    src = inspect.getsource(deco_fixture)
+
+-    assert src == "    @pytest.fixture\n    def deco_fixture():\n        assert False\n"
+
+-    # currenly Source does not unwrap decorators, testing the
+
+-    # existing behavior here for explicitness, but perhaps we should revisit/change this
+
+-    # in the future
+
+-    assert str(Source(deco_fixture)).startswith("@functools.wraps(function)")
+
+-    assert str(Source(get_real_func(deco_fixture), deindent=False)) == src
+
++import os
+
++import errno
+
++import shutil
+
++
+
++import pytest
+
++
+
++
+
++@pytest.fixture
+
++def private_dir():  # or (monkeypatch)
+
++    out_dir = 'ddd'
+
++
+
++    try:
+
++        shutil.rmtree(out_dir)
+
++    except OSError as ex:
+
++        if ex.errno != errno.ENOENT:
+
++            raise
+
++    os.mkdir(out_dir)
+
++
+
++    old_dir = os.getcwd()
+
++    os.chdir(out_dir)
+
++    yield out_dir
+
++    os.chdir(old_dir)
+
++
+
++    # Same issue if using:
+
++    # monkeypatch.chdir(out_dir)
+
++
+
++
+
++def test_show_correct_path(private_dir):
+
++    test_file_path = os.path.relpath(__file__, old_dir)
+
++    assert False, f"Test file path: {test_file_path}"
+
+ 
+
+ 
+
+ def test_single_line_else() -> None:

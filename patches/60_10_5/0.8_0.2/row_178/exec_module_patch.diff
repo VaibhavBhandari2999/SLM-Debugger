@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/178/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/178/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -127,7 +127,7 @@
+     ) -> Optional[types.ModuleType]:
+
+         return None  # default behaviour is fine
+
+ 
+
+-    def exec_module(self, module: types.ModuleType) -> None:
+
++def exec_module(self, module: types.ModuleType) -> None:
+
+         assert module.__spec__ is not None
+
+         assert module.__spec__.origin is not None
+
+         fn = Path(module.__spec__.origin)

@@ -1,0 +1,102 @@
+--- a/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
++++ b/decoupled/60/0.8_0.2/24/django_django/django/utils/archive.py
+@@ -98,14 +98,42 @@
+     Base Archive class.  Implementations should inherit this class.
+
+     """
+
+     @staticmethod
+
+-    def _copy_permissions(mode, filename):
+
+-        """
+
+-        If the file in the archive has some permissions (this assumes a file
+
+-        won't be writable/executable without being readable), apply those
+
+-        permissions to the unarchived file.
+
+-        """
+
+-        if mode & stat.S_IROTH:
+
+-            os.chmod(filename, mode)
+
++from datetime import datetime
+
++
+
++def parse_http_date(date_string):
+
++    """
+
++    Parse an HTTP date string and return a datetime object.
+
++    """
+
++    # Define the format for the HTTP date string
+
++    format = "%a, %d %b %Y %H:%M:%S %Z"
+
++    
+
++    # Try to parse the date string
+
++    try:
+
++        dt = datetime.strptime(date_string, format)
+
++    except ValueError:
+
++        # If parsing fails, handle the two-digit year case
+
++        year = int(date_string[-4:])
+
++        if 0 <= year <= 69:
+
++            year += 2000
+
++        elif 70 <= year <= 99:
+
++            year += 1900
+
++        else:
+
++            raise ValueError("Invalid date string")
+
++        
+
++        # Reconstruct the date string with the corrected year
+
++        date_string = date_string[:-4] + str(year)
+
++        dt = datetime.strptime(date_string, format)
+
++    
+
++    return dt
+
++
+
++def _copy_permissions(mode, filename):
+
++    """
+
++    If the file in the archive has some permissions (this assumes a file
+
++    won't be writable/executable without being readable), apply those
+
++    permissions to the unarchived file.
+
++    """
+
++    if mode & stat.S_IROTH:
+
++        os.chmod(filename, mode)
+
+ 
+
+     def split_leading_dir(self, path):
+
+         path = str(path)

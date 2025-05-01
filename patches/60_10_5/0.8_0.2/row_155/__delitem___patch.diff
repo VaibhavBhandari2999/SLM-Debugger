@@ -1,0 +1,46 @@
+--- a/decoupled/60/0.8_0.2/155/psf_requests/requests/packages/urllib3/packages/ordered_dict.py
++++ b/decoupled/60/0.8_0.2/155/psf_requests/requests/packages/urllib3/packages/ordered_dict.py
+@@ -52,14 +52,14 @@
+             last[1] = root[0] = self.__map[key] = [last, root, key]
+
+         dict_setitem(self, key, value)
+
+ 
+
+-    def __delitem__(self, key, dict_delitem=dict.__delitem__):
+
+-        'od.__delitem__(y) <==> del od[y]'
+
+-        # Deleting an existing item uses self.__map to find the link which is
+
+-        # then removed by updating the links in the predecessor and successor nodes.
+
+-        dict_delitem(self, key)
+
+-        link_prev, link_next, key = self.__map.pop(key)
+
+-        link_prev[1] = link_next
+
+-        link_next[0] = link_prev
+
++class Request:
+
++    def __init__(self, hooks=None):
+
++        self.hooks = hooks or {}
+
++        
+
++        # Ensure each value in the hooks dictionary is a single function, not a list of functions
+
++        for key, value in self.hooks.items():
+
++            if isinstance(value, list):
+
++                self.hooks[key] = value[0] if value else None
+
+ 
+
+     def __iter__(self):
+
+         'od.__iter__() <==> iter(od)'

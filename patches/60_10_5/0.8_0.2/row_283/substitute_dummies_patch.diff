@@ -1,0 +1,122 @@
+--- a/decoupled/60/0.8_0.2/283/sympy_sympy/sympy/physics/secondquant.py
++++ b/decoupled/60/0.8_0.2/283/sympy_sympy/sympy/physics/secondquant.py
+@@ -2500,59 +2500,7 @@
+             l1 = aboves
+
+         elif assum.get("below_fermi"):
+
+             if new_indices:
+
+-                sym = _i(i)
+
+-                i += 1
+
+-            l1 = belows
+
+-        else:
+
+-            if new_indices:
+
+-                sym = _p(p)
+
+-                p += 1
+
+-            l1 = generals
+
+-
+
+-        if new_indices:
+
+-            l1.append(Dummy(sym, **assum))
+
+-        else:
+
+-            l1.append(d)
+
+-
+
+-    expr = expr.expand()
+
+-    terms = Add.make_args(expr)
+
+-    new_terms = []
+
+-    for term in terms:
+
+-        i = iter(belows)
+
+-        a = iter(aboves)
+
+-        p = iter(generals)
+
+-        ordered = _get_ordered_dummies(term)
+
+-        subsdict = {}
+
+-        for d in ordered:
+
+-            if d.assumptions0.get('below_fermi'):
+
+-                subsdict[d] = next(i)
+
+-            elif d.assumptions0.get('above_fermi'):
+
+-                subsdict[d] = next(a)
+
+-            else:
+
+-                subsdict[d] = next(p)
+
+-        subslist = []
+
+-        final_subs = []
+
+-        for k, v in subsdict.items():
+
+-            if k == v:
+
+-                continue
+
+-            if v in subsdict:
+
+-                # We check if the sequence of substitutions end quickly.  In
+
+-                # that case, we can avoid temporary symbols if we ensure the
+
+-                # correct substitution order.
+
+-                if subsdict[v] in subsdict:
+
+-                    # (x, y) -> (y, x),  we need a temporary variable
+
+-                    x = Dummy('x')
+
+-                    subslist.append((k, x))
+
+-                    final_subs.append((x, v))
+
+-                else:
+
+-                    # (x, y) -> (y, a),  x->y must be done last
+
+-                    # but before temporary variables are resolved
+
+-                    final_subs.insert(0, (k, v))
+
+-            else:
+
+-                subslist.append((k, v))
+
+-        subslist.extend(final_subs)
+
+-        new_terms.append(term.subs(subslist))
+
+-    return Add(*new_terms)
+
++                sym = _i
+
+ 
+
+ 
+
+ class KeyPrinter(StrPrinter):

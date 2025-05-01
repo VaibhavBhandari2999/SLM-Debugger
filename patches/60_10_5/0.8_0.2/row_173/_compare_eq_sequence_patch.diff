@@ -1,0 +1,118 @@
+--- a/decoupled/60/0.8_0.2/173/pytest-dev_pytest/src/_pytest/assertion/util.py
++++ b/decoupled/60/0.8_0.2/173/pytest-dev_pytest/src/_pytest/assertion/util.py
+@@ -257,32 +257,36 @@
+     explanation = []
+
+     len_left = len(left)
+
+     len_right = len(right)
+
+-    for i in range(min(len_left, len_right)):
+
+-        if left[i] != right[i]:
+
+-            explanation += [
+
+-                "At index {} diff: {!r} != {!r}".format(i, left[i], right[i])
+
+-            ]
+
+-            break
+
+-    len_diff = len_left - len_right
+
+-
+
+-    if len_diff:
+
+-        if len_diff > 0:
+
++    
+
++    # Check if the lengths are different
+
++    if len_left != len_right:
+
++        if len_left > len_right:
+
+             dir_with_more = "Left"
+
+-            extra = saferepr(left[len_right])
+
+-        else:
+
+-            len_diff = 0 - len_diff
+
++            extra = saferepr(left[len_right:])
+
++        else:
+
+             dir_with_more = "Right"
+
+-            extra = saferepr(right[len_left])
+
+-
+
++            extra = saferepr(right[len_left:])
+
++        
+
++        len_diff = abs(len_left - len_right)
+
+         if len_diff == 1:
+
+-            explanation += [
+
++            explanation.append(
+
+                 "{} contains one more item: {}".format(dir_with_more, extra)
+
+-            ]
+
+-        else:
+
+-            explanation += [
+
+-                "%s contains %d more items, first extra item: %s"
+
+-                % (dir_with_more, len_diff, extra)
+
+-            ]
+
++            )
+
++        else:
+
++            explanation.append(
+
++                "{} contains {} more items, first extra item: {}".format(
+
++                    dir_with_more, len_diff, extra
+
++                )
+
++            )
+
++    else:
+
++        # If lengths are the same, check for differences in elements
+
++        for i in range(len_left):
+
++            if left[i] != right[i]:
+
++                explanation.append(
+
++                    "At index {} diff: {!r} != {!r}".format(i, left[i], right[i])
+
++                )
+
++                break
+
++    
+
+     return explanation
+
+ 
+
+ 

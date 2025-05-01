@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -1464,6 +1464,10 @@
+         args = self._getpytestargs() + args
+
+         return self.run(*args, timeout=timeout)
+
+ 
+
++import os
+
++import pexpect
+
++
+
++class TestRunner:
+
+     def spawn_pytest(
+
+         self, string: str, expect_timeout: float = 10.0
+
+     ) -> "pexpect.spawn":
+
+@@ -1474,7 +1478,10 @@
+ 
+
+         The pexpect child is returned.
+
+         """
+
+-        basetemp = self.path / "temp-pexpect"
+
++        # Get the username and strip the domain part
+
++        username = os.path.basename(os.getenv('LOGNAME', getpass.getuser()))
+
++        
+
++        basetemp = self.path / f"temp-pexpect-{username}"
+
+         basetemp.mkdir()
+
+         invoke = " ".join(map(str, self._getpytestargs()))
+
+         cmd = f"{invoke} --basetemp={basetemp} {string}"

@@ -1,0 +1,31 @@
+--- a/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/matrices.py
++++ b/decoupled/60/0.8_0.2/253/sympy_sympy/sympy/physics/matrices.py
+@@ -174,6 +174,9 @@
+     [sqrt(3)/3, sqrt(3)*exp(-2*I*pi/3)/3, sqrt(3)*exp(-4*I*pi/3)/3],
+
+     [sqrt(3)/3, sqrt(3)*exp(-4*I*pi/3)/3, sqrt(3)*exp(-8*I*pi/3)/3]])
+
+     """
+
++    # Create a k X k matrix
+
++    M = MatrixSymbol("M", n, n)
+
++    # Initialize the matrix with the correct values
+
+     mat = [[None for x in range(n)] for y in range(n)]
+
+     base = exp(-2*pi*I/n)
+
+     mat[0] = [1]*n
+
+@@ -182,4 +185,5 @@
+     for i in range(1, n):
+
+         for j in range(i, n):
+
+             mat[i][j] = mat[j][i] = base**(i*j)
+
++    # Convert the matrix to a sympy matrix and apply the normalization factor
+
+     return (1/sqrt(n))*Matrix(mat)

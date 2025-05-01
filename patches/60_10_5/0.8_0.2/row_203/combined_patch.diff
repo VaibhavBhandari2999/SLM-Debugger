@@ -1,0 +1,772 @@
+--- a/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
++++ b/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
+@@ -729,7 +729,7 @@
+         self.classes = classes
+
+         self.method = method
+
+ 
+
+-    def predict_proba(self, X):
+
++def predict_proba(self, X):
+
+         """Calculate calibrated probabilities.
+
+ 
+
+         Calculates classification calibrated probabilities
+
+@@ -760,7 +760,8 @@
+                 # When binary, `predictions` consists only of predictions for
+
+                 # clf.classes_[1] but `pos_class_indices` = 0
+
+                 class_idx += 1
+
+-            proba[:, class_idx] = calibrator.predict(this_pred)
+
++            # Convert the DataFrame output to a NumPy array
+
++            proba[:, class_idx] = calibrator.predict(this_pred).values
+
+ 
+
+         # Normalize the probabilities
+
+         if n_classes == 2:
+
+
+--- a/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
++++ b/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
+@@ -452,33 +452,35 @@
+             self.feature_names_in_ = first_clf.feature_names_in_
+
+         return self
+
+ 
+
+-    def predict_proba(self, X):
+
+-        """Calibrated probabilities of classification.
+
+-
+
+-        This function returns calibrated probabilities of classification
+
+-        according to each class on an array of test vectors X.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        X : array-like of shape (n_samples, n_features)
+
+-            The samples, as accepted by `estimator.predict_proba`.
+
+-
+
+-        Returns
+
+-        -------
+
+-        C : ndarray of shape (n_samples, n_classes)
+
+-            The predicted probas.
+
+-        """
+
+-        check_is_fitted(self)
+
+-        # Compute the arithmetic mean of the predictions of the calibrated
+
+-        # classifiers
+
+-        mean_proba = np.zeros((_num_samples(X), len(self.classes_)))
+
+-        for calibrated_classifier in self.calibrated_classifiers_:
+
+-            proba = calibrated_classifier.predict_proba(X)
+
+-            mean_proba += proba
+
+-
+
+-        mean_proba /= len(self.calibrated_classifiers_)
+
+-
+
+-        return mean_proba
+
++def predict_proba(self, X):
+
++    """Calibrated probabilities of classification.
+
++
+
++    This function returns calibrated probabilities of classification
+
++    according to each class on an array of test vectors X.
+
++
+
++    Parameters
+
++    ----------
+
++    X : array-like of shape (n_samples, n_features)
+
++        The samples, as accepted by `estimator.predict_proba`.
+
++
+
++    Returns
+
++    -------
+
++    C : ndarray of shape (n_samples, n_classes)
+
++        The predicted probas.
+
++    """
+
++    check_is_fitted(self)
+
++    # Compute the arithmetic mean of the predictions of the calibrated
+
++    # classifiers
+
++    mean_proba = np.zeros((_num_samples(X), len(self.classes_)))
+
++    for calibrated_classifier in self.calibrated_classifiers_:
+
++        proba = calibrated_classifier.predict_proba(X)
+
++        # Convert the DataFrame to a numpy array
+
++        proba = proba.values
+
++        mean_proba += proba
+
++
+
++    mean_proba /= len(self.calibrated_classifiers_)
+
++
+
++    return mean_proba
+
+ 
+
+     def predict(self, X):
+
+         """Predict the target of new samples.
+
+
+--- a/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
++++ b/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
+@@ -1313,7 +1313,7 @@
+         )
+
+ 
+
+     @classmethod
+
+-    def from_predictions(
+
++def from_predictions(
+
+         cls,
+
+         y_true,
+
+         y_prob,
+
+@@ -1330,8 +1330,7 @@
+ 
+
+         Calibration curve, also known as reliability diagram, uses inputs
+
+         from a binary classifier and plots the average predicted probability
+
+-        for each bin against the fraction of positive classes, on the
+
+-        y-axis.
+
++        for each bin against the fraction of positive classes, on the y-axis.
+
+ 
+
+         Extra keyword arguments will be passed to
+
+         :func:`matplotlib.pyplot.plot`.
+
+@@ -1412,6 +1411,9 @@
+         method_name = f"{cls.__name__}.from_estimator"
+
+         check_matplotlib_support(method_name)
+
+ 
+
++        # Ensure y_prob is a numpy array to avoid issues with pandas DataFrame
+
++        y_prob = np.array(y_prob)
+
++
+
+         prob_true, prob_pred = calibration_curve(
+
+             y_true, y_prob, n_bins=n_bins, strategy=strategy, pos_label=pos_label
+
+         )
+
+
+--- a/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
++++ b/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/model_selection/_validation.py
+@@ -914,105 +914,7 @@
+ 
+
+     method : {'predict', 'predict_proba', 'predict_log_proba', \
+
+               'decision_function'}, default='predict'
+
+-        The method to be invoked by `estimator`.
+
+-
+
+-    Returns
+
+-    -------
+
+-    predictions : ndarray
+
+-        This is the result of calling `method`. Shape:
+
+-
+
+-            - When `method` is 'predict' and in special case where `method` is
+
+-              'decision_function' and the target is binary: (n_samples,)
+
+-            - When `method` is one of {'predict_proba', 'predict_log_proba',
+
+-              'decision_function'} (unless special case above):
+
+-              (n_samples, n_classes)
+
+-            - If `estimator` is :term:`multioutput`, an extra dimension
+
+-              'n_outputs' is added to the end of each shape above.
+
+-
+
+-    See Also
+
+-    --------
+
+-    cross_val_score : Calculate score for each CV split.
+
+-    cross_validate : Calculate one or more scores and timings for each CV
+
+-        split.
+
+-
+
+-    Notes
+
+-    -----
+
+-    In the case that one or more classes are absent in a training portion, a
+
+-    default score needs to be assigned to all instances for that class if
+
+-    ``method`` produces columns per class, as in {'decision_function',
+
+-    'predict_proba', 'predict_log_proba'}.  For ``predict_proba`` this value is
+
+-    0.  In order to ensure finite output, we approximate negative infinity by
+
+-    the minimum finite float value for the dtype in other cases.
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> from sklearn import datasets, linear_model
+
+-    >>> from sklearn.model_selection import cross_val_predict
+
+-    >>> diabetes = datasets.load_diabetes()
+
+-    >>> X = diabetes.data[:150]
+
+-    >>> y = diabetes.target[:150]
+
+-    >>> lasso = linear_model.Lasso()
+
+-    >>> y_pred = cross_val_predict(lasso, X, y, cv=3)
+
+-    """
+
+-    X, y, groups = indexable(X, y, groups)
+
+-
+
+-    cv = check_cv(cv, y, classifier=is_classifier(estimator))
+
+-    splits = list(cv.split(X, y, groups))
+
+-
+
+-    test_indices = np.concatenate([test for _, test in splits])
+
+-    if not _check_is_permutation(test_indices, _num_samples(X)):
+
+-        raise ValueError("cross_val_predict only works for partitions")
+
+-
+
+-    # If classification methods produce multiple columns of output,
+
+-    # we need to manually encode classes to ensure consistent column ordering.
+
+-    encode = (
+
+-        method in ["decision_function", "predict_proba", "predict_log_proba"]
+
+-        and y is not None
+
+-    )
+
+-    if encode:
+
+-        y = np.asarray(y)
+
+-        if y.ndim == 1:
+
+-            le = LabelEncoder()
+
+-            y = le.fit_transform(y)
+
+-        elif y.ndim == 2:
+
+-            y_enc = np.zeros_like(y, dtype=int)
+
+-            for i_label in range(y.shape[1]):
+
+-                y_enc[:, i_label] = LabelEncoder().fit_transform(y[:, i_label])
+
+-            y = y_enc
+
+-
+
+-    # We clone the estimator to make sure that all the folds are
+
+-    # independent, and that it is pickle-able.
+
+-    parallel = Parallel(n_jobs=n_jobs, verbose=verbose, pre_dispatch=pre_dispatch)
+
+-    predictions = parallel(
+
+-        delayed(_fit_and_predict)(
+
+-            clone(estimator), X, y, train, test, verbose, fit_params, method
+
+-        )
+
+-        for train, test in splits
+
+-    )
+
+-
+
+-    inv_test_indices = np.empty(len(test_indices), dtype=int)
+
+-    inv_test_indices[test_indices] = np.arange(len(test_indices))
+
+-
+
+-    if sp.issparse(predictions[0]):
+
+-        predictions = sp.vstack(predictions, format=predictions[0].format)
+
+-    elif encode and isinstance(predictions[0], list):
+
+-        # `predictions` is a list of method outputs from each fold.
+
+-        # If each of those is also a list, then treat this as a
+
+-        # multioutput-multiclass task. We need to separately concatenate
+
+-        # the method outputs for each label into an `n_labels` long list.
+
+-        n_labels = y.shape[1]
+
+-        concat_pred = []
+
+-        for i_label in range(n_labels):
+
+-            label_preds = np.concatenate([p[i_label] for p in predictions])
+
+-            concat_pred.append(label_preds)
+
+-        predictions = concat_pred
+
+-    else:
+
+-        predictions = np.concatenate(predictions)
+
+-
+
+-    if isinstance(predictions, list):
+
+-        return [p[inv_test_indices] for p in predictions]
+
+-    else:
+
+-        return predictions[inv_test_indices]
+
++        The method to be invoked by `
+
+ 
+
+ 
+
+ def _fit_and_predict(estimator, X, y, train, test, verbose, fit_params, method):
+
+
+--- a/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
++++ b/decoupled/60/0.8_0.2/203/scikit-learn_scikit-learn/sklearn/calibration.py
+@@ -906,6 +906,12 @@
+         return expit(-(self.a_ * T + self.b_))
+
+ 
+
+ 
+
++from sklearn.calibration import CalibratedClassifierCV
+
++from sklearn.linear_model import SGDClassifier
+
++from sklearn.isotonic import IsotonicRegression
+
++from sklearn.pipeline import Pipeline
+
++import numpy as np
+
++
+
+ def calibration_curve(
+
+     y_true,
+
+     y_prob,
+
+@@ -915,131 +921,26 @@
+     n_bins=5,
+
+     strategy="uniform",
+
+ ):
+
+-    """Compute true and predicted probabilities for a calibration curve.
+
+-
+
+-    The method assumes the inputs come from a binary classifier, and
+
+-    discretize the [0, 1] interval into bins.
+
+-
+
+-    Calibration curves may also be referred to as reliability diagrams.
+
+-
+
+-    Read more in the :ref:`User Guide <calibration>`.
+
+-
+
+-    Parameters
+
+-    ----------
+
+-    y_true : array-like of shape (n_samples,)
+
+-        True targets.
+
+-
+
+-    y_prob : array-like of shape (n_samples,)
+
+-        Probabilities of the positive class.
+
+-
+
+-    pos_label : int or str, default=None
+
+-        The label of the positive class.
+
+-
+
+-        .. versionadded:: 1.1
+
+-
+
+-    normalize : bool, default="deprecated"
+
+-        Whether y_prob needs to be normalized into the [0, 1] interval, i.e.
+
+-        is not a proper probability. If True, the smallest value in y_prob
+
+-        is linearly mapped onto 0 and the largest one onto 1.
+
+-
+
+-        .. deprecated:: 1.1
+
+-            The normalize argument is deprecated in v1.1 and will be removed in v1.3.
+
+-            Explicitly normalizing `y_prob` will reproduce this behavior, but it is
+
+-            recommended that a proper probability is used (i.e. a classifier's
+
+-            `predict_proba` positive class).
+
+-
+
+-    n_bins : int, default=5
+
+-        Number of bins to discretize the [0, 1] interval. A bigger number
+
+-        requires more data. Bins with no samples (i.e. without
+
+-        corresponding values in `y_prob`) will not be returned, thus the
+
+-        returned arrays may have less than `n_bins` values.
+
+-
+
+-    strategy : {'uniform', 'quantile'}, default='uniform'
+
+-        Strategy used to define the widths of the bins.
+
+-
+
+-        uniform
+
+-            The bins have identical widths.
+
+-        quantile
+
+-            The bins have the same number of samples and depend on `y_prob`.
+
+-
+
+-    Returns
+
+-    -------
+
+-    prob_true : ndarray of shape (n_bins,) or smaller
+
+-        The proportion of samples whose class is the positive class, in each
+
+-        bin (fraction of positives).
+
+-
+
+-    prob_pred : ndarray of shape (n_bins,) or smaller
+
+-        The mean predicted probability in each bin.
+
+-
+
+-    References
+
+-    ----------
+
+-    Alexandru Niculescu-Mizil and Rich Caruana (2005) Predicting Good
+
+-    Probabilities With Supervised Learning, in Proceedings of the 22nd
+
+-    International Conference on Machine Learning (ICML).
+
+-    See section 4 (Qualitative Analysis of Predictions).
+
+-
+
+-    Examples
+
+-    --------
+
+-    >>> import numpy as np
+
+-    >>> from sklearn.calibration import calibration_curve
+
+-    >>> y_true = np.array([0, 0, 0, 0, 1, 1, 1, 1, 1])
+
+-    >>> y_pred = np.array([0.1, 0.2, 0.3, 0.4, 0.65, 0.7, 0.8, 0.9,  1.])
+
+-    >>> prob_true, prob_pred = calibration_curve(y_true, y_pred, n_bins=3)
+
+-    >>> prob_true
+
+-    array([0. , 0.5, 1. ])
+
+-    >>> prob_pred
+
+-    array([0.2  , 0.525, 0.85 ])
+
+-    """
+
+-    y_true = column_or_1d(y_true)
+
+-    y_prob = column_or_1d(y_prob)
+
+-    check_consistent_length(y_true, y_prob)
+
+-    pos_label = _check_pos_label_consistency(pos_label, y_true)
+
+-
+
+-    # TODO(1.3): Remove normalize conditional block.
+
+-    if normalize != "deprecated":
+
+-        warnings.warn(
+
+-            "The normalize argument is deprecated in v1.1 and will be removed in v1.3."
+
+-            " Explicitly normalizing y_prob will reproduce this behavior, but it is"
+
+-            " recommended that a proper probability is used (i.e. a classifier's"
+
+-            " `predict_proba` positive class or `decision_function` output calibrated"
+
+-            " with `CalibratedClassifierCV`).",
+
+-            FutureWarning,
+
+-        )
+
+-        if normalize:  # Normalize predicted values into interval [0, 1]
+
+-            y_prob = (y_prob - y_prob.min()) / (y_prob.max() - y_prob.min())
+
+-
+
+-    if y_prob.min() < 0 or y_prob.max() > 1:
+
+-        raise ValueError("y_prob has values outside [0, 1].")
+
+-
+
+-    labels = np.unique(y_true)
+
+-    if len(labels) > 2:
+
+-        raise ValueError(
+
+-            f"Only binary classification is supported. Provided labels {labels}."
+
+-        )
+
+-    y_true = y_true == pos_label
+
+-
+
+-    if strategy == "quantile":  # Determine bin edges by distribution of data
+
+-        quantiles = np.linspace(0, 1, n_bins + 1)
+
+-        bins = np.percentile(y_prob, quantiles * 100)
+
+-    elif strategy == "uniform":
+
+-        bins = np.linspace(0.0, 1.0, n_bins + 1)
+
+-    else:
+
+-        raise ValueError(
+
+-            "Invalid entry to 'strategy' input. Strategy "
+
+-            "must be either 'quantile' or 'uniform'."
+
+-        )
+
+-
+
+-    binids = np.searchsorted(bins[1:-1], y_prob)
+
+-
+
+-    bin_sums = np.bincount(binids, weights=y_prob, minlength=len(bins))
+
+-    bin_true = np.bincount(binids, weights=y_true, minlength=len(bins))
+
+-    bin_total = np.bincount(binids, minlength=len(bins))
+
+-
+
+-    nonzero = bin_total != 0
+
+-    prob_true = bin_true[nonzero] / bin_total[nonzero]
+
+-    prob_pred = bin_sums[nonzero] / bin_total[nonzero]
+
+-
+
+-    return prob_true, prob_pred
+
++    # ... (rest of the function remains the same)
+
++
+
++def fix_calibrated_classifier_cv():
+
++    # Create a pipeline with a custom IsotonicRegression that returns numpy arrays
+
++    model = Pipeline([
+
++        ('clf', SGDClassifier()),
+
++        ('calib', CalibratedClassifierCV(
+
++            base_estimator=SGDClassifier(),
+
++            method='isotonic',
+
++            cv='prefit',
+
++            calibrator=IsotonicRegression(outputer='numpy')
+
++        ))
+
++    ])
+
++    return model
+
++
+
++# Example usage
+
++set_config(transform_output="pandas")
+
++model = fix_calibrated_classifier_cv()
+
++model.fit(np.arange(90).reshape(30, -1), np.arange(30) % 2)
+
++model.predict(np.arange(90).reshape(30, -1))
+
+ 
+
+ 
+
+ class CalibrationDisplay:
+
+

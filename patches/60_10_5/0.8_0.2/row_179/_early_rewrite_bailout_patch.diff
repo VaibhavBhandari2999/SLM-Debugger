@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -169,7 +169,7 @@
+             state.trace("found cached rewritten pyc for {}".format(fn))
+
+         exec(co, module.__dict__)
+
+ 
+
+-    def _early_rewrite_bailout(self, name: str, state: "AssertionState") -> bool:
+
++def _early_rewrite_bailout(self, name: str, state: "AssertionState") -> bool:
+
+         """This is a fast way to get out of rewriting modules.
+
+ 
+
+         Profiling has shown that the call to PathFinder.find_spec (inside of
+
+@@ -205,8 +205,12 @@
+         if self._is_marked_for_rewrite(name, state):
+
+             return False
+
+ 
+
+-        state.trace("early skip of rewriting module: {}".format(name))
+
+-        return True
+
++        # Ensure the skip location is reported correctly
+
++        if state.skipped:
+
++            state.trace("early skip of rewriting module: {}".format(name))
+
++            return True
+
++
+
++        return False
+
+ 
+
+     def _should_rewrite(self, name: str, fn: str, state: "AssertionState") -> bool:
+
+         # always rewrite conftest files

@@ -1,0 +1,1214 @@
+--- a/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
+@@ -719,150 +719,108 @@
+         return cls._new(rows, cols, entry)
+
+ 
+
+     @classmethod
+
+-    def diag(kls, *args, **kwargs):
+
+-        """Returns a matrix with the specified diagonal.
+
+-        If matrices are passed, a block-diagonal matrix
+
+-        is created (i.e. the "direct sum" of the matrices).
+
+-
+
+-        kwargs
+
+-        ======
+
+-
+
+-        rows : rows of the resulting matrix; computed if
+
+-               not given.
+
+-
+
+-        cols : columns of the resulting matrix; computed if
+
+-               not given.
+
+-
+
+-        cls : class for the resulting matrix
+
+-
+
+-        unpack : bool which, when True (default), unpacks a single
+
+-        sequence rather than interpreting it as a Matrix.
+
+-
+
+-        strict : bool which, when False (default), allows Matrices to
+
+-        have variable-length rows.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import Matrix
+
+-        >>> Matrix.diag(1, 2, 3)
+
+-        Matrix([
+
+-        [1, 0, 0],
+
+-        [0, 2, 0],
+
+-        [0, 0, 3]])
+
+-
+
+-        The current default is to unpack a single sequence. If this is
+
+-        not desired, set `unpack=False` and it will be interpreted as
+
+-        a matrix.
+
+-
+
+-        >>> Matrix.diag([1, 2, 3]) == Matrix.diag(1, 2, 3)
+
+-        True
+
+-
+
+-        When more than one element is passed, each is interpreted as
+
+-        something to put on the diagonal. Lists are converted to
+
+-        matricecs. Filling of the diagonal always continues from
+
+-        the bottom right hand corner of the previous item: this
+
+-        will create a block-diagonal matrix whether the matrices
+
+-        are square or not.
+
+-
+
+-        >>> col = [1, 2, 3]
+
+-        >>> row = [[4, 5]]
+
+-        >>> Matrix.diag(col, row)
+
+-        Matrix([
+
+-        [1, 0, 0],
+
+-        [2, 0, 0],
+
+-        [3, 0, 0],
+
+-        [0, 4, 5]])
+
+-
+
+-        When `unpack` is False, elements within a list need not all be
+
+-        of the same length. Setting `strict` to True would raise a
+
+-        ValueError for the following:
+
+-
+
+-        >>> Matrix.diag([[1, 2, 3], [4, 5], [6]], unpack=False)
+
+-        Matrix([
+
+-        [1, 2, 3],
+
+-        [4, 5, 0],
+
+-        [6, 0, 0]])
+
+-
+
+-        The type of the returned matrix can be set with the ``cls``
+
+-        keyword.
+
+-
+
+-        >>> from sympy.matrices import ImmutableMatrix
+
+-        >>> from sympy.utilities.misc import func_name
+
+-        >>> func_name(Matrix.diag(1, cls=ImmutableMatrix))
+
+-        'ImmutableDenseMatrix'
+
+-
+
+-        A zero dimension matrix can be used to position the start of
+
+-        the filling at the start of an arbitrary row or column:
+
+-
+
+-        >>> from sympy import ones
+
+-        >>> r2 = ones(0, 2)
+
+-        >>> Matrix.diag(r2, 1, 2)
+
+-        Matrix([
+
+-        [0, 0, 1, 0],
+
+-        [0, 0, 0, 2]])
+
+-
+
+-        See Also
+
+-        ========
+
+-        eye
+
+-        diagonal - to extract a diagonal
+
+-        .dense.diag
+
+-        .expressions.blockmatrix.BlockMatrix
+
+-       """
+
+-        from sympy.matrices.matrices import MatrixBase
+
+-        from sympy.matrices.dense import Matrix
+
+-        from sympy.matrices.sparse import SparseMatrix
+
+-        klass = kwargs.get('cls', kls)
+
+-        strict = kwargs.get('strict', False) # lists -> Matrices
+
+-        unpack = kwargs.get('unpack', True)  # unpack single sequence
+
+-        if unpack and len(args) == 1 and is_sequence(args[0]) and \
+
+-                not isinstance(args[0], MatrixBase):
+
+-            args = args[0]
+
+-
+
+-        # fill a default dict with the diagonal entries
+
+-        diag_entries = defaultdict(int)
+
+-        rmax = cmax = 0  # keep track of the biggest index seen
+
+-        for m in args:
+
+-            if isinstance(m, list):
+
+-                if strict:
+
+-                    # if malformed, Matrix will raise an error
+
+-                    _ = Matrix(m)
+
+-                    r, c = _.shape
+
+-                    m = _.tolist()
+
+-                else:
+
+-                    m = SparseMatrix(m)
+
+-                    for (i, j), _ in m._smat.items():
+
+-                        diag_entries[(i + rmax, j + cmax)] = _
+
+-                    r, c = m.shape
+
+-                    m = []  # to skip process below
+
+-            elif hasattr(m, 'shape'):  # a Matrix
+
+-                # convert to list of lists
+
+-                r, c = m.shape
+
+-                m = m.tolist()
+
+-            else:  # in this case, we're a single value
+
+-                diag_entries[(rmax, cmax)] = m
+
+-                rmax += 1
+
+-                cmax += 1
+
+-                continue
+
+-            # process list of lists
+
+-            for i in range(len(m)):
+
+-                for j, _ in enumerate(m[i]):
+
+-                    diag_entries[(i + rmax, j + cmax)] = _
+
+-            rmax += r
+
+-            cmax += c
+
+-        rows = kwargs.get('rows', None)
+
+-        cols = kwargs.get('cols', None)
+
+-        if rows is None:
+
+-            rows, cols = cols, rows
+
+-        if rows is None:
+
+-            rows, cols = rmax, cmax
+
+-        else:
+
+-            cols = rows if cols is None else cols
+
+-        if rows < rmax or cols < cmax:
+
+-            raise ValueError(filldedent('''
+
+-                The constructed matrix is {} x {} but a size of {} x {}
+
+-                was specified.'''.format(rmax, cmax, rows, cols)))
+
+-        return klass._eval_diag(rows, cols, diag_entries)
+
++def diag(kls, *args, **kwargs):
+
++    """Returns a matrix with the specified diagonal.
+
++    If matrices are passed, a block-diagonal matrix
+
++    is created (i.e. the "direct sum" of the matrices).
+
++
+
++    kwargs
+
++    ======
+
++
+
++    rows : rows of the resulting matrix; computed if
+
++           not given.
+
++
+
++    cols : columns of the resulting matrix; computed if
+
++           not given.
+
++
+
++    cls : class for the resulting matrix
+
++
+
++    unpack : bool which, when True (default), unpacks a single
+
++             sequence rather than interpreting it as a Matrix.
+
++
+
++    strict : bool which, when False (default), allows Matrices to
+
++             have variable-length rows.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.matrices import Matrix
+
++    >>> Matrix.diag(1, 2, 3)
+
++    Matrix([
+
++    [1, 0, 0],
+
++    [0, 2, 0],
+
++    [0, 0, 3]])
+
++
+
++    The current default is to unpack a single sequence. If this is
+
++    not desired, set `unpack=False` and it will be interpreted as
+
++    a matrix.
+
++
+
++    >>> Matrix.diag([1, 2, 3]) == Matrix.diag(1, 2, 3)
+
++    True
+
++
+
++    When more than one element is passed, each is interpreted as
+
++    something to put on the diagonal. Lists are converted to
+
++    matricecs. Filling of the diagonal always continues from
+
++    the bottom right hand corner of the previous item: this
+
++    will create a block-diagonal matrix whether the matrices
+
++    are square or not.
+
++
+
++    >>> col = [1, 2, 3]
+
++    >>> row = [[4, 5]]
+
++    >>> Matrix.diag(col, row)
+
++    Matrix([
+
++    [1, 0, 0],
+
++    [2, 0, 0],
+
++    [3, 0, 0],
+
++    [0, 4, 5]])
+
++
+
++    When `unpack` is False, elements within a list need not all be
+
++    of the same length. Setting `strict` to True would raise a
+
++    ValueError for the following:
+
++
+
++    >>> Matrix.diag([[1, 2, 3], [4, 5], [6]], unpack=False)
+
++    Matrix([
+
++    [1, 2, 3],
+
++    [4, 5, 0],
+
++    [6, 0, 0]])
+
++
+
++    The type of the returned matrix can be set with the ``cls``
+
++    keyword.
+
++
+
++    >>> from sympy.matrices import ImmutableMatrix
+
++    >>> from sympy.utilities.misc import func_name
+
++    >>> func_name(Matrix.diag(1, cls=ImmutableMatrix))
+
++    'ImmutableDenseMatrix'
+
++
+
++    A zero dimension matrix can be used to position the start of
+
++    the filling at the start of an arbitrary row or column:
+
++
+
++    >>> from sympy import ones
+
++    >>> r2 = ones(0, 2)
+
++    >>> Matrix.diag(r2, 1, 2)
+
++    Matrix([
+
++    [0, 0, 1, 0],
+
++    [0, 0, 0, 2]])
+
++
+
++    See Also
+
++    ========
+
++    eye
+
++    diagonal - to extract a diagonal
+
++    .dense.diag
+
++    .expressions.blockmatrix.BlockMatrix
+
++    """
+
++    klass = kwargs.get('cls', kls)
+
++    strict = kwargs.get('strict', False) # lists -> Matrices
+
++    unpack = kwargs.get('unpack', True)  # unpack single sequence
+
++
+
++    if unpack and len(args) == 1 and is_sequence(args[0]) and \
+
++            not isinstance(args[0], MatrixBase):
+
++        args = args[0]
+
++
+
++    # fill a default dict with the diagonal entries
+
++    diag_entries = defaultdict(int)
+
++    rmax = cmax = 0  # keep track of the biggest index seen
+
++    for m
+
+ 
+
+     @classmethod
+
+     def eye(kls, rows, cols=None, **kwargs):
+
+
+--- a/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
+@@ -591,36 +591,39 @@
+         """
+
+         return (self.rows, self.cols)
+
+ 
+
+-    def tolist(self):
+
+-        """Return the Matrix as a nested Python list.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, ones
+
+-        >>> m = Matrix(3, 3, range(9))
+
+-        >>> m
+
+-        Matrix([
+
+-        [0, 1, 2],
+
+-        [3, 4, 5],
+
+-        [6, 7, 8]])
+
+-        >>> m.tolist()
+
+-        [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+
+-        >>> ones(3, 0).tolist()
+
+-        [[], [], []]
+
+-
+
+-        When there are no rows then it will not be possible to tell how
+
+-        many columns were in the original matrix:
+
+-
+
+-        >>> ones(0, 3).tolist()
+
+-        []
+
+-
+
+-        """
+
+-        if not self.rows:
+
+-            return []
+
+-        if not self.cols:
+
+-            return [[] for i in range(self.rows)]
+
+-        return self._eval_tolist()
+
++def tolist(self):
+
++    """Return the Matrix as a nested Python list.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, ones
+
++    >>> m = Matrix(3, 3, range(9))
+
++    >>> m
+
++    Matrix([
+
++    [0, 1, 2],
+
++    [3, 4, 5],
+
++    [6, 7, 8]])
+
++    >>> m.tolist()
+
++    [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+
++    >>> ones(3, 0).tolist()
+
++    [[], [], []]
+
++
+
++    When there are no rows then it will not be possible to tell how
+
++    many columns were in the original matrix:
+
++
+
++    >>> ones(0, 3).tolist()
+
++    []
+
++
+
++    """
+
++    if not self.blocks:
+
++        return []
+
++    if len(self.blocks) == 1:
+
++        # Directly convert the single block to a Matrix
+
++        return self.blocks[0].tolist()
+
++    if not self.rows:
+
++        return [[] for i in range(len(self.blocks))]
+
++    return self._eval_tolist()
+
+ 
+
+     def vec(self):
+
+         """Return the Matrix converted into a one column matrix by stacking columns
+
+
+--- a/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/dense.py
+@@ -313,49 +313,54 @@
+         self._mat = flat_list
+
+         return self
+
+ 
+
+-    def __setitem__(self, key, value):
+
+-        """
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix, I, zeros, ones
+
+-        >>> m = Matrix(((1, 2+I), (3, 4)))
+
+-        >>> m
+
+-        Matrix([
+
+-        [1, 2 + I],
+
+-        [3,     4]])
+
+-        >>> m[1, 0] = 9
+
+-        >>> m
+
+-        Matrix([
+
+-        [1, 2 + I],
+
+-        [9,     4]])
+
+-        >>> m[1, 0] = [[0, 1]]
+
+-
+
+-        To replace row r you assign to position r*m where m
+
+-        is the number of columns:
+
+-
+
+-        >>> M = zeros(4)
+
+-        >>> m = M.cols
+
+-        >>> M[3*m] = ones(1, m)*2; M
+
+-        Matrix([
+
+-        [0, 0, 0, 0],
+
+-        [0, 0, 0, 0],
+
+-        [0, 0, 0, 0],
+
+-        [2, 2, 2, 2]])
+
+-
+
+-        And to replace column c you can assign to position c:
+
+-
+
+-        >>> M[2] = ones(m, 1)*4; M
+
+-        Matrix([
+
+-        [0, 0, 4, 0],
+
+-        [0, 0, 4, 0],
+
+-        [0, 0, 4, 0],
+
+-        [2, 2, 4, 2]])
+
+-        """
+
+-        rv = self._setitem(key, value)
+
+-        if rv is not None:
+
+-            i, j, value = rv
+
++def __setitem__(self, key, value):
+
++    """
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix, I, zeros, ones
+
++    >>> m = Matrix(((1, 2+I), (3, 4)))
+
++    >>> m
+
++    Matrix([
+
++    [1, 2 + I],
+
++    [3,     4]])
+
++    >>> m[1, 0] = 9
+
++    >>> m
+
++    Matrix([
+
++    [1, 2 + I],
+
++    [9,     4]])
+
++    >>> m[1, 0] = [[0, 1]]
+
++
+
++    To replace row r you assign to position r*m where m
+
++    is the number of columns:
+
++
+
++    >>> M = zeros(4)
+
++    >>> m = M.cols
+
++    >>> M[3*m] = ones(1, m)*2; M
+
++    Matrix([
+
++    [0, 0, 0, 0],
+
++    [0, 0, 0, 0],
+
++    [0, 0, 0, 0],
+
++    [2, 2, 2, 2]])
+
++
+
++    And to replace column c you can assign to position c:
+
++
+
++    >>> M[2] = ones(m, 1)*4; M
+
++    Matrix([
+
++    [0, 0, 4, 0],
+
++    [0, 0, 4, 0],
+
++    [0, 0, 4, 0],
+
++    [2, 2, 4, 2]])
+
++    """
+
++    rv = self._setitem(key, value)
+
++    if rv is not None:
+
++        i, j, value = rv
+
++        # Check if the BlockDiagMatrix contains only one block
+
++        if len(self.blocks) == 1:
+
++            # Convert the single block to a regular matrix
+
++            self._mat = self.blocks[0]
+
++        else:
+
+             self._mat[i*self.cols + j] = value
+
+ 
+
+     def as_mutable(self):
+
+
+--- a/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/dense.py
++++ b/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/dense.py
+@@ -438,42 +438,49 @@
+         for k in range(0, self.rows):
+
+             self[k, i], self[k, j] = self[k, j], self[k, i]
+
+ 
+
+-    def copyin_list(self, key, value):
+
+-        """Copy in elements from a list.
+
+-
+
+-        Parameters
+
+-        ==========
+
+-
+
+-        key : slice
+
+-            The section of this matrix to replace.
+
+-        value : iterable
+
+-            The iterable to copy values from.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy.matrices import eye
+
+-        >>> I = eye(3)
+
+-        >>> I[:2, 0] = [1, 2] # col
+
+-        >>> I
+
+-        Matrix([
+
+-        [1, 0, 0],
+
+-        [2, 1, 0],
+
+-        [0, 0, 1]])
+
+-        >>> I[1, :2] = [[3, 4]]
+
+-        >>> I
+
+-        Matrix([
+
+-        [1, 0, 0],
+
+-        [3, 4, 0],
+
+-        [0, 0, 1]])
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        copyin_matrix
+
+-        """
+
+-        if not is_sequence(value):
+
+-            raise TypeError("`value` must be an ordered iterable, not %s." % type(value))
+
++def copyin_list(self, key, value):
+
++    """Copy in elements from a list.
+
++
+
++    Parameters
+
++    ==========
+
++
+
++    key : slice
+
++        The section of this matrix to replace.
+
++    value : iterable
+
++        The iterable to copy values from.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy.matrices import eye
+
++    >>> I = eye(3)
+
++    >>> I[:2, 0] = [1, 2] # col
+
++    >>> I
+
++    Matrix([
+
++    [1, 0, 0],
+
++    [2, 1, 0],
+
++    [0, 0, 1]])
+
++    >>> I[1, :2] = [[3, 4]]
+
++    >>> I
+
++    Matrix([
+
++    [1, 0, 0],
+
++    [3, 4, 0],
+
++    [0, 0, 1]])
+
++
+
++    See Also
+
++    ========
+
++
+
++    copyin_matrix
+
++    """
+
++    if not is_sequence(value):
+
++        raise TypeError("`value` must be an ordered iterable, not %s." % type(value))
+
++
+
++    # Check if there is only one block
+
++    if len(self.blocks) == 1:
+
++        # If there is only one block, convert it directly to a Matrix
+
++        return self.blocks[0].copyin_matrix(key, Matrix(value))
+
++    else:
+
++        # If there are multiple blocks, proceed with the original logic
+
+         return self.copyin_matrix(key, Matrix(value))
+
+ 
+
+     def copyin_matrix(self, key, value):
+
+
+--- a/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/269/sympy_sympy/sympy/matrices/common.py
+@@ -1579,47 +1579,53 @@
+         return self._eval_is_upper_hessenberg()
+
+ 
+
+     @property
+
+-    def is_upper(self):
+
+-        """Check if matrix is an upper triangular matrix. True can be returned
+
+-        even if the matrix is not square.
+
+-
+
+-        Examples
+
+-        ========
+
+-
+
+-        >>> from sympy import Matrix
+
+-        >>> m = Matrix(2, 2, [1, 0, 0, 1])
+
+-        >>> m
+
+-        Matrix([
+
+-        [1, 0],
+
+-        [0, 1]])
+
+-        >>> m.is_upper
+
+-        True
+
+-
+
+-        >>> m = Matrix(4, 3, [5, 1, 9, 0, 4 , 6, 0, 0, 5, 0, 0, 0])
+
+-        >>> m
+
+-        Matrix([
+
+-        [5, 1, 9],
+
+-        [0, 4, 6],
+
+-        [0, 0, 5],
+
+-        [0, 0, 0]])
+
+-        >>> m.is_upper
+
+-        True
+
+-
+
+-        >>> m = Matrix(2, 3, [4, 2, 5, 6, 1, 1])
+
+-        >>> m
+
+-        Matrix([
+
+-        [4, 2, 5],
+
+-        [6, 1, 1]])
+
+-        >>> m.is_upper
+
+-        False
+
+-
+
+-        See Also
+
+-        ========
+
+-
+
+-        is_lower
+
+-        is_diagonal
+
+-        is_upper_hessenberg
+
+-        """
+
++from sympy.matrices.dense import Matrix
+
++from sympy.matrices.blockmatrix import BlockDiagMatrix
+
++
+
++def is_upper(self):
+
++    """Check if matrix is an upper triangular matrix. True can be returned
+
++    even if the matrix is not square.
+
++
+
++    Examples
+
++    ========
+
++
+
++    >>> from sympy import Matrix
+
++    >>> m = Matrix(2, 2, [1, 0, 0, 1])
+
++    >>> m
+
++    Matrix([
+
++    [1, 0],
+
++    [0, 1]])
+
++    >>> m.is_upper
+
++    True
+
++
+
++    >>> m = Matrix(4, 3, [5, 1, 9, 0, 4 , 6, 0, 0, 5, 0, 0, 0])
+
++    >>> m
+
++    Matrix([
+
++    [5, 1, 9],
+
++    [0, 4, 6],
+
++    [0, 0, 5],
+
++    [0, 0, 0]])
+
++    >>> m.is_upper
+
++    True
+
++
+
++    >>> m = Matrix(2, 3, [4, 2, 5, 6, 1, 1])
+
++    >>> m
+
++    Matrix([
+
++    [4, 2, 5],
+
++    [6, 1, 1]])
+
++    >>> m.is_upper
+
++    False
+
++
+
++    See Also
+
++    ========
+
++
+
++    is_lower
+
++    is_diagonal
+
++    is_upper_hessenberg
+
++    """
+
++    if isinstance(self, BlockDiagMatrix) and len(self.blocks) == 1:
+
++        return Matrix(self.blocks[0]).is_upper
+
++    else:
+
+         return all(self[i, j].is_zero
+
+                    for i in range(1, self.rows)
+
+                    for j in range(min(i, self.cols)))
+
+

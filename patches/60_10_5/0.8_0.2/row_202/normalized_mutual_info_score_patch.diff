@@ -1,0 +1,89 @@
+--- a/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/metrics/cluster/_supervised.py
++++ b/decoupled/60/0.8_0.2/202/scikit-learn_scikit-learn/sklearn/metrics/cluster/_supervised.py
+@@ -833,18 +833,19 @@
+       >>> normalized_mutual_info_score([0, 0, 1, 1], [0, 0, 1, 1])
+
+       ... # doctest: +SKIP
+
+       1.0
+
+-      >>> normalized_mutual_info_score([0, 0, 1, 1], [1, 1, 0, 0])
+
+-      ... # doctest: +SKIP
+
+-      1.0
+
+-
+
+-    If classes members are completely split across different clusters,
+
+-    the assignment is totally in-complete, hence the NMI is null::
+
+-
+
+       >>> normalized_mutual_info_score([0, 0, 0, 0], [0, 1, 2, 3])
+
+       ... # doctest: +SKIP
+
+       0.0
+
+ 
+
+     """
+
++    # Convert labels to numeric format if they are not already numeric
+
++    if not np.issubdtype(labels_true.dtype, np.number):
+
++        le = LabelEncoder()
+
++        labels_true = le.fit_transform(labels_true)
+
++    if not np.issubdtype(labels_pred.dtype, np.number):
+
++        le = LabelEncoder()
+
++        labels_pred = le.fit_transform(labels_pred)
+
++
+
+     labels_true, labels_pred = check_clusterings(labels_true, labels_pred)
+
+     classes = np.unique(labels_true)
+
+     clusters = np.unique(labels_pred)
+
+@@ -856,17 +857,6 @@
+     contingency = contingency_matrix(labels_true, labels_pred, sparse=True)
+
+     contingency = contingency.astype(np.float64,
+
+                                      **_astype_copy_false(contingency))
+
+-    # Calculate the MI for the two clusterings
+
+-    mi = mutual_info_score(labels_true, labels_pred,
+
+-                           contingency=contingency)
+
+-    # Calculate the expected value for the mutual information
+
+-    # Calculate entropy for each labeling
+
+-    h_true, h_pred = entropy(labels_true), entropy(labels_pred)
+
+-    normalizer = _generalized_average(h_true, h_pred, average_method)
+
+-    # Avoid 0.0 / 0.0 when either entropy is zero.
+
+-    normalizer = max(normalizer, np.finfo('float64').eps)
+
+-    nmi = mi / normalizer
+
+-    return nmi
+
+ 
+
+ 
+
+ def fowlkes_mallows_score(labels_true, labels_pred, sparse=False):

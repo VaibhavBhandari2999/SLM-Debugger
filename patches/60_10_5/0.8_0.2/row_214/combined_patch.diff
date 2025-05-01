@@ -1,0 +1,255 @@
+
+
+--- a/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/sphinx/extension.py
++++ b/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/sphinx/extension.py
+@@ -23,21 +23,41 @@
+ 
+
+ 
+
+ class Extension:
+
+-    def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
+-        self.name = name
+
+-        self.module = module
+
+-        self.metadata = kwargs
+
+-        self.version = kwargs.pop('version', 'unknown version')
+
++def __init__(self, name: str, module: Any, **kwargs: Any) -> None:
+
++    """
+
++    Initialize the object with the given parameters.
+
+ 
+
+-        # The extension supports parallel read or not.  The default value
+
+-        # is ``None``.  It means the extension does not tell the status.
+
+-        # It will be warned on parallel reading.
+
+-        self.parallel_read_safe = kwargs.pop('parallel_read_safe', None)
+
++    :param name: The name of the object.
+
++    :type name: str
+
++    :param module: The module associated with the object.
+
++    :type module: Any
+
++    :param kwargs: Additional keyword arguments.
+
++    :type kwargs: Any
+
+ 
+
+-        # The extension supports parallel write or not.  The default value
+
+-        # is ``True``.  Sphinx writes parallelly documents even if
+
+-        # the extension does not tell its status.
+
+-        self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
++    :ivar name: The name of the object.
+
++    :ivar module: The module associated with the object.
+
++    :ivar metadata: Metadata associated with the object.
+
++    :ivar version: The version of the object.
+
++    :type version: str
+
++    :ivar parallel_read_safe: Whether the extension supports parallel read.
+
++    :type parallel_read_safe: Optional[bool]
+
++    :ivar parallel_write_safe: Whether the extension supports parallel write.
+
++    :type parallel_write_safe: bool
+
++    """
+
++    self.name = name
+
++    self.module = module
+
++    self.metadata = kwargs
+
++    self.version = kwargs.pop('version', 'unknown version')
+
++
+
++    # The extension supports parallel read or not.  The default value
+
++    # is ``None``.  It means the extension does not tell the status.
+
++    # It will be warned on parallel reading.
+
++    self.parallel_read_safe = kwargs.pop('parallel_read_safe', None)
+
++
+
++    # The extension supports parallel write or not.  The default value
+
++    # is ``True``.  Sphinx writes parallelly documents even if
+
++    # the extension does not tell its status.
+
++    self.parallel_write_safe = kwargs.pop('parallel_write_safe', True)
+
+ 
+
+ 
+
+ def verify_needs_extensions(app: "Sphinx", config: Config) -> None:
+
+
+--- a/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/sphinx/util/pycompat.py
++++ b/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/sphinx/util/pycompat.py
+@@ -66,6 +66,9 @@
+         return self.__unicode__()  # type: ignore
+
+ 
+
+ 
+
++from typing import overload
+
++import inspect
+
++
+
+ def execfile_(filepath: str, _globals: Any, open: Callable = open) -> None:
+
+     from sphinx.util.osutil import fs_encoding
+
+     with open(filepath, 'rb') as f:
+
+@@ -88,6 +91,28 @@
+                        filepath)
+
+     exec(code, _globals)
+
+ 
+
++# Example of an overloaded callable
+
++@overload
+
++def foo(x: int) -> int:
+
++    ...
+
++
+
++@overload
+
++def foo(x: float) -> float:
+
++    ...
+
++
+
++def foo(x):
+
++    return x
+
++
+
++# Fix for autodoc_typehints handling overloaded callables
+
++def fix_overloaded_callables(app, what, name, obj, options, lines):
+
++    if inspect.isfunction(obj) and hasattr(obj, '__overloads__'):
+
++        for overload in obj.__overloads__:
+
++            lines.append(f'    {overload}')
+
++        lines.append('')
+
++
+
++def setup(app):
+
++    app.connect('autodoc-process-docstring', fix_overloaded_callables)
+
++
+
+ 
+
+ deprecated_alias('sphinx.util.pycompat',
+
+                  {
+
+
+--- a/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/sphinx/util/pycompat.py
++++ b/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/sphinx/util/pycompat.py
+@@ -31,6 +31,14 @@
+ # convert_with_2to3():
+
+ # support for running 2to3 over config files
+
+ def convert_with_2to3(filepath: str) -> str:
+
++    """
+
++    Convert a Python file to a new version using lib2to3.
+
++
+
++    :param filepath: The path to the Python file to be converted.
+
++    :type filepath: str
+
++    :return: The converted Python file as a string.
+
++    :rtype: str
+
++    """
+
+     try:
+
+         from lib2to3.refactor import RefactoringTool, get_fixers_from_package
+
+         from lib2to3.pgen2.parse import ParseError
+
+
+--- a/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
++++ b/decoupled/60/0.8_0.2/214/sphinx-doc_sphinx/doc/usage/extensions/example_numpy.py
+@@ -75,6 +75,13 @@
+         https://www.python.org/dev/peps/pep-0484/
+
+ 
+
+     """
+
++    # Function implementation
+
++    if isinstance(param1, int):
+
++        return True
+
++    elif isinstance(param2, str):
+
++        return False
+
++    else:
+
++        raise ValueError("Invalid parameters")
+
+ 
+
+ 
+
+ def function_with_pep484_type_annotations(param1: int, param2: str) -> bool:
+
+

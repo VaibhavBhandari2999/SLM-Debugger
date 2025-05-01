@@ -1,0 +1,75 @@
+--- a/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/polys/densearith.py
++++ b/decoupled/60/0.8_0.2/236/sympy_sympy/sympy/polys/densearith.py
+@@ -1118,6 +1118,9 @@
+     return dup_pdiv(f, g, K)[0]
+
+ 
+
+ 
+
++import pickle
+
++import sympy
+
++
+
+ def dup_pexquo(f, g, K):
+
+     """
+
+     Polynomial pseudo-quotient in ``K[x]``.
+
+@@ -1137,12 +1140,25 @@
+     ExactQuotientFailed: [2, -4] does not divide [1, 0, 1]
+
+ 
+
+     """
+
+-    q, r = dup_pdiv(f, g, K)
+
++    q, r = sympy.polys.polytools.dup_pdiv(f, g, K)
+
+ 
+
+     if not r:
+
+         return q
+
+     else:
+
+-        raise ExactQuotientFailed(f, g)
+
++        raise sympy.polys.polyerrors.ExactQuotientFailed(f, g)
+
++
+
++# Example to demonstrate pickling and unpickling
+
++if __name__ == "__main__":
+
++    x = sympy.symbols("x")
+
++    expr = x + 1.0
+
++
+
++    # Pickle the expression in Python 2
+
++    pickled_expr = pickle.dumps(expr, protocol=2)
+
++
+
++    # Unpickle the expression in Python 3
+
++    unpickled_expr = pickle.loads(pickled_expr)
+
++
+
++    print(unpickled_expr)
+
+ 
+
+ 
+
+ def dmp_pdiv(f, g, u, K):

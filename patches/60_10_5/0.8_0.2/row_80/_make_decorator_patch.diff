@@ -1,0 +1,35 @@
+--- a/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/80/django_django/django/utils/decorators.py
+@@ -112,7 +112,7 @@
+ 
+
+ 
+
+ def make_middleware_decorator(middleware_class):
+
+-    def _make_decorator(*m_args, **m_kwargs):
+
++def _make_decorator(*m_args, **m_kwargs):
+
+         def _decorator(view_func):
+
+             middleware = middleware_class(view_func, *m_args, **m_kwargs)
+
+ 
+
+@@ -147,6 +147,8 @@
+                     if hasattr(middleware, 'process_response'):
+
+                         return middleware.process_response(request, response)
+
+                 return response
+
++            # Apply wraps to the inner function
+
++            _wrapped_view = wraps(view_func)(_wrapped_view)
+
+             return _wrapped_view
+
+         return _decorator
+
+     return _make_decorator

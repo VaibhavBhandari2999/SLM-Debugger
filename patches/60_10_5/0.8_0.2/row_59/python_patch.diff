@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/59/django_django/django/core/management/commands/shell.py
++++ b/decoupled/60/0.8_0.2/59/django_django/django/core/management/commands/shell.py
+@@ -39,12 +39,16 @@
+         import bpython
+
+         bpython.embed()
+
+ 
+
+-    def python(self, options):
+
++def python(self, options):
+
+         import code
+
++        import os
+
++        import traceback
+
++        from collections import OrderedDict
+
+ 
+
+         # Set up a dictionary to serve as the environment for the shell, so
+
+         # that tab completion works on objects that are imported at runtime.
+
+-        imported_objects = {}
+
++        imported_objects = OrderedDict()
+
++
+
+         try:  # Try activating rlcompleter, because it's handy.
+
+             import readline
+
+         except ImportError:
+
+@@ -65,7 +69,7 @@
+         # We want to honor both $PYTHONSTARTUP and .pythonrc.py, so follow system
+
+         # conventions and get $PYTHONSTARTUP first then .pythonrc.py.
+
+         if not options['no_startup']:
+
+-            for pythonrc in OrderedSet([os.environ.get("PYTHONSTARTUP"), os.path.expanduser('~/.pythonrc.py')]):
+
++            for pythonrc in OrderedDict([os.environ.get("PYTHONSTARTUP"), os.path.expanduser('~/.pythonrc.py')]):
+
+                 if not pythonrc:
+
+                     continue
+
+                 if not os.path.isfile(pythonrc):

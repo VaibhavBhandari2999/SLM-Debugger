@@ -1,0 +1,548 @@
+--- a/decoupled/60/0.8_0.2/225/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
++++ b/decoupled/60/0.8_0.2/225/sympy_sympy/sympy/printing/pretty/tests/test_pretty.py
+@@ -348,8 +348,8 @@
+ 
+
+ 
+
+ def test_pretty_basic():
+
+-    assert pretty( -Rational(1)/2 ) == '-1/2'
+
+-    assert pretty( -Rational(13)/22 ) == \
+
++    assert pretty(-Rational(1)/2) == '-1/2'
+
++    assert pretty(-Rational(13)/22) == \
+
+ """\
+
+ -13 \n\
+
+ ----\n\
+
+@@ -367,7 +367,7 @@
+     assert pretty(expr) == ascii_str
+
+     assert upretty(expr) == ucode_str
+
+ 
+
+-    expr = (x**2)
+
++    expr = x**2
+
+     ascii_str = \
+
+ """\
+
+  2\n\
+
+@@ -492,252 +492,11 @@
+     assert pretty(expr) == ascii_str
+
+     assert upretty(expr) == ucode_str
+
+ 
+
+-    expr = (x**2 + x + 1)
+
++    expr = x**2 + x + 1
+
+     ascii_str_1 = \
+
+ """\
+
+          2\n\
+
+-1 + x + x \
+
+-"""
+
+-    ascii_str_2 = \
+
+-"""\
+
+- 2        \n\
+
+-x  + x + 1\
+
+-"""
+
+-    ascii_str_3 = \
+
+-"""\
+
+- 2        \n\
+
+-x  + 1 + x\
+
+-"""
+
+-    ucode_str_1 = \
+
+-u("""\
+
+-         2\n\
+
+-1 + x + x \
+
+-""")
+
+-    ucode_str_2 = \
+
+-u("""\
+
+- 2        \n\
+
+-x  + x + 1\
+
+-""")
+
+-    ucode_str_3 = \
+
+-u("""\
+
+- 2        \n\
+
+-x  + 1 + x\
+
+-""")
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2, ascii_str_3]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2, ucode_str_3]
+
+-
+
+-    expr = 1 - x
+
+-    ascii_str_1 = \
+
+-"""\
+
+-1 - x\
+
+-"""
+
+-    ascii_str_2 = \
+
+-"""\
+
+--x + 1\
+
+-"""
+
+-    ucode_str_1 = \
+
+-u("""\
+
+-1 - x\
+
+-""")
+
+-    ucode_str_2 = \
+
+-u("""\
+
+--x + 1\
+
+-""")
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2]
+
+-
+
+-    expr = 1 - 2*x
+
+-    ascii_str_1 = \
+
+-"""\
+
+-1 - 2*x\
+
+-"""
+
+-    ascii_str_2 = \
+
+-"""\
+
+--2*x + 1\
+
+-"""
+
+-    ucode_str_1 = \
+
+-u("""\
+
+-1 - 2⋅x\
+
+-""")
+
+-    ucode_str_2 = \
+
+-u("""\
+
+--2⋅x + 1\
+
+-""")
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2]
+
+-
+
+-    expr = x/y
+
+-    ascii_str = \
+
+-"""\
+
+-x\n\
+
+--\n\
+
+-y\
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-x\n\
+
+-─\n\
+
+-y\
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = -x/y
+
+-    ascii_str = \
+
+-"""\
+
+--x \n\
+
+----\n\
+
+- y \
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+--x \n\
+
+-───\n\
+
+- y \
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = (x + 2)/y
+
+-    ascii_str_1 = \
+
+-"""\
+
+-2 + x\n\
+
+------\n\
+
+-  y  \
+
+-"""
+
+-    ascii_str_2 = \
+
+-"""\
+
+-x + 2\n\
+
+------\n\
+
+-  y  \
+
+-"""
+
+-    ucode_str_1 = \
+
+-u("""\
+
+-2 + x\n\
+
+-─────\n\
+
+-  y  \
+
+-""")
+
+-    ucode_str_2 = \
+
+-u("""\
+
+-x + 2\n\
+
+-─────\n\
+
+-  y  \
+
+-""")
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2]
+
+-
+
+-    expr = (1 + x)*y
+
+-    ascii_str_1 = \
+
+-"""\
+
+-y*(1 + x)\
+
+-"""
+
+-    ascii_str_2 = \
+
+-"""\
+
+-(1 + x)*y\
+
+-"""
+
+-    ascii_str_3 = \
+
+-"""\
+
+-y*(x + 1)\
+
+-"""
+
+-    ucode_str_1 = \
+
+-u("""\
+
+-y⋅(1 + x)\
+
+-""")
+
+-    ucode_str_2 = \
+
+-u("""\
+
+-(1 + x)⋅y\
+
+-""")
+
+-    ucode_str_3 = \
+
+-u("""\
+
+-y⋅(x + 1)\
+
+-""")
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2, ascii_str_3]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2, ucode_str_3]
+
+-
+
+-    # Test for correct placement of the negative sign
+
+-    expr = -5*x/(x + 10)
+
+-    ascii_str_1 = \
+
+-"""\
+
+--5*x  \n\
+
+-------\n\
+
+-10 + x\
+
+-"""
+
+-    ascii_str_2 = \
+
+-"""\
+
+--5*x  \n\
+
+-------\n\
+
+-x + 10\
+
+-"""
+
+-    ucode_str_1 = \
+
+-u("""\
+
+--5⋅x  \n\
+
+-──────\n\
+
+-10 + x\
+
+-""")
+
+-    ucode_str_2 = \
+
+-u("""\
+
+--5⋅x  \n\
+
+-──────\n\
+
+-x + 10\
+
+-""")
+
+-    assert pretty(expr) in [ascii_str_1, ascii_str_2]
+
+-    assert upretty(expr) in [ucode_str_1, ucode_str_2]
+
+-
+
+-    expr = -S(1)/2 - 3*x
+
+-    ascii_str = \
+
+-"""\
+
+--3*x - 1/2\
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+--3⋅x - 1/2\
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = S(1)/2 - 3*x
+
+-    ascii_str = \
+
+-"""\
+
+--3*x + 1/2\
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+--3⋅x + 1/2\
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = -S(1)/2 - 3*x/2
+
+-    ascii_str = \
+
+-"""\
+
+-  3*x   1\n\
+
+-- --- - -\n\
+
+-   2    2\
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  3⋅x   1\n\
+
+-- ─── - ─\n\
+
+-   2    2\
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
+-
+
+-    expr = S(1)/2 - 3*x/2
+
+-    ascii_str = \
+
+-"""\
+
+-  3*x   1\n\
+
+-- --- + -\n\
+
+-   2    2\
+
+-"""
+
+-    ucode_str = \
+
+-u("""\
+
+-  3⋅x   1\n\
+
+-- ─── + ─\n\
+
+-   2    2\
+
+-""")
+
+-    assert pretty(expr) == ascii_str
+
+-    assert upretty(expr) == ucode_str
+
++1
+
+ 
+
+ 
+
+ def test_negative_fractions():

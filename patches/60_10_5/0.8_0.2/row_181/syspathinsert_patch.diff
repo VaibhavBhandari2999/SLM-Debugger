@@ -1,0 +1,43 @@
+--- a/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
++++ b/decoupled/60/0.8_0.2/181/pytest-dev_pytest/src/_pytest/pytester.py
+@@ -870,7 +870,7 @@
+         """
+
+         return self._makefile(".txt", args, kwargs)
+
+ 
+
+-    def syspathinsert(
+
++def syspathinsert(
+
+         self, path: Optional[Union[str, "os.PathLike[str]"]] = None
+
+     ) -> None:
+
+         """Prepend a directory to sys.path, defaults to :py:attr:`tmpdir`.
+
+@@ -881,7 +881,11 @@
+         if path is None:
+
+             path = self.path
+
+ 
+
+-        self._monkeypatch.syspath_prepend(str(path))
+
++        # Sanitize the username by replacing backslashes with underscores
+
++        sanitized_username = getpass.getuser().replace("\\", "_")
+
++        sanitized_tmpdir = os.path.join(self.tmpdir, sanitized_username)
+
++
+
++        self._monkeypatch.syspath_prepend(sanitized_tmpdir)
+
+ 
+
+     def mkdir(self, name: str) -> Path:
+
+         """Create a new (sub)directory."""

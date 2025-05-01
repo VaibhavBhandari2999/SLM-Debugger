@@ -1,0 +1,84 @@
+--- a/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
++++ b/decoupled/60/0.8_0.2/288/sympy_sympy/sympy/polys/multivariate_resultants.py
+@@ -320,17 +320,30 @@
+         """
+
+         return 1 + sum(d - 1 for d in self.degrees)
+
+ 
+
+-    def get_size(self):
+
+-        r"""
+
+-        Returns
+
+-        =======
+
+-
+
+-        size: int
+
+-            The size of set T. Set T is the set of all possible
+
+-            monomials of the n variables for degree equal to the
+
+-            degree_m
+
+-        """
+
+-        return binomial(self.degree_m + self.n - 1, self.n - 1)
+
++import sympy as sp
+
++from sympy.polys.orderings import monomial_key
+
++
+
++def itermonomials(variables, max_degree, min_degree=0):
+
++    """
+
++    Generate all monomials of total degree up to max_degree, starting from min_degree.
+
++    """
+
++    if min_degree < 0 or max_degree < 0 or min_degree > max_degree:
+
++        raise ValueError("Invalid degree values")
+
++    
+
++    monomials = set()
+
++    for degree in range(min_degree, max_degree + 1):
+
++        for monom in sp.itermonomials(variables, degree):
+
++            monomials.add(monom)
+
++    
+
++    return sorted(monomials, key=monomial_key('grlex', variables))
+
++
+
++# Example usage
+
++x1, x2, x3 = sp.symbols('x1, x2, x3')
+
++states = [x1, x2, x3]
+
++max_degrees = 3
+
++min_degrees = 3
+
++monomials = itermonomials(states, max_degrees, min_degrees)
+
++print(monomials)
+
+ 
+
+     def get_monomials_of_certain_degree(self, degree):
+
+         """

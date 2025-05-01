@@ -1,0 +1,77 @@
+--- a/decoupled/60/0.8_0.2/226/sympy_sympy/sympy/physics/quantum/operatorset.py
++++ b/decoupled/60/0.8_0.2/226/sympy_sympy/sympy/physics/quantum/operatorset.py
+@@ -147,13 +147,26 @@
+             return None
+
+ 
+
+ 
+
++from sympy.printing.mathematica import MCodePrinter
+
++from sympy.physics.quantum.state import StateBase, BraBase
+
++from sympy.physics.quantum.cartesian import XKet, PxKet, XBra, PxBra
+
++from sympy.physics.quantum.operatorset import state_to_operators
+
++from sympy import Float
+
++
+
++class CustomMCodePrinter(MCodePrinter):
+
++    def _print_Derivative(self, expr):
+
++        return "D[%s]" % (self.stringify(expr.args, ", "))
+
++
+
++    def _print_Float(self, expr):
+
++        res = str(expr)
+
++        return res.replace('e', '*^')
+
++
+
+ def state_to_operators(state, **options):
+
+     """ Returns the operator or set of operators corresponding to the
+
+     given eigenstate
+
+ 
+
+     A global function for mapping state classes to their associated
+
+-    operators or sets of operators. It takes either a state class
+
+-    or instance.
+
++    operators or sets of operators. It takes either a state class or instance.
+
+ 
+
+     This function can handle both instances of a given state or just
+
+     the class itself (i.e. both XKet() and XKet)
+
+@@ -234,6 +247,9 @@
+ 
+
+     return _make_set(ret)
+
+ 
+
++# Register the custom printer
+
++MCodePrinter.print_method = CustomMCodePrinter.print_method
+
++
+
+ 
+
+ def _make_default(expr):
+
+     try:

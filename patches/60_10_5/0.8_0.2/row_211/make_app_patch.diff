@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/sphinx/testing/fixtures.py
++++ b/decoupled/60/0.8_0.2/211/sphinx-doc_sphinx/sphinx/testing/fixtures.py
+@@ -167,7 +167,7 @@
+     """
+
+     provides make_app function to initialize SphinxTestApp instance.
+
+     if you want to initialize 'app' in your test function. please use this
+
+-    instead of using SphinxTestApp class directory.
+
++    instead of using SphinxTestApp class directly.
+
+     """
+
+     monkeypatch.setattr('sphinx.application.abspath', lambda x: x)
+
+ 

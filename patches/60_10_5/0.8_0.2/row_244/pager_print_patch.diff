@@ -1,0 +1,32 @@
+--- a/decoupled/60/0.8_0.2/244/sympy_sympy/sympy/printing/pretty/pretty.py
++++ b/decoupled/60/0.8_0.2/244/sympy_sympy/sympy/printing/pretty/pretty.py
+@@ -2360,6 +2360,14 @@
+     """
+
+     from pydoc import pager
+
+     from locale import getpreferredencoding
+
++    from sympy.printing.pretty import pretty_print
+
++
+
++    # Ensure vector expressions are handled correctly
+
++    if expr.is_Mul and expr.args[0].is_Pow and expr.args[0].args[1] == settings.get('t', 1):
+
++        expr = expr.args[0].args[0] ** settings['t'] * expr.args[1]
+
++
+
+     if 'num_columns' not in settings:
+
+         settings['num_columns'] = 500000  # disable line wrap
+
+-    pager(pretty(expr, **settings).encode(getpreferredencoding()))
+
++
+
++    # Use pretty_print to ensure proper formatting
+
++    pager(pretty_print(expr, **settings).encode(getpreferredencoding()))

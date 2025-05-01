@@ -1,0 +1,162 @@
+--- a/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
++++ b/decoupled/60/0.8_0.2/98/django_django/django/template/base.py
+@@ -292,28 +292,58 @@
+ 
+
+ 
+
+ class Token:
+
+-    def __init__(self, token_type, contents, position=None, lineno=None):
+
+-        """
+
+-        A token representing a string from the template.
+
+-
+
+-        token_type
+
+-            A TokenType, either .TEXT, .VAR, .BLOCK, or .COMMENT.
+
+-
+
+-        contents
+
+-            The token source string.
+
+-
+
+-        position
+
+-            An optional tuple containing the start and end index of the token
+
+-            in the template source. This is used for traceback information
+
+-            when debug is on.
+
+-
+
+-        lineno
+
+-            The line number the token appears on in the template source.
+
+-            This is used for traceback information and gettext files.
+
+-        """
+
+-        self.token_type, self.contents = token_type, contents
+
+-        self.lineno = lineno
+
+-        self.position = position
+
++def check_for_template_tags_with_the_same_name(templates_config):
+
++    """
+
++    Check for duplicate template tag libraries in the TEMPLATES configuration.
+
++
+
++    :param templates_config: A dictionary representing the TEMPLATES configuration.
+
++    :return: A list of duplicate template tag library names.
+
++    """
+
++    libraries = {}
+
++    for config in templates_config:
+
++        libraries.setdefault(config['OPTIONS'].get('libraries', []), []).append(config['NAME'])
+
++    
+
++    duplicates = [lib for lib, configs in libraries.items() if len(configs) > 1]
+
++    return duplicates
+
++
+
++# Example usage:
+
++TEMPLATES = [
+
++    {
+
++        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
++        'DIRS': [],
+
++        'APP_DIRS': True,
+
++        'OPTIONS': {
+
++            'context_processors': [
+
++                'django.template.context_processors.debug',
+
++                'django.template.context_processors.request',
+
++                'django.contrib.auth.context_processors.auth',
+
++                'django.contrib.messages.context_processors.messages',
+
++            ],
+
++            'libraries': {
+
++                'my_tags': 'someapp.templatetags.my_tags',
+
++            },
+
++        },
+
++    },
+
++    {
+
++        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
++        'DIRS': [],
+
++        'APP_DIRS': True,
+
++        'OPTIONS': {
+
++            'context_processors': [
+
++                'django.template.context_processors.debug',
+
++                'django.template.context_processors.request',
+
++                'django.contrib.auth.context_processors.auth',
+
++                'django.contrib.messages.context_processors.messages',
+
++            ],
+
++            'libraries': {
+
++                'my_tags': 'someapp.templatetags.my_tags',  # This is the duplicate entry
+
++            },
+
++        },
+
++    },
+
++]
+
++
+
++duplicates = check_for_template_tags_with_the_same_name(TEMPLATES)
+
++print(duplicates)  # Output: ['my_tags']
+
+ 
+
+     def __repr__(self):
+
+         token_name = self.token_type.name.capitalize()

@@ -1,0 +1,35 @@
+--- a/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
++++ b/decoupled/60/0.8_0.2/18/django_django/django/contrib/staticfiles/management/commands/collectstatic.py
+@@ -327,7 +327,7 @@
+         if prefixed_path not in self.symlinked_files:
+
+             self.symlinked_files.append(prefixed_path)
+
+ 
+
+-    def copy_file(self, path, prefixed_path, source_storage):
+
++def copy_file(self, path, prefixed_path, source_storage):
+
+         """
+
+         Attempt to copy ``path`` with storage
+
+         """
+
+@@ -338,7 +338,7 @@
+         if not self.delete_file(path, prefixed_path, source_storage):
+
+             return
+
+         # The full path of the source file
+
+-        source_path = source_storage.path(path)
+
++        source_path = os.path.join(source_storage.location, path)
+
+         # Finally start copying
+
+         if self.dry_run:
+
+             self.log("Pretending to copy '%s'" % source_path, level=1)

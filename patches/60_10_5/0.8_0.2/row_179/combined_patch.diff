@@ -1,0 +1,222 @@
+--- a/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -776,19 +776,23 @@
+         self.explanation_specifiers[specifier] = expr
+
+         return "%(" + specifier + ")s"
+
+ 
+
+-    def push_format_context(self) -> None:
+
+-        """Create a new formatting context.
+
+-
+
+-        The format context is used for when an explanation wants to
+
+-        have a variable value formatted in the assertion message.  In
+
+-        this case the value required can be added using
+
+-        .explanation_param().  Finally .pop_format_context() is used
+
+-        to format a string of %-formatted values as added by
+
+-        .explanation_param().
+
+-
+
+-        """
+
+-        self.explanation_specifiers = {}  # type: Dict[str, ast.expr]
+
+-        self.stack.append(self.explanation_specifiers)
+
++def push_format_context(self) -> None:
+
++    """Create a new formatting context.
+
++
+
++    The format context is used for when an explanation wants to
+
++    have a variable value formatted in the assertion message.  In
+
++    this case the value required can be added using
+
++    .explanation_param().  Finally .pop_format_context() is used
+
++    to format a string of %-formatted values as added by
+
++    .explanation_param().
+
++
+
++    """
+
++    # Clear the existing explanation specifiers to ensure that
+
++    # the context is clean and does not carry over information
+
++    # from previous test runs, which could cause incorrect
+
++    # location reporting.
+
++    self.explanation_specifiers = {}  # type: Dict[str, ast.expr]
+
++    self.stack.append(self.explanation_specifiers)
+
+ 
+
+     def pop_format_context(self, expl_expr: ast.expr) -> ast.Name:
+
+         """Format the %-formatted string with current format context.
+
+
+--- a/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/config/__init__.py
++++ b/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/config/__init__.py
+@@ -741,6 +741,9 @@
+ 
+
+ notset = Notset()
+
+ 
+
++
+
++import os
+
++from typing import Iterable, Iterator
+
+ 
+
+ def _iter_rewritable_modules(package_files: Iterable[str]) -> Iterator[str]:
+
+     """
+
+
+--- a/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -127,7 +127,7 @@
+     ) -> Optional[types.ModuleType]:
+
+         return None  # default behaviour is fine
+
+ 
+
+-    def exec_module(self, module: types.ModuleType) -> None:
+
++def exec_module(self, module: types.ModuleType) -> None:
+
+         assert module.__spec__ is not None
+
+         assert module.__spec__.origin is not None
+
+         fn = Path(module.__spec__.origin)
+
+@@ -168,6 +168,12 @@
+         else:
+
+             state.trace("found cached rewritten pyc for {}".format(fn))
+
+         exec(co, module.__dict__)
+
++
+
++        # Ensure the location of the skip mark is correctly reported
+
++        if hasattr(module, 'pytest_runtest_makereport'):
+
++            report = module.pytest_runtest_makereport
+
++            if report.skipped:
+
++                report.location = (str(fn), fn.line, fn.name)
+
+ 
+
+     def _early_rewrite_bailout(self, name: str, state: "AssertionState") -> bool:
+
+         """This is a fast way to get out of rewriting modules.
+
+
+--- a/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/config/__init__.py
++++ b/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/config/__init__.py
+@@ -112,12 +112,7 @@
+ def filter_traceback_for_conftest_import_failure(
+
+     entry: _pytest._code.TracebackEntry,
+
+ ) -> bool:
+
+-    """filters tracebacks entries which point to pytest internals or importlib.
+
+-
+
+-    Make a special case for importlib because we use it to import test modules and conftest files
+
+-    in _pytest.pathlib.import_path.
+
+-    """
+
+-    return filter_traceback(entry) and "importlib" not in str(entry.path).split(os.sep)
+
++    ...
+
+ 
+
+ 
+
+ def main(
+
+
+--- a/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/179/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -169,7 +169,7 @@
+             state.trace("found cached rewritten pyc for {}".format(fn))
+
+         exec(co, module.__dict__)
+
+ 
+
+-    def _early_rewrite_bailout(self, name: str, state: "AssertionState") -> bool:
+
++def _early_rewrite_bailout(self, name: str, state: "AssertionState") -> bool:
+
+         """This is a fast way to get out of rewriting modules.
+
+ 
+
+         Profiling has shown that the call to PathFinder.find_spec (inside of
+
+@@ -205,8 +205,12 @@
+         if self._is_marked_for_rewrite(name, state):
+
+             return False
+
+ 
+
+-        state.trace("early skip of rewriting module: {}".format(name))
+
+-        return True
+
++        # Ensure the skip location is reported correctly
+
++        if state.skipped:
+
++            state.trace("early skip of rewriting module: {}".format(name))
+
++            return True
+
++
+
++        return False
+
+ 
+
+     def _should_rewrite(self, name: str, fn: str, state: "AssertionState") -> bool:
+
+         # always rewrite conftest files
+
+

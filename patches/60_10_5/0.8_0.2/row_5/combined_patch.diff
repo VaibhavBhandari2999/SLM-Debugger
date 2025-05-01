@@ -1,0 +1,574 @@
+--- a/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
++++ b/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
+@@ -2218,47 +2218,15 @@
+     base_representation = CartesianRepresentation
+
+     _d_xyz = None
+
+ 
+
+-    def __init__(self, d_x, d_y=None, d_z=None, unit=None, xyz_axis=None,
+
+-                 copy=True):
+
+-
+
+-        if d_y is None and d_z is None:
+
+-            if isinstance(d_x, np.ndarray) and d_x.dtype.kind not in 'OV':
+
+-                # Short-cut for 3-D array input.
+
+-                d_x = u.Quantity(d_x, unit, copy=copy, subok=True)
+
+-                # Keep a link to the array with all three coordinates
+
+-                # so that we can return it quickly if needed in get_xyz.
+
+-                self._d_xyz = d_x
+
+-                if xyz_axis:
+
+-                    d_x = np.moveaxis(d_x, xyz_axis, 0)
+
+-                    self._xyz_axis = xyz_axis
+
+-                else:
+
+-                    self._xyz_axis = 0
+
+-
+
+-                self._d_x, self._d_y, self._d_z = d_x
+
+-                return
+
+-
+
+-            else:
+
+-                d_x, d_y, d_z = d_x
+
+-
+
+-        if xyz_axis is not None:
+
+-            raise ValueError("xyz_axis should only be set if d_x, d_y, and d_z "
+
+-                             "are in a single array passed in through d_x, "
+
+-                             "i.e., d_y and d_z should not be not given.")
+
+-
+
+-        if d_y is None or d_z is None:
+
+-            raise ValueError("d_x, d_y, and d_z are required to instantiate {0}"
+
+-                             .format(self.__class__.__name__))
+
+-
+
+-        if unit is not None:
+
+-            d_x = u.Quantity(d_x, unit, copy=copy, subok=True)
+
+-            d_y = u.Quantity(d_y, unit, copy=copy, subok=True)
+
+-            d_z = u.Quantity(d_z, unit, copy=copy, subok=True)
+
+-            copy = False
+
+-
+
+-        super().__init__(d_x, d_y, d_z, copy=copy)
+
+-        if not (self._d_x.unit.is_equivalent(self._d_y.unit) and
+
+-                self._d_x.unit.is_equivalent(self._d_z.unit)):
+
+-            raise u.UnitsError('d_x, d_y and d_z should have equivalent units.')
+
++def wcs_pix2world(self, *args, **kwargs):
+
++    # Check if any of the input arrays are empty
+
++    if any(len(arr) == 0 for arr in args):
+
++        return np.array([], dtype=float)
+
++    
+
++    # Continue with the original logic
+
++    return self._array_converter(
+
++        lambda xy, o: self.wcs.p2s(xy, o)['world'],
+
++        'output', *args, **kwargs)
+
+ 
+
+     def to_cartesian(self, base=None):
+
+         return CartesianRepresentation(*[getattr(self, c) for c
+
+
+--- a/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
++++ b/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
+@@ -207,41 +207,16 @@
+         """A tuple with the in-order names of the coordinate components."""
+
+         return tuple(self.attr_classes)
+
+ 
+
+-    def _apply(self, method, *args, **kwargs):
+
+-        """Create a new representation or differential with ``method`` applied
+
+-        to the component data.
+
+-
+
+-        In typical usage, the method is any of the shape-changing methods for
+
+-        `~numpy.ndarray` (``reshape``, ``swapaxes``, etc.), as well as those
+
+-        picking particular elements (``__getitem__``, ``take``, etc.), which
+
+-        are all defined in `~astropy.utils.misc.ShapedLikeNDArray`. It will be
+
+-        applied to the underlying arrays (e.g., ``x``, ``y``, and ``z`` for
+
+-        `~astropy.coordinates.CartesianRepresentation`), with the results used
+
+-        to create a new instance.
+
+-
+
+-        Internally, it is also used to apply functions to the components
+
+-        (in particular, `~numpy.broadcast_to`).
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        method : str or callable
+
+-            If str, it is the name of a method that is applied to the internal
+
+-            ``components``. If callable, the function is applied.
+
+-        args : tuple
+
+-            Any positional arguments for ``method``.
+
+-        kwargs : dict
+
+-            Any keyword arguments for ``method``.
+
+-        """
+
+-        if callable(method):
+
+-            apply_method = lambda array: method(array, *args, **kwargs)
+
+-        else:
+
+-            apply_method = operator.methodcaller(method, *args, **kwargs)
+
+-
+
+-        new = super().__new__(self.__class__)
+
+-        for component in self.components:
+
+-            setattr(new, '_' + component,
+
+-                    apply_method(getattr(self, component)))
+
+-        return new
+
++def wcs_pix2world(self, *args, **kwargs):
+
++    # Check if any of the input arrays are empty
+
++    if any(len(arr) == 0 for arr in args):
+
++        # Return an empty array of the appropriate shape
+
++        return np.empty((0,) + self.wcs.naxis * (1,))
+
++    
+
++    # Continue with the original implementation
+
++    return self._array_converter(
+
++        lambda xy, o: self.wcs.p2s(xy, o)['world'],
+
++        'output', *args, **kwargs)
+
+ 
+
+     @property
+
+     def shape(self):
+
+
+--- a/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
++++ b/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
+@@ -971,48 +971,16 @@
+ 
+
+     _xyz = None
+
+ 
+
+-    def __init__(self, x, y=None, z=None, unit=None, xyz_axis=None,
+
+-                 differentials=None, copy=True):
+
+-
+
+-        if y is None and z is None:
+
+-            if isinstance(x, np.ndarray) and x.dtype.kind not in 'OV':
+
+-                # Short-cut for 3-D array input.
+
+-                x = u.Quantity(x, unit, copy=copy, subok=True)
+
+-                # Keep a link to the array with all three coordinates
+
+-                # so that we can return it quickly if needed in get_xyz.
+
+-                self._xyz = x
+
+-                if xyz_axis:
+
+-                    x = np.moveaxis(x, xyz_axis, 0)
+
+-                    self._xyz_axis = xyz_axis
+
+-                else:
+
+-                    self._xyz_axis = 0
+
+-
+
+-                self._x, self._y, self._z = x
+
+-                self._differentials = self._validate_differentials(differentials)
+
+-                return
+
+-
+
+-            else:
+
+-                x, y, z = x
+
+-
+
+-        if xyz_axis is not None:
+
+-            raise ValueError("xyz_axis should only be set if x, y, and z are "
+
+-                             "in a single array passed in through x, "
+
+-                             "i.e., y and z should not be not given.")
+
+-
+
+-        if y is None or z is None:
+
+-            raise ValueError("x, y, and z are required to instantiate {0}"
+
+-                             .format(self.__class__.__name__))
+
+-
+
+-        if unit is not None:
+
+-            x = u.Quantity(x, unit, copy=copy, subok=True)
+
+-            y = u.Quantity(y, unit, copy=copy, subok=True)
+
+-            z = u.Quantity(z, unit, copy=copy, subok=True)
+
+-            copy = False
+
+-
+
+-        super().__init__(x, y, z, copy=copy, differentials=differentials)
+
+-        if not (self._x.unit.is_equivalent(self._y.unit) and
+
+-                self._x.unit.is_equivalent(self._z.unit)):
+
+-            raise u.UnitsError("x, y, and z should have matching physical types")
+
++def wcs_pix2world(self, *args, **kwargs):
+
++    # Convert the input arguments to a list of arrays
+
++    arrays = self._array_converter(lambda xy, o: self.wcs.p2s(xy, o)['world'], 'output', *args, **kwargs)
+
++    
+
++    # Check if any of the arrays are empty and return an empty array if they are
+
++    for i, array in enumerate(arrays):
+
++        if array.size == 0:
+
++            arrays[i] = np.array([], dtype=object)
+
++    
+
++    return arrays
+
+ 
+
+     def unit_vectors(self):
+
+         l = np.broadcast_to(1.*u.one, self.shape, subok=True)
+
+
+--- a/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
++++ b/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
+@@ -732,33 +732,16 @@
+         """
+
+         return representation.represent_as(cls)
+
+ 
+
+-    def _apply(self, method, *args, **kwargs):
+
+-        """Create a new representation with ``method`` applied to the component
+
+-        data.
+
+-
+
+-        This is not a simple inherit from ``BaseRepresentationOrDifferential``
+
+-        because we need to call ``._apply()`` on any associated differential
+
+-        classes.
+
+-
+
+-        See docstring for `BaseRepresentationOrDifferential._apply`.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        method : str or callable
+
+-            If str, it is the name of a method that is applied to the internal
+
+-            ``components``. If callable, the function is applied.
+
+-        args : tuple
+
+-            Any positional arguments for ``method``.
+
+-        kwargs : dict
+
+-            Any keyword arguments for ``method``.
+
+-
+
+-        """
+
+-        rep = super()._apply(method, *args, **kwargs)
+
+-
+
+-        rep._differentials = dict(
+
+-            [(k, diff._apply(method, *args, **kwargs))
+
+-             for k, diff in self._differentials.items()])
+
+-        return rep
+
++def wcs_pix2world(self, *args, **kwargs):
+
++    # Check if any of the input arguments are empty lists
+
++    if any(len(arg) == 0 for arg in args):
+
++        # Return an empty list of the appropriate length
+
++        return [np.array([], dtype=float)] * len(args[0])
+
++
+
++    # Continue with the original logic if the inputs are not empty lists
+
++    return self._array_converter(
+
++        lambda xy, o: self.wcs.p2s(xy, o)['world'],
+
++        'output', *args, **kwargs)
+
+ 
+
+     def _scale_operation(self, op, *args):
+
+         """Scale all non-angular components, leaving angular ones unchanged.
+
+
+--- a/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
++++ b/decoupled/60/0.8_0.2/5/astropy_astropy/astropy/coordinates/representation.py
+@@ -109,47 +109,28 @@
+     # object arrays.
+
+     __array_priority__ = 50000
+
+ 
+
+-    def __init__(self, *args, **kwargs):
+
+-        # make argument a list, so we can pop them off.
+
+-        args = list(args)
+
+-        components = self.components
+
+-        attrs = []
+
+-        for component in components:
+
+-            try:
+
+-                attrs.append(args.pop(0) if args else kwargs.pop(component))
+
+-            except KeyError:
+
+-                raise TypeError('__init__() missing 1 required positional '
+
+-                                'argument: {0!r}'.format(component))
+
+-
+
+-        copy = args.pop(0) if args else kwargs.pop('copy', True)
+
+-
+
+-        if args:
+
+-            raise TypeError('unexpected arguments: {0}'.format(args))
+
+-
+
+-        if kwargs:
+
+-            for component in components:
+
+-                if component in kwargs:
+
+-                    raise TypeError("__init__() got multiple values for "
+
+-                                    "argument {0!r}".format(component))
+
+-
+
+-            raise TypeError('unexpected keyword arguments: {0}'.format(kwargs))
+
+-
+
+-        # Pass attributes through the required initializing classes.
+
+-        attrs = [self.attr_classes[component](attr, copy=copy)
+
+-                 for component, attr in zip(components, attrs)]
+
+-        try:
+
+-            attrs = np.broadcast_arrays(*attrs, subok=True)
+
+-        except ValueError:
+
+-            if len(components) <= 2:
+
+-                c_str = ' and '.join(components)
+
+-            else:
+
+-                c_str = ', '.join(components[:2]) + ', and ' + components[2]
+
+-            raise ValueError("Input parameters {0} cannot be broadcast"
+
+-                             .format(c_str))
+
+-        # Set private attributes for the attributes. (If not defined explicitly
+
+-        # on the class, the metaclass will define properties to access these.)
+
+-        for component, attr in zip(components, attrs):
+
+-            setattr(self, '_' + component, attr)
+
++def _array_converter(self, func, sky, ra_dec_order, *args):
+
++    axes = []
+
++    origin = 0
+
++    for i, arg in enumerate(args):
+
++        if isinstance(arg, list) and not arg:
+
++            # If the input list is empty, return an empty list
+
++            axes.append([])
+
++        else:
+
++            axes.append(arg)
+
++        if i == 0:
+
++            origin = 0 if not arg else arg[0]
+
++
+
++    if ra_dec_order and sky == 'input':
+
++        xy = self._denormalize_sky(axes)
+
++    else:
+
++        xy = axes
+
++
+
++    output = func(xy, origin)
+
++    if ra_dec_order and sky == 'output':
+
++        output = self._normalize_sky(output)
+
++
+
++    return output
+
+ 
+
+     @classmethod
+
+     def get_name(cls):
+
+

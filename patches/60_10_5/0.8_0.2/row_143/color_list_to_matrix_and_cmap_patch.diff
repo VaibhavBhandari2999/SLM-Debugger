@@ -1,0 +1,246 @@
+--- a/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
++++ b/decoupled/60/0.8_0.2/143/mwaskom_seaborn/seaborn/matrix.py
+@@ -1012,56 +1012,72 @@
+         return ratios
+
+ 
+
+     @staticmethod
+
+-    def color_list_to_matrix_and_cmap(colors, ind, axis=0):
+
+-        """Turns a list of colors into a numpy matrix and matplotlib colormap
+
+-
+
+-        These arguments can now be plotted using heatmap(matrix, cmap)
+
+-        and the provided colors will be plotted.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        colors : list of matplotlib colors
+
+-            Colors to label the rows or columns of a dataframe.
+
+-        ind : list of ints
+
+-            Ordering of the rows or columns, to reorder the original colors
+
+-            by the clustered dendrogram order
+
+-        axis : int
+
+-            Which axis this is labeling
+
+-
+
+-        Returns
+
+-        -------
+
+-        matrix : numpy.array
+
+-            A numpy array of integer values, where each indexes into the cmap
+
+-        cmap : matplotlib.colors.ListedColormap
+
+-
+
+-        """
+
+-        try:
+
+-            mpl.colors.to_rgb(colors[0])
+
+-        except ValueError:
+
+-            # We have a 2D color structure
+
+-            m, n = len(colors), len(colors[0])
+
+-            if not all(len(c) == n for c in colors[1:]):
+
+-                raise ValueError("Multiple side color vectors must have same size")
+
+-        else:
+
+-            # We have one vector of colors
+
+-            m, n = 1, len(colors)
+
+-            colors = [colors]
+
+-
+
+-        # Map from unique colors to colormap index value
+
+-        unique_colors = {}
+
+-        matrix = np.zeros((m, n), int)
+
+-        for i, inner in enumerate(colors):
+
+-            for j, color in enumerate(inner):
+
+-                idx = unique_colors.setdefault(color, len(unique_colors))
+
+-                matrix[i, j] = idx
+
+-
+
+-        # Reorder for clustering and transpose for axis
+
+-        matrix = matrix[:, ind]
+
+-        if axis == 0:
+
+-            matrix = matrix.T
+
+-
+
+-        cmap = mpl.colors.ListedColormap(list(unique_colors))
+
+-        return matrix, cmap
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++import seaborn as sns
+
++from matplotlib.colors import ListedColormap
+
++from seaborn._core import color_palette
+
++
+
++def color_list_to_matrix_and_cmap(colors, ind, axis=0):
+
++    """Turns a list of colors into a numpy matrix and matplotlib colormap
+
++
+
++    These arguments can now be plotted using heatmap(matrix, cmap)
+
++    and the provided colors will be plotted.
+
++
+
++    Parameters
+
++    ----------
+
++    colors : list of matplotlib colors
+
++        Colors to label the rows or columns of a dataframe.
+
++    ind : list of ints
+
++        Ordering of the rows or columns, to reorder the original colors
+
++        by the clustered dendrogram order
+
++    axis : int
+
++        Which axis this is labeling
+
++
+
++    Returns
+
++    -------
+
++    matrix : numpy.array
+
++        A numpy array of integer values, where each indexes into the cmap
+
++    cmap : matplotlib.colors.ListedColormap
+
++
+
++    """
+
++    try:
+
++        mpl_colors = [mpl.colors.to_rgb(color) for color in colors[0]]
+
++    except ValueError:
+
++        # We have a 2D color structure
+
++        m, n = len(colors), len(colors[0])
+
++        if not all(len(c) == n for c in colors[1:]):
+
++            raise ValueError("Multiple side color vectors must have same size")
+
++    else:
+
++        # We have one vector of colors
+
++        m, n = 1, len(colors)
+
++        colors = [colors]
+
++
+
++    # Map from unique colors to colormap index value
+
++    unique_colors = {}
+
++    matrix = np.zeros((m, n), int)
+
++    for i, inner in enumerate(colors):
+
++        for j, color in enumerate(inner):
+
++            idx = unique_colors.setdefault(color, len(unique_colors))
+
++            matrix[i, j] = idx
+
++
+
++    # Reorder for clustering and transpose for axis
+
++    matrix = matrix[:, ind]
+
++    if axis == 0:
+
++        matrix = matrix.T
+
++
+
++    # Filter the dataframe to only include the specified hue_order values
+
++    if isinstance(colors[0], str):
+
++        hue_order = [color for color in colors if color in unique_colors]
+
++        matrix = matrix[hue_order.index(colors[0])]
+
++
+
++    cmap = ListedColormap(list(unique_colors))
+
++    return matrix, cmap
+
++
+
++# Example usage:
+
++iris = sns.load_dataset("iris")
+
++# The hue column contains three different species; here we want to plot two
+
++sns.pairplot(iris, hue="species", hue_order=["setosa", "versicolor"])
+
+ 
+
+     def plot_dendrograms(self, row_cluster, col_cluster, metric, method,
+
+                          row_linkage, col_linkage, tree_kws):

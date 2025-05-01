@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
++++ b/decoupled/60/0.8_0.2/141/matplotlib_matplotlib/lib/matplotlib/axes/_base.py
+@@ -1213,13 +1213,12 @@
+         return {side: mspines.Spine.linear_spine(self, side)
+
+                 for side in ['left', 'right', 'bottom', 'top']}
+
+ 
+
+-    def sharex(self, other):
+
++def sharex(self, other):
+
+         """
+
+         Share the x-axis with *other*.
+
+ 
+
+         This is equivalent to passing ``sharex=other`` when constructing the
+
+-        Axes, and cannot be used if the x-axis is already being shared with
+
+-        another Axes.
+
++        Axes, and cannot be used if the x-axis is already being shared.
+
+         """
+
+         _api.check_isinstance(_AxesBase, other=other)
+
+         if self._sharex is not None and other is not self._sharex:
+
+@@ -1229,7 +1228,7 @@
+         self.xaxis.major = other.xaxis.major  # Ticker instances holding
+
+         self.xaxis.minor = other.xaxis.minor  # locator and formatter.
+
+         x0, x1 = other.get_xlim()
+
+-        self.set_xlim(x0, x1, emit=False, auto=other.get_autoscalex_on())
+
++        self.set_xlim(x0, x1, auto=other.get_autoscalex_on())  # Removed emit=False
+
+         self.xaxis._scale = other.xaxis._scale
+
+ 
+
+     def sharey(self, other):

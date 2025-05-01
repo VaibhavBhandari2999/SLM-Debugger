@@ -1,0 +1,96 @@
+--- a/decoupled/60/0.8_0.2/162/pylint-dev_pylint/pylint/checkers/exceptions.py
++++ b/decoupled/60/0.8_0.2/162/pylint-dev_pylint/pylint/checkers/exceptions.py
+@@ -280,26 +280,27 @@
+             return
+
+         ExceptionRaiseLeafVisitor(self, node).visit(inferred)
+
+ 
+
+-    def _check_misplaced_bare_raise(self, node):
+
+-        # Filter out if it's present in __exit__.
+
+-        scope = node.scope()
+
+-        if (
+
+-            isinstance(scope, nodes.FunctionDef)
+
+-            and scope.is_method()
+
+-            and scope.name == "__exit__"
+
+-        ):
+
+-            return
+
+-
+
+-        current = node
+
+-        # Stop when a new scope is generated or when the raise
+
+-        # statement is found inside a TryFinally.
+
+-        ignores = (nodes.ExceptHandler, nodes.FunctionDef)
+
+-        while current and not isinstance(current.parent, ignores):
+
+-            current = current.parent
+
+-
+
+-        expected = (nodes.ExceptHandler,)
+
+-        if not current or not isinstance(current.parent, expected):
+
+-            self.add_message("misplaced-bare-raise", node=node)
+
++def _check_misplaced_bare_raise(self, node):
+
++    # Filter out if it's present in __exit__.
+
++    scope = node.scope()
+
++    if (
+
++        isinstance(scope, nodes.FunctionDef)
+
++        and scope.is_method()
+
++        and scope.name == "__exit__"
+
++    ):
+
++        return
+
++
+
++    current = node
+
++    # Stop when a new scope is generated or when the raise
+
++    # statement is found inside a TryFinally.
+
++    ignores = (nodes.ExceptHandler, nodes.FunctionDef)
+
++    while current and not isinstance(current.parent, ignores):
+
++        current = current.parent
+
++
+
++    expected = (nodes.ExceptHandler,)
+
++    if not current or not isinstance(current.parent, expected):
+
++        # Provide a more user-friendly error message
+
++        self.add_message("misplaced-bare-raise", node=node, args=("unrecognized arguments: -Q",))
+
+ 
+
+     def _check_bad_exception_context(self, node: nodes.Raise) -> None:
+
+         """Verify that the exception context is properly set.

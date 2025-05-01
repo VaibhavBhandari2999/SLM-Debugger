@@ -1,0 +1,66 @@
+--- a/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
++++ b/decoupled/60/0.8_0.2/172/pytest-dev_pytest/src/_pytest/assertion/rewrite.py
+@@ -701,19 +701,19 @@
+         self.explanation_specifiers[specifier] = expr
+
+         return "%(" + specifier + ")s"
+
+ 
+
+-    def push_format_context(self):
+
+-        """Create a new formatting context.
+
+-
+
+-        The format context is used for when an explanation wants to
+
+-        have a variable value formatted in the assertion message.  In
+
+-        this case the value required can be added using
+
+-        .explanation_param().  Finally .pop_format_context() is used
+
+-        to format a string of %-formatted values as added by
+
+-        .explanation_param().
+
+-
+
+-        """
+
+-        self.explanation_specifiers = {}
+
+-        self.stack.append(self.explanation_specifiers)
+
++def push_format_context(self):
+
++    """Create a new formatting context.
+
++
+
++    The format context is used for when an explanation wants to
+
++    have a variable value formatted in the assertion message.  In
+
++    this case the value required can be added using
+
++    .explanation_param().  Finally .pop_format_context() is used
+
++    to format a string of %-formatted values as added by
+
++    .explanation_param().
+
++
+
++    """
+
++    self.explanation_specifiers = {}
+
++    self.stack.append(self.explanation_specifiers)
+
+ 
+
+     def pop_format_context(self, expl_expr):
+
+         """Format the %-formatted string with current format context.

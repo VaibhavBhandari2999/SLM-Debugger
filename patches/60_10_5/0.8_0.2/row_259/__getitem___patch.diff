@@ -1,0 +1,66 @@
+--- a/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/matrices/common.py
++++ b/decoupled/60/0.8_0.2/259/sympy_sympy/sympy/matrices/common.py
+@@ -57,12 +57,26 @@
+     def __eq__(self, other):
+
+         raise NotImplementedError("Subclasses must implement this.")
+
+ 
+
+-    def __getitem__(self, key):
+
+-        """Implementations of __getitem__ should accept ints, in which
+
+-        case the matrix is indexed as a flat list, tuples (i,j) in which
+
+-        case the (i,j) entry is returned, slices, or mixed tuples (a,b)
+
+-        where a and b are any combintion of slices and integers."""
+
+-        raise NotImplementedError("Subclasses must implement this.")
+
++from sympy import FiniteSet, S, Eq, Piecewise
+
++
+
++def Intersection(*sets):
+
++    if not sets:
+
++        return S.EmptySet
+
++
+
++    # Remove duplicates and handle symbolic expressions
+
++    sets = [FiniteSet(*set) for set in sets]
+
++    result = sets[0]
+
++    for s in sets[1:]:
+
++        result = result.intersect(s)
+
++
+
++    # Handle symbolic variable
+
++    if any(isinstance(x, str) for s in sets for x in s):
+
++        return Piecewise(
+
++            (result, all(Eq(x, 1) for x in result)),
+
++            (S.EmptySet, True)
+
++        )
+
++    else:
+
++        return result
+
+ 
+
+     def __len__(self):
+
+         """The total number of entries in the matrix."""

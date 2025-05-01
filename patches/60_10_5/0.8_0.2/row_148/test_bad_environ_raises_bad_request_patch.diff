@@ -1,0 +1,142 @@
+--- a/decoupled/60/0.8_0.2/148/pallets_flask/tests/test_reqctx.py
++++ b/decoupled/60/0.8_0.2/148/pallets_flask/tests/test_reqctx.py
+@@ -277,39 +277,47 @@
+     assert test_client.get("/get_dynamic_cookie").data == b"616"
+
+ 
+
+ 
+
+-def test_bad_environ_raises_bad_request():
+
++import flask
+
++import unittest
+
++
+
++class TestBadEnviron(unittest.TestCase):
+
++    def test_bad_environ_raises_bad_request(self):
+
++        app = flask.Flask(__name__)
+
++
+
++        # Set up the environment with a non-printable character in the Host header
+
++        environ = {
+
++            "HTTP_HOST": "\x8a",
+
++            "PATH_INFO": "/",
+
++            "METHOD": "GET"
+
++        }
+
++
+
++        with app.test_request_context(environ):
+
++            response = app.full_dispatch_request()
+
++        
+
++        # Assert that the response status code is 400 Bad Request
+
++        self.assertEqual(response.status_code, 400)
+
++
+
++if __name__ == "__main__":
+
++    unittest.main()
+
++
+
++
+
++def test_environ_for_valid_idna_completes():
+
+     app = flask.Flask(__name__)
+
++
+
++    @app.route("/")
+
++    def index():
+
++        return "Hello World!"
+
+ 
+
+     from flask.testing import EnvironBuilder
+
+ 
+
+     builder = EnvironBuilder(app)
+
+     environ = builder.get_environ()
+
+ 
+
+-    # use a non-printable character in the Host - this is key to this test
+
+-    environ["HTTP_HOST"] = "\x8a"
+
++    # these characters are all IDNA-compatible
+
++    environ["HTTP_HOST"] = "ąśźäüжŠßя.com"
+
+ 
+
+     with app.request_context(environ):
+
+         response = app.full_dispatch_request()
+
+-    assert response.status_code == 400
+
+-
+
+-
+
+-def test_environ_for_valid_idna_completes():
+
+-    app = flask.Flask(__name__)
+
+-
+
+-    @app.route("/")
+
+-    def index():
+
+-        return "Hello World!"
+
+-
+
+-    from flask.testing import EnvironBuilder
+
+-
+
+-    builder = EnvironBuilder(app)
+
+-    environ = builder.get_environ()
+
+-
+
+-    # these characters are all IDNA-compatible
+
+-    environ["HTTP_HOST"] = "ąśźäüжŠßя.com"
+
+-
+
+-    with app.request_context(environ):
+
+-        response = app.full_dispatch_request()
+
+ 
+
+     assert response.status_code == 200
+
+ 
