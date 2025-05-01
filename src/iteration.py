@@ -6,9 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
 
-from src.repo_utils import clone_repo_checkout_commit, create_file_structure
+from src.utils import clone_repo_checkout_commit, create_file_structure
 from src.ranking import rank_files_by_name
-from src.patch_utils import extract_changed_file_from_patch, find_missing_strings
+from src.utils import extract_changed_file_from_patch, find_missing_strings
 
 def iterate_main(data_lite, n, weightBM25, weightSemantic):
     no_of_files_present_in_top_n = 0
@@ -65,42 +65,3 @@ def iterate_main(data_lite, n, weightBM25, weightSemantic):
         json.dump(dict_of_top_n_file_structure_lists, f, indent=4)
     
     return no_of_files_present_in_top_n
-
-
-
-def iterate_main_file_hits_with_summary(n, main_folder, data_lite, t10):
-    file_hit_value = 0
-    hits = 0
-    
-    for row_idx, entry in enumerate(data_lite):
-        repo = entry.get("repo", "N/A")
-        repo_with_underscore = repo.replace("/", "_")
-        base_commit = entry.get("base_commit", "N/A")
-        issue_description = entry.get("problem_statement", "N/A")
-        patch = entry.get("patch", "N/A")
-    
-        print("-"*100)
-        print(f"Row Index: {row_idx}")
-        print(f"Repo: {repo}")
-        print(f"Base Commit: {base_commit}")
-        top_n_files = t10.get(str(row_idx), {}).get("top_n_files", [])
-        print(f"Top N Files: {top_n_files}")
-        print("-"*100, "\n\n")
-    
-        from src.ranking import rank_files_by_content
-        target_files = rank_files_by_content(row_idx, repo_with_underscore, top_n_files, issue_description, n, 0.8, 0.2, main_folder)
-        print("\nTarget Files: ", target_files)
-        actual_target = extract_changed_file_from_patch(patch)
-        print("\nGround Truth Modified Files: ", actual_target)
-    
-        if len(actual_target) > 1:
-            hits += 1
-       
-        if all(item in target_files for item in actual_target):
-            file_hit_value += 1
-            print("File Hit")
-    
-    print("Number of file hits: ", file_hit_value)
-    print("File hit percentage: ", file_hit_value / 300)
-    print("Multi-File Patch count: ", hits)
-    return file_hit_value
