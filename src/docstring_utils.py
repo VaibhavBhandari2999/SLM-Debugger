@@ -11,7 +11,9 @@ import gc
 import ray
 from src.ranking import rank_files_by_content
 from sentence_transformers import SentenceTransformer, util
-
+from rank_bm25 import BM25Okapi
+import nltk
+nltk.download('punkt', quiet=True)
 
 
 def batch_generate_summaries(functions, model):
@@ -476,7 +478,7 @@ Be concise, but include technical details where useful.
     
     return prompt
 
-def narrow_top_files(top_files_data, n, p, issue_description, weightBM25=0.7, weightSemantic=0.3):
+def narrow_top_files(top_files_data, n, p, issue_description, weightBM25=0.8, weightSemantic=0.2, sem_weight=0.7, enable_logging=False):
     """
     Narrow down the top k files to top p files that are most relevant to the issue description,
     using generated docstrings and module summaries.
@@ -486,8 +488,10 @@ def narrow_top_files(top_files_data, n, p, issue_description, weightBM25=0.7, we
         n (int): Number of top files
         p (int): Number of files to narrow down to
         issue_description (str): Description of the issue
-        weightBM25 (float): Weight for BM25 ranking
-        weightSemantic (float): Weight for semantic ranking
+        weightBM25 (float): Weight for BM25 ranking in initial selection
+        weightSemantic (float): Weight for semantic ranking in initial selection
+        sem_weight (float): Weight for semantic ranking in narrowing phase (default: 0.7)
+        enable_logging (bool): Whether to log the process
         
     Returns:
         dict: Narrowed top files data
@@ -496,24 +500,38 @@ def narrow_top_files(top_files_data, n, p, issue_description, weightBM25=0.7, we
     narrowed_data = {}
     
     # Initialize the semantic model directly (NOT through vLLM)
-    # This is a key fix - we don't use vLLM for SentenceTransformer which is a pooling model
     semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
+    
+    print(f"\nNarrowing down top {n} files to top {p} files...")
+    print(f"Using semantic weight: {sem_weight}, BM25 weight: {1-sem_weight}")
     
     # Process each entry in the top files data
     for row_idx, entry in top_files_data.items():
         repo_with_underscore = entry["repo_with_underscore"]
         top_k_files = entry["top_n_files"]
         
+        print(f"\n{'-'*40}")
+        print(f"Processing row {row_idx}: {repo_with_underscore}")
+        
+        # Create log directory if logging is enabled
+        log_dir = None
+        if enable_logging:
+            log_dir = f"narrowing_logs/{n}_{p}/{weightBM25}_{weightSemantic}/{row_idx}"
+            os.makedirs(log_dir, exist_ok=True)
+            print(f"Logging enabled. Logs will be saved to: {log_dir}")
+        
         # Load function and module docstrings
         function_docstrings = []
         if "function_docstrings" in entry and os.path.exists(entry["function_docstrings"]):
             with open(entry["function_docstrings"], "r") as f:
                 function_docstrings = json.load(f)
+                print(f"Loaded {len(function_docstrings)} function docstrings")
         
         module_docstrings = []
         if "module_docstrings" in entry and os.path.exists(entry["module_docstrings"]):
             with open(entry["module_docstrings"], "r") as f:
                 module_docstrings = json.load(f)
+                print(f"Loaded {len(module_docstrings)} module docstrings")
         
         # Create enhanced file content by adding docstrings
         enhanced_file_contents = {}
@@ -566,25 +584,71 @@ def narrow_top_files(top_files_data, n, p, issue_description, weightBM25=0.7, we
             # Get file embeddings using SentenceTransformer directly
             file_embeddings = semantic_model.encode(content_list, convert_to_tensor=True)
             
-            # Calculate semantic similarity
+            # Calculate semantic similarity scores
             semantic_scores = util.pytorch_cos_sim(issue_embedding, file_embeddings)[0].cpu().numpy()
             
-            # Rank files by semantic similarity
-            ranked_files = sorted(zip(file_list, semantic_scores), key=lambda x: x[1], reverse=True)
+            # Tokenize content for BM25
+            tokenized_content = [nltk.word_tokenize(content.lower()) for content in content_list]
+            bm25 = BM25Okapi(tokenized_content)
+            query_tokens = nltk.word_tokenize(issue_description.lower())
+            bm25_scores = np.array(bm25.get_scores(query_tokens))
+            
+            # Normalize scores
+            if np.max(semantic_scores) > 0:
+                semantic_scores = semantic_scores / np.max(semantic_scores)
+            if np.max(bm25_scores) > 0:
+                bm25_scores = bm25_scores / np.max(bm25_scores)
+            
+            # Combine scores using the specified semantic weight
+            combined_scores = round(sem_weight) * semantic_scores + round(1 - sem_weight) * bm25_scores
+            
+            # Rank files by combined score
+            ranked_files = sorted(zip(file_list, combined_scores, semantic_scores, bm25_scores), 
+                                key=lambda x: x[1], reverse=True)
             
             # Take top p files
-            top_p_files = [file for file, _ in ranked_files[:p]]
+            top_p_files = [file for file, _, _, _ in ranked_files[:p]]
+            
+            # Log the ranking if enabled
+            if log_dir:
+                log_file = os.path.join(log_dir, "ranking_details.json")
+                ranking_details = {
+                    "issue_description": issue_description,
+                    "semantic_weight": round(sem_weight),
+                    "bm25_weight": round(1 - sem_weight),
+                    "rankings": [
+                        {
+                            "file": file,
+                            "combined_score": float(combined_score),
+                            "semantic_score": float(semantic_score),
+                            "bm25_score": float(bm25_score),
+                            "selected": file in top_p_files
+                        }
+                        for file, combined_score, semantic_score, bm25_score in ranked_files
+                    ]
+                }
+                
+                with open(log_file, "w") as f:
+                    json.dump(ranking_details, f, indent=4)
+                print(f"Saved ranking details to {log_file}")
             
             # Store narrowed data
             narrowed_data[row_idx] = {
                 **entry,
                 "top_p_files": top_p_files
             }
+            
+            # Print top ranked files
+            print(f"\nTop {p} files selected:")
+            for i, (file, score, sem_score, bm25_score) in enumerate(ranked_files[:p]):
+                print(f"{i+1}. {file}")
+                print(f"   Combined score: {score:.4f} (Semantic: {sem_score:.4f}, BM25: {bm25_score:.4f})")
         else:
             # If no enhanced content, just take the first p files
             narrowed_data[row_idx] = {
                 **entry,
                 "top_p_files": top_k_files[:p]
             }
+            print("\nNo enhanced content found. Taking first p files.")
     
     return narrowed_data
