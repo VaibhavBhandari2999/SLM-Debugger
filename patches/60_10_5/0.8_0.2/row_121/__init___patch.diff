@@ -1,0 +1,146 @@
+--- a/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -158,37 +158,41 @@
+     Base class for `.Figure` and `.SubFigure` containing the methods that add
+
+     artists to the figure or subfigure, create Axes, etc.
+
+     """
+
+-    def __init__(self, **kwargs):
+
+-        super().__init__()
+
+-        # remove the non-figure artist _axes property
+
+-        # as it makes no sense for a figure to be _in_ an Axes
+
+-        # this is used by the property methods in the artist base class
+
+-        # which are over-ridden in this class
+
+-        del self._axes
+
+-
+
+-        self._suptitle = None
+
+-        self._supxlabel = None
+
+-        self._supylabel = None
+
+-
+
+-        # groupers to keep track of x and y labels we want to align.
+
+-        # see self.align_xlabels and self.align_ylabels and
+
+-        # axis._get_tick_boxes_siblings
+
+-        self._align_label_groups = {"x": cbook.Grouper(), "y": cbook.Grouper()}
+
+-
+
+-        self.figure = self
+
+-        # list of child gridspecs for this figure
+
+-        self._gridspecs = []
+
+-        self._localaxes = []  # track all axes
+
+-        self.artists = []
+
+-        self.lines = []
+
+-        self.patches = []
+
+-        self.texts = []
+
+-        self.images = []
+
+-        self.legends = []
+
+-        self.subfigs = []
+
+-        self.stale = True
+
+-        self.suppressComposite = None
+
+-        self.set(**kwargs)
+
++from matplotlib.widgets import RangeSlider
+
++
+
++def set_val(self, val):
+
++    """
+
++    Set slider value to *val*.
+
++
+
++    Parameters
+
++    ----------
+
++    val : tuple or array-like of float
+
++    """
+
++    val = np.sort(np.asanyarray(val))
+
++    if val.shape != (2,):
+
++        raise ValueError(
+
++            f"val must have shape (2,) but has shape {val.shape}"
+
++        )
+
++    val[0] = self._min_in_bounds(val[0])
+
++    val[1] = self._max_in_bounds(val[1])
+
++    xy = self.poly.xy
+
++    if self.orientation == "vertical":
+
++        xy[0] = .25, val[0]
+
++        xy[1] = .25, val[1]
+
++        xy[2] = .75, val[1]
+
++        xy[3] = .75, val[0]
+
++    else:
+
++        xy[0] = val[0], .25
+
++        xy[1] = val[0], .75
+
++        xy[2] = val[1], .75
+
++        xy[3] = val[1], .25
+
++    self.poly.xy = xy
+
++    self.valtext.set_text(self._format(val))
+
++    if self.drawon:
+
++        self.ax.figure.canvas.draw_idle()
+
++    self.val = val
+
++    if self.eventson:
+
++        self._observers.process("changed", val)
+
+ 
+
+     def _get_draw_artists(self, renderer):
+
+         """Also runs apply_aspect"""

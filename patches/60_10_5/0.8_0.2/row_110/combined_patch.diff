@@ -1,0 +1,714 @@
+--- a/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
+@@ -269,7 +269,7 @@
+         for alias in self.alias_map:
+
+             return alias
+
+ 
+
+-    def __str__(self):
+
++def __str__(self):
+
+         """
+
+         Return the query as a string of SQL with the parameter values
+
+         substituted in (use sql_with_params() to see the unsubstituted string).
+
+@@ -278,6 +278,8 @@
+         done by the database interface at execution time.
+
+         """
+
+         sql, params = self.sql_with_params()
+
++        # Use the provided database parameter instead of relying on local_state
+
++        db = self.db  # Assuming 'db' is the parameter passed to the method
+
+         return sql % params
+
+ 
+
+     def sql_with_params(self):
+
+
+--- a/decoupled/60/0.8_0.2/110/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/110/django_django/django/db/models/query_utils.py
+@@ -110,7 +110,7 @@
+             else:
+
+                 yield child
+
+ 
+
+-    def check(self, against, using=DEFAULT_DB_ALIAS):
+
++def check(self, against, using=DEFAULT_DB_ALIAS):
+
+         """
+
+         Do a database query to check if the expressions of the Q instance
+
+         matches against the expressions.
+
+@@ -134,7 +134,7 @@
+             query.add_q(self)
+
+         compiler = query.get_compiler(using=using)
+
+         try:
+
+-            return compiler.execute_sql(SINGLE) is not None
+
++            return compiler.execute_sql(SINGLE, using=using) is not None
+
+         except DatabaseError as e:
+
+             logger.warning("Got a database error calling check() on %r: %s", self, e)
+
+             return True
+
+
+--- a/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
+@@ -1718,130 +1718,121 @@
+                 break
+
+         return path, final_field, targets, names[pos + 1 :]
+
+ 
+
+-    def setup_joins(
+
+-        self,
+
+-        names,
+
+-        opts,
+
+-        alias,
+
+-        can_reuse=None,
+
+-        allow_many=True,
+
+-        reuse_with_filtered_relation=False,
+
+-    ):
+
+-        """
+
+-        Compute the necessary table joins for the passage through the fields
+
+-        given in 'names'. 'opts' is the Options class for the current model
+
+-        (which gives the table we are starting from), 'alias' is the alias for
+
+-        the table to start the joining from.
+
+-
+
+-        The 'can_reuse' defines the reverse foreign key joins we can reuse. It
+
+-        can be None in which case all joins are reusable or a set of aliases
+
+-        that can be reused. Note that non-reverse foreign keys are always
+
+-        reusable when using setup_joins().
+
+-
+
+-        The 'reuse_with_filtered_relation' can be used to force 'can_reuse'
+
+-        parameter and force the relation on the given connections.
+
+-
+
+-        If 'allow_many' is False, then any reverse foreign key seen will
+
+-        generate a MultiJoin exception.
+
+-
+
+-        Return the final field involved in the joins, the target field (used
+
+-        for any 'where' constraint), the final 'opts' value, the joins, the
+
+-        field path traveled to generate the joins, and a transform function
+
+-        that takes a field and alias and is equivalent to `field.get_col(alias)`
+
+-        in the simple case but wraps field transforms if they were included in
+
+-        names.
+
+-
+
+-        The target field is the field containing the concrete value. Final
+
+-        field can be something different, for example foreign key pointing to
+
+-        that value. Final field is needed for example in some value
+
+-        conversions (convert 'obj' in fk__id=obj to pk val using the foreign
+
+-        key field for example).
+
+-        """
+
+-        joins = [alias]
+
+-        # The transform can't be applied yet, as joins must be trimmed later.
+
+-        # To avoid making every caller of this method look up transforms
+
+-        # directly, compute transforms here and create a partial that converts
+
+-        # fields to the appropriate wrapped version.
+
+-
+
+-        def final_transformer(field, alias):
+
+-            if not self.alias_cols:
+
+-                alias = None
+
+-            return field.get_col(alias)
+
+-
+
+-        # Try resolving all the names as fields first. If there's an error,
+
+-        # treat trailing names as lookups until a field can be resolved.
+
+-        last_field_exception = None
+
+-        for pivot in range(len(names), 0, -1):
+
++def setup_joins(
+
++    self,
+
++    names,
+
++    opts,
+
++    alias,
+
++    can_reuse=None,
+
++    allow_many=True,
+
++    reuse_with_filtered_relation=False,
+
++):
+
++    """
+
++    Compute the necessary table joins for the passage through the fields
+
++    given in 'names'. 'opts' is the Options class for the current model
+
++    (which gives the table we are starting from), 'alias' is the alias for
+
++    the table to start the joining from.
+
++
+
++    The 'can_reuse' defines the reverse foreign key joins we can reuse. It
+
++    can be None in which case all joins are reusable or a set of aliases
+
++    that can be reused. Note that non-reverse foreign keys are always
+
++    reusable when using setup_joins().
+
++
+
++    The 'reuse_with_filtered_relation' can be used to force 'can_reuse'
+
++    parameter and force the relation on the given connections.
+
++
+
++    If 'allow_many' is False, then any reverse foreign key seen will
+
++    generate a MultiJoin exception.
+
++
+
++    Return the final field involved in the joins, the target field (used
+
++    for any 'where' constraint), the final 'opts' value, the joins, the
+
++    field path traveled to generate the joins, and a transform function
+
++    that takes a field and alias and is equivalent to `field.get_col(alias)`
+
++    in the simple case but wraps field transforms if they were included in
+
++    names.
+
++
+
++    The target field is the field containing the concrete value. Final
+
++    field can be something different, for example foreign key pointing to
+
++    that value. Final field is needed for example in some value
+
++    conversions (convert 'obj' in fk__id=obj to pk val using the foreign
+
++    key field for example).
+
++    """
+
++    joins = [alias]
+
++    # The transform can't be applied yet, as joins must be trimmed later.
+
++    # To avoid making every caller of this method look up transforms
+
++    # directly, compute transforms here and create a partial that converts
+
++    # fields to the appropriate wrapped version.
+
++
+
++    def final_transformer(field, alias):
+
++        if not self.alias_cols:
+
++            alias = None
+
++        return field.get_col(alias)
+
++
+
++    # Try resolving all the names as fields first. If there's an error,
+
++    # treat trailing names as lookups until a field can be resolved.
+
++    last_field_exception = None
+
++    for pivot in range(len(names), 0, -1):
+
++        try:
+
++            path, final_field, targets, rest = self.names_to_path(
+
++                names[:pivot],
+
++                opts,
+
++                allow_many,
+
++                fail_on_missing=True,
+
++            )
+
++        except FieldError as exc:
+
++            if pivot == 1:
+
++                # The first item cannot be a lookup, so it's safe
+
++                # to raise the field error here.
+
++                raise
+
++            else:
+
++                last_field_exception = exc
+
++        else:
+
++            # The transforms are the remaining items that couldn't be
+
++            # resolved into fields.
+
++            transforms = names[pivot:]
+
++            break
+
++    for name in transforms:
+
++
+
++        def transform(field, alias, *, name, previous):
+
+             try:
+
+-                path, final_field, targets, rest = self.names_to_path(
+
+-                    names[:pivot],
+
+-                    opts,
+
+-                    allow_many,
+
+-                    fail_on_missing=True,
+
+-                )
+
+-            except FieldError as exc:
+
+-                if pivot == 1:
+
+-                    # The first item cannot be a lookup, so it's safe
+
+-                    # to raise the field error here.
+
++                wrapped = previous(field, alias)
+
++                return self.try_transform(wrapped, name)
+
++            except FieldError:
+
++                # FieldError is raised if the transform doesn't exist.
+
++                if isinstance(final_field, Field) and last_field_exception:
+
++                    raise last_field_exception
+
++                else:
+
+                     raise
+
+-                else:
+
+-                    last_field_exception = exc
+
+-            else:
+
+-                # The transforms are the remaining items that couldn't be
+
+-                # resolved into fields.
+
+-                transforms = names[pivot:]
+
+-                break
+
+-        for name in transforms:
+
+-
+
+-            def transform(field, alias, *, name, previous):
+
+-                try:
+
+-                    wrapped = previous(field, alias)
+
+-                    return self.try_transform(wrapped, name)
+
+-                except FieldError:
+
+-                    # FieldError is raised if the transform doesn't exist.
+
+-                    if isinstance(final_field, Field) and last_field_exception:
+
+-                        raise last_field_exception
+
+-                    else:
+
+-                        raise
+
+-
+
+-            final_transformer = functools.partial(
+
+-                transform, name=name, previous=final_transformer
+
+-            )
+
+-            final_transformer.has_transforms = True
+
+-        # Then, add the path to the query's joins. Note that we can't trim
+
+-        # joins at this stage - we will need the information about join type
+
+-        # of the trimmed joins.
+
+-        for join in path:
+
+-            if join.filtered_relation:
+
+-                filtered_relation = join.filtered_relation.clone()
+
+-                table_alias = filtered_relation.alias
+
+-            else:
+
+-                filtered_relation = None
+
+-                table_alias = None
+
+-            opts = join.to_opts
+
+-            if join.direct:
+
+-                nullable = self.is_nullable(join.join_field)
+
+-            else:
+
+-                nullable = True
+
+-            connection = self.join_class(
+
+-                opts.db_table,
+
+-                alias,
+
+-                table_alias,
+
+-                INNER,
+
+-                join.join_field,
+
+-                nullable,
+
+-                filtered_relation=filtered_relation,
+
+-            )
+
+-            reuse = can_reuse if join.m2m or reuse_with_filtered_relation else None
+
+-            alias = self.join(
+
+-                connection,
+
+-                reuse=reuse,
+
+-                reuse_with_filtered_relation=reuse_with_filtered_relation,
+
+-            )
+
+-            joins.append(alias)
+
+-            if filtered_relation:
+
+-                filtered_relation.path = joins[:]
+
+-        return JoinInfo(final_field, targets, opts, joins, path, final_transformer)
+
++
+
++        final_transformer = functools.partial(
+
++            transform, name=name, previous=final_transformer
+
++        )
+
++        final_transformer.has_transforms = True
+
++    # Then, add the path to the query's joins. Note that we can't trim
+
++    # joins at this stage - we will need the information about join type
+
++    # of the trimmed joins.
+
++    for join in path:
+
++        if join.filtered_relation:
+
++            filtered_relation = join.filtered_relation.clone()
+
++            table_alias = filtered_relation.alias
+
++        else:
+
++            filtered_relation = None
+
++            table_alias = None
+
++        opts = join.to_opts
+
++        if join.direct:
+
++            nullable = self.is_nullable(join.join_field)
+
++        else:
+
++            nullable = True
+
++        connection = self.join_class(
+
++            opts.db_table,
+
++            alias,
+
++            table_alias,
+
++            INNER,
+
++            join.join_field,
+
++            nullable,
+
++            filtered_relation=filtered_relation,
+
++        )
+
++        reuse
+
+ 
+
+     def trim_joins(self, targets, joins, path):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
+@@ -106,7 +106,7 @@
+         converter = connections[self.using].introspection.identifier_converter
+
+         return [converter(column_meta[0]) for column_meta in self.cursor.description]
+
+ 
+
+-    def __iter__(self):
+
++def __iter__(self):
+
+         # Always execute a new query for a new iterator.
+
+         # This could be optimized with a cache at the expense of RAM.
+
+         self._execute_query()
+
+
+--- a/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
+@@ -1602,7 +1602,7 @@
+                     )
+
+         self._filtered_relations[filtered_relation.alias] = filtered_relation
+
+ 
+
+-    def names_to_path(self, names, opts, allow_many=True, fail_on_missing=False):
+
++def names_to_path(self, names, opts, allow_many=True, fail_on_missing=False):
+
+         """
+
+         Walk the list of names and turns them into PathInfo tuples. A single
+
+         name in 'names' can generate multiple PathInfos (m2m, for example).
+
+@@ -1636,12 +1636,23 @@
+                     filtered_relation = self._filtered_relations[name]
+
+                     if LOOKUP_SEP in filtered_relation.relation_name:
+
+                         parts = filtered_relation.relation_name.split(LOOKUP_SEP)
+
+-                        filtered_relation_path, field, _, _ = self.names_to_path(
+
+-                            parts,
+
+-                            opts,
+
+-                            allow_many,
+
+-                            fail_on_missing,
+
+-                        )
+
++                        # Use the provided database alias if available
+
++                        db_alias = getattr(self, 'using', None)
+
++                        if db_alias:
+
++                            filtered_relation_path, field, _, _ = self.names_to_path(
+
++                                parts,
+
++                                opts,
+
++                                allow_many,
+
++                                fail_on_missing,
+
++                                using=db_alias
+
++                            )
+
++                        else:
+
++                            filtered_relation_path, field, _, _ = self.names_to_path(
+
++                                parts,
+
++                                opts,
+
++                                allow_many,
+
++                                fail_on_missing
+
++                            )
+
+                         path.extend(filtered_relation_path[:-1])
+
+                     else:
+
+                         field = opts.get_field(filtered_relation.relation_name)
+
+@@ -1699,24 +1710,7 @@
+                             cur_names_with_path[1].extend(pathinfos[0 : inner_pos + 1])
+
+                             names_with_path.append(cur_names_with_path)
+
+                             raise MultiJoin(pos + 1, names_with_path)
+
+-                last = pathinfos[-1]
+
+-                path.extend(pathinfos)
+
+-                final_field = last.join_field
+
+-                opts = last.to_opts
+
+-                targets = last.target_fields
+
+-                cur_names_with_path[1].extend(pathinfos)
+
+-                names_with_path.append(cur_names_with_path)
+
+-            else:
+
+-                # Local non-relational field.
+
+-                final_field = field
+
+-                targets = (field,)
+
+-                if fail_on_missing and pos + 1 != len(names):
+
+-                    raise FieldError(
+
+-                        "Cannot resolve keyword %r into field. Join on '%s'"
+
+-                        " not permitted." % (names[pos + 1], name)
+
+-                    )
+
+-                break
+
+-        return path, final_field, targets, names[pos + 1 :]
+
++                last = pathinfos[-
+
+ 
+
+     def setup_joins(
+
+         self,
+
+

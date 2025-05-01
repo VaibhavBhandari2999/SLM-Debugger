@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/115/django_django/tests/deprecation/tests.py
++++ b/decoupled/60/0.8_0.2/115/django_django/tests/deprecation/tests.py
+@@ -127,7 +127,7 @@
+         with self.assertWarnsMessage(DeprecationWarning, msg):
+
+             renamed.old()
+
+ 
+
+-    def test_deprecated_subclass_renamed_and_mixins(self):
+
++def test_deprecated_subclass_renamed_and_mixins(self):
+
+         """
+
+         Ensure the correct warnings are raised when a subclass inherit from a
+
+         class that renamed `old` and mixins that may or may not have renamed

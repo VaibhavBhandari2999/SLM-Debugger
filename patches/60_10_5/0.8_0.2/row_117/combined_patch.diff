@@ -1,0 +1,341 @@
+--- a/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
+@@ -346,7 +346,7 @@
+     ``Restaurant.place`` is a ``ForwardOneToOneDescriptor`` instance.
+
+     """
+
+ 
+
+-    def get_object(self, instance):
+
++def get_object(self, instance):
+
+         if self.field.remote_field.parent_link:
+
+             deferred = instance.get_deferred_fields()
+
+             # Because it's a parent link, all the data is available in the
+
+@@ -363,6 +363,14 @@
+                 obj._state.adding = instance._state.adding
+
+                 obj._state.db = instance._state.db
+
+                 return obj
+
++        else:
+
++            # Handle the case where it's not a parent link
+
++            # Use only() and select_related() to correctly fetch the related object
+
++            related_instance = instance.secondary
+
++            if related_instance:
+
++                related_fields = ['secondary_field_1']  # Specify the fields you want to fetch
+
++                related_instance = related_instance.only(*related_fields).select_related()
+
++                return related_instance
+
+         return super().get_object(instance)
+
+ 
+
+     def __set__(self, instance, value):
+
+
+--- a/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
+@@ -198,7 +198,7 @@
+         # Assuming the database enforces foreign keys, this won't fail.
+
+         return qs.get(self.field.get_reverse_related_filter(instance))
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
++def __get__(self, instance, cls=None):
+
+         """
+
+         Get the related instance through the forward relation.
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
+@@ -451,7 +451,7 @@
+             False,
+
+         )
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
++def __get__(self, instance, cls=None):
+
+         """
+
+         Get the related instance through the reverse relation.
+
+ 
+
+@@ -478,7 +478,8 @@
+             else:
+
+                 filter_args = self.related.field.get_forward_related_filter(instance)
+
+                 try:
+
+-                    rel_obj = self.get_queryset(instance=instance).get(**filter_args)
+
++                    # Apply only() to the queryset before getting the related object
+
++                    rel_obj = self.get_queryset(instance=instance).only(*filter_args.keys()).get(**filter_args)
+
+                 except self.related.related_model.DoesNotExist:
+
+                     rel_obj = None
+
+                 else:
+
+
+--- a/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
+@@ -1086,49 +1086,51 @@
+                 queryset = super().get_queryset()
+
+                 return self._apply_rel_filters(queryset)
+
+ 
+
+-        def get_prefetch_queryset(self, instances, queryset=None):
+
+-            if queryset is None:
+
+-                queryset = super().get_queryset()
+
+-
+
+-            queryset._add_hints(instance=instances[0])
+
+-            queryset = queryset.using(queryset._db or self._db)
+
+-            queryset = _filter_prefetch_queryset(
+
+-                queryset._next_is_sticky(), self.query_field_name, instances
+
+-            )
+
+-
+
+-            # M2M: need to annotate the query in order to get the primary model
+
+-            # that the secondary model was actually related to. We know that
+
+-            # there will already be a join on the join table, so we can just add
+
+-            # the select.
+
+-
+
+-            # For non-autocreated 'through' models, can't assume we are
+
+-            # dealing with PK values.
+
+-            fk = self.through._meta.get_field(self.source_field_name)
+
+-            join_table = fk.model._meta.db_table
+
+-            connection = connections[queryset.db]
+
+-            qn = connection.ops.quote_name
+
+-            queryset = queryset.extra(
+
+-                select={
+
+-                    "_prefetch_related_val_%s"
+
+-                    % f.attname: "%s.%s"
+
+-                    % (qn(join_table), qn(f.column))
+
+-                    for f in fk.local_related_fields
+
+-                }
+
+-            )
+
+-            return (
+
+-                queryset,
+
+-                lambda result: tuple(
+
+-                    getattr(result, "_prefetch_related_val_%s" % f.attname)
+
+-                    for f in fk.local_related_fields
+
+-                ),
+
+-                lambda inst: tuple(
+
+-                    f.get_db_prep_value(getattr(inst, f.attname), connection)
+
+-                    for f in fk.foreign_related_fields
+
+-                ),
+
+-                False,
+
+-                self.prefetch_cache_name,
+
+-                False,
+
+-            )
+
++def get_prefetch_queryset(self, instances, queryset=None):
+
++    if queryset is None:
+
++        queryset = super().get_queryset()
+
++
+
++    queryset._add_hints(instance=instances[0])
+
++    queryset = queryset.using(queryset._db or self._db)
+
++    queryset = _filter_prefetch_queryset(
+
++        queryset._next_is_sticky(), self.query_field_name, instances
+
++    )
+
++
+
++    # M2M: need to annotate the query in order to get the primary model
+
++    # that the secondary model was actually related to. We know that
+
++    # there will already be a join on the join table, so we can just add
+
++    # the select.
+
++
+
++    # For non-autocreated 'through' models, can't assume we are
+
++    # dealing with PK values.
+
++    fk = self.through._meta.get_field(self.source_field_name)
+
++    join_table = fk.model._meta.db_table
+
++    connection = connections[queryset.db]
+
++    qn = connection.ops.quote_name
+
++    queryset = queryset.extra(
+
++        select={
+
++            "_prefetch_related_val_%s" % f.attname: "%s.%s" % (qn(join_table), qn(f.column))
+
++            for f in fk.local_related_fields
+
++        }
+
++    )
+
++
+
++    # Apply only() to the related model to ensure only the specified fields are included
+
++    queryset = queryset.only('secondary__secondary_field_1')  # Example: only the specified field
+
++
+
++    return (
+
++        queryset,
+
++        lambda result: tuple(
+
++            getattr(result, "_prefetch_related_val_%s" % f.attname)
+
++            for f in fk.local_related_fields
+
++        ),
+
++        lambda inst: tuple(
+
++            f.get_db_prep_value(getattr(inst, f.attname), connection)
+
++            for f in fk.foreign_related_fields
+
++        ),
+
++        False,
+
++        self.prefetch_cache_name,
+
++        False,
+
++    )
+
+ 
+
+         def add(self, *objs, through_defaults=None):
+
+             self._remove_prefetched_objects()
+
+
+--- a/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
+@@ -152,7 +152,7 @@
+     def get_queryset(self, **hints):
+
+         return self.field.remote_field.model._base_manager.db_manager(hints=hints).all()
+
+ 
+
+-    def get_prefetch_queryset(self, instances, queryset=None):
+
++def get_prefetch_queryset(self, instances, queryset=None):
+
+         if queryset is None:
+
+             queryset = self.get_queryset()
+
+         queryset._add_hints(instance=instances[0])
+
+@@ -184,6 +184,10 @@
+             for rel_obj in queryset:
+
+                 instance = instances_dict[rel_obj_attr(rel_obj)]
+
+                 remote_field.set_cached_value(rel_obj, instance)
+
++
+
++        # Apply only() to the queryset to ensure only the specified fields are fetched
+
++        if self.field.foreign_related_fields[0].name in queryset.query.annotations:
+
++            queryset = queryset.only(*[f.name for f in self.field.foreign_related_fields])
+
+         return (
+
+             queryset,
+
+             rel_obj_attr,
+
+

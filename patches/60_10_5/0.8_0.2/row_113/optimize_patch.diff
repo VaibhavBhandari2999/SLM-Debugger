@@ -1,0 +1,176 @@
+--- a/decoupled/60/0.8_0.2/113/django_django/django/db/migrations/optimizer.py
++++ b/decoupled/60/0.8_0.2/113/django_django/django/db/migrations/optimizer.py
+@@ -9,33 +9,62 @@
+     nothing.
+
+     """
+
+ 
+
+-    def optimize(self, operations, app_label):
+
+-        """
+
+-        Main optimization entry point. Pass in a list of Operation instances,
+
+-        get out a new list of Operation instances.
+
++def optimize(self, operations, app_label):
+
++    """
+
++    Main optimization entry point. Pass in a list of Operation instances,
+
++    get out a new list of Operation instances.
+
+ 
+
+-        Unfortunately, due to the scope of the optimization (two combinable
+
+-        operations might be separated by several hundred others), this can't be
+
+-        done as a peephole optimization with checks/output implemented on
+
+-        the Operations themselves; instead, the optimizer looks at each
+
+-        individual operation and scans forwards in the list to see if there
+
+-        are any matches, stopping at boundaries - operations which can't
+
+-        be optimized over (RunSQL, operations on the same field/model, etc.)
+
++    Unfortunately, due to the scope of the optimization (two combinable
+
++    operations might be separated by several hundred others), this can't be
+
++    done as a peephole optimization with checks/output implemented on
+
++    the Operations themselves; instead, the optimizer looks at each
+
++    individual operation and scans forwards in the list to see if there
+
++    are any matches, stopping at boundaries - operations which can't
+
++    be optimized over (RunSQL, operations on the same field/model, etc.)
+
+ 
+
+-        The inner loop is run until the starting list is the same as the result
+
+-        list, and then the result is returned. This means that operation
+
+-        optimization must be stable and always return an equal or shorter list.
+
+-        """
+
+-        # Internal tracking variable for test assertions about # of loops
+
+-        if app_label is None:
+
+-            raise TypeError("app_label must be a str.")
+
+-        self._iterations = 0
+
+-        while True:
+
+-            result = self.optimize_inner(operations, app_label)
+
+-            self._iterations += 1
+
+-            if result == operations:
+
+-                return result
+
+-            operations = result
+
++    The inner loop is run until the starting list is the same as the result
+
++    list, and then the result is returned. This means that operation
+
++    optimization must be stable and always return an equal or shorter list.
+
++    """
+
++    # Internal tracking variable for test assertions about # of loops
+
++    if app_label is None:
+
++        raise TypeError("app_label must be a str.")
+
++    self._iterations = 0
+
++    while True:
+
++        result = self.optimize_inner(operations, app_label)
+
++        self._iterations += 1
+
++        if result == operations:
+
++            return result
+
++        operations = result
+
++
+
++def optimize_inner(self, operations, app_label):
+
++    """
+
++    Inner optimization loop that scans through the operations and applies
+
++    optimizations.
+
++    """
+
++    optimized_operations = []
+
++    i = 0
+
++    while i < len(operations):
+
++        operation = operations[i]
+
++        if isinstance(operation, migrations.AddField):
+
++            optimized_operations.append(operation)
+
++            i += 1
+
++            continue
+
++
+
++        if isinstance(operation, migrations.AlterField):
+
++            # Check if the next operations are also AlterField on the same field
+
++            j = i + 1
+
++            while j < len(operations) and isinstance(operations[j], migrations.AlterField) and operations[j].name == operation.name:
+
++                operation = operation.reduce(operations[j])
+
++                j += 1
+
++            optimized_operations.append(operation)
+
++            i = j
+
++            continue
+
++
+
++        optimized_operations.append(operation)
+
++        i += 1
+
++
+
++    return optimized_operations
+
+ 
+
+     def optimize_inner(self, operations, app_label):
+
+         """Inner optimization loop."""

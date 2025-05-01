@@ -1,0 +1,211 @@
+--- a/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
++++ b/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
+@@ -3851,7 +3851,7 @@
+         """
+
+         return groups.table_group_by(self, keys)
+
+ 
+
+-    def to_pandas(self, index=None, use_nullable_int=True):
+
++def to_pandas(self, index=None, use_nullable_int=True):
+
+         """
+
+         Return a :class:`pandas.DataFrame` instance
+
+ 
+
+@@ -3947,95 +3947,7 @@
+             if time_cols:
+
+                 # Make a light copy of table and clear any indices
+
+                 new_cols = []
+
+-                for col in tbl.itercols():
+
+-                    new_col = (
+
+-                        col_copy(col, copy_indices=False) if col.info.indices else col
+
+-                    )
+
+-                    new_cols.append(new_col)
+
+-                tbl = tbl.__class__(new_cols, copy=False)
+
+-
+
+-                # Certain subclasses (e.g. TimeSeries) may generate new indices on
+
+-                # table creation, so make sure there are no indices on the table.
+
+-                for col in tbl.itercols():
+
+-                    col.info.indices.clear()
+
+-
+
+-                for col in time_cols:
+
+-                    if isinstance(col, TimeDelta):
+
+-                        # Convert to nanoseconds (matches astropy datetime64 support)
+
+-                        new_col = (col.sec * 1e9).astype("timedelta64[ns]")
+
+-                        nat = np.timedelta64("NaT")
+
+-                    else:
+
+-                        new_col = col.datetime64.copy()
+
+-                        nat = np.datetime64("NaT")
+
+-                    if col.masked:
+
+-                        new_col[col.mask] = nat
+
+-                    tbl[col.info.name] = new_col
+
+-
+
+-            # Convert the table to one with no mixins, only Column objects.
+
+-            encode_tbl = serialize.represent_mixins_as_columns(tbl)
+
+-            return encode_tbl
+
+-
+
+-        tbl = _encode_mixins(self)
+
+-
+
+-        badcols = [name for name, col in self.columns.items() if len(col.shape) > 1]
+
+-        if badcols:
+
+-            # fmt: off
+
+-            raise ValueError(
+
+-                f'Cannot convert a table with multidimensional columns to a '
+
+-                f'pandas DataFrame. Offending columns are: {badcols}\n'
+
+-                f'One can filter out such columns using:\n'
+
+-                f'names = [name for name in tbl.colnames if len(tbl[name].shape) <= 1]\n'
+
+-                f'tbl[names].to_pandas(...)'
+
+-            )
+
+-            # fmt: on
+
+-
+
+-        out = OrderedDict()
+
+-
+
+-        for name, column in tbl.columns.items():
+
+-            if getattr(column.dtype, "isnative", True):
+
+-                out[name] = column
+
+-            else:
+
+-                out[name] = column.data.byteswap().newbyteorder("=")
+
+-
+
+-            if isinstance(column, MaskedColumn) and np.any(column.mask):
+
+-                if column.dtype.kind in ["i", "u"]:
+
+-                    pd_dtype = column.dtype.name
+
+-                    if use_nullable_int:
+
+-                        # Convert int64 to Int64, uint32 to UInt32, etc for nullable types
+
+-                        pd_dtype = pd_dtype.replace("i", "I").replace("u", "U")
+
+-                    out[name] = Series(out[name], dtype=pd_dtype)
+
+-
+
+-                    # If pandas is older than 0.24 the type may have turned to float
+
+-                    if column.dtype.kind != out[name].dtype.kind:
+
+-                        warnings.warn(
+
+-                            f"converted column '{name}' from {column.dtype} to"
+
+-                            f" {out[name].dtype}",
+
+-                            TableReplaceWarning,
+
+-                            stacklevel=3,
+
+-                        )
+
+-                elif column.dtype.kind not in ["f", "c"]:
+
+-                    out[name] = column.astype(object).filled(np.nan)
+
+-
+
+-        kwargs = {}
+
+-
+
+-        if index:
+
+-            idx = out.pop(index)
+
+-
+
+-            kwargs["index"] = idx
+
+-
+
+-            # We add the table index to Series inputs (MaskedColumn with int values) to override
+
+-            # its default RangeIndex, see #11432
+
+-            for v in out.values():
+
+-                if isinstance(v, Series):
+
+-                    v.index = idx
+
+-
+
+-        df = DataFrame(out, **kwargs)
+
+-        if index:
+
+-            # Explicitly set the pandas DataFrame index to the original table
+
+-            # index name.
+
+-            df.index.name = idx.info.name
+
+-
+
+-        return df
+
++                for col
+
+ 
+
+     @classmethod
+
+     def from_pandas(cls, dataframe, index=False, units=None):

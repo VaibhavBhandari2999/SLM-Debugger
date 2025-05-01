@@ -1,0 +1,35 @@
+--- a/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
+@@ -269,7 +269,7 @@
+         for alias in self.alias_map:
+
+             return alias
+
+ 
+
+-    def __str__(self):
+
++def __str__(self):
+
+         """
+
+         Return the query as a string of SQL with the parameter values
+
+         substituted in (use sql_with_params() to see the unsubstituted string).
+
+@@ -278,6 +278,8 @@
+         done by the database interface at execution time.
+
+         """
+
+         sql, params = self.sql_with_params()
+
++        # Use the provided database parameter instead of relying on local_state
+
++        db = self.db  # Assuming 'db' is the parameter passed to the method
+
+         return sql % params
+
+ 
+
+     def sql_with_params(self):

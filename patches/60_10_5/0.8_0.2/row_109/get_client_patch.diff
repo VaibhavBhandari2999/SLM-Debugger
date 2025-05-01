@@ -1,0 +1,78 @@
+--- a/decoupled/60/0.8_0.2/109/django_django/django/core/cache/backends/redis.py
++++ b/decoupled/60/0.8_0.2/109/django_django/django/core/cache/backends/redis.py
+@@ -76,12 +76,32 @@
+             )
+
+         return self._pools[index]
+
+ 
+
+-    def get_client(self, key=None, *, write=False):
+
+-        # key is used so that the method signature remains the same and custom
+
+-        # cache client can be implemented which might require the key to select
+
+-        # the server, e.g. sharding.
+
+-        pool = self._get_connection_pool(write)
+
+-        return self._client(connection_pool=pool)
+
++import os
+
++from contextlib import contextmanager
+
++
+
++class FileBasedCache:
+
++    def _key_to_file(self, key, version=None):
+
++        # Implementation of _key_to_file
+
++        pass
+
++
+
++    def _is_expired(self, file):
+
++        # Implementation of _is_expired
+
++        pass
+
++
+
++    @contextmanager
+
++    def _open_file(self, fname):
+
++        try:
+
++            with open(fname, "rb") as f:
+
++                yield f
+
++        except FileNotFoundError:
+
++            yield None
+
++
+
++    def has_key(self, key, version=None):
+
++        fname = self._key_to_file(key, version)
+
++        with self._open_file(fname) as f:
+
++            if f is None:
+
++                return False
+
++            return not self._is_expired(f)
+
+ 
+
+     def add(self, key, value, timeout):
+
+         client = self.get_client(key, write=True)

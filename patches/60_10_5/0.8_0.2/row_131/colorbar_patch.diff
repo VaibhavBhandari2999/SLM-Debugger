@@ -1,0 +1,77 @@
+--- a/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -1174,7 +1174,7 @@
+         return text
+
+ 
+
+     @_docstring.dedent_interpd
+
+-    def colorbar(
+
++def colorbar(
+
+             self, mappable, cax=None, ax=None, use_gridspec=True, **kwargs):
+
+         """
+
+         Add a colorbar to a plot.
+
+@@ -1259,28 +1259,7 @@
+                     'Either provide the *cax* argument to use as the Axes for '
+
+                     'the Colorbar, provide the *ax* argument to steal space '
+
+                     'from it, or add *mappable* to an Axes.'))
+
+-                ax = self.gca()
+
+-            current_ax = self.gca()
+
+-            userax = False
+
+-            if (use_gridspec and isinstance(ax, SubplotBase)):
+
+-                cax, kwargs = cbar.make_axes_gridspec(ax, **kwargs)
+
+-            else:
+
+-                cax, kwargs = cbar.make_axes(ax, **kwargs)
+
+-            cax.grid(visible=False, which='both', axis='both')
+
+-        else:
+
+-            userax = True
+
+-
+
+-        # need to remove kws that cannot be passed to Colorbar
+
+-        NON_COLORBAR_KEYS = ['fraction', 'pad', 'shrink', 'aspect', 'anchor',
+
+-                             'panchor']
+
+-        cb_kw = {k: v for k, v in kwargs.items() if k not in NON_COLORBAR_KEYS}
+
+-
+
+-        cb = cbar.Colorbar(cax, mappable, **cb_kw)
+
+-
+
+-        if not userax:
+
+-            self.sca(current_ax)
+
+-        self.stale = True
+
+-        return cb
+
++                ax = self.gca
+
+ 
+
+     def subplots_adjust(self, left=None, bottom=None, right=None, top=None,
+
+                         wspace=None, hspace=None):

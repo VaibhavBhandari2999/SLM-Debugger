@@ -1,0 +1,265 @@
+--- a/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
++++ b/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
+@@ -128,15 +128,13 @@
+ 
+
+ @image_comparison(['rcparam_alpha.png'], remove_text=True,
+
+                   tol=0 if platform.machine() == 'x86_64' else 0.01)
+
++import matplotlib.pyplot as plt
+
++
+
+ def test_alpha_rcparam():
+
+     fig, ax = plt.subplots()
+
+     ax.plot(range(10), lw=5)
+
+     with mpl.rc_context(rc={'legend.framealpha': .75}):
+
+-        leg = plt.legend(['Longlabel that will go away'], loc='center')
+
+-        # this alpha is going to be over-ridden by the rcparam with
+
+-        # sets the alpha of the patch to be non-None which causes the alpha
+
+-        # value of the face color to be discarded.  This behavior may not be
+
+-        # ideal, but it is what it is and we should keep track of it changing
+
++        leg = plt.legend(['Longlabel that will go away'], loc='center', draggable=True)
+
+         leg.legendPatch.set_facecolor([1, 0, 0, 0.5])
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
++++ b/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
+@@ -80,6 +80,10 @@
+     ax.legend(numpoints=1, loc='best')
+
+ 
+
+ 
+
++from matplotlib.legend import Legend
+
++import matplotlib.pyplot as plt
+
++import pytest
+
++
+
+ def test_legend_label_with_leading_underscore():
+
+     """
+
+     Test that artists with labels starting with an underscore are not added to
+
+@@ -92,6 +96,24 @@
+                       match=r"starts with '_'.*excluded from the legend."):
+
+         legend = ax.legend(handles=[line])
+
+     assert len(legend.legendHandles) == 0
+
++
+
++# Add draggable keyword to the Legend class
+
++class DraggableLegend(Legend):
+
++    def __init__(self, *args, draggable=False, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        self.draggable = draggable
+
++        if draggable:
+
++            self.set_draggable(True)
+
++
+
++# Example usage
+
++def create_draggable_legend():
+
++    fig, ax = plt.subplots()
+
++    line, = ax.plot([0, 1], label='Draggable Legend')
+
++    legend = ax.legend(handles=[line], draggable=True)
+
++    plt.show()
+
++
+
++# Run the example
+
++create_draggable_legend()
+
+ 
+
+ 
+
+ @image_comparison(['legend_labels_first.png'], remove_text=True)
+
+
+--- a/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
++++ b/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
+@@ -541,15 +541,32 @@
+     assert leg.get_frame().get_alpha() == 1
+
+ 
+
+ 
+
++import matplotlib.pyplot as plt
+
++
+
++class CustomLegend(plt.legend):
+
++    def __init__(self, *args, draggable=False, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        self.set_draggable(drivable)
+
++
+
++    def set_draggable(self, draggable):
+
++        self.draggable = draggable
+
++        if draggable:
+
++            self.draggable_ = True
+
++        else:
+
++            self.draggable_ = False
+
++
+
+ def test_legend_title_empty():
+
+     # test that if we don't set the legend title, that
+
+     # it comes back as an empty string, and that it is not
+
+     # visible:
+
+     fig, ax = plt.subplots()
+
+     ax.plot(range(10))
+
+-    leg = ax.legend()
+
++    leg = CustomLegend(ax, draggable=True)
+
+     assert leg.get_title().get_text() == ""
+
+     assert not leg.get_title().get_visible()
+
++
+
++# Run the test function
+
++test_legend_title_empty()
+
+ 
+
+ 
+
+ def test_legend_proper_window_extent():
+
+
+--- a/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
++++ b/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
+@@ -524,11 +524,21 @@
+         ax.get_legend_handles_labels()
+
+ 
+
+ 
+
++import matplotlib.pyplot as plt
+
++from matplotlib.legend import Legend
+
++
+
++# Override the default Legend class to include draggable attribute
+
++class DraggableLegend(Legend):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        self.draggable(True)
+
++
+
+ def test_empty_bar_chart_with_legend():
+
+     """Test legend when bar chart is empty with a label."""
+
+     # related to issue #13003. Calling plt.legend() should not
+
+     # raise an IndexError.
+
+     plt.bar([], [], label='test')
+
++    plt.legend = DraggableLegend
+
+     plt.legend()
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
++++ b/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
+@@ -921,12 +921,14 @@
+     assert handles[0].get_marker() == leg.legendHandles[0].get_marker()
+
+ 
+
+ 
+
++import matplotlib.pyplot as plt
+
++
+
+ def test_subfigure_legend():
+
+-    # Test that legend can be added to subfigure (#20723)
+
++    # Test that a draggable legend can be added to subfigure
+
+     subfig = plt.figure().subfigures()
+
+     ax = subfig.subplots()
+
+     ax.plot([0, 1], [0, 1], label="line")
+
+-    leg = subfig.legend()
+
++    leg = subfig.legend(draggable=True)
+
+     assert leg.figure is subfig
+
+ 
+
+ 
+
+

@@ -1,0 +1,244 @@
+--- a/decoupled/60/0.8_0.2/101/django_django/django/contrib/postgres/constraints.py
++++ b/decoupled/60/0.8_0.2/101/django_django/django/contrib/postgres/constraints.py
+@@ -24,64 +24,64 @@
+         "(%(expressions)s)%(include)s%(where)s%(deferrable)s"
+
+     )
+
+ 
+
+-    def __init__(
+
+-        self,
+
+-        *,
+
+-        name,
+
+-        expressions,
+
+-        index_type=None,
+
+-        condition=None,
+
+-        deferrable=None,
+
+-        include=None,
+
+-        opclasses=(),
+
+-        violation_error_message=None,
+
++def __init__(
+
++    self,
+
++    *,
+
++    name,
+
++    expressions,
+
++    index_type=None,
+
++    condition=None,
+
++    deferrable=None,
+
++    include=None,
+
++    opclasses=(),
+
++    violation_error_message=None,
+
++):
+
++    if index_type and index_type.lower() not in {"gist", "spgist"}:
+
++        raise ValueError(
+
++            "Exclusion constraints only support GiST or SP-GiST indexes."
+
++        )
+
++    if not expressions:
+
++        raise ValueError(
+
++            "At least one expression is required to define an exclusion "
+
++            "constraint."
+
++        )
+
++    if not all(
+
++        isinstance(expr, (list, tuple)) and len(expr) == 2 for expr in expressions
+
+     ):
+
+-        if index_type and index_type.lower() not in {"gist", "spgist"}:
+
+-            raise ValueError(
+
+-                "Exclusion constraints only support GiST or SP-GiST indexes."
+
+-            )
+
+-        if not expressions:
+
+-            raise ValueError(
+
+-                "At least one expression is required to define an exclusion "
+
+-                "constraint."
+
+-            )
+
+-        if not all(
+
+-            isinstance(expr, (list, tuple)) and len(expr) == 2 for expr in expressions
+
+-        ):
+
+-            raise ValueError("The expressions must be a list of 2-tuples.")
+
+-        if not isinstance(condition, (type(None), Q)):
+
+-            raise ValueError("ExclusionConstraint.condition must be a Q instance.")
+
+-        if condition and deferrable:
+
+-            raise ValueError("ExclusionConstraint with conditions cannot be deferred.")
+
+-        if not isinstance(deferrable, (type(None), Deferrable)):
+
+-            raise ValueError(
+
+-                "ExclusionConstraint.deferrable must be a Deferrable instance."
+
+-            )
+
+-        if not isinstance(include, (type(None), list, tuple)):
+
+-            raise ValueError("ExclusionConstraint.include must be a list or tuple.")
+
+-        if not isinstance(opclasses, (list, tuple)):
+
+-            raise ValueError("ExclusionConstraint.opclasses must be a list or tuple.")
+
+-        if opclasses and len(expressions) != len(opclasses):
+
+-            raise ValueError(
+
+-                "ExclusionConstraint.expressions and "
+
+-                "ExclusionConstraint.opclasses must have the same number of "
+
+-                "elements."
+
+-            )
+
+-        self.expressions = expressions
+
+-        self.index_type = index_type or "GIST"
+
+-        self.condition = condition
+
+-        self.deferrable = deferrable
+
+-        self.include = tuple(include) if include else ()
+
+-        self.opclasses = opclasses
+
+-        if self.opclasses:
+
+-            warnings.warn(
+
+-                "The opclasses argument is deprecated in favor of using "
+
+-                "django.contrib.postgres.indexes.OpClass in "
+
+-                "ExclusionConstraint.expressions.",
+
+-                category=RemovedInDjango50Warning,
+
+-                stacklevel=2,
+
+-            )
+
+-        super().__init__(name=name, violation_error_message=violation_error_message)
+
++        raise ValueError("The expressions must be a list of 2-tuples.")
+
++    if not isinstance(condition, (type(None), Q)):
+
++        raise ValueError("ExclusionConstraint.condition must be a Q instance.")
+
++    if condition and deferrable:
+
++        raise ValueError("ExclusionConstraint with conditions cannot be deferred.")
+
++    if not isinstance(deferrable, (type(None), Deferrable)):
+
++        raise ValueError(
+
++            "ExclusionConstraint.deferrable must be a Deferrable instance."
+
++        )
+
++    if not isinstance(include, (type(None), list, tuple)):
+
++        raise ValueError("ExclusionConstraint.include must be a list or tuple.")
+
++    if not isinstance(opclasses, (list, tuple)):
+
++        raise ValueError("ExclusionConstraint.opclasses must be a list or tuple.")
+
++    if opclasses and len(expressions) != len(opclasses):
+
++        raise ValueError(
+
++            "ExclusionConstraint.expressions and "
+
++            "ExclusionConstraint.opclasses must have the same number of "
+
++            "elements."
+
++        )
+
++    self.expressions = expressions
+
++    self.index_type = index_type or "GIST"
+
++    self.condition = condition
+
++    self.deferrable = deferrable
+
++    self.include = tuple(include) if include else ()
+
++    self.opclasses = opclasses
+
++    if self.opclasses:
+
++        warnings.warn(
+
++            "The opclasses argument is deprecated in favor of using "
+
++            "django.contrib.postgres.indexes.OpClass in "
+
++            "ExclusionConstraint.expressions.",
+
++            category=RemovedInDjango50Warning,
+
++            stacklevel=2,
+
++        )
+
++    super().__init__(name=name, violation_error_message=violation_error_message)
+
+ 
+
+     def _get_expressions(self, schema_editor, query):
+
+         expressions = []

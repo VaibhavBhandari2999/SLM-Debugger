@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
+@@ -757,7 +757,7 @@
+     def _get_form_for_get_fields(self, request, obj):
+
+         return self.get_form(request, obj, fields=None)
+
+ 
+
+-    def get_form(self, request, obj=None, change=False, **kwargs):
+
++def get_form(self, request, obj=None, change=False, **kwargs):
+
+         """
+
+         Return a Form class for use in the admin add view. This is used by
+
+         add_view and change_view.
+
+@@ -812,6 +812,16 @@
+                 "%s. Check fields/fieldsets/exclude attributes of class %s."
+
+                 % (e, self.__class__.__name__)
+
+             )
+
++
+
++        # Additional fix for the password help text
+
++        if "UserChangeForm" in str(form):
+
++            password = form.base_fields.get("password")
+
++            if password:
+
++                help_text = password.help_text
+
++                if help_text:
+
++                    # Construct the correct relative path based on the new URL path
+
++                    help_text = help_text.format(f"../../{self.instance.pk}/password/")
+
++                    password.help_text = help_text
+
+ 
+
+     def get_changelist(self, request, **kwargs):
+
+         """

@@ -1,0 +1,66 @@
+--- a/decoupled/60/0.8_0.2/102/django_django/django/template/defaultfilters.py
++++ b/decoupled/60/0.8_0.2/102/django_django/django/template/defaultfilters.py
+@@ -611,17 +611,21 @@
+ 
+
+ 
+
+ @register.filter(is_safe=False)
+
+-def length_is(value, arg):
+
+-    """Return a boolean of whether the value's length is the argument."""
+
+-    warnings.warn(
+
+-        "The length_is template filter is deprecated in favor of the length template "
+
+-        "filter and the == operator within an {% if %} tag.",
+
+-        RemovedInDjango51Warning,
+
+-    )
+
+-    try:
+
+-        return len(value) == int(arg)
+
+-    except (ValueError, TypeError):
+
+-        return ""
+
++from django import forms
+
++from django.forms.formsets import formset_factory
+
++from django.template.loader import render_to_string
+
++
+
++class MyForm(forms.Form):
+
++    # Define your form fields here
+
++
+
++MyFormSet = formset_factory(MyForm, extra=1)
+
++
+
++def my_view(request):
+
++    formset = MyFormSet()
+
++    # Render the formset without the management form template
+
++    management_form_html = render_to_string('myapp/management_form.html', {'formset': formset})
+
++    # You can now use management_form_html in your template
+
++    return render(request, 'myapp/my_template.html', {'formset': formset, 'management_form_html': management_form_html})
+
+ 
+
+ 
+
+ @register.filter(is_safe=True)

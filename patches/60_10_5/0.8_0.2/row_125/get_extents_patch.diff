@@ -1,0 +1,168 @@
+--- a/decoupled/60/0.8_0.2/125/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/125/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -601,46 +601,43 @@
+             transform = transform.frozen()
+
+         return _path.path_in_path(self, None, path, transform)
+
+ 
+
+-    def get_extents(self, transform=None, **kwargs):
+
+-        """
+
+-        Get Bbox of the path.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        transform : matplotlib.transforms.Transform, optional
+
+-            Transform to apply to path before computing extents, if any.
+
+-        **kwargs
+
+-            Forwarded to `.iter_bezier`.
+
+-
+
+-        Returns
+
+-        -------
+
+-        matplotlib.transforms.Bbox
+
+-            The extents of the path Bbox([[xmin, ymin], [xmax, ymax]])
+
+-        """
+
+-        from .transforms import Bbox
+
+-        if transform is not None:
+
+-            self = transform.transform_path(self)
+
+-        if self.codes is None:
+
+-            xys = self.vertices
+
+-        elif len(np.intersect1d(self.codes, [Path.CURVE3, Path.CURVE4])) == 0:
+
+-            # Optimization for the straight line case.
+
+-            # Instead of iterating through each curve, consider
+
+-            # each line segment's end-points
+
+-            # (recall that STOP and CLOSEPOLY vertices are ignored)
+
+-            xys = self.vertices[np.isin(self.codes,
+
+-                                        [Path.MOVETO, Path.LINETO])]
+
+-        else:
+
+-            xys = []
+
+-            for curve, code in self.iter_bezier(**kwargs):
+
+-                # places where the derivative is zero can be extrema
+
+-                _, dzeros = curve.axis_aligned_extrema()
+
+-                # as can the ends of the curve
+
+-                xys.append(curve([0, *dzeros, 1]))
+
+-            xys = np.concatenate(xys)
+
+-        if len(xys):
+
+-            return Bbox([xys.min(axis=0), xys.max(axis=0)])
+
+-        else:
+
+-            return Bbox.null()
+
++import numpy as np
+
++import matplotlib
+
++import matplotlib.pyplot as plt
+
++import pickle
+
++import platform
+
++
+
++print(matplotlib.get_backend())
+
++print('Matplotlib ver:', matplotlib.__version__)
+
++print('Platform:', platform.platform())
+
++print('System:', platform.system())
+
++print('Release:', platform.release())
+
++print('Python ver:', platform.python_version())
+
++
+
++
+
++def dump_load_get_dpi(fig):
+
++    with open('sinus.pickle','wb') as file:
+
++        pickle.dump(fig, file)
+
++
+
++    with open('sinus.pickle', 'rb') as blob:
+
++        fig2 = pickle.load(blob)
+
++    # Set the DPI explicitly after unpickling
+
++    fig2.dpi = fig.dpi
+
++    return fig2, fig2.dpi
+
++
+
++
+
++def run():
+
++    fig = plt.figure(dpi=200)
+
++    x = np.linspace(0, 2 * np.pi)
+
++    y = np.sin(x)
+
++
+
++    for i in range(32):
+
++        print(f'{i}: {fig.dpi}')
+
++        fig, dpi = dump_load_get_dpi(fig)
+
++
+
++
+
++if __name__ == '__main__':
+
++    run()
+
+ 
+
+     def intersects_path(self, other, filled=True):
+
+         """

@@ -1,0 +1,96 @@
+--- a/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_collections.py
++++ b/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_collections.py
+@@ -393,9 +393,11 @@
+ 
+
+ 
+
+ @image_comparison(['polycollection_close.png'], remove_text=True)
+
++import matplotlib.collections as mcollections
+
++import matplotlib.pyplot as plt
+
++from mpl_toolkits.mplot3d import Axes3D
+
++
+
+ def test_polycollection_close():
+
+-    from mpl_toolkits.mplot3d import Axes3D
+
+-
+
+     vertsQuad = [
+
+         [[0., 0.], [0., 1.], [1., 1.], [1., 0.]],
+
+         [[0., 1.], [2., 3.], [2., 2.], [1., 1.]],
+
+@@ -412,14 +414,18 @@
+         vertsQuad * len(zpos), linewidth=0.25)
+
+     poly.set_alpha(0.7)
+
+ 
+
++    # need to have a color for *each* polygon = element!
+
++    cs = []
+
++    for c in colors:
+
++        cs.extend([c] * len(vertsQuad))
+
++
+
++    # Set the face colors using the set_facecolors method
+
++    poly.set_facecolors(cs)
+
++
+
+     # need to have a z-value for *each* polygon = element!
+
+     zs = []
+
+-    cs = []
+
+-    for z, c in zip(zpos, colors):
+
++    for z in zpos:
+
+         zs.extend([z] * len(vertsQuad))
+
+-        cs.extend([c] * len(vertsQuad))
+
+-
+
+-    poly.set_color(cs)
+
+ 
+
+     ax.add_collection3d(poly, zs=zs, zdir='y')
+
+ 
+
+@@ -427,6 +433,10 @@
+     ax.set_xlim3d(0, 4)
+
+     ax.set_zlim3d(0, 3)
+
+     ax.set_ylim3d(0, 4)
+
++
+
++    plt.show()
+
++
+
++test_polycollection_close()
+
+ 
+
+ 
+
+ @image_comparison(['regularpolycollection_rotate.png'], remove_text=True)

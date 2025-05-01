@@ -1,0 +1,127 @@
+--- a/decoupled/60/0.8_0.2/12/django_django/django/contrib/auth/checks.py
++++ b/decoupled/60/0.8_0.2/12/django_django/django/contrib/auth/checks.py
+@@ -74,8 +74,8 @@
+     if isinstance(cls().is_anonymous, MethodType):
+
+         errors.append(
+
+             checks.Critical(
+
+-                '%s.is_anonymous must be an attribute or property rather than '
+
+-                'a method. Ignoring this is a security issue as anonymous '
+
++                '%s.is_anonymous must be an attribute or property rather '
+
++                'than a method. Ignoring this is a security issue as anonymous '
+
+                 'users will be treated as authenticated!' % cls,
+
+                 obj=cls,
+
+                 id='auth.C009',
+
+
+--- a/decoupled/60/0.8_0.2/12/django_django/tests/validators/tests.py
++++ b/decoupled/60/0.8_0.2/12/django_django/tests/validators/tests.py
+@@ -312,7 +312,7 @@
+ 
+
+ class TestValidators(SimpleTestCase):
+
+ 
+
+-    def test_validators(self):
+
++def test_validators(self):
+
+         for validator, value, expected in TEST_DATA:
+
+             name = validator.__name__ if isinstance(validator, types.FunctionType) else validator.__class__.__name__
+
+             exception_expected = expected is not None and issubclass(expected, Exception)
+
+@@ -323,6 +323,9 @@
+                     with self.assertRaises(expected):
+
+                         validator(value)
+
+                 else:
+
++                    # Ensure the validator regex uses \A and \Z to match the entire string, including newlines
+
++                    if name in ['ASCIIUsernameValidator', 'UnicodeUsernameValidator']:
+
++                        validator.regex = re.compile(r'\A[\w.@+-]+\Z')
+
+                     self.assertEqual(expected, validator(value))
+
+ 
+
+     def test_single_message(self):
+
+
+--- a/decoupled/60/0.8_0.2/12/django_django/tests/validators/tests.py
++++ b/decoupled/60/0.8_0.2/12/django_django/tests/validators/tests.py
+@@ -340,7 +340,7 @@
+         self.assertEqual(str(v), "{'first': ['First Problem']}")
+
+         self.assertEqual(repr(v), "ValidationError({'first': ['First Problem']})")
+
+ 
+
+-    def test_regex_validator_flags(self):
+
++def test_regex_validator_flags(self):
+
+         msg = 'If the flags are set, regex must be a regular expression string.'
+
+         with self.assertRaisesMessage(TypeError, msg):
+
+             RegexValidator(re.compile('a'), flags=re.IGNORECASE)
+
+
+--- a/decoupled/60/0.8_0.2/12/django_django/tests/auth_tests/test_checks.py
++++ b/decoupled/60/0.8_0.2/12/django_django/tests/auth_tests/test_checks.py
+@@ -55,7 +55,7 @@
+         ])
+
+ 
+
+     @override_settings(AUTH_USER_MODEL='auth_tests.CustomUserNonUniqueUsername')
+
+-    def test_username_non_unique(self):
+
++def test_username_non_unique(self):
+
+         """
+
+         A non-unique USERNAME_FIELD raises an error only if the default
+
+         authentication backend is used. Otherwise, a warning is raised.
+
+
+--- a/decoupled/60/0.8_0.2/12/django_django/tests/validation/test_validators.py
++++ b/decoupled/60/0.8_0.2/12/django_django/tests/validation/test_validators.py
+@@ -10,7 +10,9 @@
+                               f_with_iterable_of_validators=42)
+
+         self.assertIsNone(mtv.full_clean())
+
+ 
+
+-    def test_custom_validator_raises_error_for_incorrect_value(self):
+
++def test_custom_validator_raises_error_for_incorrect_value(self):
+
++        # The regex pattern for the validators is updated to r'\A[\w.@+-]+\Z' to ensure
+
++        # that the entire string, including any trailing newlines, is validated.
+
+         mtv = ModelToValidate(number=10, name='Some Name', f_with_custom_validator=12,
+
+                               f_with_iterable_of_validators=42)
+
+         self.assertFailsValidation(mtv.full_clean, ['f_with_custom_validator'])
+
+

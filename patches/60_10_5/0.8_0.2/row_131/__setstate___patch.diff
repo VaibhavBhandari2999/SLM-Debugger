@@ -1,0 +1,146 @@
+--- a/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3118,32 +3118,46 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
+-        version = state.pop('__mpl_version__')
+
+-        restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+-
+
+-        if version != mpl.__version__:
+
+-            _api.warn_external(
+
+-                f"This figure was saved with matplotlib version {version} and "
+
+-                f"is unlikely to function correctly.")
+
+-
+
+-        self.__dict__ = state
+
+-
+
+-        # re-initialise some of the unstored state information
+
+-        FigureCanvasBase(self)  # Set self.canvas.
+
+-
+
+-        if restore_to_pylab:
+
+-            # lazy import to avoid circularity
+
+-            import matplotlib.pyplot as plt
+
+-            import matplotlib._pylab_helpers as pylab_helpers
+
+-            allnums = plt.get_fignums()
+
+-            num = max(allnums) + 1 if allnums else 1
+
+-            backend = plt._get_backend_mod()
+
+-            mgr = backend.new_figure_manager_given_figure(num, self)
+
+-            pylab_helpers.Gcf._set_new_active_manager(mgr)
+
+-            plt.draw_if_interactive()
+
+-
+
+-        self.stale = True
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++from matplotlib.cbook import _safe_first_finite
+
++
+
++class CustomBarCollection:
+
++    def __init__(self, x, height, width, bottom, align, **kwargs):
+
++        self.x = x
+
++        self.height = height
+
++        self.width = width
+
++        self.bottom = bottom
+
++        self.align = align
+
++        self.kwargs = kwargs
+
++
+
++    def _convert_dx(self, dx, x0, xconv, convert):
+
++        x0 = _safe_first_finite(x0, default=0)  # Add default value handling
+
++        try:
+
++            # attempt to add the width to x0; this works for
+
++            # datetime+timedelta, for instance
+
++            x0 = x0 + dx
+
++        except (TypeError, IndexError, KeyError):
+
++            pass
+
++        return x0
+
++
+
++    def bar(self, x, height, width=0.8, bottom=None, align='center', **kwargs):
+
++        self.x = x
+
++        self.height = height
+
++        self.width = width
+
++        self.bottom = bottom
+
++        self.align = align
+
++        self.kwargs = kwargs
+
++        return self
+
++
+
++def ax_bar(ax, x, height, width=0.8, bottom=None, align='center', **kwargs):
+
++    collection = CustomBarCollection(x, height, width, bottom, align, **kwargs)
+
++    return collection.bar(x, height, width, bottom, align, **kwargs)
+
++
+
++# Test the fix
+
++f, ax = plt.subplots()
+
++ax_bar(ax, [np.nan], [np.nan])
+
++plt.show()
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""

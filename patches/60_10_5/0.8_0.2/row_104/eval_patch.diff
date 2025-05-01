@@ -1,0 +1,54 @@
+--- a/decoupled/60/0.8_0.2/104/django_django/django/template/smartif.py
++++ b/decoupled/60/0.8_0.2/104/django_django/django/template/smartif.py
+@@ -55,14 +55,18 @@
+             self.second = parser.expression(bp)
+
+             return self
+
+ 
+
+-        def eval(self, context):
+
+-            try:
+
+-                return func(context, self.first, self.second)
+
+-            except Exception:
+
+-                # Templates shouldn't throw exceptions when rendering.  We are
+
+-                # most likely to get exceptions for things like {% if foo in bar
+
+-                # %} where 'bar' does not support 'in', so default to False
+
+-                return False
+
++def eval(self, context):
+
++    try:
+
++        # Check if 'empty_permitted' is in form_kwargs before passing it to the form
+
++        if 'empty_permitted' in context['formset'].form_kwargs:
+
++            return func(context, self.first, self.second, empty_permitted=context['formset'].form_kwargs['empty_permitted'])
+
++        else:
+
++            return func(context, self.first, self.second)
+
++    except Exception:
+
++        # Templates shouldn't throw exceptions when rendering.  We are
+
++        # most likely to get exceptions for things like {% if foo in bar
+
++        # %} where 'bar' does not support 'in', so default to False
+
++        return False
+
+ 
+
+     return Operator
+
+ 

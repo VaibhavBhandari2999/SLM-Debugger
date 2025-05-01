@@ -1,0 +1,120 @@
+--- a/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
+@@ -1025,33 +1025,32 @@
+                     setattr(self, field.attname, value)
+
+         return updated
+
+ 
+
+-    def _do_update(self, base_qs, using, pk_val, values, update_fields, forced_update):
+
+-        """
+
+-        Try to update the model. Return True if the model was updated (if an
+
+-        update query was done and a matching row was found in the DB).
+
+-        """
+
+-        filtered = base_qs.filter(pk=pk_val)
+
+-        if not values:
+
+-            # We can end up here when saving a model in inheritance chain where
+
+-            # update_fields doesn't target any field in current model. In that
+
+-            # case we just say the update succeeded. Another case ending up here
+
+-            # is a model with just PK - in that case check that the PK still
+
+-            # exists.
+
+-            return update_fields is not None or filtered.exists()
+
+-        if self._meta.select_on_save and not forced_update:
+
+-            return (
+
+-                filtered.exists()
+
+-                and
+
+-                # It may happen that the object is deleted from the DB right after
+
+-                # this check, causing the subsequent UPDATE to return zero matching
+
+-                # rows. The same result can occur in some rare cases when the
+
+-                # database returns zero despite the UPDATE being executed
+
+-                # successfully (a row is matched and updated). In order to
+
+-                # distinguish these two cases, the object's existence in the
+
+-                # database is again checked for if the UPDATE query returns 0.
+
+-                (filtered._update(values) > 0 or filtered.exists())
+
+-            )
+
+-        return filtered._update(values) > 0
+
++def _do_update(self, base_qs, using, pk_val, values, update_fields, forced_update):
+
++    """
+
++    Try to update the model. Return True if the model was updated (if an
+
++    update query was done and a matching row was found in the DB).
+
++    """
+
++    filtered = base_qs.filter(pk=pk_val)
+
++    if not values:
+
++        # We can end up here when saving a model in inheritance chain where
+
++        # update_fields doesn't target any field in current model. In that case
+
++        # we just say the update succeeded. Another case ending up here is a
+
++        # model with just PK - in that case check that the PK still exists.
+
++        return update_fields is not None or filtered.exists()
+
++    if self._meta.select_on_save and not forced_update:
+
++        return (
+
++            filtered.exists()
+
++            and
+
++            # It may happen that the object is deleted from the DB right after
+
++            # this check, causing the subsequent UPDATE to return zero matching
+
++            # rows. The same result can occur in some rare cases when the
+
++            # database returns zero despite the UPDATE being executed
+
++            # successfully (a row is matched and updated). In order to
+
++            # distinguish these two cases, the object's existence in the
+
++            # database is again checked for if the UPDATE query returns 0.
+
++            (filtered._update(values) > 0 or filtered.exists())
+
++        )
+
++    return filtered._update(values) > 0
+
+ 
+
+     def _do_insert(self, manager, using, fields, returning_fields, raw):
+
+         """

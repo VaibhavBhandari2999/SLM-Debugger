@@ -1,0 +1,690 @@
+--- a/decoupled/60/0.8_0.2/100/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/100/django_django/django/db/models/query_utils.py
+@@ -298,6 +298,9 @@
+                     "select_related at the same time."
+
+                 ) % (field.model._meta.object_name, field.name)
+
+                 raise FieldError(msg)
+
++    # Add a default related_name if the field is related to the same model
+
++    if field.remote_field.model == field.model and not field.remote_field.related_name:
+
++        field.remote_field.related_name = f'{field.model.__name__.lower()}_set'
+
+     return True
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
+@@ -915,15 +915,21 @@
+         )
+
+ 
+
+     @cached_property
+
+-    def related_manager_cache_key(self):
+
+-        if self.reverse:
+
+-            # Symmetrical M2Ms won't have an accessor name, but should never
+
+-            # end up in the reverse branch anyway, as the related_name ends up
+
+-            # being hidden, and no public manager is created.
+
+-            return self.rel.get_cache_name()
+
++def related_manager_cache_key(self):
+
++    if self.reverse:
+
++        # Symmetrical M2Ms won't have an accessor name, but should never
+
++        # end up in the reverse branch anyway, as the related_name ends up
+
++        # being hidden, and no public manager is created.
+
++        return self.rel.get_cache_name()
+
++    else:
+
++        # For forward managers, defer to the field name.
+
++        field_name = self.field.get_cache_name()
+
++        # Generate a unique related_name if the field is pointing to the same model
+
++        if isinstance(self.field.rel.to, models.Model) and self.field.rel.to._meta.model_name == self.model._meta.model_name:
+
++            related_name = f'{self.field.name}_set'
+
+         else:
+
+-            # For forward managers, defer to the field name.
+
+-            return self.field.get_cache_name()
+
++            related_name = field_name
+
++        return related_name
+
+ 
+
+     def _get_set_deprecation_msg_params(self):
+
+         return (
+
+
+--- a/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
+@@ -315,24 +315,34 @@
+     ``Restaurant.place`` is a ``ForwardOneToOneDescriptor`` instance.
+
+     """
+
+ 
+
+-    def get_object(self, instance):
+
+-        if self.field.remote_field.parent_link:
+
+-            deferred = instance.get_deferred_fields()
+
+-            # Because it's a parent link, all the data is available in the
+
+-            # instance, so populate the parent model with this data.
+
+-            rel_model = self.field.remote_field.model
+
+-            fields = [field.attname for field in rel_model._meta.concrete_fields]
+
+-
+
+-            # If any of the related model's fields are deferred, fallback to
+
+-            # fetching all fields from the related model. This avoids a query
+
+-            # on the related model for every deferred field.
+
+-            if not any(field in fields for field in deferred):
+
+-                kwargs = {field: getattr(instance, field) for field in fields}
+
+-                obj = rel_model(**kwargs)
+
+-                obj._state.adding = instance._state.adding
+
+-                obj._state.db = instance._state.db
+
+-                return obj
+
+-        return super().get_object(instance)
+
++def get_object(self, instance):
+
++    if self.field.remote_field.parent_link:
+
++        deferred = instance.get_deferred_fields()
+
++        # Because it's a parent link, all the data is available in the
+
++        # instance, so populate the parent model with this data.
+
++        rel_model = self.field.remote_field.model
+
++        fields = [field.attname for field in rel_model._meta.concrete_fields]
+
++
+
++        # If any of the related model's fields are deferred, fallback to
+
++        # fetching all fields from the related model. This avoids a query
+
++        # on the related model for every deferred field.
+
++        if not any(field in fields for field in deferred):
+
++            kwargs = {field: getattr(instance, field) for field in fields}
+
++            obj = rel_model(**kwargs)
+
++            obj._state.adding = instance._state.adding
+
++            obj._state.db = instance._state.db
+
++            return obj
+
++
+
++    # Ensure related_name is added for fields that reference the same model
+
++    for field in rel_model._meta.local_fields:
+
++        if field.remote_field and field.remote_field.model == rel_model:
+
++            if not field.remote_field.related_name:
+
++                field.remote_field.related_name = f'{field.name}_set'
+
++
+
++    # Save the model to apply the changes
+
++    rel_model.objects.filter(pk=instance.pk).update(**{field.name: getattr(instance, field.name) for field in rel_model._meta.local_fields if field.name != 'id'})
+
++
+
++    return super().get_object(instance)
+
+ 
+
+     def __set__(self, instance, value):
+
+         super().__set__(instance, value)
+
+
+--- a/decoupled/60/0.8_0.2/100/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/100/django_django/django/db/models/sql/query.py
+@@ -718,89 +718,92 @@
+         self.order_by = rhs.order_by or self.order_by
+
+         self.extra_order_by = rhs.extra_order_by or self.extra_order_by
+
+ 
+
+-    def deferred_to_data(self, target):
+
+-        """
+
+-        Convert the self.deferred_loading data structure to an alternate data
+
+-        structure, describing the field that *will* be loaded. This is used to
+
+-        compute the columns to select from the database and also by the
+
+-        QuerySet class to work out which fields are being initialized on each
+
+-        model. Models that have all their fields included aren't mentioned in
+
+-        the result, only those that have field restrictions in place.
+
+-
+
+-        The "target" parameter is the instance that is populated (in place).
+
+-        """
+
+-        field_names, defer = self.deferred_loading
+
+-        if not field_names:
+
+-            return
+
+-        orig_opts = self.get_meta()
+
+-        seen = {}
+
+-        must_include = {orig_opts.concrete_model: {orig_opts.pk}}
+
+-        for field_name in field_names:
+
+-            parts = field_name.split(LOOKUP_SEP)
+
+-            cur_model = self.model._meta.concrete_model
+
+-            opts = orig_opts
+
+-            for name in parts[:-1]:
+
+-                old_model = cur_model
+
+-                if name in self._filtered_relations:
+
+-                    name = self._filtered_relations[name].relation_name
+
+-                source = opts.get_field(name)
+
+-                if is_reverse_o2o(source):
+
+-                    cur_model = source.related_model
+
+-                else:
+
+-                    cur_model = source.remote_field.model
+
+-                cur_model = cur_model._meta.concrete_model
+
+-                opts = cur_model._meta
+
+-                # Even if we're "just passing through" this model, we must add
+
+-                # both the current model's pk and the related reference field
+
+-                # (if it's not a reverse relation) to the things we select.
+
+-                if not is_reverse_o2o(source):
+
+-                    must_include[old_model].add(source)
+
+-                add_to_dict(must_include, cur_model, opts.pk)
+
+-            field = opts.get_field(parts[-1])
+
+-            is_reverse_object = field.auto_created and not field.concrete
+
+-            model = field.related_model if is_reverse_object else field.model
+
+-            model = model._meta.concrete_model
+
+-            if model == opts.model:
+
+-                model = cur_model
+
+-            if not is_reverse_o2o(field):
+
+-                add_to_dict(seen, model, field)
+
+-
+
+-        if defer:
+
+-            # We need to load all fields for each model, except those that
+
+-            # appear in "seen" (for all models that appear in "seen"). The only
+
+-            # slight complexity here is handling fields that exist on parent
+
+-            # models.
+
+-            workset = {}
+
+-            for model, values in seen.items():
+
+-                for field in model._meta.local_fields:
+
+-                    if field not in values:
+
+-                        m = field.model._meta.concrete_model
+
+-                        add_to_dict(workset, m, field)
+
+-            for model, values in must_include.items():
+
+-                # If we haven't included a model in workset, we don't add the
+
+-                # corresponding must_include fields for that model, since an
+
+-                # empty set means "include all fields". That's why there's no
+
+-                # "else" branch here.
+
+-                if model in workset:
+
+-                    workset[model].update(values)
+
+-            for model, fields in workset.items():
+
+-                target[model] = {f.attname for f in fields}
+
+-        else:
+
+-            for model, values in must_include.items():
+
+-                if model in seen:
+
+-                    seen[model].update(values)
+
+-                else:
+
+-                    # As we've passed through this model, but not explicitly
+
+-                    # included any fields, we have to make sure it's mentioned
+
+-                    # so that only the "must include" fields are pulled in.
+
+-                    seen[model] = values
+
+-            # Now ensure that every model in the inheritance chain is mentioned
+
+-            # in the parent list. Again, it must be mentioned to ensure that
+
+-            # only "must include" fields are pulled in.
+
+-            for model in orig_opts.get_parent_list():
+
+-                seen.setdefault(model, set())
+
+-            for model, fields in seen.items():
+
+-                target[model] = {f.attname for f in fields}
+
++def deferred_to_data(self, target):
+
++    """
+
++    Convert the self.deferred_loading data structure to an alternate data
+
++    structure, describing the field that *will* be loaded. This is used to
+
++    compute the columns to select from the database and also by the
+
++    QuerySet class to work out which fields are being initialized on each
+
++    model. Models that have all their fields included aren't mentioned in
+
++    the result, only those that have field restrictions in place.
+
++
+
++    The "target" parameter is the instance that is populated (in place).
+
++    """
+
++    field_names, defer = self.deferred_loading
+
++    if not field_names:
+
++        return
+
++    orig_opts = self.get_meta()
+
++    seen = {}
+
++    must_include = {orig_opts.concrete_model: {orig_opts.pk}}
+
++    for field_name in field_names:
+
++        parts = field_name.split(LOOKUP_SEP)
+
++        cur_model = self.model._meta.concrete_model
+
++        opts = orig_opts
+
++        for name in parts[:-1]:
+
++            old_model = cur_model
+
++            if name in self._filtered_relations:
+
++                name = self._filtered_relations[name].relation_name
+
++            source = opts.get_field(name)
+
++            if is_reverse_o2o(source):
+
++                cur_model = source.related_model
+
++            else:
+
++                cur_model = source.remote_field.model
+
++            cur_model = cur_model._meta.concrete_model
+
++            opts = cur_model._meta
+
++            # Even if we're "just passing through" this model, we must add
+
++            # both the current model's pk and the related reference field
+
++            # (if it's not a reverse relation) to the things we select.
+
++            if not is_reverse_o2o(source):
+
++                must_include[old_model].add(source)
+
++            add_to_dict(must_include, cur_model, opts.pk)
+
++        field = opts.get_field(parts[-1])
+
++        is_reverse_object = field.auto_created and not field.concrete
+
++        model = field.related_model if is_reverse_object else field.model
+
++        model = model._meta.concrete_model
+
++        if model == opts.model:
+
++            model = cur_model
+
++        if not is_reverse_o2o(field):
+
++            add_to_dict(seen, model, field)
+
++
+
++    if defer:
+
++        # We need to load all fields for each model, except those that
+
++        # appear in "seen" (for all models that appear in "seen"). The only
+
++        # slight complexity here is handling fields that exist on parent
+
++        # models.
+
++        workset = {}
+
++        for model, values in seen.items():
+
++            for field in model._meta.local_fields:
+
++                if field not in values:
+
++                    m = field.model._meta.concrete_model
+
++                    add_to_dict(workset, m, field)
+
++        for model, values in must_include.items():
+
++            # If we haven't included a model in workset, we don't add the
+
++            # corresponding must_include fields for that model, since an
+
++            # empty set means "include all fields". That's why there's no
+
++            # "else" branch here.
+
++            if model in workset:
+
++                workset[model].update(values)
+
++        for model, fields in workset.items():
+
++            target[model] = {f.attname for f in fields}
+
++    else:
+
++        for model, values in must_include.items():
+
++            if model in seen:
+
++                seen[model].update(values)
+
++            else:
+
++                # As we've passed through this model, but not explicitly
+
++                # included any fields, we have to make sure it's mentioned
+
++                # so that only the "must include" fields are pulled in.
+
++                seen[model] = values
+
++        # Now ensure that every model in the inheritance chain is mentioned
+
++        # in the parent list. Again, it must be mentioned to ensure that
+
++        # only "must include" fields are pulled in.
+
++        for model in orig_opts.get_parent_list():
+
++            seen.setdefault(model, set())
+
++        for model, fields in seen.items():
+
++            target[model] = {f.attname for f in fields}
+
++
+
++    # Generate related_name for reverse relationships to the same model
+
++    for model, fields
+
+ 
+
+     def table_alias(self, table_name, create=False, filtered_relation=None):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
+@@ -1261,38 +1261,38 @@
+             )
+
+             return target_ids.difference(vals)
+
+ 
+
+-        def _get_add_plan(self, db, source_field_name):
+
+-            """
+
+-            Return a boolean triple of the way the add should be performed.
+
+-
+
+-            The first element is whether or not bulk_create(ignore_conflicts)
+
+-            can be used, the second whether or not signals must be sent, and
+
+-            the third element is whether or not the immediate bulk insertion
+
+-            with conflicts ignored can be performed.
+
+-            """
+
+-            # Conflicts can be ignored when the intermediary model is
+
+-            # auto-created as the only possible collision is on the
+
+-            # (source_id, target_id) tuple. The same assertion doesn't hold for
+
+-            # user-defined intermediary models as they could have other fields
+
+-            # causing conflicts which must be surfaced.
+
+-            can_ignore_conflicts = (
+
+-                self.through._meta.auto_created is not False
+
+-                and connections[db].features.supports_ignore_conflicts
+
+-            )
+
+-            # Don't send the signal when inserting duplicate data row
+
+-            # for symmetrical reverse entries.
+
+-            must_send_signals = (
+
+-                self.reverse or source_field_name == self.source_field_name
+
+-            ) and (signals.m2m_changed.has_listeners(self.through))
+
+-            # Fast addition through bulk insertion can only be performed
+
+-            # if no m2m_changed listeners are connected for self.through
+
+-            # as they require the added set of ids to be provided via
+
+-            # pk_set.
+
+-            return (
+
+-                can_ignore_conflicts,
+
+-                must_send_signals,
+
+-                (can_ignore_conflicts and not must_send_signals),
+
+-            )
+
++def _get_add_plan(self, db, source_field_name):
+
++    """
+
++    Return a boolean triple of the way the add should be performed.
+
++
+
++    The first element is whether or not bulk_create(ignore_conflicts)
+
++    can be used, the second whether or not signals must be sent, and
+
++    the third element is whether or not the immediate bulk insertion
+
++    with conflicts ignored can be performed.
+
++    """
+
++    # Conflicts can be ignored when the intermediary model is
+
++    # auto-created as the only possible collision is on the
+
++    # (source_id, target_id) tuple. The same assertion doesn't hold for
+
++    # user-defined intermediary models as they could have other fields
+
++    # causing conflicts which must be surfaced.
+
++    can_ignore_conflicts = (
+
++        self.through._meta.auto_created is not False
+
++        and connections[db].features.supports_ignore_conflicts
+
++    )
+
++    # Don't send the signal when inserting duplicate data row
+
++    # for symmetrical reverse entries.
+
++    must_send_signals = (
+
++        self.reverse or source_field_name == self.source_field_name
+
++    ) and (signals.m2m_changed.has_listeners(self.through))
+
++    # Fast addition through bulk insertion can only be performed
+
++    # if no m2m_changed listeners are connected for self.through
+
++    # as they require the added set of ids to be provided via
+
++    # pk_set.
+
++    return (
+
++        can_ignore_conflicts,
+
++        must_send_signals,
+
++        (can_ignore_conflicts and not must_send_signals),
+
++    )
+
+ 
+
+         def _add_items(
+
+             self, source_field_name, target_field_name, *objs, through_defaults=None
+
+

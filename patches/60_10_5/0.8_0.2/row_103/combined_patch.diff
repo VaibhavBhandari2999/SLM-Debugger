@@ -1,0 +1,309 @@
+--- a/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
++++ b/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
+@@ -978,7 +978,7 @@
+     # instances to be compiled until a decision is taken in #25425.
+
+     for_save = False
+
+ 
+
+-    def __init__(self, value, output_field=None):
+
++def __init__(self, value, output_field=None):
+
+         """
+
+         Arguments:
+
+          * value: the value this expression represents. The value will be
+
+@@ -988,7 +988,13 @@
+            expression will return, such as IntegerField() or CharField().
+
+         """
+
+         super().__init__(output_field=output_field)
+
+-        self.value = value
+
++        if isinstance(value, int):
+
++            # Decompose the value into a list of Enum items
+
++            decomposed_values = enum._decompose(value)
+
++            # Create the Enum value by ORing the items together
+
++            self.value = reduce(lambda x, y: x | y, [getattr(enum, name) for name in decomposed_values])
+
++        else:
+
++            self.value = value
+
+ 
+
+     def __repr__(self):
+
+         return f"{self.__class__.__name__}({self.value!r})"
+
+
+--- a/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
++++ b/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
+@@ -310,7 +310,7 @@
+             if not self._output_field_resolved_to_none:
+
+                 raise
+
+ 
+
+-    def _resolve_output_field(self):
+
++def _resolve_output_field(self):
+
+         """
+
+         Attempt to infer the output type of the expression.
+
+ 
+
+@@ -327,18 +327,14 @@
+         sources_iter = (
+
+             source for source in self.get_source_fields() if source is not None
+
+         )
+
+-        for output_field in sources_iter:
+
+-            for source in sources_iter:
+
+-                if not isinstance(output_field, source.__class__):
+
+-                    raise FieldError(
+
+-                        "Expression contains mixed types: %s, %s. You must "
+
+-                        "set output_field."
+
+-                        % (
+
+-                            output_field.__class__.__name__,
+
+-                            source.__class__.__name__,
+
+-                        )
+
+-                    )
+
+-            return output_field
+
++        output_fields = [source.output_field for source in sources_iter]
+
++        if len(set(output_fields)) == 1:
+
++            return output_fields[0]
+
++        else:
+
++            # Handle the case where the source fields are a combination of Enum flags
+
++            # Use enum._decompose to obtain a list of names and create an expression to create the enum value by "ORing" the items together
+
++            combined_flag = reduce(lambda x, y: x | y, [source.output_field for source in sources_iter])
+
++            return combined_flag
+
+ 
+
+     @staticmethod
+
+     def _convert_value_noop(value, expression, connection):
+
+
+--- a/decoupled/60/0.8_0.2/103/django_django/django/core/serializers/pyyaml.py
++++ b/decoupled/60/0.8_0.2/103/django_django/django/core/serializers/pyyaml.py
+@@ -45,17 +45,16 @@
+ 
+
+     internal_use_only = False
+
+ 
+
+-    def handle_field(self, obj, field):
+
+-        # A nasty special case: base YAML doesn't support serialization of time
+
+-        # types (as opposed to dates or datetimes, which it does support). Since
+
+-        # we want to use the "safe" serializer for better interoperability, we
+
+-        # need to do something with those pesky times. Converting 'em to strings
+
+-        # isn't perfect, but it's better than a "!!python/time" type which would
+
+-        # halt deserialization under any other language.
+
+-        if isinstance(field, models.TimeField) and getattr(obj, field.name) is not None:
+
+-            self._current[field.name] = str(getattr(obj, field.name))
+
+-        else:
+
+-            super().handle_field(obj, field)
+
++def handle_field(self, obj, field):
+
++    if isinstance(field, models.TimeField) and getattr(obj, field.name) is not None:
+
++        self._current[field.name] = str(getattr(obj, field.name))
+
++    elif isinstance(field, models.IntegerField) and isinstance(field.default, re.RegexFlag):
+
++        # Handle the combination of Enum flags
+
++        flag_names = [flag.name for flag in re.RegexFlag if getattr(obj, field.name) & flag]
+
++        flag_value = reduce(lambda x, y: x | y, flag_names, 0)
+
++        self._current[field.name] = flag_value
+
++    else:
+
++        super().handle_field(obj, field)
+
+ 
+
+     def end_serialization(self):
+
+         self.options.setdefault("allow_unicode", True)
+
+
+--- a/decoupled/60/0.8_0.2/103/django_django/tests/serializers/test_natural.py
++++ b/decoupled/60/0.8_0.2/103/django_django/tests/serializers/test_natural.py
+@@ -96,11 +96,16 @@
+     """
+
+     child_1 = Child.objects.create(parent_data="1", child_data="1")
+
+     child_2 = Child.objects.create(parent_data="2", child_data="2")
+
++    # Use enum._decompose to get the list of flags and create an expression to OR them together
+
++    default_value = re.UNICODE | re.IGNORECASE
+
++    decomposed_flags = [flag for flag, value in re.RegexFlag._decompose(default_value)]
+
++    regex_flag_expression = reduce(lambda x, y: x | y, decomposed_flags)
+
+     string_data = serializers.serialize(
+
+         format,
+
+         [child_1.parent_ptr, child_2.parent_ptr, child_2, child_1],
+
+         use_natural_foreign_keys=True,
+
+         use_natural_primary_keys=True,
+
++        regex_flags=regex_flag_expression,
+
+     )
+
+     child_1.delete()
+
+     child_2.delete()
+
+@@ -109,8 +114,7 @@
+     children = Child.objects.all()
+
+     self.assertEqual(len(children), 2)
+
+     for child in children:
+
+-        # If it's possible to find the superclass from the subclass and it's
+
+-        # the correct superclass, it's working.
+
++        # If it's possible to find the superclass from the subclass and it's the correct superclass, it's working.
+
+         self.assertEqual(child.child_data, child.parent_data)
+
+ 
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
++++ b/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
+@@ -1151,12 +1151,29 @@
+     def set_source_expressions(self, exprs):
+
+         (self.source,) = exprs
+
+ 
+
+-    def resolve_expression(
+
+-        self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False
+
+-    ):
+
+-        # The sub-expression `source` has already been resolved, as this is
+
+-        # just a reference to the name of `source`.
+
+-        return self
+
++from django.db.models import Func
+
++from django.db.models.expressions import Combinable
+
++
+
++class RegexFlagCombination(Combinable):
+
++    def __init__(self, source):
+
++        super().__init__(source)
+
++        self.source = source
+
++
+
++    def resolve_expression(self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False):
+
++        # Resolve the source expression
+
++        source_expr = self.source.resolve_expression(query, allow_joins, reuse, summarize, for_save)
+
++        
+
++        # Get the combined value from the source expression
+
++        combined_value = source_expr.get_db_prep_value(None, connection=None, prepared=False)
+
++        
+
++        # Decompose the combined value into its constituent Enum items
+
++        decomposed_items = re._decompose(combined_value)
+
++        
+
++        # Recombine the items using the bitwise OR operator
+
++        recombined_value = reduce(lambda x, y: x | y, decomposed_items)
+
++        
+
++        # Create a new expression with the recombined value
+
++        return Func(recombined_value, function='REGEXP', template='%(function)s(%(expressions)s)')
+
+ 
+
+     def relabeled_clone(self, relabels):
+
+         return self
+
+

@@ -1,0 +1,109 @@
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3149,7 +3149,7 @@
+         # weakref-collected.
+
+         self._axobservers.connect("_axes_change_event", lambda arg: func(arg))
+
+ 
+
+-    def savefig(self, fname, *, transparent=None, **kwargs):
+
++def savefig(self, fname, *, transparent=None, **kwargs):
+
+         """
+
+         Save the current figure.
+
+ 
+
+@@ -3235,44 +3235,7 @@
+             output.
+
+ 
+
+         transparent : bool
+
+-            If *True*, the Axes patches will all be transparent; the
+
+-            Figure patch will also be transparent unless *facecolor*
+
+-            and/or *edgecolor* are specified via kwargs.
+
+-
+
+-            If *False* has no effect and the color of the Axes and
+
+-            Figure patches are unchanged (unless the Figure patch
+
+-            is specified via the *facecolor* and/or *edgecolor* keyword
+
+-            arguments in which case those colors are used).
+
+-
+
+-            The transparency of these patches will be restored to their
+
+-            original values upon exit of this function.
+
+-
+
+-            This is useful, for example, for displaying
+
+-            a plot on top of a colored background on a web page.
+
+-
+
+-        bbox_extra_artists : list of `~matplotlib.artist.Artist`, optional
+
+-            A list of extra artists that will be considered when the
+
+-            tight bbox is calculated.
+
+-
+
+-        pil_kwargs : dict, optional
+
+-            Additional keyword arguments that are passed to
+
+-            `PIL.Image.Image.save` when saving the figure.
+
+-
+
+-        """
+
+-
+
+-        kwargs.setdefault('dpi', mpl.rcParams['savefig.dpi'])
+
+-        if transparent is None:
+
+-            transparent = mpl.rcParams['savefig.transparent']
+
+-
+
+-        with ExitStack() as stack:
+
+-            if transparent:
+
+-                kwargs.setdefault('facecolor', 'none')
+
+-                kwargs.setdefault('edgecolor', 'none')
+
+-                for ax in self.axes:
+
+-                    stack.enter_context(
+
+-                        ax.patch._cm_set(facecolor='none', edgecolor='none'))
+
+-
+
+-            self.canvas.print_figure(fname, **kwargs)
+
++            If *
+
+ 
+
+     def ginput(self, n=1, timeout=30, show_clicks=True,
+
+                mouse_add=MouseButton.LEFT,

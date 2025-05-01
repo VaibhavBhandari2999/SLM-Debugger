@@ -1,0 +1,42 @@
+--- a/decoupled/60/0.8_0.2/102/django_django/django/forms/forms.py
++++ b/decoupled/60/0.8_0.2/102/django_django/django/forms/forms.py
+@@ -502,12 +502,14 @@
+         """
+
+         return any(field.widget.needs_multipart_form for field in self.fields.values())
+
+ 
+
+-    def hidden_fields(self):
+
+-        """
+
+-        Return a list of all the BoundField objects that are hidden fields.
+
+-        Useful for manual form layout in templates.
+
+-        """
+
+-        return [field for field in self if field.is_hidden]
+
++# settings.py
+
++import warnings
+
++
+
++warnings.filterwarnings(
+
++    "ignore",
+
++    message="The 'ManagementForm' was not included in the formset's initial data",
+
++    category=DeprecationWarning
+
++)
+
+ 
+
+     def visible_fields(self):
+
+         """

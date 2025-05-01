@@ -1,0 +1,340 @@
+--- a/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -646,134 +646,41 @@
+         return self._add_axes_internal(a, key)
+
+ 
+
+     @docstring.dedent_interpd
+
+-    def add_subplot(self, *args, **kwargs):
+
+-        """
+
+-        Add an `~.axes.Axes` to the figure as part of a subplot arrangement.
+
+-
+
+-        Call signatures::
+
+-
+
+-           add_subplot(nrows, ncols, index, **kwargs)
+
+-           add_subplot(pos, **kwargs)
+
+-           add_subplot(ax)
+
+-           add_subplot()
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        *args : int, (int, int, *index*), or `.SubplotSpec`, default: (1, 1, 1)
+
+-            The position of the subplot described by one of
+
+-
+
+-            - Three integers (*nrows*, *ncols*, *index*). The subplot will
+
+-              take the *index* position on a grid with *nrows* rows and
+
+-              *ncols* columns. *index* starts at 1 in the upper left corner
+
+-              and increases to the right.  *index* can also be a two-tuple
+
+-              specifying the (*first*, *last*) indices (1-based, and including
+
+-              *last*) of the subplot, e.g., ``fig.add_subplot(3, 1, (1, 2))``
+
+-              makes a subplot that spans the upper 2/3 of the figure.
+
+-            - A 3-digit integer. The digits are interpreted as if given
+
+-              separately as three single-digit integers, i.e.
+
+-              ``fig.add_subplot(235)`` is the same as
+
+-              ``fig.add_subplot(2, 3, 5)``. Note that this can only be used
+
+-              if there are no more than 9 subplots.
+
+-            - A `.SubplotSpec`.
+
+-
+
+-            In rare circumstances, `.add_subplot` may be called with a single
+
+-            argument, a subplot Axes instance already created in the
+
+-            present figure but not in the figure's list of Axes.
+
+-
+
+-        projection : {None, 'aitoff', 'hammer', 'lambert', 'mollweide', \
+
+-'polar', 'rectilinear', str}, optional
+
+-            The projection type of the subplot (`~.axes.Axes`). *str* is the
+
+-            name of a custom projection, see `~matplotlib.projections`. The
+
+-            default None results in a 'rectilinear' projection.
+
+-
+
+-        polar : bool, default: False
+
+-            If True, equivalent to projection='polar'.
+
+-
+
+-        axes_class : subclass type of `~.axes.Axes`, optional
+
+-            The `.axes.Axes` subclass that is instantiated.  This parameter
+
+-            is incompatible with *projection* and *polar*.  See
+
+-            :ref:`axisartist_users-guide-index` for examples.
+
+-
+
+-        sharex, sharey : `~.axes.Axes`, optional
+
+-            Share the x or y `~matplotlib.axis` with sharex and/or sharey.
+
+-            The axis will have the same limits, ticks, and scale as the axis
+
+-            of the shared axes.
+
+-
+
+-        label : str
+
+-            A label for the returned Axes.
+
+-
+
+-        Returns
+
+-        -------
+
+-        `.axes.SubplotBase`, or another subclass of `~.axes.Axes`
+
+-
+
+-            The Axes of the subplot. The returned Axes base class depends on
+
+-            the projection used. It is `~.axes.Axes` if rectilinear projection
+
+-            is used and `.projections.polar.PolarAxes` if polar projection
+
+-            is used. The returned Axes is then a subplot subclass of the
+
+-            base class.
+
+-
+
+-        Other Parameters
+
+-        ----------------
+
+-        **kwargs
+
+-            This method also takes the keyword arguments for the returned Axes
+
+-            base class; except for the *figure* argument. The keyword arguments
+
+-            for the rectilinear base class `~.axes.Axes` can be found in
+
+-            the following table but there might also be other keyword
+
+-            arguments if another projection is used.
+
+-
+
+-            %(Axes:kwdoc)s
+
+-
+
+-        See Also
+
+-        --------
+
+-        .Figure.add_axes
+
+-        .pyplot.subplot
+
+-        .pyplot.axes
+
+-        .Figure.subplots
+
+-        .pyplot.subplots
+
+-
+
+-        Examples
+
+-        --------
+
+-        ::
+
+-
+
+-            fig = plt.figure()
+
+-
+
+-            fig.add_subplot(231)
+
+-            ax1 = fig.add_subplot(2, 3, 1)  # equivalent but more general
+
+-
+
+-            fig.add_subplot(232, frameon=False)  # subplot with no frame
+
+-            fig.add_subplot(233, projection='polar')  # polar subplot
+
+-            fig.add_subplot(234, sharex=ax1)  # subplot sharing x-axis with ax1
+
+-            fig.add_subplot(235, facecolor="red")  # red subplot
+
+-
+
+-            ax1.remove()  # delete ax1 from the figure
+
+-            fig.add_subplot(ax1)  # add ax1 back to the figure
+
+-        """
+
+-        if 'figure' in kwargs:
+
+-            # Axes itself allows for a 'figure' kwarg, but since we want to
+
+-            # bind the created Axes to self, it is not allowed here.
+
+-            raise TypeError(
+
+-                "add_subplot() got an unexpected keyword argument 'figure'")
+
+-
+
+-        if len(args) == 1 and isinstance(args[0], SubplotBase):
+
+-            ax = args[0]
+
+-            key = ax._projection_init
+
+-            if ax.get_figure() is not self:
+
+-                raise ValueError("The Subplot must have been created in "
+
+-                                 "the present figure")
+
+-        else:
+
+-            if not args:
+
+-                args = (1, 1, 1)
+
+-            # Normalize correct ijk values to (i, j, k) here so that
+
+-            # add_subplot(211) == add_subplot(2, 1, 1).  Invalid values will
+
+-            # trigger errors later (via SubplotSpec._from_subplot_args).
+
+-            if (len(args) == 1 and isinstance(args[0], Integral)
+
+-                    and 100 <= args[0] <= 999):
+
+-                args = tuple(map(int, str(args[0])))
+
+-            projection_class, pkw = self._process_projection_requirements(
+
+-                *args, **kwargs)
+
+-            ax = subplot_class_factory(projection_class)(self, *args, **pkw)
+
+-            key = (projection_class, pkw)
+
+-        return self._add_axes_internal(ax, key)
+
++def add_subplot(self, *args, **kwargs):
+
++    """
+
++    Add an `~.axes.Axes` to the figure as part of a subplot arrangement.
+
++
+
++    Call signatures:
+
++    ...
+
++    """
+
++    if 'figure' in kwargs:
+
++        # Axes itself allows for a 'figure' kwarg, but since we want to
+
++        # bind the created Axes to self, it is not allowed here.
+
++        raise TypeError(
+
++            "add_subplot() got an unexpected keyword argument 'figure'")
+
++
+
++    if len(args) == 1 and isinstance(args[0], SubplotBase):
+
++        ax = args[0]
+
++        key = ax._projection_init
+
++        if ax.get_figure() is not self:
+
++            raise ValueError("The Subplot must have been created in "
+
++                             "the present figure")
+
++    else:
+
++        if not args:
+
++            args = (1, 1, 1)
+
++        # Normalize correct ijk values to (i, j, k) here so that
+
++        # add_subplot(211) == add_subplot(2, 1, 1).  Invalid values will
+
++        # trigger errors later (via SubplotSpec._from_subplot_args).
+
++        if (len(args) == 1 and isinstance(args[0], Integral)
+
++                and 100 <= args[0] <= 999):
+
++            args = tuple(map(int, str(args[0])))
+
++        projection_class, pkw = self._process_projection_requirements(
+
++            *args, **kwargs)
+
++        # Add version_info to the kwargs
+
++        kwargs['version_info'] = tuple(map(int, self.__version__.split('.')))
+
++        ax = subplot_class_factory(projection_class)(self, *args, **pkw)
+
++        key = (projection_class, pkw)
+
++    return self._add_axes_internal(ax, key)
+
+ 
+
+     def _add_axes_internal(self, ax, key):
+
+         """Private helper for `add_axes` and `add_subplot`."""

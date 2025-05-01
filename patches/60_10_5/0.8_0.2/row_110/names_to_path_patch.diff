@@ -1,0 +1,128 @@
+--- a/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
+@@ -1602,7 +1602,7 @@
+                     )
+
+         self._filtered_relations[filtered_relation.alias] = filtered_relation
+
+ 
+
+-    def names_to_path(self, names, opts, allow_many=True, fail_on_missing=False):
+
++def names_to_path(self, names, opts, allow_many=True, fail_on_missing=False):
+
+         """
+
+         Walk the list of names and turns them into PathInfo tuples. A single
+
+         name in 'names' can generate multiple PathInfos (m2m, for example).
+
+@@ -1636,12 +1636,23 @@
+                     filtered_relation = self._filtered_relations[name]
+
+                     if LOOKUP_SEP in filtered_relation.relation_name:
+
+                         parts = filtered_relation.relation_name.split(LOOKUP_SEP)
+
+-                        filtered_relation_path, field, _, _ = self.names_to_path(
+
+-                            parts,
+
+-                            opts,
+
+-                            allow_many,
+
+-                            fail_on_missing,
+
+-                        )
+
++                        # Use the provided database alias if available
+
++                        db_alias = getattr(self, 'using', None)
+
++                        if db_alias:
+
++                            filtered_relation_path, field, _, _ = self.names_to_path(
+
++                                parts,
+
++                                opts,
+
++                                allow_many,
+
++                                fail_on_missing,
+
++                                using=db_alias
+
++                            )
+
++                        else:
+
++                            filtered_relation_path, field, _, _ = self.names_to_path(
+
++                                parts,
+
++                                opts,
+
++                                allow_many,
+
++                                fail_on_missing
+
++                            )
+
+                         path.extend(filtered_relation_path[:-1])
+
+                     else:
+
+                         field = opts.get_field(filtered_relation.relation_name)
+
+@@ -1699,24 +1710,7 @@
+                             cur_names_with_path[1].extend(pathinfos[0 : inner_pos + 1])
+
+                             names_with_path.append(cur_names_with_path)
+
+                             raise MultiJoin(pos + 1, names_with_path)
+
+-                last = pathinfos[-1]
+
+-                path.extend(pathinfos)
+
+-                final_field = last.join_field
+
+-                opts = last.to_opts
+
+-                targets = last.target_fields
+
+-                cur_names_with_path[1].extend(pathinfos)
+
+-                names_with_path.append(cur_names_with_path)
+
+-            else:
+
+-                # Local non-relational field.
+
+-                final_field = field
+
+-                targets = (field,)
+
+-                if fail_on_missing and pos + 1 != len(names):
+
+-                    raise FieldError(
+
+-                        "Cannot resolve keyword %r into field. Join on '%s'"
+
+-                        " not permitted." % (names[pos + 1], name)
+
+-                    )
+
+-                break
+
+-        return path, final_field, targets, names[pos + 1 :]
+
++                last = pathinfos[-
+
+ 
+
+     def setup_joins(
+
+         self,

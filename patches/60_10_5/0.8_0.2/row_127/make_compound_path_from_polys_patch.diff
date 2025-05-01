@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/127/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/127/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -291,7 +291,7 @@
+     deepcopy = __deepcopy__
+
+ 
+
+     @classmethod
+
+-    def make_compound_path_from_polys(cls, XY):
+
++def make_compound_path_from_polys(cls, XY):
+
+         """
+
+         Make a compound path object to draw a number
+
+         of polygons with equal numbers of sides XY is a (numpolys x
+
+@@ -316,6 +316,14 @@
+         codes[numsides::stride] = cls.CLOSEPOLY
+
+         for i in range(numsides):
+
+             verts[i::stride] = XY[:, i]
+
++
+
++        # Ensure that the Line3D object is properly reset or recreated
+
++        # This is a workaround to fix the issue with the '_verts3d' attribute
+
++        # which might be causing the error.
+
++        # The actual fix would depend on the specific context and usage of Line3D objects.
+
++        # Here, we are simply ensuring that the object is not in an invalid state.
+
++        if hasattr(cls, '_verts3d'):
+
++            delattr(cls, '_verts3d')
+
+ 
+
+         return cls(verts, codes)
+
+ 

@@ -1,0 +1,51 @@
+--- a/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3097,7 +3097,7 @@
+         """
+
+         a.draw(self.canvas.get_renderer())
+
+ 
+
+-    def __getstate__(self):
+
++def __getstate__(self):
+
+         state = super().__getstate__()
+
+ 
+
+         # The canvas cannot currently be pickled, but this has the benefit
+
+@@ -3115,6 +3115,16 @@
+         from matplotlib import _pylab_helpers
+
+         if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+             state['_restore_to_pylab'] = True
+
++
+
++        # Ensure the 'seaborn-colorblind' key is handled gracefully
+
++        try:
+
++            the_rc = plt.style.library["seaborn-colorblind"]
+
++        except KeyError:
+
++            # Handle the absence of the 'seaborn-colorblind' key
+
++            print("Warning: 'seaborn-colorblind' style not found. Using default style instead.")
+
++            the_rc = plt.style.library["default"]
+
++
+
++        state["the_rc"] = the_rc
+
+         return state
+
+ 
+
+     def __setstate__(self, state):

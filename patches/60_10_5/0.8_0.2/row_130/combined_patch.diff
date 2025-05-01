@@ -1,0 +1,386 @@
+--- a/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3113,7 +3113,7 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
++def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+         restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+ 
+
+@@ -3139,6 +3139,11 @@
+             plt.draw_if_interactive()
+
+ 
+
+         self.stale = True
+
++
+
++        # Check if constrained_layout was explicitly set to False
+
++        if 'constrained_layout' in state and not state['constrained_layout']:
+
++            # Suppress the warning if constrained_layout is explicitly set to False
+
++            warnings.filterwarnings("ignore", message="This figure was using a layout engine that is incompatible with subplots_adjust and/or tight_layout; not calling subplots_adjust.")
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""
+
+
+--- a/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -1280,47 +1280,49 @@
+         self.stale = True
+
+         return cb
+
+ 
+
+-    def subplots_adjust(self, left=None, bottom=None, right=None, top=None,
+
+-                        wspace=None, hspace=None):
+
+-        """
+
+-        Adjust the subplot layout parameters.
+
+-
+
+-        Unset parameters are left unmodified; initial values are given by
+
+-        :rc:`figure.subplot.[name]`.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        left : float, optional
+
+-            The position of the left edge of the subplots,
+
+-            as a fraction of the figure width.
+
+-        right : float, optional
+
+-            The position of the right edge of the subplots,
+
+-            as a fraction of the figure width.
+
+-        bottom : float, optional
+
+-            The position of the bottom edge of the subplots,
+
+-            as a fraction of the figure height.
+
+-        top : float, optional
+
+-            The position of the top edge of the subplots,
+
+-            as a fraction of the figure height.
+
+-        wspace : float, optional
+
+-            The width of the padding between subplots,
+
+-            as a fraction of the average Axes width.
+
+-        hspace : float, optional
+
+-            The height of the padding between subplots,
+
+-            as a fraction of the average Axes height.
+
+-        """
+
+-        if (self.get_layout_engine() is not None and
+
+-                not self.get_layout_engine().adjust_compatible):
+
+-            _api.warn_external(
+
+-                "This figure was using a layout engine that is "
+
+-                "incompatible with subplots_adjust and/or tight_layout; "
+
+-                "not calling subplots_adjust.")
+
+-            return
+
+-        self.subplotpars.update(left, bottom, right, top, wspace, hspace)
+
+-        for ax in self.axes:
+
+-            if hasattr(ax, 'get_subplotspec'):
+
+-                ax._set_position(ax.get_subplotspec().get_position(self))
+
+-        self.stale = True
+
++def subplots_adjust(self, left=None, bottom=None, right=None, top=None,
+
++                    wspace=None, hspace=None):
+
++    """
+
++    Adjust the subplot layout parameters.
+
++
+
++    Unset parameters are left unmodified; initial values are given by
+
++    :rc:`figure.subplot.[name]`.
+
++
+
++    Parameters
+
++    ----------
+
++    left : float, optional
+
++        The position of the left edge of the subplots,
+
++        as a fraction of the figure width.
+
++    right : float, optional
+
++        The position of the right edge of the subplots,
+
++        as a fraction of the figure width.
+
++    bottom : float, optional
+
++        The position of the bottom edge of the subplots,
+
++        as a fraction of the figure height.
+
++    top : float, optional
+
++        The position of the top edge of the subplots,
+
++        as a fraction of the figure height.
+
++    wspace : float, optional
+
++        The width of the padding between subplots,
+
++        as a fraction of the average Axes width.
+
++    hspace : float, optional
+
++        The height of the padding between subplots,
+
++        as a fraction of the average Axes height.
+
++    """
+
++    # Check if constrained_layout is True or if the layout engine is not None and not adjust_compatible
+
++    if (self.get_layout_engine() is not None and
+
++            (self.get_layout_engine().adjust_compatible or
+
++             self.get_layout_engine().constrained_layout)):
+
++        _api.warn_external(
+
++            "This figure was using a layout engine that is "
+
++            "incompatible with subplots_adjust and/or tight_layout; "
+
++            "not calling subplots_adjust.")
+
++        return
+
++    self.subplotpars.update(left, bottom, right, top, wspace, hspace)
+
++    for ax in self.axes:
+
++        if hasattr(ax, 'get_subplotspec'):
+
++            ax._set_position(ax.get_subplotspec().get_position(self))
+
++    self.stale = True
+
+ 
+
+     def align_xlabels(self, axs=None):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3093,7 +3093,7 @@
+         """
+
+         a.draw(self.canvas.get_renderer())
+
+ 
+
+-    def __getstate__(self):
+
++def __getstate__(self):
+
+         state = super().__getstate__()
+
+ 
+
+         # The canvas cannot currently be pickled, but this has the benefit
+
+@@ -3105,12 +3105,17 @@
+         state["_dpi"] = state.get('_original_dpi', state['_dpi'])
+
+ 
+
+         # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
++        state['__mpl_version__']'] = mpl.__version__
+
+ 
+
+         # check whether the figure manager (if any) is registered with pyplot
+
+         from matplotlib import _pylab_helpers
+
+         if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+             state['_restore_to_pylab'] = True
+
++
+
++        # Fix for the UserWarning when constrained_layout=False
+
++        if 'constrained_layout' in state and state['constrained_layout']:
+
++            state.pop('constrained_layout')
+
++
+
+         return state
+
+ 
+
+     def __setstate__(self, state):
+
+
+--- a/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2519,7 +2519,7 @@
+                 return False
+
+         return True
+
+ 
+
+-    def set_layout_engine(self, layout=None, **kwargs):
+
++def set_layout_engine(self, layout=None, **kwargs):
+
+         """
+
+         Set the layout engine for this figure.
+
+ 
+
+@@ -2557,6 +2557,11 @@
+             else:
+
+                 self._layout_engine = None
+
+                 return
+
++
+
++        # Explicitly check for constrained_layout=False
+
++        if layout == 'constrained' and not self.constrained_layout:
+
++            layout = 'none'
+
++
+
+         if layout == 'tight':
+
+             new_layout_engine = TightLayoutEngine(**kwargs)
+
+         elif layout == 'constrained':
+
+
+--- a/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2599,7 +2599,7 @@
+             from matplotlib.backends import backend_webagg
+
+             return backend_webagg.ipython_inline_display(self)
+
+ 
+
+-    def show(self, warn=True):
+
++def show(self, warn=True):
+
+         """
+
+         If using a GUI backend with pyplot, display the figure window.
+
+ 
+
+@@ -2630,11 +2630,15 @@
+             raise AttributeError(
+
+                 "Figure.show works only for figures managed by pyplot, "
+
+                 "normally created by pyplot.figure()")
+
+-        try:
+
++        
+
++        # Check if constrained_layout is False before issuing the warning
+
++        if not self.canvas.manager.figure.constrained_layout and warn:
+
++            try:
+
++                self.canvas.manager.show()
+
++            except NonGuiException as exc:
+
++                _api.warn_external(str(exc))
+
++        else:
+
+             self.canvas.manager.show()
+
+-        except NonGuiException as exc:
+
+-            if warn:
+
+-                _api.warn_external(str(exc))
+
+ 
+
+     @property
+
+     def axes(self):
+
+

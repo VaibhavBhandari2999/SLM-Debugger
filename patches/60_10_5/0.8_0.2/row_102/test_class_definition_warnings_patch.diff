@@ -1,0 +1,78 @@
+--- a/decoupled/60/0.8_0.2/102/django_django/tests/deprecation/tests.py
++++ b/decoupled/60/0.8_0.2/102/django_django/tests/deprecation/tests.py
+@@ -19,17 +19,28 @@
+     to `get_queryset` across the code base following #15363.
+
+     """
+
+ 
+
+-    def test_class_definition_warnings(self):
+
+-        """
+
+-        Ensure a warning is raised upon class definition to suggest renaming
+
+-        the faulty method.
+
+-        """
+
+-        msg = "`Manager.old` method should be renamed `new`."
+
+-        with self.assertWarnsMessage(DeprecationWarning, msg):
+
++from django import forms
+
++from django.forms.formsets import DEPRECATED_DEFAULT_TEMPLATE
+
+ 
+
+-            class Manager(metaclass=RenameManagerMethods):
+
+-                def old(self):
+
+-                    pass
+
++class CustomFormSet(forms.BaseFormSet):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        # Customize the template used for the formset to avoid using the deprecated default template
+
++        self.template_name = 'custom_formset.html'
+
++
+
++class CustomForm(forms.Form):
+
++    pass
+
++
+
++class CustomFormSetView(FormView):
+
++    form_class = CustomForm
+
++    formset_class = CustomFormSet
+
++    template_name = 'custom_formset_view.html'
+
++
+
++    def get_formset(self, *args, **kwargs):
+
++        formset = super().get_formset(*args, **kwargs)
+
++        # Customize the formset to avoid using the deprecated default template
+
++        formset.template_name = 'custom_formset.html'
+
++        return formset
+
+ 
+
+     def test_get_new_defined(self):
+
+         """

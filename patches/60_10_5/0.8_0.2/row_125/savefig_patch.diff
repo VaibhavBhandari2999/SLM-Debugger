@@ -1,0 +1,214 @@
+--- a/decoupled/60/0.8_0.2/125/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/125/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3064,7 +3064,7 @@
+         # weakref-collected.
+
+         self._axobservers.connect("_axes_change_event", lambda arg: func(arg))
+
+ 
+
+-    def savefig(self, fname, *, transparent=None, **kwargs):
+
++def savefig(self, fname, *, transparent=None, **kwargs):
+
+         """
+
+         Save the current figure.
+
+ 
+
+@@ -3086,12 +3086,12 @@
+             `matplotlib.backends.backend_pdf.PdfPages`.
+
+ 
+
+             If *format* is set, it determines the output format, and the file
+
+-            is saved as *fname*.  Note that *fname* is used verbatim, and there
+
++            is saved as *fname*. Note that *fname* is used verbatim, and there
+
+             is no attempt to make the extension, if any, of *fname* match
+
+             *format*, and no extension is appended.
+
+ 
+
+             If *format* is not set, then the format is inferred from the
+
+-            extension of *fname*, if there is one.  If *format* is not
+
++            extension of *fname*, if there is one. If *format* is not
+
+             set and *fname* has no extension, then the file is saved with
+
+             :rc:`savefig.format` and the appropriate extension is appended to
+
+             *fname*.
+
+@@ -3099,7 +3099,7 @@
+         Other Parameters
+
+         ----------------
+
+         dpi : float or 'figure', default: :rc:`savefig.dpi`
+
+-            The resolution in dots per inch.  If 'figure', use the figure's
+
++            The resolution in dots per inch. If 'figure', use the figure's
+
+             dpi value.
+
+ 
+
+         format : str
+
+@@ -3120,26 +3120,26 @@
+ 
+
+         bbox_inches : str or `.Bbox`, default: :rc:`savefig.bbox`
+
+             Bounding box in inches: only the given portion of the figure is
+
+-            saved.  If 'tight', try to figure out the tight bbox of the figure.
+
++            saved. If 'tight', try to figure out the tight bbox of the figure.
+
+ 
+
+         pad_inches : float, default: :rc:`savefig.pad_inches`
+
+             Amount of padding around the figure when bbox_inches is 'tight'.
+
+ 
+
+         facecolor : color or 'auto', default: :rc:`savefig.facecolor`
+
+-            The facecolor of the figure.  If 'auto', use the current figure
+
++            The facecolor of the figure. If 'auto', use the current figure
+
+             facecolor.
+
+ 
+
+         edgecolor : color or 'auto', default: :rc:`savefig.edgecolor`
+
+-            The edgecolor of the figure.  If 'auto', use the current figure
+
++            The edgecolor of the figure. If 'auto', use the current figure
+
+             edgecolor.
+
+ 
+
+         backend : str, optional
+
+             Use a non-default backend to render the file, e.g. to render a
+
+             png file with the "cairo" backend rather than the default "agg",
+
+             or a pdf file with the "pgf" backend rather than the default
+
+-            "pdf".  Note that the default backend is normally sufficient.  See
+
++            "pdf". Note that the default backend is normally sufficient. See
+
+             :ref:`the-builtin-backends` for a list of valid backends for each
+
+-            file format.  Custom backends can be referenced as "module://...".
+
++            file format. Custom backends can be referenced as "module://...".
+
+ 
+
+         orientation : {'landscape', 'portrait'}
+
+             Currently only supported by the postscript backend.
+
+@@ -3152,42 +3152,7 @@
+         transparent : bool
+
+             If *True*, the Axes patches will all be transparent; the
+
+             Figure patch will also be transparent unless *facecolor*
+
+-            and/or *edgecolor* are specified via kwargs.
+
+-
+
+-            If *False* has no effect and the color of the Axes and
+
+-            Figure patches are unchanged (unless the Figure patch
+
+-            is specified via the *facecolor* and/or *edgecolor* keyword
+
+-            arguments in which case those colors are used).
+
+-
+
+-            The transparency of these patches will be restored to their
+
+-            original values upon exit of this function.
+
+-
+
+-            This is useful, for example, for displaying
+
+-            a plot on top of a colored background on a web page.
+
+-
+
+-        bbox_extra_artists : list of `~matplotlib.artist.Artist`, optional
+
+-            A list of extra artists that will be considered when the
+
+-            tight bbox is calculated.
+
+-
+
+-        pil_kwargs : dict, optional
+
+-            Additional keyword arguments that are passed to
+
+-            `PIL.Image.Image.save` when saving the figure.
+
+-
+
+-        """
+
+-
+
+-        kwargs.setdefault('dpi', mpl.rcParams['savefig.dpi'])
+
+-        if transparent is None:
+
+-            transparent = mpl.rcParams['savefig.transparent']
+
+-
+
+-        with ExitStack() as stack:
+
+-            if transparent:
+
+-                kwargs.setdefault('facecolor', 'none')
+
+-                kwargs.setdefault('edgecolor', 'none')
+
+-                for ax in self.axes:
+
+-                    stack.enter_context(
+
+-                        ax.patch._cm_set(facecolor='none', edgecolor='none'))
+
+-
+
+-            self.canvas.print_figure(fname, **kwargs)
+
++            and/or *edgecolor* are specified via
+
+ 
+
+     def ginput(self, n=1, timeout=30, show_clicks=True,
+
+                mouse_add=MouseButton.LEFT,

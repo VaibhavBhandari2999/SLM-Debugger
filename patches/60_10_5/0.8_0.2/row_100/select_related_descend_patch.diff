@@ -1,0 +1,20 @@
+--- a/decoupled/60/0.8_0.2/100/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/100/django_django/django/db/models/query_utils.py
+@@ -298,6 +298,9 @@
+                     "select_related at the same time."
+
+                 ) % (field.model._meta.object_name, field.name)
+
+                 raise FieldError(msg)
+
++    # Add a default related_name if the field is related to the same model
+
++    if field.remote_field.model == field.model and not field.remote_field.related_name:
+
++        field.remote_field.related_name = f'{field.model.__name__.lower()}_set'
+
+     return True
+
+ 
+
+ 

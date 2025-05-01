@@ -1,0 +1,70 @@
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/auth/hashers.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/auth/hashers.py
+@@ -475,17 +475,23 @@
+         bcrypt = self._load_library()
+
+         return bcrypt.gensalt(self.rounds)
+
+ 
+
+-    def encode(self, password, salt):
+
+-        bcrypt = self._load_library()
+
+-        password = password.encode()
+
+-        # Hash the password prior to using bcrypt to prevent password
+
+-        # truncation as described in #20138.
+
+-        if self.digest is not None:
+
+-            # Use binascii.hexlify() because a hex encoded bytestring is str.
+
+-            password = binascii.hexlify(self.digest(password).digest())
+
+-
+
+-        data = bcrypt.hashpw(password, salt)
+
+-        return "%s$%s" % (self.algorithm, data.decode("ascii"))
+
++class UserChangeForm(forms.ModelForm):
+
++    password = ReadOnlyPasswordHashField(
+
++        label=_("Password"),
+
++        help_text=_(
+
++            "Raw passwords are not stored, so there is no way to see this "
+
++            "user’s password, but you can change the password using "
+
++            '<a href="{}">this form</a>.'
+
++        ),
+
++    )
+
++    ...
+
++
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        password = self.fields.get("password")
+
++        if password:
+
++            # Correct the help_text to include the correct URL format
+
++            password.help_text = password.help_text.format(f"../../{self.instance.pk}/password/")
+
+ 
+
+     def decode(self, encoded):
+
+         algorithm, empty, algostr, work_factor, data = encoded.split("$", 4)

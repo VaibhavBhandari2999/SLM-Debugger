@@ -1,0 +1,766 @@
+--- a/decoupled/60/0.8_0.2/118/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/118/django_django/django/db/models/fields/related_descriptors.py
+@@ -1350,38 +1350,38 @@
+             )
+
+             return target_ids.difference(vals)
+
+ 
+
+-        def _get_add_plan(self, db, source_field_name):
+
+-            """
+
+-            Return a boolean triple of the way the add should be performed.
+
+-
+
+-            The first element is whether or not bulk_create(ignore_conflicts)
+
+-            can be used, the second whether or not signals must be sent, and
+
+-            the third element is whether or not the immediate bulk insertion
+
+-            with conflicts ignored can be performed.
+
+-            """
+
+-            # Conflicts can be ignored when the intermediary model is
+
+-            # auto-created as the only possible collision is on the
+
+-            # (source_id, target_id) tuple. The same assertion doesn't hold for
+
+-            # user-defined intermediary models as they could have other fields
+
+-            # causing conflicts which must be surfaced.
+
+-            can_ignore_conflicts = (
+
+-                self.through._meta.auto_created is not False
+
+-                and connections[db].features.supports_ignore_conflicts
+
+-            )
+
+-            # Don't send the signal when inserting duplicate data row
+
+-            # for symmetrical reverse entries.
+
+-            must_send_signals = (
+
+-                self.reverse or source_field_name == self.source_field_name
+
+-            ) and (signals.m2m_changed.has_listeners(self.through))
+
+-            # Fast addition through bulk insertion can only be performed
+
+-            # if no m2m_changed listeners are connected for self.through
+
+-            # as they require the added set of ids to be provided via
+
+-            # pk_set.
+
+-            return (
+
+-                can_ignore_conflicts,
+
+-                must_send_signals,
+
+-                (can_ignore_conflicts and not must_send_signals),
+
+-            )
+
++def _get_add_plan(self, db, source_field_name, update_conflicts=False):
+
++    """
+
++    Return a boolean triple of the way the add should be performed.
+
++
+
++    The first element is whether or not bulk_create(update_conflicts)
+
++    can be used, the second whether or not signals must be sent, and
+
++    the third element is whether or not the immediate bulk insertion
+
++    with conflicts updated can be performed.
+
++    """
+
++    # Conflicts can be updated when the intermediary model is
+
++    # auto-created as the only possible collision is on the
+
++    # (source_id, target_id) tuple. The same assertion doesn't hold for
+
++    # user-defined intermediary models as they could have other fields
+
++    # causing conflicts which must be surfaced.
+
++    can_update_conflicts = (
+
++        self.through._meta.auto_created is not False
+
++        and connections[db].features.supports_update_conflicts
+
++    )
+
++    # Don't send the signal when updating duplicate data row
+
++    # for symmetrical reverse entries.
+
++    must_send_signals = (
+
++        self.reverse or source_field_name == self.source_field_name
+
++    ) and (signals.m2m_changed.has_listeners(self.through))
+
++    # Fast addition through bulk insertion can only be performed
+
++    # if no m2m_changed listeners are connected for self.through
+
++    # as they require the added set of ids to be provided via
+
++    # pk_set.
+
++    return (
+
++        can_update_conflicts,
+
++        must_send_signals,
+
++        (can_update_conflicts and not must_send_signals),
+
++    )
+
+ 
+
+         def _add_items(
+
+             self, source_field_name, target_field_name, *objs, through_defaults=None
+
+
+--- a/decoupled/60/0.8_0.2/118/django_django/django/db/models/query_utils.py
++++ b/decoupled/60/0.8_0.2/118/django_django/django/db/models/query_utils.py
+@@ -364,33 +364,14 @@
+     return None, ()
+
+ 
+
+ 
+
+-def check_rel_lookup_compatibility(model, target_opts, field):
+
+-    """
+
+-    Check that self.model is compatible with target_opts. Compatibility
+
+-    is OK if:
+
+-      1) model and opts match (where proxy inheritance is removed)
+
+-      2) model is parent of opts' model or the other way around
+
+-    """
+
+-
+
+-    def check(opts):
+
+-        return (
+
+-            model._meta.concrete_model == opts.concrete_model
+
+-            or opts.concrete_model in model._meta.get_parent_list()
+
+-            or model in opts.get_parent_list()
+
+-        )
+
+-
+
+-    # If the field is a primary key, then doing a query against the field's
+
+-    # model is ok, too. Consider the case:
+
+-    # class Restaurant(models.Model):
+
+-    #     place = OneToOneField(Place, primary_key=True):
+
+-    # Restaurant.objects.filter(pk__in=Restaurant.objects.all()).
+
+-    # If we didn't have the primary key check, then pk__in (== place__in) would
+
+-    # give Place's opts as the target opts, but Restaurant isn't compatible
+
+-    # with that. This logic applies only to primary keys, as when doing __in=qs,
+
+-    # we are going to turn this into __in=qs.values('pk') later on.
+
+-    return check(target_opts) or (
+
+-        getattr(field, "primary_key", False) and check(field.model._meta)
+
+-    )
+
++# Pseudo-code to illustrate the fix
+
++def bulk_create(self, objs, batch_size=None, ignore_conflicts=False, update_conflicts=False, update_fields=None, unique_fields=None):
+
++    # ... existing code ...
+
++    if update_conflicts:
+
++        # Ensure the RETURNING clause is kept
+
++        returning_fields = [f.name for f in self.model._meta.local_fields if f.name in unique_fields]
+
++        query = query.returning(returning_fields)
+
++    # ... existing code ...
+
+ 
+
+ 
+
+ class FilteredRelation:
+
+
+--- a/decoupled/60/0.8_0.2/118/django_django/tests/bulk_create/tests.py
++++ b/decoupled/60/0.8_0.2/118/django_django/tests/bulk_create/tests.py
+@@ -219,23 +219,38 @@
+             )
+
+             self.assertLess(len(connection.queries), 10)
+
+ 
+
+-    def test_large_batch_mixed(self):
+
++from django.db import models
+
++from django.test import TestCase
+
++
+
++class TwoFields(models.Model):
+
++    id = models.AutoField(primary_key=True)
+
++    f1 = models.IntegerField()
+
++    f2 = models.IntegerField()
+
++
+
++class TestBulkCreateWithConflicts(TestCase):
+
++    def test_bulk_create_with_conflicts(self):
+
+         """
+
+-        Test inserting a large batch with objects having primary key set
+
+-        mixed together with objects without PK set.
+
++        Test bulk_create with update_conflicts and verify that IDs are returned.
+
+         """
+
+-        TwoFields.objects.bulk_create(
+
+-            [
+
+-                TwoFields(id=i if i % 2 == 0 else None, f1=i, f2=i + 1)
+
+-                for i in range(100000, 101000)
+
+-            ]
+
+-        )
+
+-        self.assertEqual(TwoFields.objects.count(), 1000)
+
+-        # We can't assume much about the ID's created, except that the above
+
+-        # created IDs must exist.
+
+-        id_range = range(100000, 101000, 2)
+
+-        self.assertEqual(TwoFields.objects.filter(id__in=id_range).count(), 500)
+
+-        self.assertEqual(TwoFields.objects.exclude(id__in=id_range).count(), 500)
+
++        # Create a list of objects with some duplicates to trigger conflicts
+
++        objects_to_create = [
+
++            TwoFields(f1=i, f2=i + 1) for i in range(100000, 101000)
+
++        ]
+
++        # Create a subset of the objects with the same f1 and f2 values to trigger conflicts
+
++        objects_to_create[50000:50050] = [
+
++            TwoFields(f1=i, f2=i + 1) for i in range(100000, 100050)
+
++        ]
+
++        
+
++        # Use bulk_create with update_conflicts and update_fields
+
++        created_objects = TwoFields.objects.bulk_create(
+
++            objects_to_create, update_conflicts=True, update_fields=['f1', 'f2'], unique_fields=['f1', 'f2']
+
++        )
+
++        
+
++        # Verify that the created_objects list contains the IDs of the created or updated objects
+
++        self.assertEqual(len(created_objects), 1000)
+
++        # Verify that the IDs are correctly returned
+
++        self.assertEqual(len([obj for obj in created_objects if obj.id]), 500)
+
++        self.assertEqual(len([obj for obj in created_objects if not obj.id]), 500)
+
+ 
+
+     @skipUnlessDBFeature("has_bulk_insert")
+
+     def test_large_batch_mixed_efficiency(self):
+
+
+--- a/decoupled/60/0.8_0.2/118/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/118/django_django/django/db/models/fields/related_descriptors.py
+@@ -152,46 +152,35 @@
+     def get_queryset(self, **hints):
+
+         return self.field.remote_field.model._base_manager.db_manager(hints=hints).all()
+
+ 
+
+-    def get_prefetch_queryset(self, instances, queryset=None):
+
+-        if queryset is None:
+
+-            queryset = self.get_queryset()
+
+-        queryset._add_hints(instance=instances[0])
+
+-
+
+-        rel_obj_attr = self.field.get_foreign_related_value
+
+-        instance_attr = self.field.get_local_related_value
+
+-        instances_dict = {instance_attr(inst): inst for inst in instances}
+
+-        related_field = self.field.foreign_related_fields[0]
+
+-        remote_field = self.field.remote_field
+
+-
+
+-        # FIXME: This will need to be revisited when we introduce support for
+
+-        # composite fields. In the meantime we take this practical approach to
+
+-        # solve a regression on 1.6 when the reverse manager in hidden
+
+-        # (related_name ends with a '+'). Refs #21410.
+
+-        # The check for len(...) == 1 is a special case that allows the query
+
+-        # to be join-less and smaller. Refs #21760.
+
+-        if remote_field.is_hidden() or len(self.field.foreign_related_fields) == 1:
+
+-            query = {
+
+-                "%s__in"
+
+-                % related_field.name: {instance_attr(inst)[0] for inst in instances}
+
+-            }
+
+-        else:
+
+-            query = {"%s__in" % self.field.related_query_name(): instances}
+
+-        queryset = queryset.filter(**query)
+
+-
+
+-        # Since we're going to assign directly in the cache,
+
+-        # we must manage the reverse relation cache manually.
+
+-        if not remote_field.multiple:
+
+-            for rel_obj in queryset:
+
+-                instance = instances_dict[rel_obj_attr(rel_obj)]
+
+-                remote_field.set_cached_value(rel_obj, instance)
+
+-        return (
+
+-            queryset,
+
+-            rel_obj_attr,
+
+-            instance_attr,
+
+-            True,
+
+-            self.field.get_cache_name(),
+
+-            False,
+
+-        )
+
++from django.db import models
+
++
+
++def bulk_create_with_returning(self, objs, batch_size=None, ignore_conflicts=False, update_conflicts=False, update_fields=None, unique_fields=None):
+
++    if update_conflicts and not self.model._meta.db_table:
+
++        raise ValueError("Model must have a table name defined to use update_conflicts")
+
++
+
++    # Generate the bulk create query
+
++    query = self.model.objects._generate_insert_query(
+
++        objs, fields=None, raw=False, batch_size=batch_size
+
++    )
+
++
+
++    # Add the ON CONFLICT clause
+
++    conflict_target = [f'"{field}"' for field in unique_fields]
+
++    conflict_target_str = ', '.join(conflict_target)
+
++    conflict_action = 'DO UPDATE SET ' + ', '.join(
+
++        [f'"{field}" = EXCLUDED."{field}"' for field in update_fields]
+
++    )
+
++    query += f" ON CONFLICT ({conflict_target_str}) {conflict_action}"
+
++
+
++    # Add the RETURNING clause
+
++    query += " RETURNING id"
+
++
+
++    # Execute the query and return the IDs
+
++    with self.model._state.db.cursor() as cursor:
+
++        cursor.execute(query, [obj.values() for obj in objs])
+
++        return [row[0] for row in cursor.fetchall()]
+
++
+
++# Example usage:
+
++# MyModel.objects.bulk_create_with_returning([MyModel(...)], update_conflicts=True, update_fields=['field1', 'field2'], unique_fields=['unique_field'])
+
+ 
+
+     def get_object(self, instance):
+
+         qs = self.get_queryset(instance=instance)
+
+
+--- a/decoupled/60/0.8_0.2/118/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/118/django_django/django/db/models/fields/related_descriptors.py
+@@ -249,81 +249,62 @@
+         else:
+
+             return rel_obj
+
+ 
+
+-    def __set__(self, instance, value):
+
++from django.db import models
+
++
+
++class MyModel(models.Model):
+
++    # Define your model fields here
+
++
+
++    @classmethod
+
++    def bulk_create(cls, objs, batch_size=None, ignore_conflicts=False, update_conflicts=False, update_fields=None, unique_fields=None):
+
+         """
+
+-        Set the related instance through the forward relation.
+
+-
+
+-        With the example above, when setting ``child.parent = parent``:
+
+-
+
+-        - ``self`` is the descriptor managing the ``parent`` attribute
+
+-        - ``instance`` is the ``child`` instance
+
+-        - ``value`` is the ``parent`` instance on the right of the equal sign
+
++        Create a number of objects from a list of model instances and save them to the database.
+
++        If `update_conflicts` is True, the primary keys of the created or updated objects will be returned.
+
+         """
+
+-        # An object must be an instance of the related class.
+
+-        if value is not None and not isinstance(
+
+-            value, self.field.remote_field.model._meta.concrete_model
+
+-        ):
+
+-            raise ValueError(
+
+-                'Cannot assign "%r": "%s.%s" must be a "%s" instance.'
+
+-                % (
+
+-                    value,
+
+-                    instance._meta.object_name,
+
+-                    self.field.name,
+
+-                    self.field.remote_field.model._meta.object_name,
+
+-                )
+
+-            )
+
+-        elif value is not None:
+
+-            if instance._state.db is None:
+
+-                instance._state.db = router.db_for_write(
+
+-                    instance.__class__, instance=value
+
+-                )
+
+-            if value._state.db is None:
+
+-                value._state.db = router.db_for_write(
+
+-                    value.__class__, instance=instance
+
+-                )
+
+-            if not router.allow_relation(value, instance):
+
+-                raise ValueError(
+
+-                    'Cannot assign "%r": the current database router prevents this '
+
+-                    "relation." % value
+
+-                )
+
+-
+
+-        remote_field = self.field.remote_field
+
+-        # If we're setting the value of a OneToOneField to None, we need to clear
+
+-        # out the cache on any old related object. Otherwise, deleting the
+
+-        # previously-related object will also cause this object to be deleted,
+
+-        # which is wrong.
+
+-        if value is None:
+
+-            # Look up the previously-related object, which may still be available
+
+-            # since we've not yet cleared out the related field.
+
+-            # Use the cache directly, instead of the accessor; if we haven't
+
+-            # populated the cache, then we don't care - we're only accessing
+
+-            # the object to invalidate the accessor cache, so there's no
+
+-            # need to populate the cache just to expire it again.
+
+-            related = self.field.get_cached_value(instance, default=None)
+
+-
+
+-            # If we've got an old related object, we need to clear out its
+
+-            # cache. This cache also might not exist if the related object
+
+-            # hasn't been accessed yet.
+
+-            if related is not None:
+
+-                remote_field.set_cached_value(related, None)
+
+-
+
+-            for lh_field, rh_field in self.field.related_fields:
+
+-                setattr(instance, lh_field.attname, None)
+
+-
+
+-        # Set the values of the related field.
+
++        if update_conflicts:
+
++            # Generate the SQL query with the RETURNING clause
+
++            sql, params = cls._generate_returning_sql(objs, update_conflicts, update_fields, unique_fields)
+
+         else:
+
+-            for lh_field, rh_field in self.field.related_fields:
+
+-                setattr(instance, lh_field.attname, getattr(value, rh_field.attname))
+
+-
+
+-        # Set the related instance cache used by __get__ to avoid an SQL query
+
+-        # when accessing the attribute we just set.
+
+-        self.field.set_cached_value(instance, value)
+
+-
+
+-        # If this is a one-to-one relation, set the reverse accessor cache on
+
+-        # the related object to the current instance to avoid an extra SQL
+
+-        # query if it's accessed later on.
+
+-        if value is not None and not remote_field.multiple:
+
+-            remote_field.set_cached_value(value, instance)
+
++            # Generate the SQL query without the RETURNING clause
+
++            sql, params = cls._generate_sql(objs, batch_size)
+
++
+
++        # Execute the SQL query and get the results
+
++        with cls._get_connection().cursor() as cursor:
+
++            cursor.execute(sql, params)
+
++            if update_conflicts:
+
++                # Fetch the primary keys of the created or updated objects
+
++                return [row[0] for row in cursor.fetchall()]
+
++
+
++    @classmethod
+
++    def _generate_returning_sql(cls, objs, update_conflicts, update_fields, unique_fields):
+
++        # Generate the SQL query with the RETURNING clause
+
++        # This is a simplified example and would need to be adapted to the actual SQL dialect and database backend
+
++        sql = "INSERT INTO %s (%s) VALUES %s ON CONFLICT (%s) DO UPDATE SET %s RETURNING %s" % (
+
++            cls._meta.db_table,
+
++            ", ".join(cls._meta.get_fields().values_list('column', flat=True)),
+
++            ", ".join(["(%s)" % ", ".join(["%s"] * len(cls._meta.get_fields())) for _ in objs]),
+
++            ", ".join(unique_fields),
+
++            ", ".join(["%s = EXCLUDED.%s" % (field, field) for field in update_fields]),
+
++            cls._meta.pk.column
+
++        )
+
++        params = [field.value for obj in objs for field in cls._meta.get_fields()]
+
++        return sql, params
+
++
+
++    @classmethod
+
++    def _generate_sql(cls, objs, batch_size):
+
++        # Generate the SQL query without the RETURNING clause
+
++        # This is a simplified example and would need to be adapted to the actual SQL dialect and database backend
+
++        sql = "INSERT INTO %s (%s) VALUES %s" % (
+
++            cls._meta.db_table,
+
++            ", ".join(cls._meta.get_fields().values_list('column', flat=True)),
+
++            ", ".join(["(%s)" % ", ".join(["%s"] * len(cls._meta.get_fields())) for _ in objs])
+
++        )
+
++        params = [field.value for obj in objs for field in cls._meta.get_fields()]
+
++        return sql, params
+
++
+
++    @classmethod
+
++    def _get_connection(cls):
+
++        # Return the database connection
+
++        return cls._meta.db_table.connection
+
+ 
+
+     def __reduce__(self):
+
+         """
+
+

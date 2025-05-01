@@ -1,0 +1,278 @@
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/auth/hashers.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/auth/hashers.py
+@@ -270,20 +270,29 @@
+     def must_update(self, encoded):
+
+         return False
+
+ 
+
+-    def harden_runtime(self, password, encoded):
+
+-        """
+
+-        Bridge the runtime gap between the work factor supplied in `encoded`
+
+-        and the work factor suggested by this hasher.
+
+-
+
+-        Taking PBKDF2 as an example, if `encoded` contains 20000 iterations and
+
+-        `self.iterations` is 30000, this method should run password through
+
+-        another 10000 iterations of PBKDF2. Similar approaches should exist
+
+-        for any hasher that has a work factor. If not, this method should be
+
+-        defined as a no-op to silence the warning.
+
+-        """
+
+-        warnings.warn(
+
+-            "subclasses of BasePasswordHasher should provide a harden_runtime() method"
+
+-        )
+
++from django import forms
+
++from django.contrib.auth.forms import UserChangeForm as BaseUserChangeForm
+
++from django.contrib.auth.hashers import ReadOnlyPasswordHashField
+
++from django.urls import reverse
+
++
+
++class UserChangeForm(BaseUserChangeForm):
+
++    password = ReadOnlyPasswordHashField(
+
++        label=_("Password"),
+
++        help_text=_(
+
++            "Raw passwords are not stored, so there is no way to see this "
+
++            "user’s password, but you can change the password using "
+
++            '<a href="{}">this form</a>.'
+
++        ),
+
++    )
+
++
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        password = self.fields.get("password")
+
++        if password:
+
++            # Correct the help text to use the instance's primary key
+
++            password.help_text = password.help_text.format(
+
++                reverse("admin:auth_user_password", args=(self.instance.pk,))
+
++            )
+
+ 
+
+ 
+
+ class PBKDF2PasswordHasher(BasePasswordHasher):
+
+
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/auth/hashers.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/auth/hashers.py
+@@ -475,17 +475,23 @@
+         bcrypt = self._load_library()
+
+         return bcrypt.gensalt(self.rounds)
+
+ 
+
+-    def encode(self, password, salt):
+
+-        bcrypt = self._load_library()
+
+-        password = password.encode()
+
+-        # Hash the password prior to using bcrypt to prevent password
+
+-        # truncation as described in #20138.
+
+-        if self.digest is not None:
+
+-            # Use binascii.hexlify() because a hex encoded bytestring is str.
+
+-            password = binascii.hexlify(self.digest(password).digest())
+
+-
+
+-        data = bcrypt.hashpw(password, salt)
+
+-        return "%s$%s" % (self.algorithm, data.decode("ascii"))
+
++class UserChangeForm(forms.ModelForm):
+
++    password = ReadOnlyPasswordHashField(
+
++        label=_("Password"),
+
++        help_text=_(
+
++            "Raw passwords are not stored, so there is no way to see this "
+
++            "user’s password, but you can change the password using "
+
++            '<a href="{}">this form</a>.'
+
++        ),
+
++    )
+
++    ...
+
++
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        password = self.fields.get("password")
+
++        if password:
+
++            # Correct the help_text to include the correct URL format
+
++            password.help_text = password.help_text.format(f"../../{self.instance.pk}/password/")
+
+ 
+
+     def decode(self, encoded):
+
+         algorithm, empty, algostr, work_factor, data = encoded.split("$", 4)
+
+
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
+@@ -757,7 +757,7 @@
+     def _get_form_for_get_fields(self, request, obj):
+
+         return self.get_form(request, obj, fields=None)
+
+ 
+
+-    def get_form(self, request, obj=None, change=False, **kwargs):
+
++def get_form(self, request, obj=None, change=False, **kwargs):
+
+         """
+
+         Return a Form class for use in the admin add view. This is used by
+
+         add_view and change_view.
+
+@@ -812,6 +812,16 @@
+                 "%s. Check fields/fieldsets/exclude attributes of class %s."
+
+                 % (e, self.__class__.__name__)
+
+             )
+
++
+
++        # Additional fix for the password help text
+
++        if "UserChangeForm" in str(form):
+
++            password = form.base_fields.get("password")
+
++            if password:
+
++                help_text = password.help_text
+
++                if help_text:
+
++                    # Construct the correct relative path based on the new URL path
+
++                    help_text = help_text.format(f"../../{self.instance.pk}/password/")
+
++                    password.help_text = help_text
+
+ 
+
+     def get_changelist(self, request, **kwargs):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
+@@ -1241,7 +1241,7 @@
+         """
+
+         formset.save()
+
+ 
+
+-    def save_related(self, request, form, formsets, change):
+
++def save_related(self, request, form, formsets, change):
+
+         """
+
+         Given the ``HttpRequest``, the parent ``ModelForm`` instance, the
+
+         list of inline formsets and a boolean value based on whether the
+
+@@ -1252,6 +1252,11 @@
+         form.save_m2m()
+
+         for formset in formsets:
+
+             self.save_formset(request, form, formset, change=change)
+
++        
+
++        # Fix the password help text to handle to_field access correctly
+
++        password_field = form.fields.get("password")
+
++        if password_field:
+
++            password_field.help_text = password_field.help_text.format(f"../../{form.instance.pk}/password/")
+
+ 
+
+     def render_change_form(
+
+         self, request, context, add=False, change=False, form_url="", obj=None
+
+
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
+@@ -544,7 +544,7 @@
+         codename = get_permission_codename("add", opts)
+
+         return request.user.has_perm("%s.%s" % (opts.app_label, codename))
+
+ 
+
+-    def has_change_permission(self, request, obj=None):
+
++def has_change_permission(self, request, obj=None):
+
+         """
+
+         Return True if the given request has permission to change the given
+
+         Django model instance, the default implementation doesn't examine the
+
+

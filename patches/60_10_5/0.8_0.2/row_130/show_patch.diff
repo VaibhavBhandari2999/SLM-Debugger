@@ -1,0 +1,57 @@
+--- a/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2599,7 +2599,7 @@
+             from matplotlib.backends import backend_webagg
+
+             return backend_webagg.ipython_inline_display(self)
+
+ 
+
+-    def show(self, warn=True):
+
++def show(self, warn=True):
+
+         """
+
+         If using a GUI backend with pyplot, display the figure window.
+
+ 
+
+@@ -2630,11 +2630,15 @@
+             raise AttributeError(
+
+                 "Figure.show works only for figures managed by pyplot, "
+
+                 "normally created by pyplot.figure()")
+
+-        try:
+
++        
+
++        # Check if constrained_layout is False before issuing the warning
+
++        if not self.canvas.manager.figure.constrained_layout and warn:
+
++            try:
+
++                self.canvas.manager.show()
+
++            except NonGuiException as exc:
+
++                _api.warn_external(str(exc))
+
++        else:
+
+             self.canvas.manager.show()
+
+-        except NonGuiException as exc:
+
+-            if warn:
+
+-                _api.warn_external(str(exc))
+
+ 
+
+     @property
+
+     def axes(self):

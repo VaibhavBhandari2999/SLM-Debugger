@@ -1,0 +1,71 @@
+--- a/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
++++ b/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
+@@ -310,7 +310,7 @@
+             if not self._output_field_resolved_to_none:
+
+                 raise
+
+ 
+
+-    def _resolve_output_field(self):
+
++def _resolve_output_field(self):
+
+         """
+
+         Attempt to infer the output type of the expression.
+
+ 
+
+@@ -327,18 +327,14 @@
+         sources_iter = (
+
+             source for source in self.get_source_fields() if source is not None
+
+         )
+
+-        for output_field in sources_iter:
+
+-            for source in sources_iter:
+
+-                if not isinstance(output_field, source.__class__):
+
+-                    raise FieldError(
+
+-                        "Expression contains mixed types: %s, %s. You must "
+
+-                        "set output_field."
+
+-                        % (
+
+-                            output_field.__class__.__name__,
+
+-                            source.__class__.__name__,
+
+-                        )
+
+-                    )
+
+-            return output_field
+
++        output_fields = [source.output_field for source in sources_iter]
+
++        if len(set(output_fields)) == 1:
+
++            return output_fields[0]
+
++        else:
+
++            # Handle the case where the source fields are a combination of Enum flags
+
++            # Use enum._decompose to obtain a list of names and create an expression to create the enum value by "ORing" the items together
+
++            combined_flag = reduce(lambda x, y: x | y, [source.output_field for source in sources_iter])
+
++            return combined_flag
+
+ 
+
+     @staticmethod
+
+     def _convert_value_noop(value, expression, connection):

@@ -1,0 +1,512 @@
+--- a/decoupled/60/0.8_0.2/114/django_django/django/db/models/deletion.py
++++ b/decoupled/60/0.8_0.2/114/django_django/django/db/models/deletion.py
+@@ -228,21 +228,21 @@
+             )
+
+         )
+
+ 
+
+-    def get_del_batches(self, objs, fields):
+
+-        """
+
+-        Return the objs in suitably sized batches for the used connection.
+
+-        """
+
+-        field_names = [field.name for field in fields]
+
+-        conn_batch_size = max(
+
+-            connections[self.using].ops.bulk_batch_size(field_names, objs), 1
+
+-        )
+
+-        if len(objs) > conn_batch_size:
+
+-            return [
+
+-                objs[i : i + conn_batch_size]
+
+-                for i in range(0, len(objs), conn_batch_size)
+
+-            ]
+
+-        else:
+
+-            return [objs]
+
++def get_del_batches(self, objs, fields):
+
++    """
+
++    Return the objs in suitably sized batches for the used connection.
+
++    """
+
++    field_names = [field.name for field in fields]
+
++    conn_batch_size = max(
+
++        connections[self.using].ops.bulk_batch_size(field_names, objs), 1
+
++    )
+
++    if len(objs) > conn_batch_size:
+
++        return [
+
++            objs[i : i + conn_batch_size]
+
++            for i in range(0, len(objs), conn_batch_size)
+
++        ]
+
++    else:
+
++        return [objs]
+
+ 
+
+     def collect(
+
+         self,
+
+
+--- a/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
+@@ -1025,33 +1025,32 @@
+                     setattr(self, field.attname, value)
+
+         return updated
+
+ 
+
+-    def _do_update(self, base_qs, using, pk_val, values, update_fields, forced_update):
+
+-        """
+
+-        Try to update the model. Return True if the model was updated (if an
+
+-        update query was done and a matching row was found in the DB).
+
+-        """
+
+-        filtered = base_qs.filter(pk=pk_val)
+
+-        if not values:
+
+-            # We can end up here when saving a model in inheritance chain where
+
+-            # update_fields doesn't target any field in current model. In that
+
+-            # case we just say the update succeeded. Another case ending up here
+
+-            # is a model with just PK - in that case check that the PK still
+
+-            # exists.
+
+-            return update_fields is not None or filtered.exists()
+
+-        if self._meta.select_on_save and not forced_update:
+
+-            return (
+
+-                filtered.exists()
+
+-                and
+
+-                # It may happen that the object is deleted from the DB right after
+
+-                # this check, causing the subsequent UPDATE to return zero matching
+
+-                # rows. The same result can occur in some rare cases when the
+
+-                # database returns zero despite the UPDATE being executed
+
+-                # successfully (a row is matched and updated). In order to
+
+-                # distinguish these two cases, the object's existence in the
+
+-                # database is again checked for if the UPDATE query returns 0.
+
+-                (filtered._update(values) > 0 or filtered.exists())
+
+-            )
+
+-        return filtered._update(values) > 0
+
++def _do_update(self, base_qs, using, pk_val, values, update_fields, forced_update):
+
++    """
+
++    Try to update the model. Return True if the model was updated (if an
+
++    update query was done and a matching row was found in the DB).
+
++    """
+
++    filtered = base_qs.filter(pk=pk_val)
+
++    if not values:
+
++        # We can end up here when saving a model in inheritance chain where
+
++        # update_fields doesn't target any field in current model. In that case
+
++        # we just say the update succeeded. Another case ending up here is a
+
++        # model with just PK - in that case check that the PK still exists.
+
++        return update_fields is not None or filtered.exists()
+
++    if self._meta.select_on_save and not forced_update:
+
++        return (
+
++            filtered.exists()
+
++            and
+
++            # It may happen that the object is deleted from the DB right after
+
++            # this check, causing the subsequent UPDATE to return zero matching
+
++            # rows. The same result can occur in some rare cases when the
+
++            # database returns zero despite the UPDATE being executed
+
++            # successfully (a row is matched and updated). In order to
+
++            # distinguish these two cases, the object's existence in the
+
++            # database is again checked for if the UPDATE query returns 0.
+
++            (filtered._update(values) > 0 or filtered.exists())
+
++        )
+
++    return filtered._update(values) > 0
+
+ 
+
+     def _do_insert(self, manager, using, fields, returning_fields, raw):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
+@@ -1873,33 +1873,37 @@
+ 
+
+     # RemovedInDjango51Warning.
+
+     @classmethod
+
+-    def _check_index_together(cls):
+
+-        """Check the value of "index_together" option."""
+
+-        if not isinstance(cls._meta.index_together, (tuple, list)):
+
+-            return [
+
+-                checks.Error(
+
+-                    "'index_together' must be a list or tuple.",
+
+-                    obj=cls,
+
+-                    id="models.E008",
+
+-                )
+
+-            ]
+
+-
+
+-        elif any(
+
+-            not isinstance(fields, (tuple, list)) for fields in cls._meta.index_together
+
+-        ):
+
+-            return [
+
+-                checks.Error(
+
+-                    "All 'index_together' elements must be lists or tuples.",
+
+-                    obj=cls,
+
+-                    id="models.E009",
+
+-                )
+
+-            ]
+
+-
+
+-        else:
+
+-            errors = []
+
+-            for fields in cls._meta.index_together:
+
+-                errors.extend(cls._check_local_fields(fields, "index_together"))
+
+-            return errors
+
++def _check_index_together(cls):
+
++    """Check the value of "index_together" option."""
+
++    if not isinstance(cls._meta.index_together, (tuple, list)):
+
++        return [
+
++            checks.Error(
+
++                "'index_together' must be a list or tuple.",
+
++                obj=cls,
+
++                id="models.E008",
+
++            )
+
++        ]
+
++
+
++    elif any(
+
++        not isinstance(fields, (tuple, list)) for fields in cls._meta.index_together
+
++    ):
+
++        return [
+
++            checks.Error(
+
++                "All 'index_together' elements must be lists or tuples.",
+
++                obj=cls,
+
++                id="models.E009",
+
++            )
+
++        ]
+
++
+
++    else:
+
++        errors = []
+
++        for fields in cls._meta.index_together:
+
++            errors.extend(cls._check_local_fields(fields, "index_together"))
+
++        return errors
+
++
+
++# In the QuestionAdmin class, modify list_display to reference the related fields correctly
+
++class QuestionAdmin(admin.ModelAdmin):
+
++    list_display = ["choice__question_text"]  # Use related_field syntax to reference Choice model fields
+
+ 
+
+     @classmethod
+
+     def _check_unique_together(cls):
+
+
+--- a/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
+@@ -2078,7 +2078,7 @@
+         return errors
+
+ 
+
+     @classmethod
+
+-    def _check_ordering(cls):
+
++def _check_ordering(cls):
+
+         """
+
+         Check "ordering" option -- is it a list of strings and do all fields
+
+         exist?
+
+
+--- a/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
+@@ -1395,37 +1395,48 @@
+             },
+
+         )
+
+ 
+
+-    def unique_error_message(self, model_class, unique_check):
+
+-        opts = model_class._meta
+
+-
+
+-        params = {
+
+-            "model": self,
+
+-            "model_class": model_class,
+
+-            "model_name": capfirst(opts.verbose_name),
+
+-            "unique_check": unique_check,
+
+-        }
+
+-
+
+-        # A unique field
+
+-        if len(unique_check) == 1:
+
+-            field = opts.get_field(unique_check[0])
+
+-            params["field_label"] = capfirst(field.verbose_name)
+
+-            return ValidationError(
+
+-                message=field.error_messages["unique"],
+
+-                code="unique",
+
+-                params=params,
+
+-            )
+
+-
+
+-        # unique_together
+
+-        else:
+
+-            field_labels = [
+
+-                capfirst(opts.get_field(f).verbose_name) for f in unique_check
+
+-            ]
+
+-            params["field_labels"] = get_text_list(field_labels, _("and"))
+
+-            return ValidationError(
+
+-                message=_("%(model_name)s with this %(field_labels)s already exists."),
+
+-                code="unique_together",
+
+-                params=params,
+
+-            )
+
++def unique_error_message(self, model_class, unique_check):
+
++    opts = model_class._meta
+
++
+
++    params = {
+
++        "model": self,
+
++        "model_class": model_class,
+
++        "model_name": capfirst(opts.verbose_name),
+
++        "unique_check": unique_check,
+
++    }
+
++
+
++    # A unique field
+
++    if len(unique_check) == 1:
+
++        field = opts.get_field(unique_check[0])
+
++        params["field_label"] = capfirst(field.verbose_name)
+
++        return ValidationError(
+
++            message=field.error_messages["unique"],
+
++            code="unique",
+
++            params=params,
+
++        )
+
++
+
++    # unique_together
+
++    else:
+
++        field_labels = [
+
++            capfirst(opts.get_field(f).verbose_name) for f in unique_check
+
++        ]
+
++        params["field_labels"] = get_text_list(field_labels, _("and"))
+
++        return ValidationError(
+
++            message=_("%(model_name)s with this %(field_labels)s already exists."),
+
++            code="unique_together",
+
++            params=params,
+
++        )
+
++
+
++# Fix for the list_display issue
+
++def get_choice_label(self, obj):
+
++    if hasattr(obj, 'choice'):
+
++        return obj.choice
+
++    else:
+
++        return None
+
++
+
++class QuestionAdmin(admin.ModelAdmin):
+
++    list_display = ["get_choice_label"]
+
++    # Other admin options...
+
+ 
+
+     def get_constraints(self):
+
+         constraints = [(self.__class__, self._meta.constraints)]
+
+

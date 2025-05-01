@@ -1,0 +1,82 @@
+--- a/decoupled/60/0.8_0.2/0/astropy_astropy/astropy/modeling/core.py
++++ b/decoupled/60/0.8_0.2/0/astropy_astropy/astropy/modeling/core.py
+@@ -805,14 +805,32 @@
+ 
+
+         return self.__class__.n_outputs
+
+ 
+
+-    def _calculate_separability_matrix(self):
+
+-        """
+
+-        This is a hook which customises the behavior of modeling.separable.
+
+-
+
+-        This allows complex subclasses to customise the separability matrix.
+
+-        If it returns `NotImplemented` the default behavior is used.
+
+-        """
+
+-        return NotImplemented
+
++def _calculate_separability_matrix(self):
+
++    """
+
++    This is a hook which customises the behavior of modeling.separable.
+
++
+
++    This allows complex subclasses to customise the separability matrix.
+
++    If it returns `NotImplemented` the default behavior is used.
+
++    """
+
++    # Get the inputs and outputs of the model
+
++    inputs = self.inputs
+
++    outputs = self.outputs
+
++
+
++    # Initialize the separability matrix with the default behavior
+
++    separability_matrix = np.zeros((len(outputs), len(inputs)), dtype=bool)
+
++
+
++    # Iterate over each submodel in the compound model
+
++    for submodel in self.submodels:
+
++        # Calculate the separability matrix for the submodel
+
++        sub_separability_matrix = submodel.separability_matrix
+
++
+
++        # Update the separability matrix for the compound model
+
++        for i, output in enumerate(outputs):
+
++            for j, input_ in enumerate(inputs):
+
++                if sub_separability_matrix[submodel.outputs.index(output), submodel.inputs.index(input_)]:
+
++                    separability_matrix[i, j] = True
+
++
+
++    return separability_matrix
+
+ 
+
+     def _initialize_unit_support(self):
+
+         """

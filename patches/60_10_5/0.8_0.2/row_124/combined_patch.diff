@@ -1,0 +1,1387 @@
+--- a/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2966,7 +2966,7 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
++def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+         restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+ 
+
+@@ -2991,6 +2991,9 @@
+             plt.draw_if_interactive()
+
+ 
+
+         self.stale = True
+
++
+
++        # Ensure the visibility is correctly set and propagated
+
++        self.figure.canvas.draw_idle()
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""
+
+
+--- a/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2946,25 +2946,45 @@
+                                  "initial draw which caches the renderer")
+
+         a.draw(self._cachedRenderer)
+
+ 
+
+-    def __getstate__(self):
+
+-        state = super().__getstate__()
+
+-
+
+-        # The canvas cannot currently be pickled, but this has the benefit
+
+-        # of meaning that a figure can be detached from one canvas, and
+
+-        # re-attached to another.
+
+-        state.pop("canvas")
+
+-
+
+-        # Set cached renderer to None -- it can't be pickled.
+
+-        state["_cachedRenderer"] = None
+
+-
+
+-        # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
+-
+
+-        # check whether the figure manager (if any) is registered with pyplot
+
+-        from matplotlib import _pylab_helpers
+
+-        if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+-            state['_restore_to_pylab'] = True
+
+-        return state
+
++import matplotlib.pyplot as plt
+
++from matplotlib.gridspec import GridSpec
+
++from mpl_toolkits.mplot3d.axis3d import Axis
+
++
+
++class CustomAxis3D(Axis):
+
++    def set_visible(self, visible=True):
+
++        super().set_visible(visible)
+
++        for child in self.get_children():
+
++            child.set_visible(visible)
+
++
+
++def __getstate__(self):
+
++    state = super().__getstate__()
+
++
+
++    # The canvas cannot currently be pickled, but this has the benefit
+
++    # of meaning that a figure can be detached from one canvas, and
+
++    # re-attached to another.
+
++    state.pop("canvas")
+
++
+
++    # Set cached renderer to None -- it can't be pickled.
+
++    state["_cachedRenderer"] = None
+
++
+
++    # add version information to the state
+
++    state['__mpl_version__'] = mpl.__version__
+
++
+
++    # check whether the figure manager (if any) is registered with pyplot
+
++    from matplotlib import _pylab_helpers
+
++    if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
++        state['_restore_to_pylab'] = True
+
++    return state
+
++
+
++# Override the default 3D axis class with the custom one
+
++Axis3D = CustomAxis3D
+
++
+
++fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw={'projection': '3d'})
+
++ax1.scatter(1,1,1)
+
++ax2.scatter(1,1,1, c='r')
+
++ax1.set_visible(False)
+
++
+
++plt.show()
+
+ 
+
+     def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+
+--- a/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -621,134 +621,101 @@
+         return self._add_axes_internal(a, key)
+
+ 
+
+     @_docstring.dedent_interpd
+
+-    def add_subplot(self, *args, **kwargs):
+
+-        """
+
+-        Add an `~.axes.Axes` to the figure as part of a subplot arrangement.
+
+-
+
+-        Call signatures::
+
+-
+
+-           add_subplot(nrows, ncols, index, **kwargs)
+
+-           add_subplot(pos, **kwargs)
+
+-           add_subplot(ax)
+
+-           add_subplot()
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        *args : int, (int, int, *index*), or `.SubplotSpec`, default: (1, 1, 1)
+
+-            The position of the subplot described by one of
+
+-
+
+-            - Three integers (*nrows*, *ncols*, *index*). The subplot will
+
+-              take the *index* position on a grid with *nrows* rows and
+
+-              *ncols* columns. *index* starts at 1 in the upper left corner
+
+-              and increases to the right.  *index* can also be a two-tuple
+
+-              specifying the (*first*, *last*) indices (1-based, and including
+
+-              *last*) of the subplot, e.g., ``fig.add_subplot(3, 1, (1, 2))``
+
+-              makes a subplot that spans the upper 2/3 of the figure.
+
+-            - A 3-digit integer. The digits are interpreted as if given
+
+-              separately as three single-digit integers, i.e.
+
+-              ``fig.add_subplot(235)`` is the same as
+
+-              ``fig.add_subplot(2, 3, 5)``. Note that this can only be used
+
+-              if there are no more than 9 subplots.
+
+-            - A `.SubplotSpec`.
+
+-
+
+-            In rare circumstances, `.add_subplot` may be called with a single
+
+-            argument, a subplot Axes instance already created in the
+
+-            present figure but not in the figure's list of Axes.
+
+-
+
+-        projection : {None, 'aitoff', 'hammer', 'lambert', 'mollweide', \
+
+-'polar', 'rectilinear', str}, optional
+
+-            The projection type of the subplot (`~.axes.Axes`). *str* is the
+
+-            name of a custom projection, see `~matplotlib.projections`. The
+
+-            default None results in a 'rectilinear' projection.
+
+-
+
+-        polar : bool, default: False
+
+-            If True, equivalent to projection='polar'.
+
+-
+
+-        axes_class : subclass type of `~.axes.Axes`, optional
+
+-            The `.axes.Axes` subclass that is instantiated.  This parameter
+
+-            is incompatible with *projection* and *polar*.  See
+
+-            :ref:`axisartist_users-guide-index` for examples.
+
+-
+
+-        sharex, sharey : `~.axes.Axes`, optional
+
+-            Share the x or y `~matplotlib.axis` with sharex and/or sharey.
+
+-            The axis will have the same limits, ticks, and scale as the axis
+
+-            of the shared axes.
+
+-
+
+-        label : str
+
+-            A label for the returned Axes.
+
+-
+
+-        Returns
+
+-        -------
+
+-        `.axes.SubplotBase`, or another subclass of `~.axes.Axes`
+
+-
+
+-            The Axes of the subplot. The returned Axes base class depends on
+
+-            the projection used. It is `~.axes.Axes` if rectilinear projection
+
+-            is used and `.projections.polar.PolarAxes` if polar projection
+
+-            is used. The returned Axes is then a subplot subclass of the
+
+-            base class.
+
+-
+
+-        Other Parameters
+
+-        ----------------
+
+-        **kwargs
+
+-            This method also takes the keyword arguments for the returned Axes
+
+-            base class; except for the *figure* argument. The keyword arguments
+
+-            for the rectilinear base class `~.axes.Axes` can be found in
+
+-            the following table but there might also be other keyword
+
+-            arguments if another projection is used.
+
+-
+
+-            %(Axes:kwdoc)s
+
+-
+
+-        See Also
+
+-        --------
+
+-        .Figure.add_axes
+
+-        .pyplot.subplot
+
+-        .pyplot.axes
+
+-        .Figure.subplots
+
+-        .pyplot.subplots
+
+-
+
+-        Examples
+
+-        --------
+
+-        ::
+
+-
+
+-            fig = plt.figure()
+
+-
+
+-            fig.add_subplot(231)
+
+-            ax1 = fig.add_subplot(2, 3, 1)  # equivalent but more general
+
+-
+
+-            fig.add_subplot(232, frameon=False)  # subplot with no frame
+
+-            fig.add_subplot(233, projection='polar')  # polar subplot
+
+-            fig.add_subplot(234, sharex=ax1)  # subplot sharing x-axis with ax1
+
+-            fig.add_subplot(235, facecolor="red")  # red subplot
+
+-
+
+-            ax1.remove()  # delete ax1 from the figure
+
+-            fig.add_subplot(ax1)  # add ax1 back to the figure
+
+-        """
+
+-        if 'figure' in kwargs:
+
+-            # Axes itself allows for a 'figure' kwarg, but since we want to
+
+-            # bind the created Axes to self, it is not allowed here.
+
+-            raise TypeError(
+
+-                "add_subplot() got an unexpected keyword argument 'figure'")
+
+-
+
+-        if len(args) == 1 and isinstance(args[0], SubplotBase):
+
+-            ax = args[0]
+
+-            key = ax._projection_init
+
+-            if ax.get_figure() is not self:
+
+-                raise ValueError("The Subplot must have been created in "
+
+-                                 "the present figure")
+
+-        else:
+
+-            if not args:
+
+-                args = (1, 1, 1)
+
+-            # Normalize correct ijk values to (i, j, k) here so that
+
+-            # add_subplot(211) == add_subplot(2, 1, 1).  Invalid values will
+
+-            # trigger errors later (via SubplotSpec._from_subplot_args).
+
+-            if (len(args) == 1 and isinstance(args[0], Integral)
+
+-                    and 100 <= args[0] <= 999):
+
+-                args = tuple(map(int, str(args[0])))
+
+-            projection_class, pkw = self._process_projection_requirements(
+
+-                *args, **kwargs)
+
+-            ax = subplot_class_factory(projection_class)(self, *args, **pkw)
+
+-            key = (projection_class, pkw)
+
+-        return self._add_axes_internal(ax, key)
+
++def add_subplot(self, *args, **kwargs):
+
++    """
+
++    Add an `~.axes.Axes` to the figure as part of a subplot arrangement.
+
++
+
++    Call signatures::
+
++
+
++       add_subplot(nrows, ncols, index, **kwargs)
+
++       add_subplot(pos, **kwargs)
+
++       add_subplot(ax)
+
++       add_subplot()
+
++
+
++    Parameters
+
++    ----------
+
++    *args : int, (int, int, *index*), or `.SubplotSpec`, default: (1, 1, 1)
+
++        The position of the subplot described by one of
+
++
+
++        - Three integers (*nrows*, *ncols*, *index*). The subplot will
+
++          take the *index* position on a grid with *nrows* rows and
+
++          *ncols* columns. *index* starts at 1 in the upper left corner
+
++          and increases to the right.  *index* can also be a two-tuple
+
++          specifying the (*first*, *last*) indices (1-based, and including
+
++          *last*) of the subplot, e.g., ``fig.add_subplot(3, 1, (1, 2))``
+
++          makes a subplot that spans the upper 2/3 of the figure.
+
++        - A 3-digit integer. The digits are interpreted as if given
+
++          separately as three single-digit integers, i.e.
+
++          ``fig.add_subplot(235)`` is the same as
+
++          ``fig.add_subplot(2, 3, 5)``. Note that this can only be used
+
++          if there are no more than 9 subplots.
+
++        - A `.SubplotSpec`.
+
++
+
++        In rare circumstances, `.add_subplot` may be called with a single
+
++        argument, a subplot Axes instance already created in the
+
++        present figure but not in the figure's list of Axes.
+
++
+
++    projection : {None, 'aitoff', 'hammer', 'lambert', 'mollweide', \
+
++    'polar', 'rectilinear', str}, optional
+
++        The projection type of the subplot (`~.axes.Axes`). *str* is the
+
++        name of a custom projection, see `~matplotlib.projections`. The
+
++        default None results in a 'rectilinear' projection.
+
++
+
++    polar : bool, default: False
+
++        If True, equivalent to projection='polar'.
+
++
+
++    axes_class : subclass type of `~.axes.Axes`, optional
+
++        The `.axes.Axes` subclass that is instantiated.  This parameter
+
++        is incompatible with *projection* and *polar*.  See
+
++        :ref:`axisartist_users-guide-index` for examples.
+
++
+
++    sharex, sharey : `~.axes.Axes`, optional
+
++        Share the x or y `~matplotlib.axis` with sharex and/or sharey.
+
++        The axis will have the same limits, ticks, and scale as the axis
+
++        of the shared axes.
+
++
+
++    label : str
+
++        A label for the returned Axes.
+
++
+
++    Returns
+
++    -------
+
++    `.axes.SubplotBase`, or another subclass of `~.axes.Axes`
+
++
+
++        The Axes of the subplot. The returned Axes base class depends on
+
++        the projection used. It is `~.axes.Axes` if rectilinear projection
+
++        is used and `.projections.polar.PolarAxes` if polar projection
+
++        is used. The returned Axes is then a subplot subclass of the
+
++        base class.
+
++
+
++    Other Parameters
+
++    ----------------
+
++    **kwargs
+
++        This method also takes the keyword arguments for the returned Axes
+
++        base class; except for the *figure* argument. The keyword arguments
+
++        for the rectilinear base class `~.axes.Axes` can be found in
+
++        the following table but there might also be other keyword
+
++        arguments if another projection is used.
+
++
+
++        %(Axes:kwdoc)s
+
++
+
++    See Also
+
++    --------
+
++    .Figure.add_axes
+
++    .pyplot.subplot
+
++    .pyplot.axes
+
++    .Figure.subplots
+
++    .pyplot.subplots
+
++
+
++    Examples
+
++    --------
+
++    ::
+
++
+
++        fig = plt.figure()
+
++
+
++        fig.add_subplot(231)
+
++        ax1 = fig.add_subplot(2, 3, 1)  # equivalent but more general
+
++
+
++        fig.add_subplot(232, frameon=False)  #
+
+ 
+
+     def _add_axes_internal(self, ax, key):
+
+         """Private helper for `add_axes` and `add_subplot`."""
+
+
+--- a/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -763,118 +763,103 @@
+         ax.stale_callback = _stale_figure_callback
+
+         return ax
+
+ 
+
+-    def subplots(self, nrows=1, ncols=1, *, sharex=False, sharey=False,
+
+-                 squeeze=True, subplot_kw=None, gridspec_kw=None):
+
+-        """
+
+-        Add a set of subplots to this figure.
+
+-
+
+-        This utility wrapper makes it convenient to create common layouts of
+
+-        subplots in a single call.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        nrows, ncols : int, default: 1
+
+-            Number of rows/columns of the subplot grid.
+
+-
+
+-        sharex, sharey : bool or {'none', 'all', 'row', 'col'}, default: False
+
+-            Controls sharing of x-axis (*sharex*) or y-axis (*sharey*):
+
+-
+
+-            - True or 'all': x- or y-axis will be shared among all subplots.
+
+-            - False or 'none': each subplot x- or y-axis will be independent.
+
+-            - 'row': each subplot row will share an x- or y-axis.
+
+-            - 'col': each subplot column will share an x- or y-axis.
+
+-
+
+-            When subplots have a shared x-axis along a column, only the x tick
+
+-            labels of the bottom subplot are created. Similarly, when subplots
+
+-            have a shared y-axis along a row, only the y tick labels of the
+
+-            first column subplot are created. To later turn other subplots'
+
+-            ticklabels on, use `~matplotlib.axes.Axes.tick_params`.
+
+-
+
+-            When subplots have a shared axis that has units, calling
+
+-            `.Axis.set_units` will update each axis with the new units.
+
+-
+
+-        squeeze : bool, default: True
+
+-            - If True, extra dimensions are squeezed out from the returned
+
+-              array of Axes:
+
+-
+
+-              - if only one subplot is constructed (nrows=ncols=1), the
+
+-                resulting single Axes object is returned as a scalar.
+
+-              - for Nx1 or 1xM subplots, the returned object is a 1D numpy
+
+-                object array of Axes objects.
+
+-              - for NxM, subplots with N>1 and M>1 are returned as a 2D array.
+
+-
+
+-            - If False, no squeezing at all is done: the returned Axes object
+
+-              is always a 2D array containing Axes instances, even if it ends
+
+-              up being 1x1.
+
+-
+
+-        subplot_kw : dict, optional
+
+-            Dict with keywords passed to the `.Figure.add_subplot` call used to
+
+-            create each subplot.
+
+-
+
+-        gridspec_kw : dict, optional
+
+-            Dict with keywords passed to the
+
+-            `~matplotlib.gridspec.GridSpec` constructor used to create
+
+-            the grid the subplots are placed on.
+
+-
+
+-        Returns
+
+-        -------
+
+-        `~.axes.Axes` or array of Axes
+
+-            Either a single `~matplotlib.axes.Axes` object or an array of Axes
+
+-            objects if more than one subplot was created. The dimensions of the
+
+-            resulting array can be controlled with the *squeeze* keyword, see
+
+-            above.
+
+-
+
+-        See Also
+
+-        --------
+
+-        .pyplot.subplots
+
+-        .Figure.add_subplot
+
+-        .pyplot.subplot
+
+-
+
+-        Examples
+
+-        --------
+
+-        ::
+
+-
+
+-            # First create some toy data:
+
+-            x = np.linspace(0, 2*np.pi, 400)
+
+-            y = np.sin(x**2)
+
+-
+
+-            # Create a figure
+
+-            plt.figure()
+
+-
+
+-            # Create a subplot
+
+-            ax = fig.subplots()
+
+-            ax.plot(x, y)
+
+-            ax.set_title('Simple plot')
+
+-
+
+-            # Create two subplots and unpack the output array immediately
+
+-            ax1, ax2 = fig.subplots(1, 2, sharey=True)
+
+-            ax1.plot(x, y)
+
+-            ax1.set_title('Sharing Y axis')
+
+-            ax2.scatter(x, y)
+
+-
+
+-            # Create four polar Axes and access them through the returned array
+
+-            axes = fig.subplots(2, 2, subplot_kw=dict(projection='polar'))
+
+-            axes[0, 0].plot(x, y)
+
+-            axes[1, 1].scatter(x, y)
+
+-
+
+-            # Share a X axis with each column of subplots
+
+-            fig.subplots(2, 2, sharex='col')
+
+-
+
+-            # Share a Y axis with each row of subplots
+
+-            fig.subplots(2, 2, sharey='row')
+
+-
+
+-            # Share both X and Y axes with all subplots
+
+-            fig.subplots(2, 2, sharex='all', sharey='all')
+
+-
+
+-            # Note that this is the same as
+
+-            fig.subplots(2, 2, sharex=True, sharey=True)
+
+-        """
+
+-        if gridspec_kw is None:
+
+-            gridspec_kw = {}
+
+-        gs = self.add_gridspec(nrows, ncols, figure=self, **gridspec_kw)
+
+-        axs = gs.subplots(sharex=sharex, sharey=sharey, squeeze=squeeze,
+
+-                          subplot_kw=subplot_kw)
+
+-        return axs
+
++def set_visible(self, visible=True):
+
++        super().set_visible(visible)
+
++        if self.get_projection() == '3d':
+
++            self.figure.canvas.draw_idle()
+
++
+
++def subplots(self, nrows=1, ncols=1, *, sharex=False, sharey=False,
+
++             squeeze=True, subplot_kw=None, gridspec_kw=None):
+
++    """
+
++    Add a set of subplots to this figure.
+
++
+
++    This utility wrapper makes it convenient to create common layouts of
+
++    subplots in a single call.
+
++
+
++    Parameters
+
++    ----------
+
++    nrows, ncols : int, default: 1
+
++        Number of rows/columns of the subplot grid.
+
++
+
++    sharex, sharey : bool or {'none', 'all', 'row', 'col'}, default: False
+
++        Controls sharing of x-axis (*sharex*) or y-axis (*sharey*):
+
++
+
++        - True or 'all': x- or y-axis will be shared among all subplots.
+
++        - False or 'none': each subplot x- or y-axis will be independent.
+
++        - 'row': each subplot row will share an x- or y-axis.
+
++        - 'col': each subplot column will share an x- or y-axis.
+
++
+
++        When subplots have a shared x-axis along a column, only the x tick
+
++        labels of the bottom subplot are created. Similarly, when subplots
+
++        have a shared y-axis along a row, only the y tick labels of the first
+
++        column subplot are created. To later turn other subplots' ticklabels
+
++        on, use `~matplotlib.axes.Axes.tick_params`.
+
++
+
++        When subplots have a shared axis that has units, calling
+
++        `.Axis.set_units` will update each axis with the new units.
+
++
+
++    squeeze : bool, default: True
+
++        - If True, extra dimensions are squeezed out from the returned
+
++          array of Axes:
+
++
+
++          - if only one subplot is constructed (nrows=ncols=1), the
+
++            resulting single Axes object is returned as a scalar.
+
++          - for Nx1 or 1xM subplots, the returned object is a 1D numpy
+
++            object array of Axes objects.
+
++          - for NxM, subplots with N>1 and M>1 are returned as a 2D array.
+
++
+
++        - If False, no squeezing at all is done: the returned Axes object
+
++          is always a 2D array containing Axes instances, even if it ends
+
++          up being 1x1.
+
++
+
++    subplot_kw : dict, optional
+
++        Dict with keywords passed to the `.Figure.add_subplot` call used to
+
++        create each subplot.
+
++
+
++    gridspec_kw : dict, optional
+
++        Dict with keywords passed to the
+
++        `~matplotlib.gridspec.GridSpec` constructor used to create
+
++        the grid the subplots are placed on.
+
++
+
++    Returns
+
++    -------
+
++    `~.axes.Axes` or array of Axes
+
++        Either a single `~matplotlib.axes.Axes` object or an array of Axes
+
++        objects if more than one subplot was created. The dimensions of the
+
++        resulting array can be controlled with the *squeeze* keyword, see
+
++        above.
+
++
+
++    See Also
+
++    --------
+
++    .pyplot.subplots
+
++    .Figure.add_subplot
+
++    .pyplot.subplot
+
++
+
++    Examples
+
++    --------
+
++    ::
+
++
+
++        # First create some toy data:
+
++        x = np.linspace(0, 2*np.pi, 400)
+
++        y = np.sin(x**2)
+
++
+
++        # Create a figure
+
++        plt.figure()
+
++
+
++        # Create a subplot
+
++        ax = fig.subplots()
+
++        ax.plot(x, y)
+
++        ax.set_title('Simple plot')
+
++
+
++        # Create two subplots and unpack the output array immediately
+
++        ax1, ax2 = fig.subplots(1, 2, sharey=True)
+
++        ax1.plot(x, y)
+
++        ax1.set_title('Sharing Y axis')
+
++        ax2.scatter(x, y)
+
++
+
++        # Create four polar Axes and access them through the returned array
+
++        axes = fig.subplots(2, 2, subplot_kw=dict(projection='polar'))
+
++        axes[0, 0].plot(x, y)
+
+ 
+
+     def delaxes(self, ax):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -1229,68 +1229,96 @@
+                 ax._set_position(ax.get_subplotspec().get_position(self))
+
+         self.stale = True
+
+ 
+
+-    def align_xlabels(self, axs=None):
+
+-        """
+
+-        Align the xlabels of subplots in the same subplot column if label
+
+-        alignment is being done automatically (i.e. the label position is
+
+-        not manually set).
+
+-
+
+-        Alignment persists for draw events after this is called.
+
+-
+
+-        If a label is on the bottom, it is aligned with labels on Axes that
+
+-        also have their label on the bottom and that have the same
+
+-        bottom-most subplot row.  If the label is on the top,
+
+-        it is aligned with labels on Axes with the same top-most row.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        axs : list of `~matplotlib.axes.Axes`
+
+-            Optional list of (or ndarray) `~matplotlib.axes.Axes`
+
+-            to align the xlabels.
+
+-            Default is to align all Axes on the figure.
+
+-
+
+-        See Also
+
+-        --------
+
+-        matplotlib.figure.Figure.align_ylabels
+
+-        matplotlib.figure.Figure.align_labels
+
+-
+
+-        Notes
+
+-        -----
+
+-        This assumes that ``axs`` are from the same `.GridSpec`, so that
+
+-        their `.SubplotSpec` positions correspond to figure positions.
+
+-
+
+-        Examples
+
+-        --------
+
+-        Example with rotated xtick labels::
+
+-
+
+-            fig, axs = plt.subplots(1, 2)
+
+-            for tick in axs[0].get_xticklabels():
+
+-                tick.set_rotation(55)
+
+-            axs[0].set_xlabel('XLabel 0')
+
+-            axs[1].set_xlabel('XLabel 1')
+
+-            fig.align_xlabels()
+
+-        """
+
+-        if axs is None:
+
+-            axs = self.axes
+
+-        axs = np.ravel(axs)
+
+-        axs = [ax for ax in axs if hasattr(ax, 'get_subplotspec')]
+
+-
+
+-        for ax in axs:
+
+-            _log.debug(' Working on: %s', ax.get_xlabel())
+
+-            rowspan = ax.get_subplotspec().rowspan
+
+-            pos = ax.xaxis.get_label_position()  # top or bottom
+
+-            # Search through other axes for label positions that are same as
+
+-            # this one and that share the appropriate row number.
+
+-            # Add to a grouper associated with each axes of siblings.
+
+-            # This list is inspected in `axis.draw` by
+
+-            # `axis._update_label_position`.
+
+-            for axc in axs:
+
+-                if axc.xaxis.get_label_position() == pos:
+
+-                    rowspanc = axc.get_subplotspec().rowspan
+
+-                    if (pos == 'top' and rowspan.start == rowspanc.start or
+
+-                            pos == 'bottom' and rowspan.stop == rowspanc.stop):
+
+-                        # grouper for groups of xlabels to align
+
+-                        self._align_label_groups['x'].join(ax, axc)
+
++import matplotlib.pyplot as plt
+
++from matplotlib.axes import Axes
+
++from mpl_toolkits.mplot3d.axes3d import Axes3D
+
++
+
++class CustomAxes3D(Axes3D):
+
++    def set_visible(self, visible=True):
+
++        """
+
++        Set the visibility of the axes.
+
++
+
++        Parameters
+
++        ----------
+
++        visible : bool, default: True
+
++            Whether the axes should be visible.
+
++        """
+
++        super().set_visible(visible)
+
++        # Ensure the 3D specific visibility is set
+
++        self._visible = visible
+
++
+
++def align_xlabels(self, axs=None):
+
++    """
+
++    Align the xlabels of subplots in the same subplot column if label
+
++    alignment is being done automatically (i.e. the label position is
+
++    not manually set).
+
++
+
++    Alignment persists for draw events after this is called.
+
++
+
++    If a label is on the bottom, it is aligned with labels on Axes that
+
++    also have their label on the bottom and that have the same
+
++    bottom-most subplot row.  If the label is on the top,
+
++    it is aligned with labels on Axes with the same top-most row.
+
++
+
++    Parameters
+
++    ----------
+
++    axs : list of `~matplotlib.axes.Axes`
+
++        Optional list of (or ndarray) `~matplotlib.axes.Axes`
+
++        to align the xlabels.
+
++        Default is to align all Axes on the figure.
+
++
+
++    See Also
+
++    --------
+
++    matplotlib.figure.Figure.align_ylabels
+
++    matplotlib.figure.Figure.align_labels
+
++
+
++    Notes
+
++    -----
+
++    This assumes that ``axs`` are from the same `.GridSpec`, so that
+
++    their `.SubplotSpec` positions correspond to figure positions.
+
++
+
++    Examples
+
++    --------
+
++    Example with rotated xtick labels::
+
++
+
++        fig, axs = plt.subplots(1, 2)
+
++        for tick in axs[0].get_xticklabels():
+
++            tick.set_rotation(55)
+
++        axs[0].set_xlabel('XLabel 0')
+
++        axs[1].set_xlabel('XLabel 1')
+
++        fig.align_xlabels()
+
++    """
+
++    if axs is None:
+
++        axs = self.axes
+
++    axs = np.ravel(axs)
+
++    axs = [ax for ax in axs if hasattr(ax, 'get_subplotspec')]
+
++
+
++    for ax in axs:
+
++        _log.debug(' Working on: %s', ax.get_xlabel())
+
++        rowspan = ax.get_subplotspec().rowspan
+
++        pos = ax.xaxis.get_label_position()  # top or bottom
+
++        # Search through other axes for label positions that are same as
+
++        # this one and that share the appropriate row number.
+
++        # Add to a grouper associated with each axes of siblings.
+
++        # This list is inspected in `axis.draw` by
+
++        # `axis._update_label_position`.
+
++        for axc in axs:
+
++            if axc.xaxis.get_label_position() == pos:
+
++                rowspanc = axc.get_subplotspec().rowspan
+
++                if (pos == 'top' and rowspan.start == rowspanc.start or
+
++                        pos == 'bottom' and rowspan.stop == rowspanc.stop):
+
++                    # grouper for groups of xlabels to align
+
++                    self._align_label_groups['x'].join(ax, axc)
+
++
+
++# Monkey patch the CustomAxes3D into the existing Axes3D
+
++Axes3D = CustomAxes3D
+
++
+
++fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw={'projection': '3d'})
+
++ax1.scatter(1,1,1)
+
++ax2.scatter(1,1,1, c='r')
+
++ax1.set_visible(False)
+
++
+
++plt.show()
+
+ 
+
+     def align_ylabels(self, axs=None):
+
+         """
+
+

@@ -1,0 +1,45 @@
+--- a/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/cm.py
++++ b/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/cm.py
+@@ -394,7 +394,7 @@
+     from the given colormap.
+
+     """
+
+ 
+
+-    def __init__(self, norm=None, cmap=None):
+
++def __init__(self, norm=None, cmap=None):
+
+         """
+
+         Parameters
+
+         ----------
+
+@@ -416,6 +416,13 @@
+         #: The last colorbar associated with this ScalarMappable. May be None.
+
+         self.colorbar = None
+
+         self.callbacks = cbook.CallbackRegistry(signals=["changed"])
+
++
+
++        # Use the get method to avoid KeyError if 'seaborn-colorblind' is not present
+
++        the_rc = plt.style.library.get("seaborn-colorblind", None)
+
++        if the_rc is not None:
+
++            plt.style.use(the_rc)
+
++        else:
+
++            print("Warning: 'seaborn-colorblind' style not found. Using default style.")
+
+ 
+
+     callbacksSM = _api.deprecated("3.5", alternative="callbacks")(
+
+         property(lambda self: self.callbacks))

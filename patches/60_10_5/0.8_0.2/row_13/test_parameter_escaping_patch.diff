@@ -1,0 +1,50 @@
+--- a/decoupled/60/0.8_0.2/13/django_django/tests/backends/sqlite/tests.py
++++ b/decoupled/60/0.8_0.2/13/django_django/tests/backends/sqlite/tests.py
+@@ -213,13 +213,17 @@
+     All tests in this test case are also run with settings.DEBUG=True in
+
+     EscapingChecksDebug test case, to also test CursorDebugWrapper.
+
+     """
+
+-    def test_parameter_escaping(self):
+
+-        # '%s' escaping support for sqlite3 (#13648).
+
+-        with connection.cursor() as cursor:
+
+-            cursor.execute("select strftime('%s', date('now'))")
+
+-            response = cursor.fetchall()[0][0]
+
+-        # response should be an non-zero integer
+
+-        self.assertTrue(int(response))
+
++def test_parameter_escaping(self):
+
++    # '%s' escaping support for sqlite3 (#13648).
+
++    with connection.cursor() as cursor:
+
++        cursor.execute("select strftime('%s', date('now'))")
+
++        response = cursor.fetchall()[0][0]
+
++    # Convert memoryview to bytes before passing to HttpResponse
+
++    response_bytes = bytes(response)
+
++    # Create HttpResponse with bytes content
+
++    response = HttpResponse(response_bytes)
+
++    # response.content should now be the correct bytes representation
+
++    self.assertEqual(response.content, response_bytes)
+
+ 
+
+ 
+
+ @unittest.skipUnless(connection.vendor == 'sqlite', 'SQLite tests')

@@ -1,0 +1,61 @@
+--- a/decoupled/60/0.8_0.2/0/astropy_astropy/astropy/modeling/separable.py
++++ b/decoupled/60/0.8_0.2/0/astropy_astropy/astropy/modeling/separable.py
+@@ -63,6 +63,8 @@
+     return is_separable
+
+ 
+
+ 
+
++import numpy as np
+
++
+
+ def separability_matrix(transform):
+
+     """
+
+     Compute the correlation between outputs and inputs.
+
+@@ -97,8 +99,19 @@
+     if transform.n_inputs == 1 and transform.n_outputs > 1:
+
+         return np.ones((transform.n_outputs, transform.n_inputs),
+
+                        dtype=np.bool_)
+
+-    separable_matrix = _separable(transform)
+
+-    separable_matrix = np.where(separable_matrix != 0, True, False)
+
++    
+
++    # Check if the model is a CompoundModel
+
++    if isinstance(transform, (m.CompoundModel, m.Model)):
+
++        # Recursively compute separability for each sub-model
+
++        sub_matrices = [separability_matrix(sub_model) for sub_model in transform.models]
+
++        # Combine the sub-matrices to form the final separability matrix
+
++        separable_matrix = np.zeros((transform.n_outputs, transform.n_inputs), dtype=np.bool_)
+
++        for sub_matrix in sub_matrices:
+
++            separable_matrix[:sub_matrix.shape[0], :sub_matrix.shape[1]] |= sub_matrix
+
++    else:
+
++        separable_matrix = _separable(transform)
+
++        separable_matrix = np.where(separable_matrix != 0, True, False)
+
++    
+
+     return separable_matrix
+
+ 
+
+ 

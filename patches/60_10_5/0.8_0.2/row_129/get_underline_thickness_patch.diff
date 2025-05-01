@@ -1,0 +1,48 @@
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/_mathtext.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/_mathtext.py
+@@ -238,12 +238,21 @@
+         """
+
+         raise NotImplementedError()
+
+ 
+
+-    def get_underline_thickness(self, font, fontsize, dpi):
+
++def get_underline_thickness(self, font, fontsize, dpi):
+
+         """
+
+         Get the line thickness that matches the given font.  Used as a
+
+         base unit for drawing lines such as in a fraction or radical.
+
+         """
+
+-        raise NotImplementedError()
+
++        # Add a check to ensure that the stream is not None before attempting to unpack it
+
++        curr_stream = self.text_to_postscript(font, fontsize, dpi)
+
++        if curr_stream is not None:
+
++            for ps_name, xs_names in curr_stream:
+
++                # ... rest of the function ...
+
++                pass
+
++        else:
+
++            # Handle the case where curr_stream is None
+
++            # For example, you could raise an exception or return a default value
+
++            raise ValueError("Failed to generate PostScript code for the text label")
+
+ 
+
+     def get_used_characters(self):
+
+         """

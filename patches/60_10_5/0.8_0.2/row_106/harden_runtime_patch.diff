@@ -1,0 +1,88 @@
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/auth/hashers.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/auth/hashers.py
+@@ -270,20 +270,29 @@
+     def must_update(self, encoded):
+
+         return False
+
+ 
+
+-    def harden_runtime(self, password, encoded):
+
+-        """
+
+-        Bridge the runtime gap between the work factor supplied in `encoded`
+
+-        and the work factor suggested by this hasher.
+
+-
+
+-        Taking PBKDF2 as an example, if `encoded` contains 20000 iterations and
+
+-        `self.iterations` is 30000, this method should run password through
+
+-        another 10000 iterations of PBKDF2. Similar approaches should exist
+
+-        for any hasher that has a work factor. If not, this method should be
+
+-        defined as a no-op to silence the warning.
+
+-        """
+
+-        warnings.warn(
+
+-            "subclasses of BasePasswordHasher should provide a harden_runtime() method"
+
+-        )
+
++from django import forms
+
++from django.contrib.auth.forms import UserChangeForm as BaseUserChangeForm
+
++from django.contrib.auth.hashers import ReadOnlyPasswordHashField
+
++from django.urls import reverse
+
++
+
++class UserChangeForm(BaseUserChangeForm):
+
++    password = ReadOnlyPasswordHashField(
+
++        label=_("Password"),
+
++        help_text=_(
+
++            "Raw passwords are not stored, so there is no way to see this "
+
++            "user’s password, but you can change the password using "
+
++            '<a href="{}">this form</a>.'
+
++        ),
+
++    )
+
++
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        password = self.fields.get("password")
+
++        if password:
+
++            # Correct the help text to use the instance's primary key
+
++            password.help_text = password.help_text.format(
+
++                reverse("admin:auth_user_password", args=(self.instance.pk,))
+
++            )
+
+ 
+
+ 
+
+ class PBKDF2PasswordHasher(BasePasswordHasher):

@@ -1,0 +1,49 @@
+--- a/decoupled/60/0.8_0.2/123/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/123/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2450,7 +2450,7 @@
+             from matplotlib.backends import backend_webagg
+
+             return backend_webagg.ipython_inline_display(self)
+
+ 
+
+-    def show(self, warn=True):
+
++def show(self, warn=True):
+
+         """
+
+         If using a GUI backend with pyplot, display the figure window.
+
+ 
+
+@@ -2486,6 +2486,15 @@
+         except NonGuiException as exc:
+
+             if warn:
+
+                 _api.warn_external(str(exc))
+
++
+
++        # Fix for the bug: Ensure figures created within rc_context are not cleared by get_backend()
+
++        if 'rc_context' in self.canvas.manager.__dict__:
+
++            # Check if the figure was created within an rc_context
+
++            if self.canvas.manager.__dict__['rc_context'] is not None:
+
++                # Do not clear the figure if it was created within an rc_context
+
++                return
+
++        # Clear figures if not created within an rc_context
+
++        plt._pylab_helpers.Gcf.clear()
+
+ 
+
+     @property
+
+     def axes(self):

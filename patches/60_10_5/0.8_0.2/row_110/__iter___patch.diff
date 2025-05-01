@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/110/django_django/django/db/models/sql/query.py
+@@ -106,7 +106,7 @@
+         converter = connections[self.using].introspection.identifier_converter
+
+         return [converter(column_meta[0]) for column_meta in self.cursor.description]
+
+ 
+
+-    def __iter__(self):
+
++def __iter__(self):
+
+         # Always execute a new query for a new iterator.
+
+         # This could be optimized with a cache at the expense of RAM.
+
+         self._execute_query()

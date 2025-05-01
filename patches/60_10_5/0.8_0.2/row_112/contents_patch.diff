@@ -1,0 +1,198 @@
+--- a/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/helpers.py
++++ b/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/helpers.py
+@@ -261,45 +261,61 @@
+         except NoReverseMatch:
+
+             return str(remote_obj)
+
+ 
+
+-    def contents(self):
+
++def contents(self):
+
++    from django.contrib.admin.templatetags.admin_modify import (
+
++        TEMPLATES as MODIFY_TEMPLATES,
+
++        show_save_as_new,
+
++    )
+
++    from django.contrib.admin.templatetags.admin_list import _boolean_icon
+
++
+
++    field, obj, model_admin = (
+
++        self.field["field"],
+
++        self.form.instance,
+
++        self.model_admin,
+
++    )
+
++    try:
+
++        f, attr, value = lookup_field(field, obj, model_admin)
+
++    except (AttributeError, ValueError, ObjectDoesNotExist):
+
++        result_repr = self.empty_value_display
+
++    else:
+
++        if field in self.form.fields:
+
++            widget = self.form[field].field.widget
+
++            # This isn't elegant but suffices for contrib.auth's
+
++            # ReadOnlyPasswordHashWidget.
+
++            if getattr(widget, "read_only", False):
+
++                return widget.render(field, value)
+
++        if f is None:
+
++            if getattr(attr, "boolean", False):
+
++                result_repr = _boolean_icon(value)
+
++            else:
+
++                if hasattr(value, "__html__"):
+
++                    result_repr = value
+
++                else:
+
++                    result_repr = linebreaksbr(value)
+
++        else:
+
++            if isinstance(f.remote_field, ManyToManyRel) and value is not None:
+
++                result_repr = ", ".join(map(str, value.all()))
+
++            elif (
+
++                isinstance(f.remote_field, (ForeignObjectRel, OneToOneField))
+
++                and value is not None
+
++            ):
+
++                result_repr = self.get_admin_url(f.remote_field, value)
+
++            else:
+
++                result_repr = display_for_field(value, f, self.empty_value_display)
+
++            result_repr = linebreaksbr(result_repr)
+
++    return conditional_escape(result_repr)
+
++
+
++    # Additional logic for show_save_as_new
+
++    def show_save_as_new(self):
+
++        from django.contrib.admin.templatetags.admin_modify import (
+
++            TEMPLATES as MODIFY_TEMPLATES,
+
++            show_save_as_new,
+
++        )
+
+         from django.contrib.admin.templatetags.admin_list import _boolean_icon
+
+ 
+
+-        field, obj, model_admin = (
+
+-            self.field["field"],
+
+-            self.form.instance,
+
+-            self.model_admin,
+
+-        )
+
+-        try:
+
+-            f, attr, value = lookup_field(field, obj, model_admin)
+
+-        except (AttributeError, ValueError, ObjectDoesNotExist):
+
+-            result_repr = self.empty_value_display
+
+-        else:
+
+-            if field in self.form.fields:
+
+-                widget = self.form[field].field.widget
+
+-                # This isn't elegant but suffices for contrib.auth's
+
+-                # ReadOnlyPasswordHashWidget.
+
+-                if getattr(widget, "read_only", False):
+
+-                    return widget.render(field, value)
+
+-            if f is None:
+
+-                if getattr(attr, "boolean", False):
+
+-                    result_repr = _boolean_icon(value)
+
+-                else:
+
+-                    if hasattr(value, "__html__"):
+
+-                        result_repr = value
+
+-                    else:
+
+-                        result_repr = linebreaksbr(value)
+
+-            else:
+
+-                if isinstance(f.remote_field, ManyToManyRel) and value is not None:
+
+-                    result_repr = ", ".join(map(str, value.all()))
+
+-                elif (
+
+-                    isinstance(f.remote_field, (ForeignObjectRel, OneToOneField))
+
+-                    and value is not None
+
+-                ):
+
+-                    result_repr = self.get_admin_url(f.remote_field, value)
+
+-                else:
+
+-                    result_repr = display_for_field(value, f, self.empty_value_display)
+
+-                result_repr = linebreaksbr(result_repr)
+
+-        return conditional_escape(result_repr)
+
++        if not is_popup and self.model_admin.has_add_permission(self.request) and self.model_admin.has_change_permission(self.request):
+
++            return show_save_as_new
+
++        return False
+
+ 
+
+ 
+
+ class InlineAdminFormSet:

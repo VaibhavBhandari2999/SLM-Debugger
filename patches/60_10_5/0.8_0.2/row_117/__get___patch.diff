@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/117/django_django/django/db/models/fields/related_descriptors.py
+@@ -451,7 +451,7 @@
+             False,
+
+         )
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
++def __get__(self, instance, cls=None):
+
+         """
+
+         Get the related instance through the reverse relation.
+
+ 
+
+@@ -478,7 +478,8 @@
+             else:
+
+                 filter_args = self.related.field.get_forward_related_filter(instance)
+
+                 try:
+
+-                    rel_obj = self.get_queryset(instance=instance).get(**filter_args)
+
++                    # Apply only() to the queryset before getting the related object
+
++                    rel_obj = self.get_queryset(instance=instance).only(*filter_args.keys()).get(**filter_args)
+
+                 except self.related.related_model.DoesNotExist:
+
+                     rel_obj = None
+
+                 else:

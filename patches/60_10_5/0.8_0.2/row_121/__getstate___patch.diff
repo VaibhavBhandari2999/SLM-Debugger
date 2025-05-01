@@ -1,0 +1,118 @@
+--- a/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2890,25 +2890,39 @@
+                                  "initial draw which caches the renderer")
+
+         a.draw(self._cachedRenderer)
+
+ 
+
+-    def __getstate__(self):
+
+-        state = super().__getstate__()
+
+-
+
+-        # The canvas cannot currently be pickled, but this has the benefit
+
+-        # of meaning that a figure can be detached from one canvas, and
+
+-        # re-attached to another.
+
+-        state.pop("canvas")
+
+-
+
+-        # Set cached renderer to None -- it can't be pickled.
+
+-        state["_cachedRenderer"] = None
+
+-
+
+-        # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
+-
+
+-        # check whether the figure manager (if any) is registered with pyplot
+
+-        from matplotlib import _pylab_helpers
+
+-        if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+-            state['_restore_to_pylab'] = True
+
+-        return state
+
++def set_val(self, val):
+
++    """
+
++    Set slider value to *val*.
+
++
+
++    Parameters
+
++    ----------
+
++    val : tuple or array-like of float
+
++    """
+
++    val = np.sort(np.asanyarray(val))
+
++    if val.shape != (2,):
+
++        raise ValueError(
+
++            f"val must have shape (2,) but has shape {val.shape}"
+
++        )
+
++    val[0] = self._min_in_bounds(val[0])
+
++    val[1] = self._max_in_bounds(val[1])
+
++    xy = self.poly.xy
+
++    if self.orientation == "vertical":
+
++        xy[0] = .25, val[0]
+
++        xy[1] = .25, val[1]
+
++        xy[2] = .75, val[1]
+
++        xy[3] = .75, val[0]
+
++    else:
+
++        xy[0] = val[0], .25
+
++        xy[1] = val[0], .75
+
++        xy[2] = val[1], .75
+
++        xy[3] = val[1], .25
+
++    self.poly.xy = xy
+
++    self.valtext.set_text(self._format(val))
+
++    if self.drawon:
+
++        self.ax.figure.canvas.draw_idle()
+
++    self.val = val
+
++    if self.eventson:
+
++        self._observers.process("changed", val)
+
+ 
+
+     def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')

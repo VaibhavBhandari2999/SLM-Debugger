@@ -15,6 +15,11 @@ from rank_bm25 import BM25Okapi
 import nltk
 nltk.download('punkt', quiet=True)
 
+try:
+    from vllm.distributed.parallel_state import destroy_model_parallel
+except ImportError:
+    from vllm.model_executor.parallel_utils.parallel_state import destroy_model_parallel
+
 
 def batch_generate_summaries(functions, model):
     """Generate summaries for a batch of functions using vLLM."""

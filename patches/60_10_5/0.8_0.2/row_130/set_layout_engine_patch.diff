@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2519,7 +2519,7 @@
+                 return False
+
+         return True
+
+ 
+
+-    def set_layout_engine(self, layout=None, **kwargs):
+
++def set_layout_engine(self, layout=None, **kwargs):
+
+         """
+
+         Set the layout engine for this figure.
+
+ 
+
+@@ -2557,6 +2557,11 @@
+             else:
+
+                 self._layout_engine = None
+
+                 return
+
++
+
++        # Explicitly check for constrained_layout=False
+
++        if layout == 'constrained' and not self.constrained_layout:
+
++            layout = 'none'
+
++
+
+         if layout == 'tight':
+
+             new_layout_engine = TightLayoutEngine(**kwargs)
+
+         elif layout == 'constrained':

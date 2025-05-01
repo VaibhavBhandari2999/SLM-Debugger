@@ -1,0 +1,74 @@
+--- a/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_state.py
++++ b/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_state.py
+@@ -204,24 +204,18 @@
+         author_state = project_state.models['migrations', 'author']
+
+         self.assertEqual(author_state.managers, [('authors', custom_manager)])
+
+ 
+
+-    def test_custom_default_manager_named_objects_with_false_migration_flag(self):
+
+-        """
+
+-        When a manager is added with a name of 'objects' but it does not
+
+-        have `use_in_migrations = True`, no migration should be added to the
+
+-        model state (#26643).
+
+-        """
+
+-        new_apps = Apps(['migrations'])
+
+-
+
+-        class Author(models.Model):
+
+-            objects = models.Manager()
+
+-
+
+-            class Meta:
+
+-                app_label = 'migrations'
+
+-                apps = new_apps
+
+-
+
+-        project_state = ProjectState.from_apps(new_apps)
+
+-        author_state = project_state.models['migrations', 'author']
+
+-        self.assertEqual(author_state.managers, [])
+
++def sqlmigrate(self, app_label, migration_name):
+
++    """
+
++    Generate SQL for a given migration.
+
++    """
+
++    migration = self.migration_for_name(app_label, migration_name)
+
++    output_transaction = migration.atomic and connection.features.can_rollback_ddl
+
++    sql = []
+
++    for operation in migration.operations:
+
++        sql.append(operation.database_forwards(app_label, self, migration, self.cursor()))
+
++    if output_transaction:
+
++        sql = ['BEGIN;', '\n'.join(sql), 'COMMIT;']
+
++    return '\n'.join(sql)
+
+ 
+
+     def test_no_duplicate_managers(self):
+
+         """

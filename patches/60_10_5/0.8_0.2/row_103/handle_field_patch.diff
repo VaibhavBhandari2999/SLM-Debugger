@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/103/django_django/django/core/serializers/pyyaml.py
++++ b/decoupled/60/0.8_0.2/103/django_django/django/core/serializers/pyyaml.py
+@@ -45,17 +45,16 @@
+ 
+
+     internal_use_only = False
+
+ 
+
+-    def handle_field(self, obj, field):
+
+-        # A nasty special case: base YAML doesn't support serialization of time
+
+-        # types (as opposed to dates or datetimes, which it does support). Since
+
+-        # we want to use the "safe" serializer for better interoperability, we
+
+-        # need to do something with those pesky times. Converting 'em to strings
+
+-        # isn't perfect, but it's better than a "!!python/time" type which would
+
+-        # halt deserialization under any other language.
+
+-        if isinstance(field, models.TimeField) and getattr(obj, field.name) is not None:
+
+-            self._current[field.name] = str(getattr(obj, field.name))
+
+-        else:
+
+-            super().handle_field(obj, field)
+
++def handle_field(self, obj, field):
+
++    if isinstance(field, models.TimeField) and getattr(obj, field.name) is not None:
+
++        self._current[field.name] = str(getattr(obj, field.name))
+
++    elif isinstance(field, models.IntegerField) and isinstance(field.default, re.RegexFlag):
+
++        # Handle the combination of Enum flags
+
++        flag_names = [flag.name for flag in re.RegexFlag if getattr(obj, field.name) & flag]
+
++        flag_value = reduce(lambda x, y: x | y, flag_names, 0)
+
++        self._current[field.name] = flag_value
+
++    else:
+
++        super().handle_field(obj, field)
+
+ 
+
+     def end_serialization(self):
+
+         self.options.setdefault("allow_unicode", True)

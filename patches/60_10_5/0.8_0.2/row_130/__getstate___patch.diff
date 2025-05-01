@@ -1,0 +1,55 @@
+--- a/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3093,7 +3093,7 @@
+         """
+
+         a.draw(self.canvas.get_renderer())
+
+ 
+
+-    def __getstate__(self):
+
++def __getstate__(self):
+
+         state = super().__getstate__()
+
+ 
+
+         # The canvas cannot currently be pickled, but this has the benefit
+
+@@ -3105,12 +3105,17 @@
+         state["_dpi"] = state.get('_original_dpi', state['_dpi'])
+
+ 
+
+         # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
++        state['__mpl_version__']'] = mpl.__version__
+
+ 
+
+         # check whether the figure manager (if any) is registered with pyplot
+
+         from matplotlib import _pylab_helpers
+
+         if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+             state['_restore_to_pylab'] = True
+
++
+
++        # Fix for the UserWarning when constrained_layout=False
+
++        if 'constrained_layout' in state and state['constrained_layout']:
+
++            state.pop('constrained_layout')
+
++
+
+         return state
+
+ 
+
+     def __setstate__(self, state):

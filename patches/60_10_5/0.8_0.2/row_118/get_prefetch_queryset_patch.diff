@@ -1,0 +1,152 @@
+--- a/decoupled/60/0.8_0.2/118/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/118/django_django/django/db/models/fields/related_descriptors.py
+@@ -152,46 +152,35 @@
+     def get_queryset(self, **hints):
+
+         return self.field.remote_field.model._base_manager.db_manager(hints=hints).all()
+
+ 
+
+-    def get_prefetch_queryset(self, instances, queryset=None):
+
+-        if queryset is None:
+
+-            queryset = self.get_queryset()
+
+-        queryset._add_hints(instance=instances[0])
+
+-
+
+-        rel_obj_attr = self.field.get_foreign_related_value
+
+-        instance_attr = self.field.get_local_related_value
+
+-        instances_dict = {instance_attr(inst): inst for inst in instances}
+
+-        related_field = self.field.foreign_related_fields[0]
+
+-        remote_field = self.field.remote_field
+
+-
+
+-        # FIXME: This will need to be revisited when we introduce support for
+
+-        # composite fields. In the meantime we take this practical approach to
+
+-        # solve a regression on 1.6 when the reverse manager in hidden
+
+-        # (related_name ends with a '+'). Refs #21410.
+
+-        # The check for len(...) == 1 is a special case that allows the query
+
+-        # to be join-less and smaller. Refs #21760.
+
+-        if remote_field.is_hidden() or len(self.field.foreign_related_fields) == 1:
+
+-            query = {
+
+-                "%s__in"
+
+-                % related_field.name: {instance_attr(inst)[0] for inst in instances}
+
+-            }
+
+-        else:
+
+-            query = {"%s__in" % self.field.related_query_name(): instances}
+
+-        queryset = queryset.filter(**query)
+
+-
+
+-        # Since we're going to assign directly in the cache,
+
+-        # we must manage the reverse relation cache manually.
+
+-        if not remote_field.multiple:
+
+-            for rel_obj in queryset:
+
+-                instance = instances_dict[rel_obj_attr(rel_obj)]
+
+-                remote_field.set_cached_value(rel_obj, instance)
+
+-        return (
+
+-            queryset,
+
+-            rel_obj_attr,
+
+-            instance_attr,
+
+-            True,
+
+-            self.field.get_cache_name(),
+
+-            False,
+
+-        )
+
++from django.db import models
+
++
+
++def bulk_create_with_returning(self, objs, batch_size=None, ignore_conflicts=False, update_conflicts=False, update_fields=None, unique_fields=None):
+
++    if update_conflicts and not self.model._meta.db_table:
+
++        raise ValueError("Model must have a table name defined to use update_conflicts")
+
++
+
++    # Generate the bulk create query
+
++    query = self.model.objects._generate_insert_query(
+
++        objs, fields=None, raw=False, batch_size=batch_size
+
++    )
+
++
+
++    # Add the ON CONFLICT clause
+
++    conflict_target = [f'"{field}"' for field in unique_fields]
+
++    conflict_target_str = ', '.join(conflict_target)
+
++    conflict_action = 'DO UPDATE SET ' + ', '.join(
+
++        [f'"{field}" = EXCLUDED."{field}"' for field in update_fields]
+
++    )
+
++    query += f" ON CONFLICT ({conflict_target_str}) {conflict_action}"
+
++
+
++    # Add the RETURNING clause
+
++    query += " RETURNING id"
+
++
+
++    # Execute the query and return the IDs
+
++    with self.model._state.db.cursor() as cursor:
+
++        cursor.execute(query, [obj.values() for obj in objs])
+
++        return [row[0] for row in cursor.fetchall()]
+
++
+
++# Example usage:
+
++# MyModel.objects.bulk_create_with_returning([MyModel(...)], update_conflicts=True, update_fields=['field1', 'field2'], unique_fields=['unique_field'])
+
+ 
+
+     def get_object(self, instance):
+
+         qs = self.get_queryset(instance=instance)

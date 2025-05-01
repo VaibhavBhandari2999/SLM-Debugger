@@ -1,0 +1,56 @@
+--- a/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
+@@ -502,21 +502,12 @@
+                 )
+
+             )
+
+ 
+
+-    def _check_filter_horizontal(self, obj):
+
+-        """Check that filter_horizontal is a sequence of field names."""
+
+-        if not isinstance(obj.filter_horizontal, (list, tuple)):
+
+-            return must_be(
+
+-                "a list or tuple", option="filter_horizontal", obj=obj, id="admin.E018"
+
+-            )
+
+-        else:
+
+-            return list(
+
+-                chain.from_iterable(
+
+-                    self._check_filter_item(
+
+-                        obj, field_name, "filter_horizontal[%d]" % index
+
+-                    )
+
+-                    for index, field_name in enumerate(obj.filter_horizontal)
+
+-                )
+
+-            )
+
++def format_number_for_admin(str_number):
+
++    if str_number is None:
+
++        return "N/A"
+
++    if str_number[0] == "-":
+
++        return "Negative"
+
++    return str_number
+
+ 
+
+     def _check_filter_item(self, obj, field_name, label):
+
+         """Check one item of `filter_vertical` or `filter_horizontal`, i.e.

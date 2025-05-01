@@ -1,0 +1,935 @@
+--- a/decoupled/60/0.8_0.2/107/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/107/django_django/django/db/models/fields/related_descriptors.py
+@@ -198,7 +198,7 @@
+         # Assuming the database enforces foreign keys, this won't fail.
+
+         return qs.get(self.field.get_reverse_related_filter(instance))
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
++def __get__(self, instance, cls=None):
+
+         """
+
+         Get the related instance through the forward relation.
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/107/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/107/django_django/django/db/models/fields/related_descriptors.py
+@@ -451,50 +451,50 @@
+             False,
+
+         )
+
+ 
+
+-    def __get__(self, instance, cls=None):
+
+-        """
+
+-        Get the related instance through the reverse relation.
+
+-
+
+-        With the example above, when getting ``place.restaurant``:
+
+-
+
+-        - ``self`` is the descriptor managing the ``restaurant`` attribute
+
+-        - ``instance`` is the ``place`` instance
+
+-        - ``cls`` is the ``Place`` class (unused)
+
+-
+
+-        Keep in mind that ``Restaurant`` holds the foreign key to ``Place``.
+
+-        """
+
+-        if instance is None:
+
+-            return self
+
+-
+
+-        # The related instance is loaded from the database and then cached
+
+-        # by the field on the model instance state. It can also be pre-cached
+
+-        # by the forward accessor (ForwardManyToOneDescriptor).
+
+-        try:
+
+-            rel_obj = self.related.get_cached_value(instance)
+
+-        except KeyError:
+
+-            related_pk = instance.pk
+
+-            if related_pk is None:
+
++def __get__(self, instance, cls=None):
+
++    """
+
++    Get the related instance through the reverse relation.
+
++
+
++    With the example above, when getting ``place.restaurant``:
+
++
+
++    - ``self`` is the descriptor managing the ``restaurant`` attribute
+
++    - ``instance`` is the ``place`` instance
+
++    - ``cls`` is the ``Place`` class (unused)
+
++
+
++    Keep in mind that ``Restaurant`` holds the foreign key to ``Place``.
+
++    """
+
++    if instance is None:
+
++        return self
+
++
+
++    # The related instance is loaded from the database and then cached
+
++    # by the field on the model instance state. It can also be pre-cached
+
++    # by the forward accessor (ForwardManyToOneDescriptor).
+
++    try:
+
++        rel_obj = self.related.get_cached_value(instance)
+
++    except KeyError:
+
++        related_pk = instance.pk
+
++        if related_pk is None:
+
++            rel_obj = None
+
++        else:
+
++            filter_args = self.related.field.get_forward_related_filter(instance)
+
++            try:
+
++                rel_obj = self.get_queryset(instance=instance).get(**filter_args)
+
++            except self.related.related_model.DoesNotExist:
+
+                 rel_obj = None
+
+             else:
+
+-                filter_args = self.related.field.get_forward_related_filter(instance)
+
+-                try:
+
+-                    rel_obj = self.get_queryset(instance=instance).get(**filter_args)
+
+-                except self.related.related_model.DoesNotExist:
+
+-                    rel_obj = None
+
+-                else:
+
+-                    # Set the forward accessor cache on the related object to
+
+-                    # the current instance to avoid an extra SQL query if it's
+
+-                    # accessed later on.
+
+-                    self.related.field.set_cached_value(rel_obj, instance)
+
+-            self.related.set_cached_value(instance, rel_obj)
+
+-
+
+-        if rel_obj is None:
+
+-            raise self.RelatedObjectDoesNotExist(
+
+-                "%s has no %s."
+
+-                % (instance.__class__.__name__, self.related.get_accessor_name())
+
+-            )
+
+-        else:
+
+-            return rel_obj
+
++                # Set the forward accessor cache on the related object to
+
++                # the current instance to avoid an extra SQL query if it's
+
++                # accessed later on.
+
++                self.related.field.set_cached_value(rel_obj, instance)
+
++        self.related.set_cached_value(instance, rel_obj)
+
++
+
++    if rel_obj is None:
+
++        raise self.RelatedObjectDoesNotExist(
+
++            "%s has no %s."
+
++            % (instance.__class__.__name__, self.related.get_accessor_name())
+
++        )
+
++    else:
+
++        return rel_obj
+
+ 
+
+     def __set__(self, instance, value):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/107/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/107/django_django/django/db/models/fields/related_descriptors.py
+@@ -249,81 +249,81 @@
+         else:
+
+             return rel_obj
+
+ 
+
+-    def __set__(self, instance, value):
+
+-        """
+
+-        Set the related instance through the forward relation.
+
+-
+
+-        With the example above, when setting ``child.parent = parent``:
+
+-
+
+-        - ``self`` is the descriptor managing the ``parent`` attribute
+
+-        - ``instance`` is the ``child`` instance
+
+-        - ``value`` is the ``parent`` instance on the right of the equal sign
+
+-        """
+
+-        # An object must be an instance of the related class.
+
+-        if value is not None and not isinstance(
+
+-            value, self.field.remote_field.model._meta.concrete_model
+
+-        ):
+
++def __set__(self, instance, value):
+
++    """
+
++    Set the related instance through the forward relation.
+
++
+
++    With the example above, when setting ``child.parent = parent``:
+
++
+
++    - ``self`` is the descriptor managing the ``parent`` attribute
+
++    - ``instance`` is the ``child`` instance
+
++    - ``value`` is the ``parent`` instance on the right of the equal sign
+
++    """
+
++    # An object must be an instance of the related class.
+
++    if value is not None and not isinstance(
+
++        value, self.field.remote_field.model._meta.concrete_model
+
++    ):
+
++        raise ValueError(
+
++            'Cannot assign "%r": "%s.%s" must be a "%s" instance.'
+
++            % (
+
++                value,
+
++                instance._meta.object_name,
+
++                self.field.name,
+
++                self.field.remote_field.model._meta.object_name,
+
++            )
+
++        )
+
++    elif value is not None:
+
++        if instance._state.db is None:
+
++            instance._state.db = router.db_for_write(
+
++                instance.__class__, instance=value
+
++            )
+
++        if value._state.db is None:
+
++            value._state.db = router.db_for_write(
+
++                value.__class__, instance=instance
+
++            )
+
++        if not router.allow_relation(value, instance):
+
+             raise ValueError(
+
+-                'Cannot assign "%r": "%s.%s" must be a "%s" instance.'
+
+-                % (
+
+-                    value,
+
+-                    instance._meta.object_name,
+
+-                    self.field.name,
+
+-                    self.field.remote_field.model._meta.object_name,
+
+-                )
+
+-            )
+
+-        elif value is not None:
+
+-            if instance._state.db is None:
+
+-                instance._state.db = router.db_for_write(
+
+-                    instance.__class__, instance=value
+
+-                )
+
+-            if value._state.db is None:
+
+-                value._state.db = router.db_for_write(
+
+-                    value.__class__, instance=instance
+
+-                )
+
+-            if not router.allow_relation(value, instance):
+
+-                raise ValueError(
+
+-                    'Cannot assign "%r": the current database router prevents this '
+
+-                    "relation." % value
+
+-                )
+
+-
+
+-        remote_field = self.field.remote_field
+
+-        # If we're setting the value of a OneToOneField to None, we need to clear
+
+-        # out the cache on any old related object. Otherwise, deleting the
+
+-        # previously-related object will also cause this object to be deleted,
+
+-        # which is wrong.
+
+-        if value is None:
+
+-            # Look up the previously-related object, which may still be available
+
+-            # since we've not yet cleared out the related field.
+
+-            # Use the cache directly, instead of the accessor; if we haven't
+
+-            # populated the cache, then we don't care - we're only accessing
+
+-            # the object to invalidate the accessor cache, so there's no
+
+-            # need to populate the cache just to expire it again.
+
+-            related = self.field.get_cached_value(instance, default=None)
+
+-
+
+-            # If we've got an old related object, we need to clear out its
+
+-            # cache. This cache also might not exist if the related object
+
+-            # hasn't been accessed yet.
+
+-            if related is not None:
+
+-                remote_field.set_cached_value(related, None)
+
+-
+
+-            for lh_field, rh_field in self.field.related_fields:
+
+-                setattr(instance, lh_field.attname, None)
+
+-
+
+-        # Set the values of the related field.
+
+-        else:
+
+-            for lh_field, rh_field in self.field.related_fields:
+
+-                setattr(instance, lh_field.attname, getattr(value, rh_field.attname))
+
+-
+
+-        # Set the related instance cache used by __get__ to avoid an SQL query
+
+-        # when accessing the attribute we just set.
+
+-        self.field.set_cached_value(instance, value)
+
+-
+
+-        # If this is a one-to-one relation, set the reverse accessor cache on
+
+-        # the related object to the current instance to avoid an extra SQL
+
+-        # query if it's accessed later on.
+
+-        if value is not None and not remote_field.multiple:
+
+-            remote_field.set_cached_value(value, instance)
+
++                'Cannot assign "%r": the current database router prevents this '
+
++                "relation." % value
+
++            )
+
++
+
++    remote_field = self.field.remote_field
+
++    # If we're setting the value of a OneToOneField to None, we need to clear
+
++    # out the cache on any old related object. Otherwise, deleting the
+
++    # previously-related object will also cause this object to be deleted,
+
++    # which is wrong.
+
++    if value is None:
+
++        # Look up the previously-related object, which may still be available
+
++        # since we've not yet cleared out the related field.
+
++        # Use the cache directly, instead of the accessor; if we haven't
+
++        # populated the cache, then we don't care - we're only accessing
+
++        # the object to invalidate the accessor cache, so there's no
+
++        # need to populate the cache just to expire it again.
+
++        related = self.field.get_cached_value(instance, default=None)
+
++
+
++        # If we've got an old related object, we need to clear out its
+
++        # cache. This cache also might not exist if the related object
+
++        # hasn't been accessed yet.
+
++        if related is not None:
+
++            remote_field.set_cached_value(related, None)
+
++
+
++        for lh_field, rh_field in self.field.related_fields:
+
++            setattr(instance, lh_field.attname, None)
+
++
+
++    # Set the values of the related field.
+
++    else:
+
++        for lh_field, rh_field in self.field.related_fields:
+
++            setattr(instance, lh_field.attname, getattr(value, rh_field.attname))
+
++
+
++    # Set the related instance cache used by __get__ to avoid an SQL query
+
++    # when accessing the attribute we just set.
+
++    self.field.set_cached_value(instance, value)
+
++
+
++    # If this is a one-to-one relation, set the reverse accessor cache on
+
++    # the related object to the current instance to avoid an extra SQL
+
++    # query if it's accessed later on.
+
++    if value is not None and not remote_field.multiple:
+
++        remote_field.set_cached_value(value, instance)
+
+ 
+
+     def __reduce__(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/107/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/107/django_django/django/db/models/fields/related_descriptors.py
+@@ -496,76 +496,83 @@
+         else:
+
+             return rel_obj
+
+ 
+
+-    def __set__(self, instance, value):
+
+-        """
+
+-        Set the related instance through the reverse relation.
+
+-
+
+-        With the example above, when setting ``place.restaurant = restaurant``:
+
+-
+
+-        - ``self`` is the descriptor managing the ``restaurant`` attribute
+
+-        - ``instance`` is the ``place`` instance
+
+-        - ``value`` is the ``restaurant`` instance on the right of the equal sign
+
+-
+
+-        Keep in mind that ``Restaurant`` holds the foreign key to ``Place``.
+
+-        """
+
+-        # The similarity of the code below to the code in
+
+-        # ForwardManyToOneDescriptor is annoying, but there's a bunch
+
+-        # of small differences that would make a common base class convoluted.
+
+-
+
+-        if value is None:
+
+-            # Update the cached related instance (if any) & clear the cache.
+
+-            # Following the example above, this would be the cached
+
+-            # ``restaurant`` instance (if any).
+
+-            rel_obj = self.related.get_cached_value(instance, default=None)
+
+-            if rel_obj is not None:
+
+-                # Remove the ``restaurant`` instance from the ``place``
+
+-                # instance cache.
+
+-                self.related.delete_cached_value(instance)
+
+-                # Set the ``place`` field on the ``restaurant``
+
+-                # instance to None.
+
+-                setattr(rel_obj, self.related.field.name, None)
+
+-        elif not isinstance(value, self.related.related_model):
+
+-            # An object must be an instance of the related class.
+
++def __set__(self, instance, value):
+
++    """
+
++    Set the related instance through the reverse relation.
+
++
+
++    With the example above, when setting ``place.restaurant = restaurant``:
+
++
+
++    - ``self`` is the descriptor managing the ``restaurant`` attribute
+
++    - ``instance`` is the ``place`` instance
+
++    - ``value`` is the ``restaurant`` instance on the right of the equal sign
+
++
+
++    Keep in mind that ``Restaurant`` holds the foreign key to ``Place``.
+
++    """
+
++    # The similarity of the code below to the code in
+
++    # ForwardManyToOneDescriptor is annoying, but there's a bunch
+
++    # of small differences that would make a common base class convoluted.
+
++
+
++    if value is None:
+
++        # Update the cached related instance (if any) & clear the cache.
+
++        # Following the example above, this would be the cached
+
++        # ``restaurant`` instance (if any).
+
++        rel_obj = self.related.get_cached_value(instance, default=None)
+
++        if rel_obj is not None:
+
++            # Remove the ``restaurant`` instance from the ``place``
+
++            # instance cache.
+
++            self.related.delete_cached_value(instance)
+
++            # Set the ``place`` field on the ``restaurant``
+
++            # instance to None.
+
++            setattr(rel_obj, self.related.field.name, None)
+
++    elif not isinstance(value, self.related.related_model):
+
++        # An object must be an instance of the related class.
+
++        raise ValueError(
+
++            'Cannot assign "%r": "%s.%s" must be a "%s" instance.'
+
++            % (
+
++                value,
+
++                instance._meta.object_name,
+
++                self.related.get_accessor_name(),
+
++                self.related.related_model._meta.object_name,
+
++            )
+
++        )
+
++    else:
+
++        if instance._state.db is None:
+
++            instance._state.db = router.db_for_write(
+
++                instance.__class__, instance=value
+
++            )
+
++        if value._state.db is None:
+
++            value._state.db = router.db_for_write(
+
++                value.__class__, instance=instance
+
++            )
+
++        if not router.allow_relation(value, instance):
+
+             raise ValueError(
+
+-                'Cannot assign "%r": "%s.%s" must be a "%s" instance.'
+
+-                % (
+
+-                    value,
+
+-                    instance._meta.object_name,
+
+-                    self.related.get_accessor_name(),
+
+-                    self.related.related_model._meta.object_name,
+
+-                )
+
+-            )
+
+-        else:
+
+-            if instance._state.db is None:
+
+-                instance._state.db = router.db_for_write(
+
+-                    instance.__class__, instance=value
+
+-                )
+
+-            if value._state.db is None:
+
+-                value._state.db = router.db_for_write(
+
+-                    value.__class__, instance=instance
+
+-                )
+
+-            if not router.allow_relation(value, instance):
+
+-                raise ValueError(
+
+-                    'Cannot assign "%r": the current database router prevents this '
+
+-                    "relation." % value
+
+-                )
+
+-
+
+-            related_pk = tuple(
+
+-                getattr(instance, field.attname)
+
+-                for field in self.related.field.foreign_related_fields
+
+-            )
+
+-            # Set the value of the related field to the value of the related
+
+-            # object's related field.
+
+-            for index, field in enumerate(self.related.field.local_related_fields):
+
+-                setattr(value, field.attname, related_pk[index])
+
+-
+
+-            # Set the related instance cache used by __get__ to avoid an SQL query
+
+-            # when accessing the attribute we just set.
+
+-            self.related.set_cached_value(instance, value)
+
+-
+
+-            # Set the forward accessor cache on the related object to the current
+
+-            # instance to avoid an extra SQL query if it's accessed later on.
+
+-            self.related.field.set_cached_value(value, instance)
+
++                'Cannot assign "%r": the current database router prevents this '
+
++                "relation." % value
+
++            )
+
++
+
++        related_pk = tuple(
+
++            getattr(instance, field.attname)
+
++            for field in self.related.field.foreign_related_fields
+
++        )
+
++        # Set the value of the related field to the value of the related
+
++        # object's related field.
+
++        for index, field in enumerate(self.related.field.local_related_fields):
+
++            setattr(value, field.attname, related_pk[index])
+
++
+
++        # Set the related instance cache used by __get__ to avoid an SQL query
+
++        # when accessing the attribute we just set.
+
++        self.related.set_cached_value(instance, value)
+
++
+
++        # Set the forward accessor cache on the related object to the current
+
++        # instance to avoid an extra SQL query if it's accessed later on.
+
++        self.related.field.set_cached_value(value, instance)
+
++
+
++        # Ensure the hidden input for the initial value is properly handled
+
++        # to prevent the loss of the default value on subsequent form submissions.
+
++        if self.related.field.name in instance._meta.get_fields():
+
++            initial_value = getattr(instance, self.related.field.name)
+
++            if initial_value is not None:
+
++                setattr(instance, f'initial_{self.related.field.name}', initial_value)
+
+ 
+
+     def __reduce__(self):
+
+         # Same purpose as ForwardManyToOneDescriptor.__reduce__().
+
+
+--- a/decoupled/60/0.8_0.2/107/django_django/tests/validation/tests.py
++++ b/decoupled/60/0.8_0.2/107/django_django/tests/validation/tests.py
+@@ -116,6 +116,41 @@
+         article.author = self.author
+
+         article.save()
+
+ 
+
++from django import forms
+
++from django.core.exceptions import ValidationError
+
++from django.test import TestCase
+
++from django.db import models
+
++from django.contrib import admin
+
++from django.contrib.admin import TabularInline, admin as admin_module
+
++from django.forms.models import ModelForm
+
++
+
++# Assuming the models and admin are defined as in the issue description
+
++
+
++class RelatedModelForm(forms.ModelForm):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        # Ensure that the hidden input field for the initial value is not hidden
+
++        self.fields['plop'].widget.is_hidden = False
+
++
+
++    def clean(self):
+
++        raise ValidationError("whatever")
+
++
+
++class RelatedModelInline(TabularInline):
+
++    form = RelatedModelForm
+
++    model = RelatedModel
+
++    extra = 1
+
++
+
++@admin.register(Thing)
+
++class ThingAdmin(admin_module.ModelAdmin):
+
++    inlines = [
+
++        RelatedModelInline
+
++    ]
+
++
+
++class TestValidationWithEmptyBlankField(TestCase):
+
++    def setUp(self):
+
++        self.author = Author.objects.create(name="Test Author")
+
++        self.article = Article(author_id=self.author.id)
+
++
+
+     def test_validation_with_empty_blank_field(self):
+
+         # Since a value for pub_date wasn't provided and the field is
+
+         # blank=True, model-validation should pass.
+
+@@ -125,8 +160,7 @@
+         data = {
+
+             "title": "The state of model validation",
+
+         }
+
+-        article = Article(author_id=self.author.id)
+
+-        form = ArticleForm(data, instance=article)
+
++        form = ArticleForm(data, instance=self.article)
+
+         self.assertEqual(list(form.errors), [])
+
+         self.assertIsNotNone(form.instance.pub_date)
+
+         article = form.save()
+
+

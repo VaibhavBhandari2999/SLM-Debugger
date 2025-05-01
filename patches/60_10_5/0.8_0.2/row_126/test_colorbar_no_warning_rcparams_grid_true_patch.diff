@@ -1,0 +1,65 @@
+--- a/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_colorbar.py
++++ b/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_colorbar.py
+@@ -1007,6 +1007,10 @@
+     cb = fig.colorbar(pc, ax=ax, boundaries=np.linspace(-3, 3, 7))
+
+ 
+
+ 
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++from mpl_toolkits.mplot3d import Axes3D
+
++
+
+ def test_colorbar_no_warning_rcparams_grid_true():
+
+     # github issue #21723 - If mpl style has 'axes.grid' = True,
+
+     # fig.colorbar raises a warning about Auto-removal of grids
+
+@@ -1017,6 +1021,21 @@
+     im = ax.pcolormesh([0, 1], [0, 1], [[1]])
+
+     # make sure that no warning is raised by fig.colorbar
+
+     fig.colorbar(im)
+
++    
+
++# Minimal example to demonstrate the fix
+
++def demonstrate_plot_surface():
+
++    y, x = np.ogrid[1:10:100j, 1:10:100j]
+
++    z2 = np.cos(x)**3 - np.sin(y)**2
+
++    fig = plt.figure()
+
++    ax = fig.add_subplot(111, projection='3d')
+
++    r = ax.plot_surface(x, y, z2, cmap='hot')
+
++    # Access face colors using the available attribute
+
++    face_colors = r._facecolors3d
+
++    print(face_colors)
+
++    plt.show()
+
++
+
++# Run the demonstration function to verify the fix
+
++demonstrate_plot_surface()
+
+ 
+
+ 
+
+ def test_colorbar_set_formatter_locator():

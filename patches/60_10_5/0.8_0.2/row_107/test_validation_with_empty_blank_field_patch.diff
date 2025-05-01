@@ -1,0 +1,103 @@
+--- a/decoupled/60/0.8_0.2/107/django_django/tests/validation/tests.py
++++ b/decoupled/60/0.8_0.2/107/django_django/tests/validation/tests.py
+@@ -116,6 +116,41 @@
+         article.author = self.author
+
+         article.save()
+
+ 
+
++from django import forms
+
++from django.core.exceptions import ValidationError
+
++from django.test import TestCase
+
++from django.db import models
+
++from django.contrib import admin
+
++from django.contrib.admin import TabularInline, admin as admin_module
+
++from django.forms.models import ModelForm
+
++
+
++# Assuming the models and admin are defined as in the issue description
+
++
+
++class RelatedModelForm(forms.ModelForm):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        # Ensure that the hidden input field for the initial value is not hidden
+
++        self.fields['plop'].widget.is_hidden = False
+
++
+
++    def clean(self):
+
++        raise ValidationError("whatever")
+
++
+
++class RelatedModelInline(TabularInline):
+
++    form = RelatedModelForm
+
++    model = RelatedModel
+
++    extra = 1
+
++
+
++@admin.register(Thing)
+
++class ThingAdmin(admin_module.ModelAdmin):
+
++    inlines = [
+
++        RelatedModelInline
+
++    ]
+
++
+
++class TestValidationWithEmptyBlankField(TestCase):
+
++    def setUp(self):
+
++        self.author = Author.objects.create(name="Test Author")
+
++        self.article = Article(author_id=self.author.id)
+
++
+
+     def test_validation_with_empty_blank_field(self):
+
+         # Since a value for pub_date wasn't provided and the field is
+
+         # blank=True, model-validation should pass.
+
+@@ -125,8 +160,7 @@
+         data = {
+
+             "title": "The state of model validation",
+
+         }
+
+-        article = Article(author_id=self.author.id)
+
+-        form = ArticleForm(data, instance=article)
+
++        form = ArticleForm(data, instance=self.article)
+
+         self.assertEqual(list(form.errors), [])
+
+         self.assertIsNotNone(form.instance.pub_date)
+
+         article = form.save()

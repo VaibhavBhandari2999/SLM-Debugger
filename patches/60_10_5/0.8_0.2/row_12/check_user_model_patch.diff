@@ -1,0 +1,22 @@
+--- a/decoupled/60/0.8_0.2/12/django_django/django/contrib/auth/checks.py
++++ b/decoupled/60/0.8_0.2/12/django_django/django/contrib/auth/checks.py
+@@ -74,8 +74,8 @@
+     if isinstance(cls().is_anonymous, MethodType):
+
+         errors.append(
+
+             checks.Critical(
+
+-                '%s.is_anonymous must be an attribute or property rather than '
+
+-                'a method. Ignoring this is a security issue as anonymous '
+
++                '%s.is_anonymous must be an attribute or property rather '
+
++                'than a method. Ignoring this is a security issue as anonymous '
+
+                 'users will be treated as authenticated!' % cls,
+
+                 obj=cls,
+
+                 id='auth.C009',

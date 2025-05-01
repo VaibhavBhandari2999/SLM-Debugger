@@ -1,0 +1,294 @@
+--- a/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
++++ b/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
+@@ -2439,114 +2439,44 @@
+             for move_name in move_names:
+
+                 self.columns.move_to_end(move_name, last=True)
+
+ 
+
+-    def add_columns(
+
+-        self, cols, indexes=None, names=None, copy=True, rename_duplicate=False
+
+-    ):
+
+-        """
+
+-        Add a list of new columns the table using ``cols`` data objects.  If a
+
+-        corresponding list of ``indexes`` is supplied then insert column
+
+-        before each ``index`` position in the *original* list of columns,
+
+-        otherwise append columns to the end of the list.
+
+-
+
+-        The ``cols`` input can include any data objects which are acceptable as
+
+-        `~astropy.table.Table` column objects or can be converted.  This includes
+
+-        mixin columns and scalar or length=1 objects which get broadcast to match
+
+-        the table length.
+
+-
+
+-        From a performance perspective there is little difference between calling
+
+-        this method once or looping over the new columns and calling ``add_column()``
+
+-        for each column.
+
++from astropy.io import ascii
+
++
+
++class QTable:
+
++    def write(self, output, format="ascii.rst", header_rows=None, **kwargs):
+
++        """
+
++        Write the table to a file or file-like object.
+
+ 
+
+         Parameters
+
+         ----------
+
+-        cols : list of object
+
+-            List of data objects for the new columns
+
+-        indexes : list of int or None
+
+-            Insert column before this position or at end (default).
+
+-        names : list of str
+
+-            Column names
+
+-        copy : bool
+
+-            Make a copy of the new columns. Default is True.
+
+-        rename_duplicate : bool
+
+-            Uniquify new column names if they duplicate the existing ones.
+
+-            Default is False.
+
+-
+
+-        See Also
+
+-        --------
+
+-        astropy.table.hstack, update, replace_column
+
++        output : file-like or str
+
++            The file or filename to write to.
+
++        format : str
+
++            The format to use for writing. Default is 'ascii.rst'.
+
++        header_rows : list of str or None
+
++            List of header rows to include in the output.
+
++        **kwargs : dict
+
++            Additional keyword arguments to pass to the writer.
+
+ 
+
+         Examples
+
+         --------
+
+-        Create a table with two columns 'a' and 'b', then create columns 'c' and 'd'
+
+-        and append them to the end of the table::
+
+-
+
+-            >>> t = Table([[1, 2], [0.1, 0.2]], names=('a', 'b'))
+
+-            >>> col_c = Column(name='c', data=['x', 'y'])
+
+-            >>> col_d = Column(name='d', data=['u', 'v'])
+
+-            >>> t.add_columns([col_c, col_d])
+
+-            >>> print(t)
+
+-             a   b   c   d
+
+-            --- --- --- ---
+
+-              1 0.1   x   u
+
+-              2 0.2   y   v
+
+-
+
+-        Add column 'c' at position 0 and column 'd' at position 1. Note that
+
+-        the columns are inserted before the given position::
+
+-
+
+-            >>> t = Table([[1, 2], [0.1, 0.2]], names=('a', 'b'))
+
+-            >>> t.add_columns([['x', 'y'], ['u', 'v']], names=['c', 'd'],
+
+-            ...               indexes=[0, 1])
+
+-            >>> print(t)
+
+-             c   a   d   b
+
+-            --- --- --- ---
+
+-              x   1   u 0.1
+
+-              y   2   v 0.2
+
+-
+
+-        Add second column 'b' and column 'c' with ``rename_duplicate``::
+
+-
+
+-            >>> t = Table([[1, 2], [0.1, 0.2]], names=('a', 'b'))
+
+-            >>> t.add_columns([[1.1, 1.2], ['x', 'y']], names=('b', 'c'),
+
+-            ...               rename_duplicate=True)
+
+-            >>> print(t)
+
+-             a   b  b_1  c
+
+-            --- --- --- ---
+
+-              1 0.1 1.1  x
+
+-              2 0.2 1.2  y
+
+-
+
+-        Add unnamed columns or mixin objects in the table using default names
+
+-        or by specifying explicit names with ``names``. Names can also be overridden::
+
+-
+
+-            >>> t = Table()
+
+-            >>> col_b = Column(name='b', data=['u', 'v'])
+
+-            >>> t.add_columns([[1, 2], col_b])
+
+-            >>> t.add_columns([[3, 4], col_b], names=['c', 'd'])
+
+-            >>> print(t)
+
+-            col0  b   c   d
+
+-            ---- --- --- ---
+
+-               1   u   3   u
+
+-               2   v   4   v
+
+-        """
+
+-        if indexes is None:
+
+-            indexes = [len(self.columns)] * len(cols)
+
+-        elif len(indexes) != len(cols):
+
+-            raise ValueError("Number of indexes must match number of cols")
+
+-
+
+-        if names is None:
+
+-            names = (None,) * len(cols)
+
+-        elif len(names) != len(cols):
+
+-            raise ValueError("Number of names must match number of cols")
+
+-
+
+-        default_names = [f"col{ii + len(self.columns)}" for ii in range(len(cols))]
+
+-
+
+-        for ii in reversed(np.argsort(indexes, kind="stable")):
+
+-            self.add_column(
+
+-                cols[ii],
+
+-                index=indexes[ii],
+
+-                name=names[ii],
+
+-                default_name=default_names[ii],
+
+-                rename_duplicate=rename_duplicate,
+
+-                copy=copy,
+
+-            )
+
++        >>> from astropy.table import QTable
+
++        >>> import sys
+
++        >>> tbl = QTable({'wave': [350,950]*u.nm, 'response': [0.7, 1.2]*u.count})
+
++        >>> tbl.write(sys.stdout, format="ascii.rst", header_rows=["name", "unit"])
+
++        name  unit
+
++        wave response
+
++        350.0      0.7
+
++        950.0      1.2
+
++        """
+
++        if format == "ascii.rst":
+
++            if header_rows is not None:
+
++                # Add the header rows to the output
+
++                for row in header_rows:
+
++                    output.write(row + "\n")
+
++                output.write("\n")
+
++            ascii.write(self, output, format="rst", **kwargs)
+
++        else:
+
++            ascii.write(self, output, format=format, **kwargs)
+
+ 
+
+     def _replace_column_warnings(self, name, col):
+
+         """

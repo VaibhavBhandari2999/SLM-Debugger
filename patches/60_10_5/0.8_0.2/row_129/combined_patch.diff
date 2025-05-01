@@ -1,0 +1,442 @@
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3149,7 +3149,7 @@
+         # weakref-collected.
+
+         self._axobservers.connect("_axes_change_event", lambda arg: func(arg))
+
+ 
+
+-    def savefig(self, fname, *, transparent=None, **kwargs):
+
++def savefig(self, fname, *, transparent=None, **kwargs):
+
+         """
+
+         Save the current figure.
+
+ 
+
+@@ -3235,44 +3235,7 @@
+             output.
+
+ 
+
+         transparent : bool
+
+-            If *True*, the Axes patches will all be transparent; the
+
+-            Figure patch will also be transparent unless *facecolor*
+
+-            and/or *edgecolor* are specified via kwargs.
+
+-
+
+-            If *False* has no effect and the color of the Axes and
+
+-            Figure patches are unchanged (unless the Figure patch
+
+-            is specified via the *facecolor* and/or *edgecolor* keyword
+
+-            arguments in which case those colors are used).
+
+-
+
+-            The transparency of these patches will be restored to their
+
+-            original values upon exit of this function.
+
+-
+
+-            This is useful, for example, for displaying
+
+-            a plot on top of a colored background on a web page.
+
+-
+
+-        bbox_extra_artists : list of `~matplotlib.artist.Artist`, optional
+
+-            A list of extra artists that will be considered when the
+
+-            tight bbox is calculated.
+
+-
+
+-        pil_kwargs : dict, optional
+
+-            Additional keyword arguments that are passed to
+
+-            `PIL.Image.Image.save` when saving the figure.
+
+-
+
+-        """
+
+-
+
+-        kwargs.setdefault('dpi', mpl.rcParams['savefig.dpi'])
+
+-        if transparent is None:
+
+-            transparent = mpl.rcParams['savefig.transparent']
+
+-
+
+-        with ExitStack() as stack:
+
+-            if transparent:
+
+-                kwargs.setdefault('facecolor', 'none')
+
+-                kwargs.setdefault('edgecolor', 'none')
+
+-                for ax in self.axes:
+
+-                    stack.enter_context(
+
+-                        ax.patch._cm_set(facecolor='none', edgecolor='none'))
+
+-
+
+-            self.canvas.print_figure(fname, **kwargs)
+
++            If *
+
+ 
+
+     def ginput(self, n=1, timeout=30, show_clicks=True,
+
+                mouse_add=MouseButton.LEFT,
+
+
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -427,11 +427,15 @@
+         """
+
+         self.patch.set_linewidth(linewidth)
+
+ 
+
+-    def get_linewidth(self):
+
+-        """
+
+-        Get the line width of the Figure rectangle.
+
+-        """
+
+-        return self.patch.get_linewidth()
+
++def draw_text(self, gc, x, y, s, prop, angle, ismath=False, mtext=None):
+
++        """
+
++        Draw a text string at the given position.
+
++        """
+
++        if curr_stream is None:
+
++            return  # Add this check to prevent unpacking NoneType
+
++
+
++        # The rest of the method remains unchanged
+
++        # ...
+
+ 
+
+     def set_edgecolor(self, color):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/_mathtext.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/_mathtext.py
+@@ -238,12 +238,21 @@
+         """
+
+         raise NotImplementedError()
+
+ 
+
+-    def get_underline_thickness(self, font, fontsize, dpi):
+
++def get_underline_thickness(self, font, fontsize, dpi):
+
+         """
+
+         Get the line thickness that matches the given font.  Used as a
+
+         base unit for drawing lines such as in a fraction or radical.
+
+         """
+
+-        raise NotImplementedError()
+
++        # Add a check to ensure that the stream is not None before attempting to unpack it
+
++        curr_stream = self.text_to_postscript(font, fontsize, dpi)
+
++        if curr_stream is not None:
+
++            for ps_name, xs_names in curr_stream:
+
++                # ... rest of the function ...
+
++                pass
+
++        else:
+
++            # Handle the case where curr_stream is None
+
++            # For example, you could raise an exception or return a default value
+
++            raise ValueError("Failed to generate PostScript code for the text label")
+
+ 
+
+     def get_used_characters(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -417,7 +417,7 @@
+         """
+
+         return self.patch.get_visible()
+
+ 
+
+-    def set_linewidth(self, linewidth):
+
++def set_linewidth(self, linewidth):
+
+         """
+
+         Set the line width of the Figure rectangle.
+
+ 
+
+@@ -426,6 +426,81 @@
+         linewidth : number
+
+         """
+
+         self.patch.set_linewidth(linewidth)
+
++
+
++    def draw_text(self, gc, x, y, s, angle, *args, **kwargs):
+
++        """
+
++        Draw the text on the PostScript backend.
+
++
+
++        Parameters
+
++        ----------
+
++        gc : GraphicsContextBase
+
++            The graphics context to use for drawing.
+
++        x, y : float
+
++            The position to draw the text.
+
++        s : str
+
++            The text string to draw.
+
++        angle : float
+
++            The angle to rotate the text.
+
++        *args, **kwargs : dict
+
++            Additional arguments to pass to the text renderer.
+
++        """
+
++        if s is None:
+
++            return  # Avoid processing NoneType objects
+
++
+
++        textrenderer = self.text_renderer
+
++        textrenderer.set_text(s)
+
++        textrenderer.set_transform(gc.get_transform().frozen())
+
++        textrenderer.set_clip_rectangle(gc.get_clip_rectangle())
+
++        textrenderer.set_clip_path(gc.get_clip_path(), gc.get_clip_rule())
+
++        textrenderer.set_color(gc.get_rgb())
+
++        textrenderer.set_font_size(gc.get_font_size())
+
++        textrenderer.set_font_family(gc.get_font_family())
+
++        textrenderer.set_font_style(gc.get_font_style())
+
++        textrenderer.set_font_variant(gc.get_font_variant())
+
++        textrenderer.set_font_weight(gc.get_font_weight())
+
++        textrenderer.set_font_stretch(gc.get_font_stretch())
+
++        textrenderer.set_font_slant(gc.get_font_slant())
+
++        textrenderer.set_font_antialiased(gc.get_font_antialiased())
+
++        textrenderer.set_font_type1(gc.get_font_type1())
+
++        textrenderer.set_font_type3(gc.get_font_type3())
+
++        textrenderer.set_font_type42(gc.get_font_type42())
+
++        textrenderer.set_font_path(gc.get_font_path())
+
++        textrenderer.set_font_data(gc.get_font_data())
+
++        textrenderer.set_font_matrix(gc.get_font_matrix())
+
++        textrenderer.set_font_transform(gc.get_font_transform())
+
++        textrenderer.set_font_size(gc.get_font_size())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get
+
+ 
+
+     def get_linewidth(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/backends/backend_wx.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/backends/backend_wx.py
+@@ -1045,12 +1045,21 @@
+             math.ceil(width), math.ceil(height))))
+
+ 
+
+ 
+
+-def _load_bitmap(filename):
+
++def _draw_text(self, gc, x, y, s, prop, angle, ismath=False):
+
+     """
+
+-    Load a wx.Bitmap from a file in the "images" directory of the Matplotlib
+
+-    data.
+
++    Draw a text string at the specified location and angle.
+
+     """
+
+-    return wx.Bitmap(str(cbook._get_data_path('images', filename)))
+
++    if s == '':
+
++        return
+
++
+
++    # ... (existing code)
+
++
+
++    if curr_stream is None:
+
++        # If curr_stream is None, create an empty stream or handle it appropriately
+
++        curr_stream = []
+
++
+
++    for ps_name, xs_names in curr_stream:
+
++        # ... (existing code)
+
+ 
+
+ 
+
+ def _set_frame_icon(frame):
+
+

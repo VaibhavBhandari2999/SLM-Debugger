@@ -1,0 +1,155 @@
+--- a/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -938,16 +938,24 @@
+     # docstring of pyplot.figlegend.
+
+ 
+
+     @docstring.dedent_interpd
+
++def get_version_info(self):
+
++        """
+
++        Return the version information as a tuple.
+
++
+
++        This method returns the version information as a tuple, which can be
+
++        easily compared with other tuples.
+
++        """
+
++        return tuple(map(int, self.__version__.split('.')))
+
++
+
+     def legend(self, *args, **kwargs):
+
+         """
+
+         Place a legend on the figure.
+
+ 
+
+-        Call signatures::
+
+-
+
+-            legend()
+
+-            legend(handles, labels)
+
+-            legend(handles=handles)
+
+-            legend(labels)
+
++        Call signatures:
+
++        - legend()
+
++        - legend(handles, labels)
+
++        - legend(handles=handles)
+
++        - legend(labels)
+
+ 
+
+         The call signatures correspond to the following different ways to use
+
+         this method:
+
+@@ -1032,45 +1040,7 @@
+ 
+
+         Returns
+
+         -------
+
+-        `~matplotlib.legend.Legend`
+
+-
+
+-        Other Parameters
+
+-        ----------------
+
+-        %(_legend_kw_doc)s
+
+-
+
+-        See Also
+
+-        --------
+
+-        .Axes.legend
+
+-
+
+-        Notes
+
+-        -----
+
+-        Some artists are not supported by this function.  See
+
+-        :doc:`/tutorials/intermediate/legend_guide` for details.
+
+-        """
+
+-
+
+-        handles, labels, extra_args, kwargs = mlegend._parse_legend_args(
+
+-                self.axes,
+
+-                *args,
+
+-                **kwargs)
+
+-        # check for third arg
+
+-        if len(extra_args):
+
+-            # _api.warn_deprecated(
+
+-            #     "2.1",
+
+-            #     message="Figure.legend will accept no more than two "
+
+-            #     "positional arguments in the future.  Use "
+
+-            #     "'fig.legend(handles, labels, loc=location)' "
+
+-            #     "instead.")
+
+-            # kwargs['loc'] = extra_args[0]
+
+-            # extra_args = extra_args[1:]
+
+-            pass
+
+-        transform = kwargs.pop('bbox_transform', self.transSubfigure)
+
+-        # explicitly set the bbox transform if the user hasn't.
+
+-        l = mlegend.Legend(self, handles, labels, *extra_args,
+
+-                           bbox_transform=transform, **kwargs)
+
+-        self.legends.append(l)
+
+-        l._remove_method = self.legends.remove
+
+-        self.stale = True
+
+-        return l
+
++        `~matplotlib.legend.Legend
+
+ 
+
+     @docstring.dedent_interpd
+
+     def text(self, x, y, s, fontdict=None, **kwargs):

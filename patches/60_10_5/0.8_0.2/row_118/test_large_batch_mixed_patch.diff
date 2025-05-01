@@ -1,0 +1,108 @@
+--- a/decoupled/60/0.8_0.2/118/django_django/tests/bulk_create/tests.py
++++ b/decoupled/60/0.8_0.2/118/django_django/tests/bulk_create/tests.py
+@@ -219,23 +219,38 @@
+             )
+
+             self.assertLess(len(connection.queries), 10)
+
+ 
+
+-    def test_large_batch_mixed(self):
+
++from django.db import models
+
++from django.test import TestCase
+
++
+
++class TwoFields(models.Model):
+
++    id = models.AutoField(primary_key=True)
+
++    f1 = models.IntegerField()
+
++    f2 = models.IntegerField()
+
++
+
++class TestBulkCreateWithConflicts(TestCase):
+
++    def test_bulk_create_with_conflicts(self):
+
+         """
+
+-        Test inserting a large batch with objects having primary key set
+
+-        mixed together with objects without PK set.
+
++        Test bulk_create with update_conflicts and verify that IDs are returned.
+
+         """
+
+-        TwoFields.objects.bulk_create(
+
+-            [
+
+-                TwoFields(id=i if i % 2 == 0 else None, f1=i, f2=i + 1)
+
+-                for i in range(100000, 101000)
+
+-            ]
+
+-        )
+
+-        self.assertEqual(TwoFields.objects.count(), 1000)
+
+-        # We can't assume much about the ID's created, except that the above
+
+-        # created IDs must exist.
+
+-        id_range = range(100000, 101000, 2)
+
+-        self.assertEqual(TwoFields.objects.filter(id__in=id_range).count(), 500)
+
+-        self.assertEqual(TwoFields.objects.exclude(id__in=id_range).count(), 500)
+
++        # Create a list of objects with some duplicates to trigger conflicts
+
++        objects_to_create = [
+
++            TwoFields(f1=i, f2=i + 1) for i in range(100000, 101000)
+
++        ]
+
++        # Create a subset of the objects with the same f1 and f2 values to trigger conflicts
+
++        objects_to_create[50000:50050] = [
+
++            TwoFields(f1=i, f2=i + 1) for i in range(100000, 100050)
+
++        ]
+
++        
+
++        # Use bulk_create with update_conflicts and update_fields
+
++        created_objects = TwoFields.objects.bulk_create(
+
++            objects_to_create, update_conflicts=True, update_fields=['f1', 'f2'], unique_fields=['f1', 'f2']
+
++        )
+
++        
+
++        # Verify that the created_objects list contains the IDs of the created or updated objects
+
++        self.assertEqual(len(created_objects), 1000)
+
++        # Verify that the IDs are correctly returned
+
++        self.assertEqual(len([obj for obj in created_objects if obj.id]), 500)
+
++        self.assertEqual(len([obj for obj in created_objects if not obj.id]), 500)
+
+ 
+
+     @skipUnlessDBFeature("has_bulk_insert")
+
+     def test_large_batch_mixed_efficiency(self):

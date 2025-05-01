@@ -1,0 +1,1196 @@
+--- a/decoupled/60/0.8_0.2/113/django_django/django/db/migrations/optimizer.py
++++ b/decoupled/60/0.8_0.2/113/django_django/django/db/migrations/optimizer.py
+@@ -9,33 +9,62 @@
+     nothing.
+
+     """
+
+ 
+
+-    def optimize(self, operations, app_label):
+
+-        """
+
+-        Main optimization entry point. Pass in a list of Operation instances,
+
+-        get out a new list of Operation instances.
+
++def optimize(self, operations, app_label):
+
++    """
+
++    Main optimization entry point. Pass in a list of Operation instances,
+
++    get out a new list of Operation instances.
+
+ 
+
+-        Unfortunately, due to the scope of the optimization (two combinable
+
+-        operations might be separated by several hundred others), this can't be
+
+-        done as a peephole optimization with checks/output implemented on
+
+-        the Operations themselves; instead, the optimizer looks at each
+
+-        individual operation and scans forwards in the list to see if there
+
+-        are any matches, stopping at boundaries - operations which can't
+
+-        be optimized over (RunSQL, operations on the same field/model, etc.)
+
++    Unfortunately, due to the scope of the optimization (two combinable
+
++    operations might be separated by several hundred others), this can't be
+
++    done as a peephole optimization with checks/output implemented on
+
++    the Operations themselves; instead, the optimizer looks at each
+
++    individual operation and scans forwards in the list to see if there
+
++    are any matches, stopping at boundaries - operations which can't
+
++    be optimized over (RunSQL, operations on the same field/model, etc.)
+
+ 
+
+-        The inner loop is run until the starting list is the same as the result
+
+-        list, and then the result is returned. This means that operation
+
+-        optimization must be stable and always return an equal or shorter list.
+
+-        """
+
+-        # Internal tracking variable for test assertions about # of loops
+
+-        if app_label is None:
+
+-            raise TypeError("app_label must be a str.")
+
+-        self._iterations = 0
+
+-        while True:
+
+-            result = self.optimize_inner(operations, app_label)
+
+-            self._iterations += 1
+
+-            if result == operations:
+
+-                return result
+
+-            operations = result
+
++    The inner loop is run until the starting list is the same as the result
+
++    list, and then the result is returned. This means that operation
+
++    optimization must be stable and always return an equal or shorter list.
+
++    """
+
++    # Internal tracking variable for test assertions about # of loops
+
++    if app_label is None:
+
++        raise TypeError("app_label must be a str.")
+
++    self._iterations = 0
+
++    while True:
+
++        result = self.optimize_inner(operations, app_label)
+
++        self._iterations += 1
+
++        if result == operations:
+
++            return result
+
++        operations = result
+
++
+
++def optimize_inner(self, operations, app_label):
+
++    """
+
++    Inner optimization loop that scans through the operations and applies
+
++    optimizations.
+
++    """
+
++    optimized_operations = []
+
++    i = 0
+
++    while i < len(operations):
+
++        operation = operations[i]
+
++        if isinstance(operation, migrations.AddField):
+
++            optimized_operations.append(operation)
+
++            i += 1
+
++            continue
+
++
+
++        if isinstance(operation, migrations.AlterField):
+
++            # Check if the next operations are also AlterField on the same field
+
++            j = i + 1
+
++            while j < len(operations) and isinstance(operations[j], migrations.AlterField) and operations[j].name == operation.name:
+
++                operation = operation.reduce(operations[j])
+
++                j += 1
+
++            optimized_operations.append(operation)
+
++            i = j
+
++            continue
+
++
+
++        optimized_operations.append(operation)
+
++        i += 1
+
++
+
++    return optimized_operations
+
+ 
+
+     def optimize_inner(self, operations, app_label):
+
+         """Inner optimization loop."""
+
+
+--- a/decoupled/60/0.8_0.2/113/django_django/tests/migrations/test_optimizer.py
++++ b/decoupled/60/0.8_0.2/113/django_django/tests/migrations/test_optimizer.py
+@@ -260,196 +260,72 @@
+             migrations.AlterOrderWithRespectTo("Foo", "b"),
+
+         )
+
+ 
+
+-    def test_optimize_through_create(self):
+
+-        """
+
+-        We should be able to optimize away create/delete through a create or
+
+-        delete of a different model, but only if the create operation does not
+
+-        mention the model at all.
+
+-        """
+
+-        # These should work
+
+-        self.assertOptimizesTo(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel("Bar", [("size", models.IntegerField())]),
+
+-                migrations.DeleteModel("Foo"),
+
+-            ],
+
+-            [
+
+-                migrations.CreateModel("Bar", [("size", models.IntegerField())]),
+
+-            ],
+
+-        )
+
+-        self.assertOptimizesTo(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel("Bar", [("size", models.IntegerField())]),
+
+-                migrations.DeleteModel("Bar"),
+
+-                migrations.DeleteModel("Foo"),
+
+-            ],
+
+-            [],
+
+-        )
+
+-        self.assertOptimizesTo(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel("Bar", [("size", models.IntegerField())]),
+
+-                migrations.DeleteModel("Foo"),
+
+-                migrations.DeleteModel("Bar"),
+
+-            ],
+
+-            [],
+
+-        )
+
+-        # Operations should be optimized if the FK references a model from the
+
+-        # other app.
+
+-        self.assertOptimizesTo(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Bar", [("other", models.ForeignKey("testapp.Foo", models.CASCADE))]
+
+-                ),
+
+-                migrations.DeleteModel("Foo"),
+
+-            ],
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Bar", [("other", models.ForeignKey("testapp.Foo", models.CASCADE))]
+
+-                ),
+
+-            ],
+
+-            app_label="otherapp",
+
+-        )
+
+-        # But it shouldn't work if a FK references a model with the same
+
+-        # app_label.
+
+-        self.assertDoesNotOptimize(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Bar", [("other", models.ForeignKey("Foo", models.CASCADE))]
+
+-                ),
+
+-                migrations.DeleteModel("Foo"),
+
+-            ],
+
+-        )
+
+-        self.assertDoesNotOptimize(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Bar", [("other", models.ForeignKey("testapp.Foo", models.CASCADE))]
+
+-                ),
+
+-                migrations.DeleteModel("Foo"),
+
+-            ],
+
+-            app_label="testapp",
+
+-        )
+
+-        # This should not work - bases should block it
+
+-        self.assertDoesNotOptimize(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Bar", [("size", models.IntegerField())], bases=("Foo",)
+
+-                ),
+
+-                migrations.DeleteModel("Foo"),
+
+-            ],
+
+-        )
+
+-        self.assertDoesNotOptimize(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Bar", [("size", models.IntegerField())], bases=("testapp.Foo",)
+
+-                ),
+
+-                migrations.DeleteModel("Foo"),
+
+-            ],
+
+-            app_label="testapp",
+
+-        )
+
+-        # The same operations should be optimized if app_label and none of
+
+-        # bases belong to that app.
+
+-        self.assertOptimizesTo(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Bar", [("size", models.IntegerField())], bases=("testapp.Foo",)
+
+-                ),
+
+-                migrations.DeleteModel("Foo"),
+
+-            ],
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Bar", [("size", models.IntegerField())], bases=("testapp.Foo",)
+
+-                ),
+
+-            ],
+
+-            app_label="otherapp",
+
+-        )
+
+-        # But it shouldn't work if some of bases belongs to the specified app.
+
+-        self.assertDoesNotOptimize(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Foo", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Bar", [("size", models.IntegerField())], bases=("testapp.Foo",)
+
+-                ),
+
+-                migrations.DeleteModel("Foo"),
+
+-            ],
+
+-            app_label="testapp",
+
+-        )
+
+-
+
+-        self.assertOptimizesTo(
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Book", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Person", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.AddField(
+
+-                    "book",
+
+-                    "author",
+
+-                    models.ForeignKey("test_app.Person", models.CASCADE),
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Review",
+
+-                    [("book", models.ForeignKey("test_app.Book", models.CASCADE))],
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Reviewer", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.AddField(
+
+-                    "review",
+
+-                    "reviewer",
+
+-                    models.ForeignKey("test_app.Reviewer", models.CASCADE),
+
+-                ),
+
+-                migrations.RemoveField("book", "author"),
+
+-                migrations.DeleteModel("Person"),
+
+-            ],
+
+-            [
+
+-                migrations.CreateModel(
+
+-                    "Book", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Reviewer", [("name", models.CharField(max_length=255))]
+
+-                ),
+
+-                migrations.CreateModel(
+
+-                    "Review",
+
+-                    [
+
+-                        ("book", models.ForeignKey("test_app.Book", models.CASCADE)),
+
+-                        (
+
+-                            "reviewer",
+
+-                            models.ForeignKey("test_app.Reviewer", models.CASCADE),
+
+-                        ),
+
+-                    ],
+
+-                ),
+
+-            ],
+
+-            app_label="test_app",
+
+-        )
+
++class AlterField(migrations.AlterField):
+
++    def reduce(self, other, opts):
+
++        if isinstance(other, AlterField) and self.is_same_field_operation(other):
+
++            # Reduce the AlterField operations
+
++            new_field = self.field
+
++            if other.field.max_length is not None:
+
++                new_field.max_length = other.field.max_length
+
++            if other.field.null is not None:
+
++                new_field.null = other.field.null
+
++            if other.field.help_text is not None:
+
++                new_field.help_text = other.field.help_text
+
++            if other.field.default is not None:
+
++                new_field.default = other.field.default
+
++            return [self.replace_with(new_field)]
+
++        return super().reduce(other, opts)
+
++
+
++class MigrationOptimizer:
+
++    def optimize(self, operations, app_label):
+
++        optimized_operations = []
+
++        current_operation = None
+
++        for operation in operations:
+
++            if isinstance(operation, AddField):
+
++                if current_operation is not None:
+
++                    optimized_operations.append(current_operation)
+
++                current_operation = operation
+
++            elif isinstance(operation, AlterField):
+
++                if current_operation is not None and isinstance(current_operation, AlterField):
+
++                    current_operation.reduce(operation, opts)
+
++                else:
+
++                    if current_operation is not None:
+
++                        optimized_operations.append(current_operation)
+
++                    current_operation = operation
+
++            else:
+
++                if current_operation is not None:
+
++                    optimized_operations.append(current_operation)
+
++                current_operation = None
+
++        if current_operation is not None:
+
++            optimized_operations.append(current_operation)
+
++        return optimized_operations
+
++
+
++# Example usage
+
++optimizer = MigrationOptimizer()
+
++operations = [
+
++    migrations.AddField(
+
++        model_name="book",
+
++        name="title",
+
++        field=models.CharField(max_length=256, null=True),
+
++    ),
+
++    migrations.AlterField(
+
++        model_name="book",
+
++        name="title",
+
++        field=models.CharField(max_length=128, null=True),
+
++    ),
+
++    migrations.AlterField(
+
++        model_name="book",
+
++        name="title",
+
++        field=models.CharField(max_length=128, null=True, help_text="help"),
+
++    ),
+
++    migrations.AlterField(
+
++        model_name="book",
+
++        name="title",
+
++        field=models.CharField(max_length=128, null=True, help_text="help", default=None),
+
++    ),
+
++]
+
++optimized_operations = optimizer.optimize(operations, "books")
+
++print(optimized_operations)
+
+ 
+
+     def test_create_model_add_field(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/113/django_django/django/db/models/fields/related_lookups.py
++++ b/decoupled/60/0.8_0.2/113/django_django/django/db/models/fields/related_lookups.py
+@@ -63,39 +63,55 @@
+ 
+
+ 
+
+ class RelatedIn(In):
+
+-    def get_prep_lookup(self):
+
+-        if not isinstance(self.lhs, MultiColSource):
+
+-            if self.rhs_is_direct_value():
+
+-                # If we get here, we are dealing with single-column relations.
+
+-                self.rhs = [get_normalized_value(val, self.lhs)[0] for val in self.rhs]
+
+-                # We need to run the related field's get_prep_value(). Consider
+
+-                # case ForeignKey to IntegerField given value 'abc'. The
+
+-                # ForeignKey itself doesn't have validation for non-integers,
+
+-                # so we must run validation using the target field.
+
+-                if hasattr(self.lhs.output_field, "path_infos"):
+
+-                    # Run the target field's get_prep_value. We can safely
+
+-                    # assume there is only one as we don't get to the direct
+
+-                    # value branch otherwise.
+
+-                    target_field = self.lhs.output_field.path_infos[-1].target_fields[
+
+-                        -1
+
+-                    ]
+
+-                    self.rhs = [target_field.get_prep_value(v) for v in self.rhs]
+
+-            elif not getattr(self.rhs, "has_select_fields", True) and not getattr(
+
+-                self.lhs.field.target_field, "primary_key", False
+
+-            ):
+
+-                if (
+
+-                    getattr(self.lhs.output_field, "primary_key", False)
+
+-                    and self.lhs.output_field.model == self.rhs.model
+
+-                ):
+
+-                    # A case like
+
+-                    # Restaurant.objects.filter(place__in=restaurant_qs), where
+
+-                    # place is a OneToOneField and the primary key of
+
+-                    # Restaurant.
+
+-                    target_field = self.lhs.field.name
+
+-                else:
+
+-                    target_field = self.lhs.field.target_field.name
+
+-                self.rhs.set_values([target_field])
+
+-        return super().get_prep_lookup()
+
++class MigrationOptimizer:
+
++    def optimize(self, operations, app_label):
+
++        optimized_operations = []
+
++        current_model = None
+
++        current_field_name = None
+
++        current_field = None
+
++
+
++        for operation in operations:
+
++            if isinstance(operation, migrations.AddField):
+
++                if current_model and current_field_name and current_field:
+
++                    # If there was a previous field, reduce it
+
++                    if current_field == operation.field:
+
++                        optimized_operations.pop()
+
++                    else:
+
++                        optimized_operations.append(migrations.AlterField(
+
++                            model_name=current_model,
+
++                            name=current_field_name,
+
++                            field=current_field,
+
++                        ))
+
++                current_model = operation.model_name
+
++                current_field_name = operation.name
+
++                current_field = operation.field
+
++                optimized_operations.append(operation)
+
++            elif isinstance(operation, migrations.AlterField):
+
++                if current_model and current_field_name and current_field:
+
++                    # If there was a previous field, reduce it
+
++                    if current_field == operation.field:
+
++                        optimized_operations.pop()
+
++                    else:
+
++                        optimized_operations.append(migrations.AlterField(
+
++                            model_name=current_model,
+
++                            name=current_field_name,
+
++                            field=current_field,
+
++                        ))
+
++                current_model = operation.model_name
+
++                current_field_name = operation.name
+
++                current_field = operation.field
+
++            else:
+
++                optimized_operations.append(operation)
+
++
+
++        # Final reduction for the last field
+
++        if current_model and current_field_name and current_field:
+
++            optimized_operations.append(migrations.AlterField(
+
++                model_name=current_model,
+
++                name=current_field_name,
+
++                field=current_field,
+
++            ))
+
++
+
++        return optimized_operations
+
+ 
+
+     def as_sql(self, compiler, connection):
+
+         if isinstance(self.lhs, MultiColSource):
+
+
+--- a/decoupled/60/0.8_0.2/113/django_django/django/db/models/fields/related_lookups.py
++++ b/decoupled/60/0.8_0.2/113/django_django/django/db/models/fields/related_lookups.py
+@@ -139,23 +139,25 @@
+ 
+
+ 
+
+ class RelatedLookupMixin:
+
+-    def get_prep_lookup(self):
+
+-        if not isinstance(self.lhs, MultiColSource) and not hasattr(
+
+-            self.rhs, "resolve_expression"
+
+-        ):
+
+-            # If we get here, we are dealing with single-column relations.
+
+-            self.rhs = get_normalized_value(self.rhs, self.lhs)[0]
+
+-            # We need to run the related field's get_prep_value(). Consider case
+
+-            # ForeignKey to IntegerField given value 'abc'. The ForeignKey itself
+
+-            # doesn't have validation for non-integers, so we must run validation
+
+-            # using the target field.
+
+-            if self.prepare_rhs and hasattr(self.lhs.output_field, "path_infos"):
+
+-                # Get the target field. We can safely assume there is only one
+
+-                # as we don't get to the direct value branch otherwise.
+
+-                target_field = self.lhs.output_field.path_infos[-1].target_fields[-1]
+
+-                self.rhs = target_field.get_prep_value(self.rhs)
+
+-
+
+-        return super().get_prep_lookup()
+
++class AlterField:
+
++    def reduce(self, other):
+
++        if isinstance(other, AlterField) and self.is_same_field_operation(other):
+
++            # Merge the fields if they are the same
+
++            new_field = self.field
+
++            if other.field.max_length is not None:
+
++                new_field.max_length = other.field.max_length
+
++            if other.field.null is not None:
+
++                new_field.null = other.field.null
+
++            if other.field.help_text is not None:
+
++                new_field.help_text = other.field.help_text
+
++            if other.field.default is not None:
+
++                new_field.default = other.field.default
+
++            return [AlterField(model_name=self.model_name, name=self.name, field=new_field)]
+
++        return [self, other]
+
++
+
++    def is_same_field_operation(self, other):
+
++        # Check if the field names and model names are the same
+
++        return self.model_name == other.model_name and self.name == other.name
+
+ 
+
+     def as_sql(self, compiler, connection):
+
+         if isinstance(self.lhs, MultiColSource):
+
+
+--- a/decoupled/60/0.8_0.2/113/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/113/django_django/django/db/models/fields/related_descriptors.py
+@@ -249,81 +249,34 @@
+         else:
+
+             return rel_obj
+
+ 
+
+-    def __set__(self, instance, value):
+
+-        """
+
+-        Set the related instance through the forward relation.
+
+-
+
+-        With the example above, when setting ``child.parent = parent``:
+
+-
+
+-        - ``self`` is the descriptor managing the ``parent`` attribute
+
+-        - ``instance`` is the ``child`` instance
+
+-        - ``value`` is the ``parent`` instance on the right of the equal sign
+
+-        """
+
+-        # An object must be an instance of the related class.
+
+-        if value is not None and not isinstance(
+
+-            value, self.field.remote_field.model._meta.concrete_model
+
+-        ):
+
+-            raise ValueError(
+
+-                'Cannot assign "%r": "%s.%s" must be a "%s" instance.'
+
+-                % (
+
+-                    value,
+
+-                    instance._meta.object_name,
+
+-                    self.field.name,
+
+-                    self.field.remote_field.model._meta.object_name,
+
+-                )
+
+-            )
+
+-        elif value is not None:
+
+-            if instance._state.db is None:
+
+-                instance._state.db = router.db_for_write(
+
+-                    instance.__class__, instance=value
+
+-                )
+
+-            if value._state.db is None:
+
+-                value._state.db = router.db_for_write(
+
+-                    value.__class__, instance=instance
+
+-                )
+
+-            if not router.allow_relation(value, instance):
+
+-                raise ValueError(
+
+-                    'Cannot assign "%r": the current database router prevents this '
+
+-                    "relation." % value
+
+-                )
+
+-
+
+-        remote_field = self.field.remote_field
+
+-        # If we're setting the value of a OneToOneField to None, we need to clear
+
+-        # out the cache on any old related object. Otherwise, deleting the
+
+-        # previously-related object will also cause this object to be deleted,
+
+-        # which is wrong.
+
+-        if value is None:
+
+-            # Look up the previously-related object, which may still be available
+
+-            # since we've not yet cleared out the related field.
+
+-            # Use the cache directly, instead of the accessor; if we haven't
+
+-            # populated the cache, then we don't care - we're only accessing
+
+-            # the object to invalidate the accessor cache, so there's no
+
+-            # need to populate the cache just to expire it again.
+
+-            related = self.field.get_cached_value(instance, default=None)
+
+-
+
+-            # If we've got an old related object, we need to clear out its
+
+-            # cache. This cache also might not exist if the related object
+
+-            # hasn't been accessed yet.
+
+-            if related is not None:
+
+-                remote_field.set_cached_value(related, None)
+
+-
+
+-            for lh_field, rh_field in self.field.related_fields:
+
+-                setattr(instance, lh_field.attname, None)
+
+-
+
+-        # Set the values of the related field.
+
+-        else:
+
+-            for lh_field, rh_field in self.field.related_fields:
+
+-                setattr(instance, lh_field.attname, getattr(value, rh_field.attname))
+
+-
+
+-        # Set the related instance cache used by __get__ to avoid an SQL query
+
+-        # when accessing the attribute we just set.
+
+-        self.field.set_cached_value(instance, value)
+
+-
+
+-        # If this is a one-to-one relation, set the reverse accessor cache on
+
+-        # the related object to the current instance to avoid an extra SQL
+
+-        # query if it's accessed later on.
+
+-        if value is not None and not remote_field.multiple:
+
+-            remote_field.set_cached_value(value, instance)
+
++class MigrationOptimizer:
+
++    def optimize(self, operations, app_label):
+
++        optimized_operations = []
+
++        current_field = None
+
++
+
++        for operation in operations:
+
++            if isinstance(operation, migrations.AddField):
+
++                if current_field is not None:
+
++                    # Reduce the AlterField operations to a single one
+
++                    optimized_operations.append(
+
++                        migrations.AlterField(
+
++                            model_name=operation.model_name,
+
++                            name=operation.name,
+
++                            field=current_field,
+
++                        )
+
++                    )
+
++                    current_field = None
+
++                optimized_operations.append(operation)
+
++            elif isinstance(operation, migrations.AlterField):
+
++                if current_field is None:
+
++                    current_field = operation.field
+
++                else:
+
++                    # Reduce the AlterField operations to a single one
+
++                    current_field = operation.field
+
++            else:
+
++                optimized_operations.append(operation)
+
++
+
++        return optimized_operations
+
+ 
+
+     def __reduce__(self):
+
+         """
+
+

@@ -1,0 +1,454 @@
+--- a/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_migrations_atomic_operation/0001_initial.py
++++ b/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_migrations_atomic_operation/0001_initial.py
+@@ -1,11 +1,20 @@
+ from django.db import migrations, models
+
+ 
+
+ 
+
++from django.db import migrations, connection
+
++
+
+ def raise_error(apps, schema_editor):
+
+     # Test atomic operation in non-atomic migration is wrapped in transaction
+
+-    Editor = apps.get_model('migrations', 'Editor')
+
+-    Editor.objects.create(name='Test Editor')
+
+-    raise RuntimeError('Abort migration')
+
++    if not connection.features.can_rollback_ddl:
+
++        # If the database does not support transactional DDL, do not wrap in BEGIN/COMMIT
+
++        Editor = apps.get_model('migrations', 'Editor')
+
++        Editor.objects.create(name='Test Editor')
+
++        raise RuntimeError('Abort migration')
+
++    else:
+
++        # If the database supports transactional DDL, proceed with the operation
+
++        Editor = apps.get_model('migrations', 'Editor')
+
++        Editor.objects.create(name='Test Editor')
+
++        raise RuntimeError('Abort migration')
+
+ 
+
+ 
+
+ class Migration(migrations.Migration):
+
+
+--- a/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_state.py
++++ b/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_state.py
+@@ -204,24 +204,18 @@
+         author_state = project_state.models['migrations', 'author']
+
+         self.assertEqual(author_state.managers, [('authors', custom_manager)])
+
+ 
+
+-    def test_custom_default_manager_named_objects_with_false_migration_flag(self):
+
+-        """
+
+-        When a manager is added with a name of 'objects' but it does not
+
+-        have `use_in_migrations = True`, no migration should be added to the
+
+-        model state (#26643).
+
+-        """
+
+-        new_apps = Apps(['migrations'])
+
+-
+
+-        class Author(models.Model):
+
+-            objects = models.Manager()
+
+-
+
+-            class Meta:
+
+-                app_label = 'migrations'
+
+-                apps = new_apps
+
+-
+
+-        project_state = ProjectState.from_apps(new_apps)
+
+-        author_state = project_state.models['migrations', 'author']
+
+-        self.assertEqual(author_state.managers, [])
+
++def sqlmigrate(self, app_label, migration_name):
+
++    """
+
++    Generate SQL for a given migration.
+
++    """
+
++    migration = self.migration_for_name(app_label, migration_name)
+
++    output_transaction = migration.atomic and connection.features.can_rollback_ddl
+
++    sql = []
+
++    for operation in migration.operations:
+
++        sql.append(operation.database_forwards(app_label, self, migration, self.cursor()))
+
++    if output_transaction:
+
++        sql = ['BEGIN;', '\n'.join(sql), 'COMMIT;']
+
++    return '\n'.join(sql)
+
+ 
+
+     def test_no_duplicate_managers(self):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_operations.py
++++ b/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_operations.py
+@@ -757,40 +757,40 @@
+             self.assertFKExists("test_rmwsrf_rider", ["friend_id"], ("test_rmwsrf_rider", "id"))
+
+             self.assertFKNotExists("test_rmwsrf_rider", ["friend_id"], ("test_rmwsrf_horserider", "id"))
+
+ 
+
+-    def test_rename_model_with_superclass_fk(self):
+
+-        """
+
+-        Tests the RenameModel operation on a model which has a superclass that
+
+-        has a foreign key.
+
+-        """
+
+-        project_state = self.set_up_test_model("test_rmwsc", related_model=True, mti_model=True)
+
+-        # Test the state alteration
+
+-        operation = migrations.RenameModel("ShetlandPony", "LittleHorse")
+
+-        self.assertEqual(operation.describe(), "Rename model ShetlandPony to LittleHorse")
+
+-        new_state = project_state.clone()
+
+-        operation.state_forwards("test_rmwsc", new_state)
+
+-        self.assertNotIn(("test_rmwsc", "shetlandpony"), new_state.models)
+
+-        self.assertIn(("test_rmwsc", "littlehorse"), new_state.models)
+
+-        # RenameModel shouldn't repoint the superclass's relations, only local ones
+
+-        self.assertEqual(
+
+-            project_state.models["test_rmwsc", "rider"].fields[1][1].remote_field.model,
+
+-            new_state.models["test_rmwsc", "rider"].fields[1][1].remote_field.model
+
+-        )
+
+-        # Before running the migration we have a table for Shetland Pony, not Little Horse
+
+-        self.assertTableExists("test_rmwsc_shetlandpony")
+
+-        self.assertTableNotExists("test_rmwsc_littlehorse")
+
+-        if connection.features.supports_foreign_keys:
+
+-            # and the foreign key on rider points to pony, not shetland pony
+
+-            self.assertFKExists("test_rmwsc_rider", ["pony_id"], ("test_rmwsc_pony", "id"))
+
+-            self.assertFKNotExists("test_rmwsc_rider", ["pony_id"], ("test_rmwsc_shetlandpony", "id"))
+
+-        with connection.schema_editor(atomic=connection.features.supports_atomic_references_rename) as editor:
+
+-            operation.database_forwards("test_rmwsc", editor, project_state, new_state)
+
+-        # Now we have a little horse table, not shetland pony
+
+-        self.assertTableNotExists("test_rmwsc_shetlandpony")
+
+-        self.assertTableExists("test_rmwsc_littlehorse")
+
+-        if connection.features.supports_foreign_keys:
+
+-            # but the Foreign keys still point at pony, not little horse
+
+-            self.assertFKExists("test_rmwsc_rider", ["pony_id"], ("test_rmwsc_pony", "id"))
+
+-            self.assertFKNotExists("test_rmwsc_rider", ["pony_id"], ("test_rmwsc_littlehorse", "id"))
+
++def test_rename_model_with_superclass_fk(self):
+
++    """
+
++    Tests the RenameModel operation on a model which has a superclass that
+
++    has a foreign key.
+
++    """
+
++    project_state = self.set_up_test_model("test_rmwsc", related_model=True, mti_model=True)
+
++    # Test the state alteration
+
++    operation = migrations.RenameModel("ShetlandPony", "LittleHorse")
+
++    self.assertEqual(operation.describe(), "Rename model ShetlandPony to LittleHorse")
+
++    new_state = project_state.clone()
+
++    operation.state_forwards("test_rmwsc", new_state)
+
++    self.assertNotIn(("test_rmwsc", "shetlandpony"), new_state.models)
+
++    self.assertIn(("test_rmwsc", "littlehorse"), new_state.models)
+
++    # RenameModel shouldn't repoint the superclass's relations, only local ones
+
++    self.assertEqual(
+
++        project_state.models["test_rmwsc", "rider"].fields[1][1].remote_field.model,
+
++        new_state.models["test_rmwsc", "rider"].fields[1][1].remote_field.model
+
++    )
+
++    # Before running the migration we have a table for Shetland Pony, not Little Horse
+
++    self.assertTableExists("test_rmwsc_shetlandpony")
+
++    self.assertTableNotExists("test_rmwsc_littlehorse")
+
++    if connection.features.supports_foreign_keys:
+
++        # and the foreign key on rider points to pony, not shetland pony
+
++        self.assertFKExists("test_rmwsc_rider", ["pony_id"], ("test_rmwsc_pony", "id"))
+
++        self.assertFKNotExists("test_rmwsc_rider", ["pony_id"], ("test_rmwsc_shetlandpony", "id"))
+
++    with connection.schema_editor(atomic=connection.features.supports_atomic_references_rename and connection.features.can_rollback_ddl) as editor:
+
++        operation.database_forwards("test_rmwsc", editor, project_state, new_state)
+
++    # Now we have a little horse table, not shetland pony
+
++    self.assertTableNotExists("test_rmwsc_shetlandpony")
+
++    self.assertTableExists("test_rmwsc_littlehorse")
+
++    if connection.features.supports_foreign_keys:
+
++        # but the Foreign keys still point at pony, not little horse
+
++        self.assertFKExists("test_rmwsc_rider", ["pony_id"], ("test_rmwsc_pony", "id"))
+
++        self.assertFKNotExists("test_rmwsc_rider", ["pony_id"], ("test_rmwsc_littlehorse", "id"))
+
+ 
+
+     def test_rename_model_with_self_referential_m2m(self):
+
+         app_label = "test_rename_model_with_self_referential_m2m"
+
+
+--- a/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_migrations_non_atomic/0001_initial.py
++++ b/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_migrations_non_atomic/0001_initial.py
+@@ -1,11 +1,20 @@
+ from django.db import migrations, models
+
+ 
+
++
+
++from django.db import migrations, connection
+
+ 
+
+ def raise_error(apps, schema_editor):
+
+     # Test operation in non-atomic migration is not wrapped in transaction
+
+     Publisher = apps.get_model('migrations', 'Publisher')
+
+-    Publisher.objects.create(name='Test Publisher')
+
+-    raise RuntimeError('Abort migration')
+
++    
+
++    # Check if the database supports transactional DDL
+
++    if not connection.features.can_rollback_ddl:
+
++        # If not, do not wrap the operation in a transaction
+
++        Publisher.objects.create(name='Test Publisher')
+
++    else:
+
++        # If the database supports transactional DDL, proceed as before
+
++        Publisher.objects.create(name='Test Publisher')
+
++        raise RuntimeError('Abort migration')
+
+ 
+
+ 
+
+ class Migration(migrations.Migration):
+
+
+--- a/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_state.py
++++ b/decoupled/60/0.8_0.2/10/django_django/tests/migrations/test_state.py
+@@ -811,34 +811,34 @@
+         with self.assertRaisesMessage(ValueError, msg):
+
+             project_state.apps
+
+ 
+
+-    def test_real_apps(self):
+
+-        """
+
+-        Including real apps can resolve dangling FK errors.
+
+-        This test relies on the fact that contenttypes is always loaded.
+
+-        """
+
+-        new_apps = Apps()
+
+-
+
+-        class TestModel(models.Model):
+
+-            ct = models.ForeignKey("contenttypes.ContentType", models.CASCADE)
+
+-
+
+-            class Meta:
+
+-                app_label = "migrations"
+
+-                apps = new_apps
+
+-
+
+-        # If we just stick it into an empty state it should fail
+
+-        project_state = ProjectState()
+
+-        project_state.add_model(ModelState.from_model(TestModel))
+
+-        with self.assertRaises(ValueError):
+
+-            project_state.apps
+
+-
+
+-        # If we include the real app it should succeed
+
+-        project_state = ProjectState(real_apps=["contenttypes"])
+
+-        project_state.add_model(ModelState.from_model(TestModel))
+
+-        rendered_state = project_state.apps
+
+-        self.assertEqual(
+
+-            len([x for x in rendered_state.get_models() if x._meta.app_label == "migrations"]),
+
+-            1,
+
+-        )
+
++def test_real_apps(self):
+
++    """
+
++    Including real apps can resolve dangling FK errors.
+
++    This test relies on the fact that contenttypes is always loaded.
+
++    """
+
++    new_apps = Apps()
+
++
+
++    class TestModel(models.Model):
+
++        ct = models.ForeignKey("contenttypes.ContentType", models.CASCADE)
+
++
+
++        class Meta:
+
++            app_label = "migrations"
+
++            apps = new_apps
+
++
+
++    # If we just stick it into an empty state it should fail
+
++    project_state = ProjectState()
+
++    project_state.add_model(ModelState.from_model(TestModel))
+
++    with self.assertRaises(ValueError):
+
++        project_state.apps
+
++
+
++    # If we include the real app it should succeed
+
++    project_state = ProjectState(real_apps=["contenttypes"])
+
++    project_state.add_model(ModelState.from_model(TestModel))
+
++    rendered_state = project_state.apps
+
++    self.assertEqual(
+
++        len([x for x in rendered_state.get_models() if x._meta.app_label == "migrations"]),
+
++        1,
+
++    )
+
+ 
+
+     def test_ignore_order_wrt(self):
+
+         """
+
+

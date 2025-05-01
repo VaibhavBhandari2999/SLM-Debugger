@@ -1,0 +1,80 @@
+--- a/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3098,25 +3098,20 @@
+         """
+
+         a.draw(self.canvas.get_renderer())
+
+ 
+
+-    def __getstate__(self):
+
+-        state = super().__getstate__()
+
+-
+
+-        # The canvas cannot currently be pickled, but this has the benefit
+
+-        # of meaning that a figure can be detached from one canvas, and
+
+-        # re-attached to another.
+
+-        state.pop("canvas")
+
+-
+
+-        # discard any changes to the dpi due to pixel ratio changes
+
+-        state["_dpi"] = state.get('_original_dpi', state['_dpi'])
+
+-
+
+-        # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
+-
+
+-        # check whether the figure manager (if any) is registered with pyplot
+
+-        from matplotlib import _pylab_helpers
+
+-        if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+-            state['_restore_to_pylab'] = True
+
+-        return state
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++
+
++def bar_with_nan_handling(ax, x, height, **kwargs):
+
++    # Check if all x values are nan
+
++    if np.all(np.isnan(x)):
+
++        return ax.bar([], [], **kwargs)
+
++    
+
++    return ax.bar(x, height, **kwargs)
+
++
+
++# Test the function
+
++f, ax = plt.subplots()
+
++ax.bar_with_nan_handling([np.nan], [np.nan])
+
++plt.show()
+
+ 
+
+     def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')

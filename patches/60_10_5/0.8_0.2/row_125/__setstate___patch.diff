@@ -1,0 +1,120 @@
+--- a/decoupled/60/0.8_0.2/125/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/125/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3032,31 +3032,34 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
+-        version = state.pop('__mpl_version__')
+
+-        restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+-
+
+-        if version != mpl.__version__:
+
+-            _api.warn_external(
+
+-                f"This figure was saved with matplotlib version {version} and "
+
+-                f"is unlikely to function correctly.")
+
+-
+
+-        self.__dict__ = state
+
+-
+
+-        # re-initialise some of the unstored state information
+
+-        FigureCanvasBase(self)  # Set self.canvas.
+
+-
+
+-        if restore_to_pylab:
+
+-            # lazy import to avoid circularity
+
+-            import matplotlib.pyplot as plt
+
+-            import matplotlib._pylab_helpers as pylab_helpers
+
+-            allnums = plt.get_fignums()
+
+-            num = max(allnums) + 1 if allnums else 1
+
+-            mgr = plt._backend_mod.new_figure_manager_given_figure(num, self)
+
+-            pylab_helpers.Gcf._set_new_active_manager(mgr)
+
+-            plt.draw_if_interactive()
+
+-
+
+-        self.stale = True
+
++def __setstate__(self, state):
+
++    version = state.pop('__mpl_version__')
+
++    restore_to_pylab = state.pop('_restore_to_pylab', False)
+
++
+
++    if version != mpl.__version__:
+
++        _api.warn_external(
+
++            f"This figure was saved with matplotlib version {version} and "
+
++            f"is unlikely to function correctly.")
+
++
+
++    self.__dict__ = state
+
++
+
++    # re-initialise some of the unstored state information
+
++    FigureCanvasBase(self)  # Set self.canvas.
+
++
+
++    if restore_to_pylab:
+
++        # lazy import to avoid circularity
+
++        import matplotlib.pyplot as plt
+
++        import matplotlib._pylab_helpers as pylab_helpers
+
++        allnums = plt.get_fignums()
+
++        num = max(allnums) + 1 if allnums else 1
+
++        mgr = plt._backend_mod.new_figure_manager_given_figure(num, self)
+
++        pylab_helpers.Gcf._set_new_active_manager(mgr)
+
++        plt.draw_if_interactive()
+
++
+
++    # Ensure the DPI is correctly restored
+
++    self.dpi = state.get('dpi', self.dpi)
+
++
+
++    self.stale = True
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""

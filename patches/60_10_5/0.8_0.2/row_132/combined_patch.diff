@@ -1,0 +1,727 @@
+--- a/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3117,7 +3117,7 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
++def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+         restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+ 
+
+@@ -3138,6 +3138,8 @@
+             allnums = plt.get_fignums()
+
+             num = max(allnums) + 1 if allnums else 1
+
+             backend = plt._get_backend_mod()
+
++            # Use the get method to avoid KeyError
+
++            the_rc = plt.style.library.get("seaborn-colorblind", {})
+
+             mgr = backend.new_figure_manager_given_figure(num, self)
+
+             pylab_helpers.Gcf._set_new_active_manager(mgr)
+
+             plt.draw_if_interactive()
+
+
+--- a/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3097,7 +3097,7 @@
+         """
+
+         a.draw(self.canvas.get_renderer())
+
+ 
+
+-    def __getstate__(self):
+
++def __getstate__(self):
+
+         state = super().__getstate__()
+
+ 
+
+         # The canvas cannot currently be pickled, but this has the benefit
+
+@@ -3115,6 +3115,16 @@
+         from matplotlib import _pylab_helpers
+
+         if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+             state['_restore_to_pylab'] = True
+
++
+
++        # Ensure the 'seaborn-colorblind' key is handled gracefully
+
++        try:
+
++            the_rc = plt.style.library["seaborn-colorblind"]
+
++        except KeyError:
+
++            # Handle the absence of the 'seaborn-colorblind' key
+
++            print("Warning: 'seaborn-colorblind' style not found. Using default style instead.")
+
++            the_rc = plt.style.library["default"]
+
++
+
++        state["the_rc"] = the_rc
+
+         return state
+
+ 
+
+     def __setstate__(self, state):
+
+
+--- a/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2603,42 +2603,53 @@
+             from matplotlib.backends import backend_webagg
+
+             return backend_webagg.ipython_inline_display(self)
+
+ 
+
+-    def show(self, warn=True):
+
+-        """
+
+-        If using a GUI backend with pyplot, display the figure window.
+
+-
+
+-        If the figure was not created using `~.pyplot.figure`, it will lack
+
+-        a `~.backend_bases.FigureManagerBase`, and this method will raise an
+
+-        AttributeError.
+
+-
+
+-        .. warning::
+
+-
+
+-            This does not manage an GUI event loop. Consequently, the figure
+
+-            may only be shown briefly or not shown at all if you or your
+
+-            environment are not managing an event loop.
+
+-
+
+-            Proper use cases for `.Figure.show` include running this from a
+
+-            GUI application or an IPython shell.
+
+-
+
+-            If you're running a pure python shell or executing a non-GUI
+
+-            python script, you should use `matplotlib.pyplot.show` instead,
+
+-            which takes care of managing the event loop for you.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        warn : bool, default: True
+
+-            If ``True`` and we are not running headless (i.e. on Linux with an
+
+-            unset DISPLAY), issue warning when called on a non-GUI backend.
+
+-        """
+
+-        if self.canvas.manager is None:
+
+-            raise AttributeError(
+
+-                "Figure.show works only for figures managed by pyplot, "
+
+-                "normally created by pyplot.figure()")
+
+-        try:
+
+-            self.canvas.manager.show()
+
+-        except NonGuiException as exc:
+
+-            if warn:
+
+-                _api.warn_external(str(exc))
+
++def show(self, warn=True):
+
++    """
+
++    If using a GUI backend with pyplot, display the figure window.
+
++
+
++    If the figure was not created using `~.pyplot.figure`, it will lack
+
++    a `~.backend_bases.FigureManagerBase`, and this method will raise an
+
++    AttributeError.
+
++
+
++    .. warning::
+
++
+
++        This does not manage an GUI event loop. Consequently, the figure
+
++        may only be shown briefly or not shown at all if you or your
+
++        environment are not managing an event loop.
+
++
+
++        Proper use cases for `.Figure.show` include running this from a
+
++        GUI application or an IPython shell.
+
++
+
++        If you're running a pure python shell or executing a non-GUI
+
++        python script, you should use `matplotlib.pyplot.show` instead,
+
++        which takes care of managing the event loop for you.
+
++
+
++    Parameters
+
++    ----------
+
++    warn : bool, default: True
+
++        If ``True`` and we are not running headless (i.e. on Linux with an
+
++        unset DISPLAY), issue warning when called on a non-GUI backend.
+
++    """
+
++    if self.canvas.manager is None:
+
++        raise AttributeError(
+
++            "Figure.show works only for figures managed by pyplot, "
+
++            "normally created by pyplot.figure()")
+
++    
+
++    # Check if the 'seaborn-colorblind' style exists in the library
+
++    style_key = "seaborn-colorblind"
+
++    if style_key in plt.style.library:
+
++        the_rc = plt.style.library[style_key]
+
++    else:
+
++        # If the style is not available, use a default style or raise an informative error
+
++        default_style = "default"  # You can choose a different default style if needed
+
++        the_rc = plt.style.library[default_style]
+
++        print(f"Warning: 'seaborn-colorblind' style is not available. Using '{default_style}' style instead.")
+
++    
+
++    try:
+
++        self.canvas.manager.show()
+
++    except NonGuiException as exc:
+
++        if warn:
+
++            _api.warn_external(str(exc))
+
+ 
+
+     @property
+
+     def axes(self):
+
+
+--- a/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -1173,114 +1173,95 @@
+         return text
+
+ 
+
+     @_docstring.dedent_interpd
+
+-    def colorbar(
+
+-            self, mappable, cax=None, ax=None, use_gridspec=True, **kwargs):
+
+-        """
+
+-        Add a colorbar to a plot.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        mappable
+
+-            The `matplotlib.cm.ScalarMappable` (i.e., `.AxesImage`,
+
+-            `.ContourSet`, etc.) described by this colorbar.  This argument is
+
+-            mandatory for the `.Figure.colorbar` method but optional for the
+
+-            `.pyplot.colorbar` function, which sets the default to the current
+
+-            image.
+
+-
+
+-            Note that one can create a `.ScalarMappable` "on-the-fly" to
+
+-            generate colorbars not attached to a previously drawn artist, e.g.
+
+-            ::
+
+-
+
+-                fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
+
+-
+
+-        cax : `~matplotlib.axes.Axes`, optional
+
+-            Axes into which the colorbar will be drawn.
+
+-
+
+-        ax : `~.axes.Axes` or list or `numpy.ndarray` of Axes, optional
+
+-            One or more parent axes from which space for a new colorbar axes
+
+-            will be stolen, if *cax* is None.  This has no effect if *cax* is
+
+-            set.
+
+-
+
+-        use_gridspec : bool, optional
+
+-            If *cax* is ``None``, a new *cax* is created as an instance of
+
+-            Axes.  If *ax* is positioned with a subplotspec and *use_gridspec*
+
+-            is ``True``, then *cax* is also positioned with a subplotspec.
+
+-
+
+-        Returns
+
+-        -------
+
+-        colorbar : `~matplotlib.colorbar.Colorbar`
+
+-
+
+-        Other Parameters
+
+-        ----------------
+
+-        %(_make_axes_kw_doc)s
+
+-        %(_colormap_kw_doc)s
+
+-
+
+-        Notes
+
+-        -----
+
+-        If *mappable* is a `~.contour.ContourSet`, its *extend* kwarg is
+
+-        included automatically.
+
+-
+
+-        The *shrink* kwarg provides a simple way to scale the colorbar with
+
+-        respect to the axes. Note that if *cax* is specified, it determines the
+
+-        size of the colorbar and *shrink* and *aspect* kwargs are ignored.
+
+-
+
+-        For more precise control, you can manually specify the positions of the
+
+-        axes objects in which the mappable and the colorbar are drawn.  In this
+
+-        case, do not use any of the axes properties kwargs.
+
+-
+
+-        It is known that some vector graphics viewers (svg and pdf) renders
+
+-        white gaps between segments of the colorbar.  This is due to bugs in
+
+-        the viewers, not Matplotlib.  As a workaround, the colorbar can be
+
+-        rendered with overlapping segments::
+
+-
+
+-            cbar = colorbar()
+
+-            cbar.solids.set_edgecolor("face")
+
+-            draw()
+
+-
+
+-        However this has negative consequences in other circumstances, e.g.
+
+-        with semi-transparent images (alpha < 1) and colorbar extensions;
+
+-        therefore, this workaround is not used by default (see issue #1188).
+
+-        """
+
+-
+
++def colorbar(
+
++        self, mappable, cax=None, ax=None, use_gridspec=True, **kwargs):
+
++    """
+
++    Add a colorbar to a plot.
+
++
+
++    Parameters
+
++    ----------
+
++    mappable
+
++        The `matplotlib.cm.ScalarMappable` (i.e., `.AxesImage`,
+
++        `.ContourSet`, etc.) described by this colorbar.  This argument is
+
++        mandatory for the `.Figure.colorbar` method but optional for the
+
++        `.pyplot.colorbar` function, which sets the default to the current
+
++        image.
+
++
+
++        Note that one can create a `.ScalarMappable` "on-the-fly" to
+
++        generate colorbars not attached to a previously drawn artist, e.g.
+
++        ::
+
++
+
++            fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax)
+
++
+
++    cax : `~matplotlib.axes.Axes`, optional
+
++        Axes into which the colorbar will be drawn.
+
++
+
++    ax : `~.axes.Axes` or list or `numpy.ndarray` of Axes, optional
+
++        One or more parent axes from which space for a new colorbar axes
+
++        will be stolen, if *cax* is None.  This has no effect if *cax* is
+
++        set.
+
++
+
++    use_gridspec : bool, optional
+
++        If *cax* is ``None``, a new *cax* is created as an instance of
+
++        Axes.  If *ax* is positioned with a subplotspec and *use_gridspec*
+
++        is ``True``, then *cax* is also positioned with a subplotspec.
+
++
+
++    Returns
+
++    -------
+
++    colorbar : `~matplotlib.colorbar.Colorbar`
+
++
+
++    Other Parameters
+
++    ----------------
+
++    %(_make_axes_kw_doc)s
+
++    %(_colormap_kw_doc)s
+
++
+
++    Notes
+
++    -----
+
++    If *mappable* is a `~.contour.ContourSet`, its *extend* kwarg is
+
++    included automatically.
+
++
+
++    The *shrink* kwarg provides a simple way to scale the colorbar with
+
++    respect to the axes. Note that if *cax* is specified, it determines the
+
++    size of the colorbar and *shrink* and *aspect* kwargs are ignored.
+
++
+
++    For more precise control, you can manually specify the positions of the
+
++    axes objects in which the mappable and the colorbar are drawn.  In this
+
++    case, do not use any of the axes properties kwargs.
+
++
+
++    It is known that some vector graphics viewers (svg and pdf) renders
+
++    white gaps between segments of the colorbar.  This is due to bugs in
+
++    the viewers, not Matplotlib.  As a workaround, the colorbar can be
+
++    rendered with overlapping segments::
+
++
+
++        cbar = colorbar()
+
++        cbar.solids.set_edgecolor("face")
+
++        draw()
+
++
+
++    However this has negative consequences in other circumstances, e.g.
+
++    with semi-transparent images (alpha < 1) and colorbar extensions;
+
++    therefore, this workaround is not used by default (see issue #1188).
+
++    """
+
++
+
++    if ax is None:
+
++        ax = getattr(mappable, "axes", None)
+
++
+
++    if (self.get_layout_engine() is not None and
+
++            not self.get_layout_engine().colorbar_gridspec):
+
++        use_gridspec = False
+
++    # Store the value of gca so that we can set it back later on.
+
++    if cax is None:
+
+         if ax is None:
+
+-            ax = getattr(mappable, "axes", None)
+
+-
+
+-        if (self.get_layout_engine() is not None and
+
+-                not self.get_layout_engine().colorbar_gridspec):
+
+-            use_gridspec = False
+
+-        # Store the value of gca so that we can set it back later on.
+
+-        if cax is None:
+
+-            if ax is None:
+
+-                _api.warn_deprecated("3.6", message=(
+
+-                    'Unable to determine Axes to steal space for Colorbar. '
+
+-                    'Using gca(), but will raise in the future. '
+
+-                    'Either provide the *cax* argument to use as the Axes for '
+
+-                    'the Colorbar, provide the *ax* argument to steal space '
+
+-                    'from it, or add *mappable* to an Axes.'))
+
+-                ax = self.gca()
+
+-            current_ax = self.gca()
+
+-            userax = False
+
+-            if (use_gridspec
+
+-                    and isinstance(ax, mpl.axes._base._AxesBase)
+
+-                    and ax.get_subplotspec()):
+
+-                cax, kwargs = cbar.make_axes_gridspec(ax, **kwargs)
+
+-            else:
+
+-                cax, kwargs = cbar.make_axes(ax, **kwargs)
+
+-            cax.grid(visible=False, which='both', axis='both')
+
+-        else:
+
+-            userax = True
+
+-
+
+-        # need to remove kws that cannot be passed to Colorbar
+
+-        NON_COLORBAR_KEYS = ['fraction', 'pad', 'shrink', 'aspect', 'anchor',
+
+-                             'panchor']
+
+-        cb_kw = {k: v for k, v in kwargs.items() if k not in NON_COLORBAR_KEYS}
+
+-
+
+-        cb = cbar.Colorbar(cax, mappable, **cb_kw)
+
+-
+
+-        if not userax:
+
+-            self.sca(current_ax)
+
+-        self.stale = True
+
+-        return cb
+
++            _api.warn_deprecated("3.6", message=(
+
++                'Unable to determine Axes to steal space for Colorbar. '
+
++                'Using gca(), but will raise in the future. '
+
++                'Either provide the *cax* argument to use as the Axes for '
+
++                'the Colorbar, provide the *ax* argument to steal space '
+
++                'from it, or add *mappable* to an Axes.'))
+
++            ax = self.gca()
+
++        current_ax = self.gca()
+
++        userax = False
+
++        if (use_gridspec
+
++                and isinstance(ax, mpl.axes._
+
+ 
+
+     def subplots_adjust(self, left=None, bottom=None, right=None, top=None,
+
+                         wspace=None, hspace=None):
+
+
+--- a/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/cm.py
++++ b/decoupled/60/0.8_0.2/132/matplotlib_matplotlib/lib/matplotlib/cm.py
+@@ -394,7 +394,7 @@
+     from the given colormap.
+
+     """
+
+ 
+
+-    def __init__(self, norm=None, cmap=None):
+
++def __init__(self, norm=None, cmap=None):
+
+         """
+
+         Parameters
+
+         ----------
+
+@@ -416,6 +416,13 @@
+         #: The last colorbar associated with this ScalarMappable. May be None.
+
+         self.colorbar = None
+
+         self.callbacks = cbook.CallbackRegistry(signals=["changed"])
+
++
+
++        # Use the get method to avoid KeyError if 'seaborn-colorblind' is not present
+
++        the_rc = plt.style.library.get("seaborn-colorblind", None)
+
++        if the_rc is not None:
+
++            plt.style.use(the_rc)
+
++        else:
+
++            print("Warning: 'seaborn-colorblind' style not found. Using default style.")
+
+ 
+
+     callbacksSM = _api.deprecated("3.5", alternative="callbacks")(
+
+         property(lambda self: self.callbacks))
+
+

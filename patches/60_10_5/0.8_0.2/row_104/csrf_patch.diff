@@ -1,0 +1,70 @@
+--- a/decoupled/60/0.8_0.2/104/django_django/django/template/context_processors.py
++++ b/decoupled/60/0.8_0.2/104/django_django/django/template/context_processors.py
+@@ -14,23 +14,18 @@
+ from django.utils.functional import SimpleLazyObject, lazy
+
+ 
+
+ 
+
+-def csrf(request):
+
+-    """
+
+-    Context processor that provides a CSRF token, or the string 'NOTPROVIDED' if
+
+-    it has not been provided by either a view decorator or the middleware
+
+-    """
+
++from django.forms.models import modelformset_factory
+
++from django.shortcuts import render
+
+ 
+
+-    def _get_val():
+
+-        token = get_token(request)
+
+-        if token is None:
+
+-            # In order to be able to provide debugging info in the
+
+-            # case of misconfiguration, we use a sentinel value
+
+-            # instead of returning an empty dict.
+
+-            return "NOTPROVIDED"
+
+-        else:
+
+-            return token
+
+-
+
+-    return {"csrf_token": SimpleLazyObject(_get_val)}
+
++def test_view(request):
+
++    context = {}
+
++    # Correctly set form_kwargs without 'empty_permitted'
+
++    ff = modelformset_factory(MyModel, fields=['a_field'])
+
++    context['formset'] = ff(
+
++        queryset=MyModel.objects.none(),
+
++        form_kwargs={'empty_permitted': True}  # This line is not necessary and can be removed
+
++    )
+
++    return render(request, 'my_app/my_model_formset.html', context)
+
+ 
+
+ 
+
+ def debug(request):

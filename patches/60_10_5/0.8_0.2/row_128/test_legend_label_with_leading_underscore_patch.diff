@@ -1,0 +1,71 @@
+--- a/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
++++ b/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
+@@ -80,6 +80,10 @@
+     ax.legend(numpoints=1, loc='best')
+
+ 
+
+ 
+
++from matplotlib.legend import Legend
+
++import matplotlib.pyplot as plt
+
++import pytest
+
++
+
+ def test_legend_label_with_leading_underscore():
+
+     """
+
+     Test that artists with labels starting with an underscore are not added to
+
+@@ -92,6 +96,24 @@
+                       match=r"starts with '_'.*excluded from the legend."):
+
+         legend = ax.legend(handles=[line])
+
+     assert len(legend.legendHandles) == 0
+
++
+
++# Add draggable keyword to the Legend class
+
++class DraggableLegend(Legend):
+
++    def __init__(self, *args, draggable=False, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        self.draggable = draggable
+
++        if draggable:
+
++            self.set_draggable(True)
+
++
+
++# Example usage
+
++def create_draggable_legend():
+
++    fig, ax = plt.subplots()
+
++    line, = ax.plot([0, 1], label='Draggable Legend')
+
++    legend = ax.legend(handles=[line], draggable=True)
+
++    plt.show()
+
++
+
++# Run the example
+
++create_draggable_legend()
+
+ 
+
+ 
+
+ @image_comparison(['legend_labels_first.png'], remove_text=True)

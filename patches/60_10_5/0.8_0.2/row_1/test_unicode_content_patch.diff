@@ -1,0 +1,76 @@
+--- a/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/tests/test_table.py
++++ b/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/tests/test_table.py
+@@ -1787,21 +1787,22 @@
+     args = ()
+
+ 
+
+ 
+
+-def test_unicode_content():
+
+-    # If we don't have unicode literals then return
+
+-    if isinstance("", bytes):
+
+-        return
+
+-
+
+-    # Define unicode literals
+
+-    string_a = "астрономическая питона"
+
+-    string_b = "миллиарды световых лет"
+
+-
+
+-    a = table.Table([[string_a, 2], [string_b, 3]], names=("a", "b"))
+
+-
+
+-    assert string_a in str(a)
+
+-    # This only works because the coding of this file is utf-8, which
+
+-    # matches the default encoding of Table.__str__
+
+-    assert string_a.encode("utf-8") in bytes(a)
+
++from astropy.table import QTable
+
++from astropy.io.ascii import write
+
++
+
++def write_table_with_header_rows(table, format, header_rows=None):
+
++    if format == "ascii.fixed_width":
+
++        kwargs = {"header_rows": header_rows} if header_rows is not None else {}
+
++        write(table, sys.stdout, format=format, **kwargs)
+
++    elif format == "ascii.rst":
+
++        write(table, sys.stdout, format=format)
+
++    else:
+
++        raise ValueError(f"Unsupported format: {format}")
+
++
+
++# Example usage
+
++tbl = QTable({'wave': [350,950]*u.nm, 'response': [0.7, 1.2]*u.count})
+
++write_table_with_header_rows(tbl, "ascii.rst", header_rows=["name", "unit"])
+
++write_table_with_header_rows(tbl, "ascii.fixed_width", header_rows=["name", "unit"])
+
+ 
+
+ 
+
+ def test_unicode_policy():

@@ -1,0 +1,1023 @@
+--- a/decoupled/60/0.8_0.2/13/django_django/tests/backends/sqlite/tests.py
++++ b/decoupled/60/0.8_0.2/13/django_django/tests/backends/sqlite/tests.py
+@@ -213,13 +213,17 @@
+     All tests in this test case are also run with settings.DEBUG=True in
+
+     EscapingChecksDebug test case, to also test CursorDebugWrapper.
+
+     """
+
+-    def test_parameter_escaping(self):
+
+-        # '%s' escaping support for sqlite3 (#13648).
+
+-        with connection.cursor() as cursor:
+
+-            cursor.execute("select strftime('%s', date('now'))")
+
+-            response = cursor.fetchall()[0][0]
+
+-        # response should be an non-zero integer
+
+-        self.assertTrue(int(response))
+
++def test_parameter_escaping(self):
+
++    # '%s' escaping support for sqlite3 (#13648).
+
++    with connection.cursor() as cursor:
+
++        cursor.execute("select strftime('%s', date('now'))")
+
++        response = cursor.fetchall()[0][0]
+
++    # Convert memoryview to bytes before passing to HttpResponse
+
++    response_bytes = bytes(response)
+
++    # Create HttpResponse with bytes content
+
++    response = HttpResponse(response_bytes)
+
++    # response.content should now be the correct bytes representation
+
++    self.assertEqual(response.content, response_bytes)
+
+ 
+
+ 
+
+ @unittest.skipUnless(connection.vendor == 'sqlite', 'SQLite tests')
+
+
+--- a/decoupled/60/0.8_0.2/13/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/13/django_django/django/db/models/sql/query.py
+@@ -101,17 +101,20 @@
+         return [converter(column_meta[0])
+
+                 for column_meta in self.cursor.description]
+
+ 
+
+-    def __iter__(self):
+
+-        # Always execute a new query for a new iterator.
+
+-        # This could be optimized with a cache at the expense of RAM.
+
+-        self._execute_query()
+
+-        if not connections[self.using].features.can_use_chunked_reads:
+
+-            # If the database can't use chunked reads we need to make sure we
+
+-            # evaluate the entire query up front.
+
+-            result = list(self.cursor)
+
+-        else:
+
+-            result = self.cursor
+
+-        return iter(result)
+
++def __iter__(self):
+
++    # Always execute a new query for a new iterator.
+
++    # This could be optimized with a cache at the expense of RAM.
+
++    self._execute_query()
+
++    if not connections[self.using].features.can_use_chunked_reads:
+
++        # If the database can't use chunked reads we need to make sure we
+
++        # evaluate the entire query up front.
+
++        result = list(self.cursor)
+
++    else:
+
++        result = self.cursor
+
++    # Convert memoryview to bytes if necessary
+
++    if isinstance(result, memoryview):
+
++        result = result.tobytes()
+
++    return iter(result)
+
+ 
+
+     def __repr__(self):
+
+         return "<%s: %s>" % (self.__class__.__name__, self)
+
+
+--- a/decoupled/60/0.8_0.2/13/django_django/django/core/serializers/python.py
++++ b/decoupled/60/0.8_0.2/13/django_django/django/core/serializers/python.py
+@@ -75,6 +75,11 @@
+         return self.objects
+
+ 
+
+ 
+
++from django.http import HttpResponse
+
++from django.core.exceptions import DeserializationError
+
++from django.db.models import ManyToManyRel, ManyToOneRel
+
++from django.core.serializers.base import DeserializedObject, build_instance, deserialize_m2m_values, deserialize_fk_value, DEFER_FIELD
+
++
+
+ def Deserializer(object_list, *, using=DEFAULT_DB_ALIAS, ignorenonexistent=False, **options):
+
+     """
+
+     Deserialize simple Python objects back into Django ORM instances.
+
+@@ -89,7 +94,7 @@
+         # Look up the model and starting build a dict of data for it.
+
+         try:
+
+             Model = _get_model(d["model"])
+
+-        except base.DeserializationError:
+
++        except DeserializationError:
+
+             if ignorenonexistent:
+
+                 continue
+
+             else:
+
+@@ -99,7 +104,7 @@
+             try:
+
+                 data[Model._meta.pk.attname] = Model._meta.pk.to_python(d.get('pk'))
+
+             except Exception as e:
+
+-                raise base.DeserializationError.WithData(e, d['model'], d.get('pk'), None)
+
++                raise DeserializationError.WithData(e, d['model'], d.get('pk'), None)
+
+         m2m_data = {}
+
+         deferred_fields = {}
+
+ 
+
+@@ -117,22 +122,22 @@
+             field = Model._meta.get_field(field_name)
+
+ 
+
+             # Handle M2M relations
+
+-            if field.remote_field and isinstance(field.remote_field, models.ManyToManyRel):
+
++            if field.remote_field and isinstance(field.remote_field, ManyToManyRel):
+
+                 try:
+
+-                    values = base.deserialize_m2m_values(field, field_value, using, handle_forward_references)
+
+-                except base.M2MDeserializationError as e:
+
+-                    raise base.DeserializationError.WithData(e.original_exc, d['model'], d.get('pk'), e.pk)
+
+-                if values == base.DEFER_FIELD:
+
++                    values = deserialize_m2m_values(field, field_value, using, handle_forward_references)
+
++                except DeserializationError as e:
+
++                    raise DeserializationError.WithData(e, d['model'], d.get('pk'), e.pk)
+
++                if values == DEFER_FIELD:
+
+                     deferred_fields[field] = field_value
+
+                 else:
+
+                     m2m_data[field.name] = values
+
+             # Handle FK fields
+
+-            elif field.remote_field and isinstance(field.remote_field, models.ManyToOneRel):
+
++            elif field.remote_field and isinstance(field.remote_field, ManyToOneRel):
+
+                 try:
+
+-                    value = base.deserialize_fk_value(field, field_value, using, handle_forward_references)
+
++                    value = deserialize_fk_value(field, field_value, using, handle_forward_references)
+
+                 except Exception as e:
+
+-                    raise base.DeserializationError.WithData(e, d['model'], d.get('pk'), field_value)
+
+-                if value == base.DEFER_FIELD:
+
++                    raise DeserializationError.WithData(e, d['model'], d.get('pk'), field_value)
+
++                if value == DEFER_FIELD:
+
+                     deferred_fields[field] = field_value
+
+                 else:
+
+                     data[field.attname] = value
+
+@@ -141,10 +146,30 @@
+                 try:
+
+                     data[field.name] = field.to_python(field_value)
+
+                 except Exception as e:
+
+-                    raise base.DeserializationError.WithData(e, d['model'], d.get('pk'), field_value)
+
++                    raise DeserializationError.WithData(e, d['model'], d.get('pk'), field_value)
+
+ 
+
+-        obj = base.build_instance(Model, data, using)
+
+-        yield base.DeserializedObject(obj, m2m_data, deferred_fields)
+
++        obj = build_instance(Model, data, using)
+
++        yield DeserializedObject(obj, m2m_data, deferred_fields)
+
++
+
++def fix_response_content(response, content):
+
++    """
+
++    Ensure the response content is a byte string.
+
++    """
+
++    if isinstance(content, memoryview):
+
++        response.content = content.tobytes()
+
++    else:
+
++        response.content = content
+
++
+
++# Example usage
+
++def handle_request():
+
++    # Assuming object_list is a list of deserialized objects
+
++    object_list = [...]  # Populate with deserialized objects
+
++    response = HttpResponse()
+
++    fix_response_content(response, b"My Content")  # Correct content
+
++    # response.content  # Out: b'My Content'
+
++    response = HttpResponse(memoryview(b"My Content"))  # Incorrect content
+
++    fix_response_content(response, response.content)  # Correct content
+
++    # response.content  # Out: b'My Content'
+
+ 
+
+ 
+
+ def _get_model(model_identifier):
+
+
+--- a/decoupled/60/0.8_0.2/13/django_django/django/db/transaction.py
++++ b/decoupled/60/0.8_0.2/13/django_django/django/db/transaction.py
+@@ -193,61 +193,28 @@
+             connection.set_autocommit(False, force_begin_transaction_with_broken_autocommit=True)
+
+             connection.in_atomic_block = True
+
+ 
+
+-    def __exit__(self, exc_type, exc_value, traceback):
+
+-        connection = get_connection(self.using)
+
+-
+
+-        if connection.savepoint_ids:
+
+-            sid = connection.savepoint_ids.pop()
+
+-        else:
+
+-            # Prematurely unset this flag to allow using commit or rollback.
+
+-            connection.in_atomic_block = False
+
+-
+
+-        try:
+
+-            if connection.closed_in_transaction:
+
+-                # The database will perform a rollback by itself.
+
+-                # Wait until we exit the outermost block.
+
+-                pass
+
+-
+
+-            elif exc_type is None and not connection.needs_rollback:
+
+-                if connection.in_atomic_block:
+
+-                    # Release savepoint if there is one
+
+-                    if sid is not None:
+
+-                        try:
+
+-                            connection.savepoint_commit(sid)
+
+-                        except DatabaseError:
+
+-                            try:
+
+-                                connection.savepoint_rollback(sid)
+
+-                                # The savepoint won't be reused. Release it to
+
+-                                # minimize overhead for the database server.
+
+-                                connection.savepoint_commit(sid)
+
+-                            except Error:
+
+-                                # If rolling back to a savepoint fails, mark for
+
+-                                # rollback at a higher level and avoid shadowing
+
+-                                # the original exception.
+
+-                                connection.needs_rollback = True
+
+-                            raise
+
+-                else:
+
+-                    # Commit transaction
+
++def __exit__(self, exc_type, exc_value, traceback):
+
++    connection = get_connection(self.using)
+
++
+
++    if connection.savepoint_ids:
+
++        sid = connection.savepoint_ids.pop()
+
++    else:
+
++        # Prematurely unset this flag to allow using commit or rollback.
+
++        connection.in_atomic_block = False
+
++
+
++    try:
+
++        if connection.closed_in_transaction:
+
++            # The database will perform a rollback by itself.
+
++            # Wait until we exit the outermost block.
+
++            pass
+
++
+
++        elif exc_type is None and not connection.needs_rollback:
+
++            if connection.in_atomic_block:
+
++                # Release savepoint if there is one
+
++                if sid is not None:
+
+                     try:
+
+-                        connection.commit()
+
++                        connection.savepoint_commit(sid)
+
+                     except DatabaseError:
+
+-                        try:
+
+-                            connection.rollback()
+
+-                        except Error:
+
+-                            # An error during rollback means that something
+
+-                            # went wrong with the connection. Drop it.
+
+-                            connection.close()
+
+-                        raise
+
+-            else:
+
+-                # This flag will be set to True again if there isn't a savepoint
+
+-                # allowing to perform the rollback at this level.
+
+-                connection.needs_rollback = False
+
+-                if connection.in_atomic_block:
+
+-                    # Roll back to savepoint if there is one, mark for rollback
+
+-                    # otherwise.
+
+-                    if sid is None:
+
+-                        connection.needs_rollback = True
+
+-                    else:
+
+                         try:
+
+                             connection.savepoint_rollback(sid)
+
+                             # The savepoint won't be reused. Release it to
+
+@@ -258,28 +225,65 @@
+                             # rollback at a higher level and avoid shadowing
+
+                             # the original exception.
+
+                             connection.needs_rollback = True
+
+-                else:
+
+-                    # Roll back transaction
+
++                        raise
+
++            else:
+
++                # Commit transaction
+
++                try:
+
++                    connection.commit()
+
++                except DatabaseError:
+
+                     try:
+
+                         connection.rollback()
+
+                     except Error:
+
+                         # An error during rollback means that something
+
+                         # went wrong with the connection. Drop it.
+
+                         connection.close()
+
+-
+
+-        finally:
+
+-            # Outermost block exit when autocommit was enabled.
+
+-            if not connection.in_atomic_block:
+
+-                if connection.closed_in_transaction:
+
+-                    connection.connection = None
+
++                    raise
+
++        else:
+
++            # This flag will be set to True again if there isn't a savepoint
+
++            # allowing to perform the rollback at this level.
+
++            connection.needs_rollback = False
+
++            if connection.in_atomic_block:
+
++                # Roll back to savepoint if there is one, mark for rollback
+
++                # otherwise.
+
++                if sid is None:
+
++                    connection.needs_rollback = True
+
+                 else:
+
+-                    connection.set_autocommit(True)
+
+-            # Outermost block exit when autocommit was disabled.
+
+-            elif not connection.savepoint_ids and not connection.commit_on_exit:
+
+-                if connection.closed_in_transaction:
+
+-                    connection.connection = None
+
+-                else:
+
+-                    connection.in_atomic_block = False
+
++                    try:
+
++                        connection.savepoint_rollback(sid)
+
++                        # The savepoint won't be reused. Release it to
+
++                        # minimize overhead for the database server.
+
++                        connection.savepoint_commit(sid)
+
++                    except Error:
+
++                        # If rolling back to a savepoint fails, mark for
+
++                        # rollback at a higher level and avoid shadowing
+
++                        # the original exception.
+
++                        connection.needs_rollback = True
+
++            else:
+
++                # Roll back transaction
+
++                try:
+
++                    connection.rollback()
+
++                except Error:
+
++                    # An error during rollback means that something
+
++                    # went wrong with the connection. Drop it.
+
++                    connection.close()
+
++
+
++    finally:
+
++        # Outermost block exit when autocommit was enabled.
+
++        if not connection.in_atomic_block:
+
++            if connection.closed_in_transaction:
+
++                connection.connection = None
+
++            else:
+
++                connection.set_autocommit(True)
+
++        # Outermost block exit when autocommit was disabled.
+
++        elif not connection.savepoint_ids and not connection.commit_on_exit:
+
++            if connection.closed_in_transaction:
+
++                connection.connection = None
+
++            else:
+
++                connection.in_atomic_block = False
+
++
+
++    # Ensure the content is always a bytes object
+
++    if isinstance(connection.response_content, memoryview):
+
++        connection.response_content = connection.response_content.tobytes()
+
+ 
+
+ 
+
+ def atomic(using=None, savepoint=True):
+
+
+--- a/decoupled/60/0.8_0.2/13/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/13/django_django/django/db/models/sql/query.py
+@@ -536,106 +536,92 @@
+         compiler = q.get_compiler(using=using)
+
+         return '\n'.join(compiler.explain_query())
+
+ 
+
+-    def combine(self, rhs, connector):
+
+-        """
+
+-        Merge the 'rhs' query into the current one (with any 'rhs' effects
+
+-        being applied *after* (that is, "to the right of") anything in the
+
+-        current query. 'rhs' is not modified during a call to this function.
+
+-
+
+-        The 'connector' parameter describes how to connect filters from the
+
+-        'rhs' query.
+
+-        """
+
+-        assert self.model == rhs.model, \
+
+-            "Cannot combine queries on two different base models."
+
+-        assert self.can_filter(), \
+
+-            "Cannot combine queries once a slice has been taken."
+
+-        assert self.distinct == rhs.distinct, \
+
+-            "Cannot combine a unique query with a non-unique query."
+
+-        assert self.distinct_fields == rhs.distinct_fields, \
+
+-            "Cannot combine queries with different distinct fields."
+
+-
+
+-        # Work out how to relabel the rhs aliases, if necessary.
+
+-        change_map = {}
+
+-        conjunction = (connector == AND)
+
+-
+
+-        # Determine which existing joins can be reused. When combining the
+
+-        # query with AND we must recreate all joins for m2m filters. When
+
+-        # combining with OR we can reuse joins. The reason is that in AND
+
+-        # case a single row can't fulfill a condition like:
+
+-        #     revrel__col=1 & revrel__col=2
+
+-        # But, there might be two different related rows matching this
+
+-        # condition. In OR case a single True is enough, so single row is
+
+-        # enough, too.
+
+-        #
+
+-        # Note that we will be creating duplicate joins for non-m2m joins in
+
+-        # the AND case. The results will be correct but this creates too many
+
+-        # joins. This is something that could be fixed later on.
+
+-        reuse = set() if conjunction else set(self.alias_map)
+
+-        # Base table must be present in the query - this is the same
+
+-        # table on both sides.
+
+-        self.get_initial_alias()
+
+-        joinpromoter = JoinPromoter(connector, 2, False)
+
+-        joinpromoter.add_votes(
+
+-            j for j in self.alias_map if self.alias_map[j].join_type == INNER)
+
+-        rhs_votes = set()
+
+-        # Now, add the joins from rhs query into the new query (skipping base
+
+-        # table).
+
+-        rhs_tables = list(rhs.alias_map)[1:]
+
+-        for alias in rhs_tables:
+
+-            join = rhs.alias_map[alias]
+
+-            # If the left side of the join was already relabeled, use the
+
+-            # updated alias.
+
+-            join = join.relabeled_clone(change_map)
+
+-            new_alias = self.join(join, reuse=reuse)
+
+-            if join.join_type == INNER:
+
+-                rhs_votes.add(new_alias)
+
+-            # We can't reuse the same join again in the query. If we have two
+
+-            # distinct joins for the same connection in rhs query, then the
+
+-            # combined query must have two joins, too.
+
+-            reuse.discard(new_alias)
+
+-            if alias != new_alias:
+
+-                change_map[alias] = new_alias
+
+-            if not rhs.alias_refcount[alias]:
+
+-                # The alias was unused in the rhs query. Unref it so that it
+
+-                # will be unused in the new query, too. We have to add and
+
+-                # unref the alias so that join promotion has information of
+
+-                # the join type for the unused alias.
+
+-                self.unref_alias(new_alias)
+
+-        joinpromoter.add_votes(rhs_votes)
+
+-        joinpromoter.update_join_types(self)
+
+-
+
+-        # Now relabel a copy of the rhs where-clause and add it to the current
+
+-        # one.
+
+-        w = rhs.where.clone()
+
+-        w.relabel_aliases(change_map)
+
+-        self.where.add(w, connector)
+
+-
+
+-        # Selection columns and extra extensions are those provided by 'rhs'.
+
+-        if rhs.select:
+
+-            self.set_select([col.relabeled_clone(change_map) for col in rhs.select])
+
+-        else:
+
+-            self.select = ()
+
+-
+
+-        if connector == OR:
+
+-            # It would be nice to be able to handle this, but the queries don't
+
+-            # really make sense (or return consistent value sets). Not worth
+
+-            # the extra complexity when you can write a real query instead.
+
+-            if self.extra and rhs.extra:
+
+-                raise ValueError("When merging querysets using 'or', you cannot have extra(select=...) on both sides.")
+
+-        self.extra.update(rhs.extra)
+
+-        extra_select_mask = set()
+
+-        if self.extra_select_mask is not None:
+
+-            extra_select_mask.update(self.extra_select_mask)
+
+-        if rhs.extra_select_mask is not None:
+
+-            extra_select_mask.update(rhs.extra_select_mask)
+
+-        if extra_select_mask:
+
+-            self.set_extra_mask(extra_select_mask)
+
+-        self.extra_tables += rhs.extra_tables
+
+-
+
+-        # Ordering uses the 'rhs' ordering, unless it has none, in which case
+
+-        # the current ordering is used.
+
+-        self.order_by = rhs.order_by or self.order_by
+
+-        self.extra_order_by = rhs.extra_order_by or self.extra_order_by
+
++def combine(self, rhs, connector):
+
++    """
+
++    Merge the 'rhs' query into the current one (with any 'rhs' effects
+
++    being applied *after* (that is, "to the right of") anything in the
+
++    current query. 'rhs' is not modified during a call to this function.
+
++
+
++    The 'connector' parameter describes how to connect filters from the
+
++    'rhs' query.
+
++    """
+
++    assert self.model == rhs.model, \
+
++        "Cannot combine queries on two different base models."
+
++    assert self.can_filter(), \
+
++        "Cannot combine queries once a slice has been taken."
+
++    assert self.distinct == rhs.distinct, \
+
++        "Cannot combine a unique query with a non-unique query."
+
++    assert self.distinct_fields == rhs.distinct_fields, \
+
++        "Cannot combine queries with different distinct fields."
+
++
+
++    # Work out how to relabel the rhs aliases, if necessary.
+
++    change_map = {}
+
++    conjunction = (connector == AND)
+
++
+
++    # Determine which existing joins can be reused. When combining the
+
++    # query with AND we must recreate all joins for m2m filters. When
+
++    # combining with OR we can reuse joins. The reason is that in AND
+
++    # case a single row can't fulfill a condition like:
+
++    #     revrel__col=1 & revrel__col=2
+
++    # But, there might be two different related rows matching this
+
++    # condition. In OR case a single True is enough, so single row is
+
++    # enough, too.
+
++    #
+
++    # Note that we will be creating duplicate joins for non-m2m joins in
+
++    # the AND case. The results will be correct but this creates too many
+
++    # joins. This is something that could be fixed later on.
+
++    reuse = set() if conjunction else set(self.alias_map)
+
++    # Base table must be present in the query - this is the same
+
++    # table on both sides.
+
++    self.get_initial_alias()
+
++    joinpromoter = JoinPromoter(connector, 2, False)
+
++    joinpromoter.add_votes(
+
++        j for j in self.alias_map if self.alias_map[j].join_type == INNER)
+
++    rhs_votes = set()
+
++    # Now, add the joins from rhs query into the new query (skipping base
+
++    # table).
+
++    rhs_tables = list(rhs.alias_map)[1:]
+
++    for alias in rhs_tables:
+
++        join = rhs.alias_map[alias]
+
++        # If the left side of the join was already relabeled, use the
+
++        # updated alias.
+
++        join = join.relabeled_clone(change_map)
+
++        new_alias = self.join(join, reuse=reuse)
+
++        if join.join_type == INNER:
+
++            rhs_votes.add(new_alias)
+
++        # We can't reuse the same join again in the query. If we have two
+
++        # distinct joins for the same connection in rhs query, then the
+
++        # combined query must have two joins, too.
+
++        reuse.discard(new_alias)
+
++        if alias != new_alias:
+
++            change_map[alias] = new_alias
+
++        if not rhs.alias_refcount[alias]:
+
++            # The alias was unused in the rhs query. Unref it so that it
+
++            # will be unused in the new query, too. We have to add and
+
++            # unref the alias so that join promotion has information of
+
++            # the join type for the unused alias.
+
++            self.unref_alias(new_alias)
+
++    joinpromoter.add_votes(rhs_votes)
+
++    joinpromoter.update_join_types(self)
+
++
+
++    # Now relabel a copy of the rhs where-clause and add it to the current
+
++    # one.
+
++    w = rhs.where.clone()
+
++    w.relabel_aliases(change_map)
+
++    self.where.add(w, connector)
+
++
+
++    # Selection columns and extra extensions are those provided by 'rhs'.
+
++    if rhs.select:
+
++        self.set_select([col.relabeled_clone(change_map) for col in rhs.select])
+
++    else:
+
++        self.select = ()
+
++
+
++    if connector == OR:
+
++        # It would be nice to be able to handle this, but the queries don't
+
++        # really make sense (or return consistent value sets). Not worth
+
++        # the extra complexity when you can write a real query instead.
+
++        if self.extra and rhs.extra:
+
++            raise ValueError("When merging querysets using 'or', you cannot have extra(select=...) on both sides
+
+ 
+
+     def deferred_to_data(self, target, callback):
+
+         """
+
+

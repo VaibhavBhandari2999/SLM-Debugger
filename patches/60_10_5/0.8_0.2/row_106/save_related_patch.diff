@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
+@@ -1241,7 +1241,7 @@
+         """
+
+         formset.save()
+
+ 
+
+-    def save_related(self, request, form, formsets, change):
+
++def save_related(self, request, form, formsets, change):
+
+         """
+
+         Given the ``HttpRequest``, the parent ``ModelForm`` instance, the
+
+         list of inline formsets and a boolean value based on whether the
+
+@@ -1252,6 +1252,11 @@
+         form.save_m2m()
+
+         for formset in formsets:
+
+             self.save_formset(request, form, formset, change=change)
+
++        
+
++        # Fix the password help text to handle to_field access correctly
+
++        password_field = form.fields.get("password")
+
++        if password_field:
+
++            password_field.help_text = password_field.help_text.format(f"../../{form.instance.pk}/password/")
+
+ 
+
+     def render_change_form(
+
+         self, request, context, add=False, change=False, form_url="", obj=None

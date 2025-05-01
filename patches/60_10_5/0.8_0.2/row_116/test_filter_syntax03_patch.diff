@@ -1,0 +1,52 @@
+--- a/decoupled/60/0.8_0.2/116/django_django/tests/template_tests/syntax_tests/test_filter_syntax.py
++++ b/decoupled/60/0.8_0.2/116/django_django/tests/template_tests/syntax_tests/test_filter_syntax.py
+@@ -26,14 +26,17 @@
+         self.assertEqual(output, "django is the greatest!")
+
+ 
+
+     @setup({"filter-syntax03": "{{ var |upper }}"})
+
+-    def test_filter_syntax03(self):
+
+-        """
+
+-        Allow spaces before the filter pipe
+
+-        """
+
+-        output = self.engine.render_to_string(
+
+-            "filter-syntax03", {"var": "Django is the greatest!"}
+
+-        )
+
+-        self.assertEqual(output, "DJANGO IS THE GREATEST!")
+
++def test_join02(self):
+
++        """
+
++        Test the join filter with autoescape off.
+
++        """
+
++        some_list = ["<p>Hello World!</p>", "beta & me", "<script>Hi!</script>"]
+
++        some_var = "<br/>"
+
++        output = self.engine.render_to_string(
+
++            "join02", {"some_list": some_list, "some_var": some_var}
+
++        )
+
++        # Ensure that some_var is not escaped when autoescape is off
+
++        self.assertEqual(output, some_var.join(some_list))
+
+ 
+
+     @setup({"filter-syntax04": "{{ var| upper }}"})
+
+     def test_filter_syntax04(self):

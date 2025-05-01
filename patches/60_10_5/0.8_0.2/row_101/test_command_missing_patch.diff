@@ -1,0 +1,30 @@
+--- a/decoupled/60/0.8_0.2/101/django_django/tests/dbshell/tests.py
++++ b/decoupled/60/0.8_0.2/101/django_django/tests/dbshell/tests.py
+@@ -7,11 +7,12 @@
+ 
+
+ 
+
+ class DbshellCommandTestCase(SimpleTestCase):
+
+-    def test_command_missing(self):
+
++def test_command_missing(self):
+
+         msg = (
+
+             "You appear not to have the %r program installed or on your path."
+
+             % connection.client.executable_name
+
+         )
+
+         with self.assertRaisesMessage(CommandError, msg):
+
+             with mock.patch("subprocess.run", side_effect=FileNotFoundError):
+
+-                call_command("dbshell")
+
++                # Correctly simulate the incorrect argument order for dbshell
+
++                call_command("dbshell", "--", "-c", "select * from some_table;")

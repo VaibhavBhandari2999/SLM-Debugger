@@ -1,0 +1,40 @@
+--- a/decoupled/60/0.8_0.2/119/django_django/django/core/serializers/python.py
++++ b/decoupled/60/0.8_0.2/119/django_django/django/core/serializers/python.py
+@@ -38,12 +38,18 @@
+         data["fields"] = self._current
+
+         return data
+
+ 
+
+-    def _value_from_field(self, obj, field):
+
++def _value_from_field(self, obj, field):
+
+         value = field.value_from_object(obj)
+
+         # Protected types (i.e., primitives like None, numbers, dates,
+
+         # and Decimals) are passed through as is. All other values are
+
+         # converted to string first.
+
+         return value if is_protected_type(value) else field.value_to_string(obj)
+
++
+
++# Fix for ArrayField default parameter
+
++def _fix_arrayfield_default(self, model, field):
+
++    if isinstance(field, ArrayField) and callable(field.default):
+
++        # Ensure the default is a callable that returns the correct value
+
++        field.default = lambda: field.default()
+
+ 
+
+     def handle_field(self, obj, field):
+
+         self._current[field.name] = self._value_from_field(obj, field)

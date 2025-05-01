@@ -1,0 +1,72 @@
+--- a/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
++++ b/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
+@@ -1151,12 +1151,29 @@
+     def set_source_expressions(self, exprs):
+
+         (self.source,) = exprs
+
+ 
+
+-    def resolve_expression(
+
+-        self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False
+
+-    ):
+
+-        # The sub-expression `source` has already been resolved, as this is
+
+-        # just a reference to the name of `source`.
+
+-        return self
+
++from django.db.models import Func
+
++from django.db.models.expressions import Combinable
+
++
+
++class RegexFlagCombination(Combinable):
+
++    def __init__(self, source):
+
++        super().__init__(source)
+
++        self.source = source
+
++
+
++    def resolve_expression(self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False):
+
++        # Resolve the source expression
+
++        source_expr = self.source.resolve_expression(query, allow_joins, reuse, summarize, for_save)
+
++        
+
++        # Get the combined value from the source expression
+
++        combined_value = source_expr.get_db_prep_value(None, connection=None, prepared=False)
+
++        
+
++        # Decompose the combined value into its constituent Enum items
+
++        decomposed_items = re._decompose(combined_value)
+
++        
+
++        # Recombine the items using the bitwise OR operator
+
++        recombined_value = reduce(lambda x, y: x | y, decomposed_items)
+
++        
+
++        # Create a new expression with the recombined value
+
++        return Func(recombined_value, function='REGEXP', template='%(function)s(%(expressions)s)')
+
+ 
+
+     def relabeled_clone(self, relabels):
+
+         return self

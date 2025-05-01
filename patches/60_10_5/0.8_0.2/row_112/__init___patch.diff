@@ -1,0 +1,32 @@
+--- a/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/helpers.py
++++ b/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/helpers.py
+@@ -166,11 +166,14 @@
+ 
+
+ 
+
+ class AdminField:
+
+-    def __init__(self, form, field, is_first):
+
++def __init__(self, form, field, is_first):
+
+         self.field = form[field]  # A django.forms.BoundField instance
+
+         self.is_first = is_first  # Whether this field is first on the line
+
+         self.is_checkbox = isinstance(self.field.field.widget, forms.CheckboxInput)
+
+         self.is_readonly = False
+
++        
+
++        # New check to ensure the user has add permission
+
++        self.show_save_as_new = not is_popup and has_add_permission and has_change_permission and change and save_as
+
+ 
+
+     def label_tag(self):
+
+         classes = []

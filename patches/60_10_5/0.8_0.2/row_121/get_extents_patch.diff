@@ -1,0 +1,152 @@
+--- a/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -590,46 +590,39 @@
+             transform = transform.frozen()
+
+         return _path.path_in_path(self, None, path, transform)
+
+ 
+
+-    def get_extents(self, transform=None, **kwargs):
+
+-        """
+
+-        Get Bbox of the path.
+
++def set_val(self, val):
+
++        """
+
++        Set slider value to *val*.
+
+ 
+
+         Parameters
+
+         ----------
+
+-        transform : matplotlib.transforms.Transform, optional
+
+-            Transform to apply to path before computing extents, if any.
+
+-        **kwargs
+
+-            Forwarded to `.iter_bezier`.
+
+-
+
+-        Returns
+
+-        -------
+
+-        matplotlib.transforms.Bbox
+
+-            The extents of the path Bbox([[xmin, ymin], [xmax, ymax]])
+
+-        """
+
+-        from .transforms import Bbox
+
+-        if transform is not None:
+
+-            self = transform.transform_path(self)
+
+-        if self.codes is None:
+
+-            xys = self.vertices
+
+-        elif len(np.intersect1d(self.codes, [Path.CURVE3, Path.CURVE4])) == 0:
+
+-            # Optimization for the straight line case.
+
+-            # Instead of iterating through each curve, consider
+
+-            # each line segment's end-points
+
+-            # (recall that STOP and CLOSEPOLY vertices are ignored)
+
+-            xys = self.vertices[np.isin(self.codes,
+
+-                                        [Path.MOVETO, Path.LINETO])]
+
++        val : tuple or array-like of float
+
++        """
+
++        val = np.sort(np.asanyarray(val))
+
++        if val.shape != (2,):
+
++            raise ValueError(
+
++                f"val must have shape (2,) but has shape {val.shape}"
+
++            )
+
++        val[0] = self._min_in_bounds(val[0])
+
++        val[1] = self._max_in_bounds(val[1)
+
++        xy = self.poly.xy
+
++        if self.orientation == "vertical":
+
++            xy[0] = .25, val[0]
+
++            xy[1] = .25, val[1]
+
++            xy[2] = .75, val[1]
+
++            xy[3] = .75, val[0]
+
+         else:
+
+-            xys = []
+
+-            for curve, code in self.iter_bezier(**kwargs):
+
+-                # places where the derivative is zero can be extrema
+
+-                _, dzeros = curve.axis_aligned_extrema()
+
+-                # as can the ends of the curve
+
+-                xys.append(curve([0, *dzeros, 1]))
+
+-            xys = np.concatenate(xys)
+
+-        if len(xys):
+
+-            return Bbox([xys.min(axis=0), xys.max(axis=0)])
+
+-        else:
+
+-            return Bbox.null()
+
++            xy[0] = val[0], .25
+
++            xy[1] = val[0], .75
+
++            xy[2] = val[1], .75
+
++            xy[3] = val[1], .25
+
++        self.poly.xy = xy
+
++        self.valtext.set_text(self._format(val))
+
++        if self.drawon:
+
++            self.ax.figure.canvas.draw_idle()
+
++        self.val = val
+
++        if self.eventson:
+
++            self._observers.process("changed", val)
+
+ 
+
+     def intersects_path(self, other, filled=True):
+
+         """

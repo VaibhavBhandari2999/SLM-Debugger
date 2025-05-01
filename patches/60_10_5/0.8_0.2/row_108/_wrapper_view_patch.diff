@@ -1,0 +1,164 @@
+--- a/decoupled/60/0.8_0.2/108/django_django/django/utils/decorators.py
++++ b/decoupled/60/0.8_0.2/108/django_django/django/utils/decorators.py
+@@ -120,40 +120,48 @@
+             middleware = middleware_class(view_func, *m_args, **m_kwargs)
+
+ 
+
+             @wraps(view_func)
+
+-            def _wrapper_view(request, *args, **kwargs):
+
+-                if hasattr(middleware, "process_request"):
+
+-                    result = middleware.process_request(request)
+
+-                    if result is not None:
+
+-                        return result
+
+-                if hasattr(middleware, "process_view"):
+
+-                    result = middleware.process_view(request, view_func, args, kwargs)
+
+-                    if result is not None:
+
+-                        return result
+
++def _wrapper_view(request, *args, **kwargs):
+
++    if hasattr(middleware, "process_request"):
+
++        result = middleware.process_request(request)
+
++        if result is not None:
+
++            return result
+
++    if hasattr(middleware, "process_view"):
+
++        result = middleware.process_view(request, view_func, args, kwargs)
+
++        if result is not None:
+
++            return result
+
++    try:
+
++        response = view_func(request, *args, **kwargs)
+
++    except Exception as e:
+
++        if hasattr(middleware, "process_exception"):
+
++            result = middleware.process_exception(request, e)
+
++            if result is not None:
+
++                return result
+
++        raise
+
++    if hasattr(response, "render") and callable(response.render):
+
++        if hasattr(middleware, "process_template_response"):
+
++            response = middleware.process_template_response(
+
++                request, response
+
++            )
+
++        # Defer running of process_response until after the template
+
++        # has been rendered:
+
++        if hasattr(middleware, "process_response"):
+
++
+
++            def callback(response):
+
++                return middleware.process_response(request, response)
+
++
+
++            response.add_post_render_callback(callback)
+
++    else:
+
++        if hasattr(middleware, "process_response"):
+
++            # Check if the sitemap supports lastmod and is callable
+
++            if isinstance(response, Sitemap) and hasattr(response, "lastmod"):
+
+                 try:
+
+-                    response = view_func(request, *args, **kwargs)
+
+-                except Exception as e:
+
+-                    if hasattr(middleware, "process_exception"):
+
+-                        result = middleware.process_exception(request, e)
+
+-                        if result is not None:
+
+-                            return result
+
+-                    raise
+
+-                if hasattr(response, "render") and callable(response.render):
+
+-                    if hasattr(middleware, "process_template_response"):
+
+-                        response = middleware.process_template_response(
+
+-                            request, response
+
+-                        )
+
+-                    # Defer running of process_response until after the template
+
+-                    # has been rendered:
+
+-                    if hasattr(middleware, "process_response"):
+
+-
+
+-                        def callback(response):
+
+-                            return middleware.process_response(request, response)
+
+-
+
+-                        response.add_post_render_callback(callback)
+
+-                else:
+
+-                    if hasattr(middleware, "process_response"):
+
+-                        return middleware.process_response(request, response)
+
+-                return response
+
++                    # Use max with a default value to avoid ValueError
+
++                    response.lastmod = max([response.lastmod(item) for item in response.items()] or [None])
+
++                except (TypeError, ValueError):
+
++                    response.lastmod = None
+
++            # Process the response if middleware is available
+
++            response = middleware.process_response(request, response)
+
++    return response
+
+ 
+
+             return _wrapper_view
+
+ 

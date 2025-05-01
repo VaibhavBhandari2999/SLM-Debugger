@@ -1,0 +1,73 @@
+--- a/decoupled/60/0.8_0.2/123/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/123/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -1522,7 +1522,7 @@
+         ax = self._axstack.current()
+
+         return ax if ax is not None else self.add_subplot()
+
+ 
+
+-    def _gci(self):
+
++def _gci(self):
+
+         # Helper for `~matplotlib.pyplot.gci`.  Do not use elsewhere.
+
+         """
+
+         Get the current colorable artist.
+
+@@ -1554,6 +1554,27 @@
+             if im is not None:
+
+                 return im
+
+         return None
+
++
+
++    def get_backend(self):
+
++        """
+
++        Get the current backend.
+
++
+
++        This function temporarily modifies the behavior to not clear figures
+
++        from `Gcf.figs` if they were created under an `rc_context`.
+
++        """
+
++        from matplotlib import rc_context, get_backend as orig_get_backend
+
++        from matplotlib._pylab_helpers import Gcf
+
++
+
++        def get_backend():
+
++            with rc_context():
+
++                backend = orig_get_backend()
+
++            # Ensure figures created under rc_context are not cleared
+
++            if Gcf.figs:
+
++                for fig in Gcf.figs.values():
+
++                    fig.canvas.manager.window.raise_()  # Ensure figures are visible
+
++            return backend
+
++
+
++        return get_backend
+
+ 
+
+     def _process_projection_requirements(
+
+             self, *args, axes_class=None, polar=False, projection=None,

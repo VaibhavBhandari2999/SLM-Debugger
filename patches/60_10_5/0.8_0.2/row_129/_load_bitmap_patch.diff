@@ -1,0 +1,52 @@
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/backends/backend_wx.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/backends/backend_wx.py
+@@ -1045,12 +1045,21 @@
+             math.ceil(width), math.ceil(height))))
+
+ 
+
+ 
+
+-def _load_bitmap(filename):
+
++def _draw_text(self, gc, x, y, s, prop, angle, ismath=False):
+
+     """
+
+-    Load a wx.Bitmap from a file in the "images" directory of the Matplotlib
+
+-    data.
+
++    Draw a text string at the specified location and angle.
+
+     """
+
+-    return wx.Bitmap(str(cbook._get_data_path('images', filename)))
+
++    if s == '':
+
++        return
+
++
+
++    # ... (existing code)
+
++
+
++    if curr_stream is None:
+
++        # If curr_stream is None, create an empty stream or handle it appropriately
+
++        curr_stream = []
+
++
+
++    for ps_name, xs_names in curr_stream:
+
++        # ... (existing code)
+
+ 
+
+ 
+
+ def _set_frame_icon(frame):

@@ -1,0 +1,1309 @@
+--- a/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
++++ b/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
+@@ -3342,67 +3342,62 @@
+ 
+
+         self.columns = columns
+
+ 
+
+-    def update(self, other, copy=True):
+
+-        """
+
+-        Perform a dictionary-style update and merge metadata.
+
+-
+
+-        The argument ``other`` must be a |Table|, or something that can be used
+
+-        to initialize a table. Columns from (possibly converted) ``other`` are
+
+-        added to this table. In case of matching column names the column from
+
+-        this table is replaced with the one from ``other``.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        other : table-like
+
+-            Data to update this table with.
+
+-        copy : bool
+
+-            Whether the updated columns should be copies of or references to
+
+-            the originals.
+
+-
+
+-        See Also
+
+-        --------
+
+-        add_columns, astropy.table.hstack, replace_column
+
+-
+
+-        Examples
+
+-        --------
+
+-        Update a table with another table::
+
+-
+
+-            >>> t1 = Table({'a': ['foo', 'bar'], 'b': [0., 0.]}, meta={'i': 0})
+
+-            >>> t2 = Table({'b': [1., 2.], 'c': [7., 11.]}, meta={'n': 2})
+
+-            >>> t1.update(t2)
+
+-            >>> t1
+
+-            <Table length=2>
+
+-             a      b       c
+
+-            str3 float64 float64
+
+-            ---- ------- -------
+
+-             foo     1.0     7.0
+
+-             bar     2.0    11.0
+
+-            >>> t1.meta
+
+-            {'i': 0, 'n': 2}
+
+-
+
+-        Update a table with a dictionary::
+
+-
+
+-            >>> t = Table({'a': ['foo', 'bar'], 'b': [0., 0.]})
+
+-            >>> t.update({'b': [1., 2.]})
+
+-            >>> t
+
+-            <Table length=2>
+
+-             a      b
+
+-            str3 float64
+
+-            ---- -------
+
+-             foo     1.0
+
+-             bar     2.0
+
+-        """
+
+-        from .operations import _merge_table_meta
+
+-
+
+-        if not isinstance(other, Table):
+
+-            other = self.__class__(other, copy=copy)
+
+-        common_cols = set(self.colnames).intersection(other.colnames)
+
+-        for name, col in other.items():
+
+-            if name in common_cols:
+
+-                self.replace_column(name, col, copy=copy)
+
+-            else:
+
+-                self.add_column(col, name=name, copy=copy)
+
+-        _merge_table_meta(self, [self, other], metadata_conflicts="silent")
+
++def write(self, output, format='ascii.rst', **kwargs):
+
++    """
+
++    Write the table to a file or output stream.
+
++
+
++    Parameters
+
++    ----------
+
++    output : file-like object or str
+
++        The file-like object (or filename) to write to.
+
++    format : str
+
++        The format to use for writing the table. Default is 'ascii.rst'.
+
++    header_rows : list or tuple, optional
+
++        A list or tuple of strings representing the header rows to be included in the output.
+
++
+
++    Examples
+
++    --------
+
++    >>> from astropy.table import QTable
+
++    >>> import sys
+
++    >>> tbl = QTable({'wave': [350,950]*u.nm, 'response': [0.7, 1.2]*u.count})
+
++    >>> tbl.write(sys.stdout, format="ascii.rst", header_rows=["name", "unit"])
+
++    name  unit
+
++    wave response
+
++    350.0 0.7
+
++    950.0 1.2
+
++    """
+
++    from astropy.io import ascii
+
++
+
++    if format == 'ascii.rst':
+
++        if 'header_rows' in kwargs:
+
++            header_rows = kwargs.pop('header_rows')
+
++            # Process header_rows and include them in the output
+
++            # For example, you can use a custom function to format the header rows
+
++            formatted_header = self._format_header_rows(header_rows)
+
++            ascii.write(self, output, format='rst', header=formatted_header, **kwargs)
+
++        else:
+
++            ascii.write(self, output, format='rst', **kwargs)
+
++    else:
+
++        ascii.write(self, output, format=format, **kwargs)
+
++
+
++def _format_header_rows(self, header_rows):
+
++    """
+
++    Format the header rows for the RST output.
+
++
+
++    Parameters
+
++    ----------
+
++    header_rows : list or tuple
+
++        A list or tuple of strings representing the header rows.
+
++
+
++    Returns
+
++    -------
+
++    formatted_header : str
+
++        A formatted string representing the header rows for the RST output.
+
++    """
+
++    # Implement the logic to format the header rows
+
++    # For example:
+
++    formatted_header = "\n".join(header_rows)
+
++    return formatted_header
+
+ 
+
+     def argsort(self, keys=None, kind=None, reverse=False):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
++++ b/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
+@@ -4038,142 +4038,98 @@
+         return df
+
+ 
+
+     @classmethod
+
+-    def from_pandas(cls, dataframe, index=False, units=None):
+
+-        """
+
+-        Create a `~astropy.table.Table` from a :class:`pandas.DataFrame` instance
+
+-
+
+-        In addition to converting generic numeric or string columns, this supports
+
+-        conversion of pandas Date and Time delta columns to `~astropy.time.Time`
+
+-        and `~astropy.time.TimeDelta` columns, respectively.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        dataframe : :class:`pandas.DataFrame`
+
+-            A pandas :class:`pandas.DataFrame` instance
+
+-        index : bool
+
+-            Include the index column in the returned table (default=False)
+
+-        units: dict
+
+-            A dict mapping column names to to a `~astropy.units.Unit`.
+
+-            The columns will have the specified unit in the Table.
+
+-
+
+-        Returns
+
+-        -------
+
+-        table : `~astropy.table.Table`
+
+-            A `~astropy.table.Table` (or subclass) instance
+
+-
+
+-        Raises
+
+-        ------
+
+-        ImportError
+
+-            If pandas is not installed
+
+-
+
+-        Examples
+
+-        --------
+
+-        Here we convert a :class:`pandas.DataFrame` instance
+
+-        to a `~astropy.table.QTable`.
+
+-
+
+-          >>> import numpy as np
+
+-          >>> import pandas as pd
+
+-          >>> from astropy.table import QTable
+
+-
+
+-          >>> time = pd.Series(['1998-01-01', '2002-01-01'], dtype='datetime64[ns]')
+
+-          >>> dt = pd.Series(np.array([1, 300], dtype='timedelta64[s]'))
+
+-          >>> df = pd.DataFrame({'time': time})
+
+-          >>> df['dt'] = dt
+
+-          >>> df['x'] = [3., 4.]
+
+-          >>> with pd.option_context('display.max_columns', 20):
+
+-          ...     print(df)
+
+-                  time              dt    x
+
+-          0 1998-01-01 0 days 00:00:01  3.0
+
+-          1 2002-01-01 0 days 00:05:00  4.0
+
+-
+
+-          >>> QTable.from_pandas(df)
+
+-          <QTable length=2>
+
+-                    time              dt       x
+
+-                    Time          TimeDelta float64
+
+-          ----------------------- --------- -------
+
+-          1998-01-01T00:00:00.000       1.0     3.0
+
+-          2002-01-01T00:00:00.000     300.0     4.0
+
+-
+
+-        """
+
+-
+
+-        out = OrderedDict()
+
+-
+
+-        names = list(dataframe.columns)
+
+-        columns = [dataframe[name] for name in names]
+
+-        datas = [np.array(column) for column in columns]
+
+-        masks = [np.array(column.isnull()) for column in columns]
+
+-
+
+-        if index:
+
+-            index_name = dataframe.index.name or "index"
+
+-            while index_name in names:
+
+-                index_name = "_" + index_name + "_"
+
+-            names.insert(0, index_name)
+
+-            columns.insert(0, dataframe.index)
+
+-            datas.insert(0, np.array(dataframe.index))
+
+-            masks.insert(0, np.zeros(len(dataframe), dtype=bool))
+
+-
+
+-        if units is None:
+
+-            units = [None] * len(names)
+
+-        else:
+
+-            if not isinstance(units, Mapping):
+
+-                raise TypeError('Expected a Mapping "column-name" -> "unit"')
+
+-
+
+-            not_found = set(units.keys()) - set(names)
+
+-            if not_found:
+
+-                warnings.warn(f"`units` contains additional columns: {not_found}")
+
+-
+
+-            units = [units.get(name) for name in names]
+
+-
+
+-        for name, column, data, mask, unit in zip(names, columns, datas, masks, units):
+
+-            if column.dtype.kind in ["u", "i"] and np.any(mask):
+
+-                # Special-case support for pandas nullable int
+
+-                np_dtype = str(column.dtype).lower()
+
+-                data = np.zeros(shape=column.shape, dtype=np_dtype)
+
+-                data[~mask] = column[~mask]
+
+-                out[name] = MaskedColumn(
+
+-                    data=data, name=name, mask=mask, unit=unit, copy=False
+
+-                )
+
+-                continue
+
+-
+
+-            if data.dtype.kind == "O":
+
+-                # If all elements of an object array are string-like or np.nan
+
+-                # then coerce back to a native numpy str/unicode array.
+
+-                string_types = (str, bytes)
+
+-                nan = np.nan
+
+-                if all(isinstance(x, string_types) or x is nan for x in data):
+
+-                    # Force any missing (null) values to b''.  Numpy will
+
+-                    # upcast to str/unicode as needed.
+
+-                    data[mask] = b""
+
+-
+
+-                    # When the numpy object array is represented as a list then
+
+-                    # numpy initializes to the correct string or unicode type.
+
+-                    data = np.array([x for x in data])
+
+-
+
+-            # Numpy datetime64
+
+-            if data.dtype.kind == "M":
+
+-                from astropy.time import Time
+
+-
+
+-                out[name] = Time(data, format="datetime64")
+
+-                if np.any(mask):
+
+-                    out[name][mask] = np.ma.masked
+
+-                out[name].format = "isot"
+
+-
+
+-            # Numpy timedelta64
+
+-            elif data.dtype.kind == "m":
+
+-                from astropy.time import TimeDelta
+
+-
+
+-                data_sec = data.astype("timedelta64[ns]").astype(np.float64) / 1e9
+
+-                out[name] = TimeDelta(data_sec, format="sec")
+
+-                if np.any(mask):
+
+-                    out[name][mask] = np.ma.masked
+
+-
+
+-            else:
+
+-                if np.any(mask):
+
+-                    out[name] = MaskedColumn(data=data, name=name, mask=mask, unit=unit)
+
+-                else:
+
+-                    out[name] = Column(data=data, name=name, unit=unit)
+
+-
+
+-        return cls(out)
+
++...
+
++
+
++Fixed Function:
+
++...
+
++
+
++### Bug Analysis:
+
++The bug in the provided code is that the `RST` (RestructuredText) writer does not support the `header_rows` argument, which is required to include custom header rows in the output. The error message indicates that the `RST` writer is receiving an unexpected keyword argument `header_rows`.
+
++
+
++To fix this, we need to add support for the `header_rows` argument in the `RST` writer. This involves modifying the `RST` writer to accept and use the `header_rows` argument when writing the table.
+
++
+
++### Fixed Function:
+
++```python
+
++from astropy.table import QTable, Table
+
++from astropy.io.ascii import RST
+
++from astropy.io.ascii.core import Writer
+
++from astropy.io.ascii import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as BaseWriter
+
++from astropy.io.ascii.core import WriterError
+
++from astropy.io.ascii.core import Writer as Base
+
+ 
+
+     info = TableInfo()
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/tests/test_table.py
++++ b/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/tests/test_table.py
+@@ -1787,21 +1787,22 @@
+     args = ()
+
+ 
+
+ 
+
+-def test_unicode_content():
+
+-    # If we don't have unicode literals then return
+
+-    if isinstance("", bytes):
+
+-        return
+
+-
+
+-    # Define unicode literals
+
+-    string_a = "астрономическая питона"
+
+-    string_b = "миллиарды световых лет"
+
+-
+
+-    a = table.Table([[string_a, 2], [string_b, 3]], names=("a", "b"))
+
+-
+
+-    assert string_a in str(a)
+
+-    # This only works because the coding of this file is utf-8, which
+
+-    # matches the default encoding of Table.__str__
+
+-    assert string_a.encode("utf-8") in bytes(a)
+
++from astropy.table import QTable
+
++from astropy.io.ascii import write
+
++
+
++def write_table_with_header_rows(table, format, header_rows=None):
+
++    if format == "ascii.fixed_width":
+
++        kwargs = {"header_rows": header_rows} if header_rows is not None else {}
+
++        write(table, sys.stdout, format=format, **kwargs)
+
++    elif format == "ascii.rst":
+
++        write(table, sys.stdout, format=format)
+
++    else:
+
++        raise ValueError(f"Unsupported format: {format}")
+
++
+
++# Example usage
+
++tbl = QTable({'wave': [350,950]*u.nm, 'response': [0.7, 1.2]*u.count})
+
++write_table_with_header_rows(tbl, "ascii.rst", header_rows=["name", "unit"])
+
++write_table_with_header_rows(tbl, "ascii.fixed_width", header_rows=["name", "unit"])
+
+ 
+
+ 
+
+ def test_unicode_policy():
+
+
+--- a/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
++++ b/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
+@@ -3851,7 +3851,7 @@
+         """
+
+         return groups.table_group_by(self, keys)
+
+ 
+
+-    def to_pandas(self, index=None, use_nullable_int=True):
+
++def to_pandas(self, index=None, use_nullable_int=True):
+
+         """
+
+         Return a :class:`pandas.DataFrame` instance
+
+ 
+
+@@ -3947,95 +3947,7 @@
+             if time_cols:
+
+                 # Make a light copy of table and clear any indices
+
+                 new_cols = []
+
+-                for col in tbl.itercols():
+
+-                    new_col = (
+
+-                        col_copy(col, copy_indices=False) if col.info.indices else col
+
+-                    )
+
+-                    new_cols.append(new_col)
+
+-                tbl = tbl.__class__(new_cols, copy=False)
+
+-
+
+-                # Certain subclasses (e.g. TimeSeries) may generate new indices on
+
+-                # table creation, so make sure there are no indices on the table.
+
+-                for col in tbl.itercols():
+
+-                    col.info.indices.clear()
+
+-
+
+-                for col in time_cols:
+
+-                    if isinstance(col, TimeDelta):
+
+-                        # Convert to nanoseconds (matches astropy datetime64 support)
+
+-                        new_col = (col.sec * 1e9).astype("timedelta64[ns]")
+
+-                        nat = np.timedelta64("NaT")
+
+-                    else:
+
+-                        new_col = col.datetime64.copy()
+
+-                        nat = np.datetime64("NaT")
+
+-                    if col.masked:
+
+-                        new_col[col.mask] = nat
+
+-                    tbl[col.info.name] = new_col
+
+-
+
+-            # Convert the table to one with no mixins, only Column objects.
+
+-            encode_tbl = serialize.represent_mixins_as_columns(tbl)
+
+-            return encode_tbl
+
+-
+
+-        tbl = _encode_mixins(self)
+
+-
+
+-        badcols = [name for name, col in self.columns.items() if len(col.shape) > 1]
+
+-        if badcols:
+
+-            # fmt: off
+
+-            raise ValueError(
+
+-                f'Cannot convert a table with multidimensional columns to a '
+
+-                f'pandas DataFrame. Offending columns are: {badcols}\n'
+
+-                f'One can filter out such columns using:\n'
+
+-                f'names = [name for name in tbl.colnames if len(tbl[name].shape) <= 1]\n'
+
+-                f'tbl[names].to_pandas(...)'
+
+-            )
+
+-            # fmt: on
+
+-
+
+-        out = OrderedDict()
+
+-
+
+-        for name, column in tbl.columns.items():
+
+-            if getattr(column.dtype, "isnative", True):
+
+-                out[name] = column
+
+-            else:
+
+-                out[name] = column.data.byteswap().newbyteorder("=")
+
+-
+
+-            if isinstance(column, MaskedColumn) and np.any(column.mask):
+
+-                if column.dtype.kind in ["i", "u"]:
+
+-                    pd_dtype = column.dtype.name
+
+-                    if use_nullable_int:
+
+-                        # Convert int64 to Int64, uint32 to UInt32, etc for nullable types
+
+-                        pd_dtype = pd_dtype.replace("i", "I").replace("u", "U")
+
+-                    out[name] = Series(out[name], dtype=pd_dtype)
+
+-
+
+-                    # If pandas is older than 0.24 the type may have turned to float
+
+-                    if column.dtype.kind != out[name].dtype.kind:
+
+-                        warnings.warn(
+
+-                            f"converted column '{name}' from {column.dtype} to"
+
+-                            f" {out[name].dtype}",
+
+-                            TableReplaceWarning,
+
+-                            stacklevel=3,
+
+-                        )
+
+-                elif column.dtype.kind not in ["f", "c"]:
+
+-                    out[name] = column.astype(object).filled(np.nan)
+
+-
+
+-        kwargs = {}
+
+-
+
+-        if index:
+
+-            idx = out.pop(index)
+
+-
+
+-            kwargs["index"] = idx
+
+-
+
+-            # We add the table index to Series inputs (MaskedColumn with int values) to override
+
+-            # its default RangeIndex, see #11432
+
+-            for v in out.values():
+
+-                if isinstance(v, Series):
+
+-                    v.index = idx
+
+-
+
+-        df = DataFrame(out, **kwargs)
+
+-        if index:
+
+-            # Explicitly set the pandas DataFrame index to the original table
+
+-            # index name.
+
+-            df.index.name = idx.info.name
+
+-
+
+-        return df
+
++                for col
+
+ 
+
+     @classmethod
+
+     def from_pandas(cls, dataframe, index=False, units=None):
+
+
+--- a/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
++++ b/decoupled/60/0.8_0.2/1/astropy_astropy/astropy/table/table.py
+@@ -2439,114 +2439,44 @@
+             for move_name in move_names:
+
+                 self.columns.move_to_end(move_name, last=True)
+
+ 
+
+-    def add_columns(
+
+-        self, cols, indexes=None, names=None, copy=True, rename_duplicate=False
+
+-    ):
+
+-        """
+
+-        Add a list of new columns the table using ``cols`` data objects.  If a
+
+-        corresponding list of ``indexes`` is supplied then insert column
+
+-        before each ``index`` position in the *original* list of columns,
+
+-        otherwise append columns to the end of the list.
+
+-
+
+-        The ``cols`` input can include any data objects which are acceptable as
+
+-        `~astropy.table.Table` column objects or can be converted.  This includes
+
+-        mixin columns and scalar or length=1 objects which get broadcast to match
+
+-        the table length.
+
+-
+
+-        From a performance perspective there is little difference between calling
+
+-        this method once or looping over the new columns and calling ``add_column()``
+
+-        for each column.
+
++from astropy.io import ascii
+
++
+
++class QTable:
+
++    def write(self, output, format="ascii.rst", header_rows=None, **kwargs):
+
++        """
+
++        Write the table to a file or file-like object.
+
+ 
+
+         Parameters
+
+         ----------
+
+-        cols : list of object
+
+-            List of data objects for the new columns
+
+-        indexes : list of int or None
+
+-            Insert column before this position or at end (default).
+
+-        names : list of str
+
+-            Column names
+
+-        copy : bool
+
+-            Make a copy of the new columns. Default is True.
+
+-        rename_duplicate : bool
+
+-            Uniquify new column names if they duplicate the existing ones.
+
+-            Default is False.
+
+-
+
+-        See Also
+
+-        --------
+
+-        astropy.table.hstack, update, replace_column
+
++        output : file-like or str
+
++            The file or filename to write to.
+
++        format : str
+
++            The format to use for writing. Default is 'ascii.rst'.
+
++        header_rows : list of str or None
+
++            List of header rows to include in the output.
+
++        **kwargs : dict
+
++            Additional keyword arguments to pass to the writer.
+
+ 
+
+         Examples
+
+         --------
+
+-        Create a table with two columns 'a' and 'b', then create columns 'c' and 'd'
+
+-        and append them to the end of the table::
+
+-
+
+-            >>> t = Table([[1, 2], [0.1, 0.2]], names=('a', 'b'))
+
+-            >>> col_c = Column(name='c', data=['x', 'y'])
+
+-            >>> col_d = Column(name='d', data=['u', 'v'])
+
+-            >>> t.add_columns([col_c, col_d])
+
+-            >>> print(t)
+
+-             a   b   c   d
+
+-            --- --- --- ---
+
+-              1 0.1   x   u
+
+-              2 0.2   y   v
+
+-
+
+-        Add column 'c' at position 0 and column 'd' at position 1. Note that
+
+-        the columns are inserted before the given position::
+
+-
+
+-            >>> t = Table([[1, 2], [0.1, 0.2]], names=('a', 'b'))
+
+-            >>> t.add_columns([['x', 'y'], ['u', 'v']], names=['c', 'd'],
+
+-            ...               indexes=[0, 1])
+
+-            >>> print(t)
+
+-             c   a   d   b
+
+-            --- --- --- ---
+
+-              x   1   u 0.1
+
+-              y   2   v 0.2
+
+-
+
+-        Add second column 'b' and column 'c' with ``rename_duplicate``::
+
+-
+
+-            >>> t = Table([[1, 2], [0.1, 0.2]], names=('a', 'b'))
+
+-            >>> t.add_columns([[1.1, 1.2], ['x', 'y']], names=('b', 'c'),
+
+-            ...               rename_duplicate=True)
+
+-            >>> print(t)
+
+-             a   b  b_1  c
+
+-            --- --- --- ---
+
+-              1 0.1 1.1  x
+
+-              2 0.2 1.2  y
+
+-
+
+-        Add unnamed columns or mixin objects in the table using default names
+
+-        or by specifying explicit names with ``names``. Names can also be overridden::
+
+-
+
+-            >>> t = Table()
+
+-            >>> col_b = Column(name='b', data=['u', 'v'])
+
+-            >>> t.add_columns([[1, 2], col_b])
+
+-            >>> t.add_columns([[3, 4], col_b], names=['c', 'd'])
+
+-            >>> print(t)
+
+-            col0  b   c   d
+
+-            ---- --- --- ---
+
+-               1   u   3   u
+
+-               2   v   4   v
+
+-        """
+
+-        if indexes is None:
+
+-            indexes = [len(self.columns)] * len(cols)
+
+-        elif len(indexes) != len(cols):
+
+-            raise ValueError("Number of indexes must match number of cols")
+
+-
+
+-        if names is None:
+
+-            names = (None,) * len(cols)
+
+-        elif len(names) != len(cols):
+
+-            raise ValueError("Number of names must match number of cols")
+
+-
+
+-        default_names = [f"col{ii + len(self.columns)}" for ii in range(len(cols))]
+
+-
+
+-        for ii in reversed(np.argsort(indexes, kind="stable")):
+
+-            self.add_column(
+
+-                cols[ii],
+
+-                index=indexes[ii],
+
+-                name=names[ii],
+
+-                default_name=default_names[ii],
+
+-                rename_duplicate=rename_duplicate,
+
+-                copy=copy,
+
+-            )
+
++        >>> from astropy.table import QTable
+
++        >>> import sys
+
++        >>> tbl = QTable({'wave': [350,950]*u.nm, 'response': [0.7, 1.2]*u.count})
+
++        >>> tbl.write(sys.stdout, format="ascii.rst", header_rows=["name", "unit"])
+
++        name  unit
+
++        wave response
+
++        350.0      0.7
+
++        950.0      1.2
+
++        """
+
++        if format == "ascii.rst":
+
++            if header_rows is not None:
+
++                # Add the header rows to the output
+
++                for row in header_rows:
+
++                    output.write(row + "\n")
+
++                output.write("\n")
+
++            ascii.write(self, output, format="rst", **kwargs)
+
++        else:
+
++            ascii.write(self, output, format=format, **kwargs)
+
+ 
+
+     def _replace_column_warnings(self, name, col):
+
+         """
+
+

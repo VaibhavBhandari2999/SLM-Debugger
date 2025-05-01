@@ -1,0 +1,74 @@
+--- a/decoupled/60/0.8_0.2/109/django_django/django/core/checks/compatibility/django_4_0.py
++++ b/decoupled/60/0.8_0.2/109/django_django/django/core/checks/compatibility/django_4_0.py
+@@ -4,17 +4,22 @@
+ 
+
+ 
+
+ @register(Tags.compatibility)
+
+-def check_csrf_trusted_origins(app_configs, **kwargs):
+
+-    errors = []
+
+-    for origin in settings.CSRF_TRUSTED_ORIGINS:
+
+-        if "://" not in origin:
+
+-            errors.append(
+
+-                Error(
+
+-                    "As of Django 4.0, the values in the CSRF_TRUSTED_ORIGINS "
+
+-                    "setting must start with a scheme (usually http:// or "
+
+-                    "https://) but found %s. See the release notes for details."
+
+-                    % origin,
+
+-                    id="4_0.E001",
+
+-                )
+
+-            )
+
+-    return errors
+
++import os
+
++
+
++def has_key(self, key, version=None):
+
++    fname = self._key_to_file(key, version)
+
++    if os.path.exists(fname):
+
++        with open(fname, "rb") as f, self._lock_file(fname):  # Use a lock file to prevent deletion
+
++            return not self._is_expired(f)
+
++    return False
+
++
+
++def _lock_file(self, fname):
+
++    # Implement a lock file mechanism to prevent the file from being deleted
+
++    # This could be a simple file lock or a more complex mechanism depending on the requirements
+
++    lock_fname = fname + ".lock"
+
++    with open(lock_fname, "w") as lock_f:
+
++        # Acquire the lock
+
++        lock_f.write("locked")
+
++    yield
+
++    # Release the lock
+
++    os.remove(lock_fname)

@@ -1,0 +1,106 @@
+--- a/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
+@@ -315,24 +315,34 @@
+     ``Restaurant.place`` is a ``ForwardOneToOneDescriptor`` instance.
+
+     """
+
+ 
+
+-    def get_object(self, instance):
+
+-        if self.field.remote_field.parent_link:
+
+-            deferred = instance.get_deferred_fields()
+
+-            # Because it's a parent link, all the data is available in the
+
+-            # instance, so populate the parent model with this data.
+
+-            rel_model = self.field.remote_field.model
+
+-            fields = [field.attname for field in rel_model._meta.concrete_fields]
+
+-
+
+-            # If any of the related model's fields are deferred, fallback to
+
+-            # fetching all fields from the related model. This avoids a query
+
+-            # on the related model for every deferred field.
+
+-            if not any(field in fields for field in deferred):
+
+-                kwargs = {field: getattr(instance, field) for field in fields}
+
+-                obj = rel_model(**kwargs)
+
+-                obj._state.adding = instance._state.adding
+
+-                obj._state.db = instance._state.db
+
+-                return obj
+
+-        return super().get_object(instance)
+
++def get_object(self, instance):
+
++    if self.field.remote_field.parent_link:
+
++        deferred = instance.get_deferred_fields()
+
++        # Because it's a parent link, all the data is available in the
+
++        # instance, so populate the parent model with this data.
+
++        rel_model = self.field.remote_field.model
+
++        fields = [field.attname for field in rel_model._meta.concrete_fields]
+
++
+
++        # If any of the related model's fields are deferred, fallback to
+
++        # fetching all fields from the related model. This avoids a query
+
++        # on the related model for every deferred field.
+
++        if not any(field in fields for field in deferred):
+
++            kwargs = {field: getattr(instance, field) for field in fields}
+
++            obj = rel_model(**kwargs)
+
++            obj._state.adding = instance._state.adding
+
++            obj._state.db = instance._state.db
+
++            return obj
+
++
+
++    # Ensure related_name is added for fields that reference the same model
+
++    for field in rel_model._meta.local_fields:
+
++        if field.remote_field and field.remote_field.model == rel_model:
+
++            if not field.remote_field.related_name:
+
++                field.remote_field.related_name = f'{field.name}_set'
+
++
+
++    # Save the model to apply the changes
+
++    rel_model.objects.filter(pk=instance.pk).update(**{field.name: getattr(instance, field.name) for field in rel_model._meta.local_fields if field.name != 'id'})
+
++
+
++    return super().get_object(instance)
+
+ 
+
+     def __set__(self, instance, value):
+
+         super().__set__(instance, value)

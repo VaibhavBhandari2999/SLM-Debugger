@@ -1,0 +1,60 @@
+--- a/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
++++ b/decoupled/60/0.8_0.2/100/django_django/django/db/models/fields/related_descriptors.py
+@@ -915,15 +915,21 @@
+         )
+
+ 
+
+     @cached_property
+
+-    def related_manager_cache_key(self):
+
+-        if self.reverse:
+
+-            # Symmetrical M2Ms won't have an accessor name, but should never
+
+-            # end up in the reverse branch anyway, as the related_name ends up
+
+-            # being hidden, and no public manager is created.
+
+-            return self.rel.get_cache_name()
+
++def related_manager_cache_key(self):
+
++    if self.reverse:
+
++        # Symmetrical M2Ms won't have an accessor name, but should never
+
++        # end up in the reverse branch anyway, as the related_name ends up
+
++        # being hidden, and no public manager is created.
+
++        return self.rel.get_cache_name()
+
++    else:
+
++        # For forward managers, defer to the field name.
+
++        field_name = self.field.get_cache_name()
+
++        # Generate a unique related_name if the field is pointing to the same model
+
++        if isinstance(self.field.rel.to, models.Model) and self.field.rel.to._meta.model_name == self.model._meta.model_name:
+
++            related_name = f'{self.field.name}_set'
+
+         else:
+
+-            # For forward managers, defer to the field name.
+
+-            return self.field.get_cache_name()
+
++            related_name = field_name
+
++        return related_name
+
+ 
+
+     def _get_set_deprecation_msg_params(self):
+
+         return (

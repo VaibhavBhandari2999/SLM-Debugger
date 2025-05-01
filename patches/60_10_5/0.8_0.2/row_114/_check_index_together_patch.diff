@@ -1,0 +1,130 @@
+--- a/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
+@@ -1873,33 +1873,37 @@
+ 
+
+     # RemovedInDjango51Warning.
+
+     @classmethod
+
+-    def _check_index_together(cls):
+
+-        """Check the value of "index_together" option."""
+
+-        if not isinstance(cls._meta.index_together, (tuple, list)):
+
+-            return [
+
+-                checks.Error(
+
+-                    "'index_together' must be a list or tuple.",
+
+-                    obj=cls,
+
+-                    id="models.E008",
+
+-                )
+
+-            ]
+
+-
+
+-        elif any(
+
+-            not isinstance(fields, (tuple, list)) for fields in cls._meta.index_together
+
+-        ):
+
+-            return [
+
+-                checks.Error(
+
+-                    "All 'index_together' elements must be lists or tuples.",
+
+-                    obj=cls,
+
+-                    id="models.E009",
+
+-                )
+
+-            ]
+
+-
+
+-        else:
+
+-            errors = []
+
+-            for fields in cls._meta.index_together:
+
+-                errors.extend(cls._check_local_fields(fields, "index_together"))
+
+-            return errors
+
++def _check_index_together(cls):
+
++    """Check the value of "index_together" option."""
+
++    if not isinstance(cls._meta.index_together, (tuple, list)):
+
++        return [
+
++            checks.Error(
+
++                "'index_together' must be a list or tuple.",
+
++                obj=cls,
+
++                id="models.E008",
+
++            )
+
++        ]
+
++
+
++    elif any(
+
++        not isinstance(fields, (tuple, list)) for fields in cls._meta.index_together
+
++    ):
+
++        return [
+
++            checks.Error(
+
++                "All 'index_together' elements must be lists or tuples.",
+
++                obj=cls,
+
++                id="models.E009",
+
++            )
+
++        ]
+
++
+
++    else:
+
++        errors = []
+
++        for fields in cls._meta.index_together:
+
++            errors.extend(cls._check_local_fields(fields, "index_together"))
+
++        return errors
+
++
+
++# In the QuestionAdmin class, modify list_display to reference the related fields correctly
+
++class QuestionAdmin(admin.ModelAdmin):
+
++    list_display = ["choice__question_text"]  # Use related_field syntax to reference Choice model fields
+
+ 
+
+     @classmethod
+
+     def _check_unique_together(cls):

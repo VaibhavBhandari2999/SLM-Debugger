@@ -79,71 +79,85 @@ def main():
             top_files_data = json.load(f)
     
     # Step 2: Generate and insert docstrings for functions and modules
-    if not args.skip_docstrings:
-        print("\nGenerating docstrings for functions and modules...")
-        enhanced_data = generate_and_insert_docstrings(
-            top_files_data, 
-            k, 
-            weightBM25, 
-            weightSemantic, 
-            enable_logging=args.enable_logging
-        )
-        
-        # Save enhanced data
+    try: 
         enhanced_data_path = f"enhanced_data/{k}/{weightBM25}_{weightSemantic}.json"
-        os.makedirs(os.path.dirname(enhanced_data_path), exist_ok=True)
-        with open(enhanced_data_path, "w") as f:
-            json.dump(enhanced_data, f, indent=4)
-        print(f"Saved enhanced data to {enhanced_data_path}")
-    else:
+        with open(enhanced_data_path, "r") as f:
+            enhanced_data = json.load(f)
         print("\nSkipping docstring generation...")
-        # Check if enhanced data already exists
-        enhanced_data_path = f"enhanced_data/{k}/{weightBM25}_{weightSemantic}.json"
-        try:
-            with open(enhanced_data_path, "r") as f:
-                enhanced_data = json.load(f)
-                print(f"Loaded existing enhanced data from {enhanced_data_path}")
-        except FileNotFoundError:
-            print("Warning: Enhanced data not found. Using top files data without docstrings.")
+        print(f"Loaded existing enhanced data from {enhanced_data_path}")
+    except FileNotFoundError:
+        if args.skip_docstrings:
+            print("Skipping docstring generation as per user request.")
             enhanced_data = top_files_data
+        else:
+            # Generate and insert docstrings
+            print("Generating docstrings for functions and modules...")
+            enhanced_data = generate_and_insert_docstrings(
+                top_files_data, 
+                k, 
+                weightBM25, 
+                weightSemantic, 
+                enable_logging=args.enable_logging
+            )
+            print("\nGenerating docstrings for functions and modules...")
+            enhanced_data = generate_and_insert_docstrings(
+                top_files_data, 
+                k, 
+                weightBM25, 
+                weightSemantic, 
+                enable_logging=args.enable_logging
+            )
     
     # Step 3: Narrow down top k files to top p files using docstrings
-    print(f"\nNarrowing down top {k} files to top {p} files...")
-    narrowed_data = narrow_top_files(
-        enhanced_data,
-        k,
-        p,
-        data_lite[0]["problem_statement"],  # Use first issue description as example
-        weightBM25=1-sem_weight,
-        weightSemantic=sem_weight
-    )
-    
-    # Save narrowed data
-    narrowed_data_path = f"narrowed_data/{k}_{p}/{weightBM25}_{weightSemantic}.json"
-    os.makedirs(os.path.dirname(narrowed_data_path), exist_ok=True)
-    with open(narrowed_data_path, "w") as f:
-        json.dump(narrowed_data, f, indent=4)
-    print(f"Saved narrowed data to {narrowed_data_path}")
+    try:
+        narrowed_data_path = f"narrowed_data/{k}_{p}/{weightBM25}_{weightSemantic}.json"
+        with open(narrowed_data_path, "r") as f:
+            narrowed_data = json.load(f)
+        print(f"\nLoaded existing narrowed data from {narrowed_data_path}")
+    except FileNotFoundError:
+        print("Narrowed data not found. Running narrowing phase...")
+        narrowed_data = narrow_top_files(
+            enhanced_data,
+            k,
+            p,
+            data_lite[0]["problem_statement"],  # Use first issue description as example
+            weightBM25 = weightBM25,
+            weightSemantic = weightSemantic,
+            sem_weight = sem_weight,
+            enable_logging=args.enable_logging
+        )
+        # Save narrowed data
+        os.makedirs(os.path.dirname(narrowed_data_path), exist_ok=True)
+        with open(narrowed_data_path, "w") as f:
+            json.dump(narrowed_data, f, indent=4)
+        print(f"Saved narrowed data to {narrowed_data_path}")
+
     
     # Step 4: Update the top files in narrowed data
+        
     for row_idx, entry in narrowed_data.items():
         if "top_p_files" in entry:
             narrowed_data[row_idx]["top_n_files"] = entry["top_p_files"]
     
     # Step 5: Run bug localization and patch generation
-    print("\nRunning bug localization and patch generation...")
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    
-    patch_results = localize_and_generate_patches(
-        narrowed_data, 
-        n, 
-        output_dir, 
-        enable_logging=args.enable_logging
-    )
-    
-    # Save patch results
-    with open(f"{output_dir}/patch_results.json", "w") as f:
-        json.dump(patch_results, f, indent=4)
+    try:
+        with open(f"{output_dir}/all_patches.json", "r") as f:
+            patch_results = json.load(f)
+        print(f"\nLoaded existing patch results from {output_dir}/all_patches.json")
+    except FileNotFoundError: 
+        print("Patch results not found. Running bug localization and patch generation...")
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+        # Run bug localization and patch generation
+        patch_results = localize_and_generate_patches(
+            narrowed_data, 
+            n, 
+            output_dir, 
+            enable_logging=args.enable_logging
+        )
+        # Save patch results 
+        with open(f"{output_dir}/all_patches.json", "w") as f:
+            json.dump(patch_results, f, indent=4)
     
     # Create a SWEBench-compatible evaluation file
     swe_bench_patches = []

@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/123/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/123/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2966,7 +2966,7 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
++def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+         restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+ 
+
+@@ -2987,6 +2987,9 @@
+             allnums = plt.get_fignums()
+
+             num = max(allnums) + 1 if allnums else 1
+
+             mgr = plt._backend_mod.new_figure_manager_given_figure(num, self)
+
++            # Ensure the figure is registered in Gcf.figs
+
++            plt.figure(num)
+
++            plt.draw_if_interactive()
+
+             pylab_helpers.Gcf._set_new_active_manager(mgr)
+
+             plt.draw_if_interactive()
+
+ 

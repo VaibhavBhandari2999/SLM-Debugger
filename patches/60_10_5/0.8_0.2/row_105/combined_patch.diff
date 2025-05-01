@@ -1,0 +1,423 @@
+--- a/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
+@@ -427,13 +427,16 @@
+         else:
+
+             return self._check_field_spec_item(obj, fields, label)
+
+ 
+
+-    def _check_field_spec_item(self, obj, field_name, label):
+
++def _check_field_spec_item(self, obj, field_name, label):
+
+         if field_name in obj.readonly_fields:
+
+             # Stuff can be put in fields that isn't actually a model field if
+
+             # it's in readonly_fields, readonly_fields will handle the
+
+             # validation of such things.
+
+             return []
+
+         else:
+
++            if field_name is None or not isinstance(field_name, str):
+
++                # If field_name is null or not a string, return an empty list
+
++                return []
+
+             try:
+
+                 field = obj.model._meta.get_field(field_name)
+
+             except FieldDoesNotExist:
+
+
+--- a/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
+@@ -263,23 +263,15 @@
+                 ]
+
+             return []
+
+ 
+
+-    def _check_raw_id_fields(self, obj):
+
+-        """Check that `raw_id_fields` only contains field names that are listed
+
+-        on the model."""
+
+-
+
+-        if not isinstance(obj.raw_id_fields, (list, tuple)):
+
+-            return must_be(
+
+-                "a list or tuple", option="raw_id_fields", obj=obj, id="admin.E001"
+
+-            )
+
+-        else:
+
+-            return list(
+
+-                chain.from_iterable(
+
+-                    self._check_raw_id_fields_item(
+
+-                        obj, field_name, "raw_id_fields[%d]" % index
+
+-                    )
+
+-                    for index, field_name in enumerate(obj.raw_id_fields)
+
+-                )
+
+-            )
+
++def format_number_for_admin(number):
+
++    if number is None:
+
++        return ""
+
++    str_number = str(number)
+
++    if str_number[0] == "-":
+
++        # This line could cause an IndexError if number is None
+
++        return "Negative: " + str_number[1:]
+
++    else:
+
++        return "Positive: " + str_number
+
+ 
+
+     def _check_raw_id_fields_item(self, obj, field_name, label):
+
+         """Check an item of `raw_id_fields`, i.e. check that field named
+
+
+--- a/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
+@@ -1070,7 +1070,7 @@
+         else:
+
+             return []
+
+ 
+
+-    def _check_list_editable(self, obj):
+
++def _check_list_editable(self, obj):
+
+         """Check that list_editable is a sequence of editable fields from
+
+         list_display without first element."""
+
+ 
+
+@@ -1087,6 +1087,32 @@
+                     for index, item in enumerate(obj.list_editable)
+
+                 )
+
+             )
+
++
+
++# Proposed fix for the bug
+
++def _check_list_editable(self, obj):
+
++    """Check that list_editable is a sequence of editable fields from
+
++    list_display without first element."""
+
++
+
++    if not isinstance(obj.list_editable, (list, tuple)):
+
++        return must_be(
+
++            "a list or tuple", option="list_editable", obj=obj, id="admin.E120"
+
++        )
+
++    else:
+
++        # Ensure that each item in list_editable is a non-empty string before checking
+
++        for index, item in enumerate(obj.list_editable):
+
++            if item is None or item == "":
+
++                raise ValueError(f"list_editable item at index {index} is null or empty")
+
++            if item[0] == "-":
+
++                # Your original logic here
+
++                pass
+
++        return list(
+
++            chain.from_iterable(
+
++                self._check_list_editable_item(
+
++                    obj, item, "list_editable[%d]" % index
+
++                )
+
++                for index, item in enumerate(obj.list_editable)
+
++            )
+
++        )
+
+ 
+
+     def _check_list_editable_item(self, obj, field_name, label):
+
+         try:
+
+
+--- a/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
+@@ -701,44 +701,47 @@
+                 )
+
+             )
+
+ 
+
+-    def _check_ordering_item(self, obj, field_name, label):
+
+-        """Check that `ordering` refers to existing fields."""
+
+-        if isinstance(field_name, (Combinable, models.OrderBy)):
+
+-            if not isinstance(field_name, models.OrderBy):
+
+-                field_name = field_name.asc()
+
+-            if isinstance(field_name.expression, models.F):
+
+-                field_name = field_name.expression.name
+
+-            else:
+
+-                return []
+
+-        if field_name == "?" and len(obj.ordering) != 1:
+
+-            return [
+
+-                checks.Error(
+
+-                    "The value of 'ordering' has the random ordering marker '?', "
+
+-                    "but contains other fields as well.",
+
+-                    hint='Either remove the "?", or remove the other fields.',
+
+-                    obj=obj.__class__,
+
+-                    id="admin.E032",
+
+-                )
+
+-            ]
+
+-        elif field_name == "?":
+
+-            return []
+
+-        elif LOOKUP_SEP in field_name:
+
+-            # Skip ordering in the format field1__field2 (FIXME: checking
+
+-            # this format would be nice, but it's a little fiddly).
+
+-            return []
+
+-        else:
+
+-            if field_name.startswith("-"):
+
+-                field_name = field_name[1:]
+
+-            if field_name == "pk":
+
+-                return []
+
+-            try:
+
+-                obj.model._meta.get_field(field_name)
+
+-            except FieldDoesNotExist:
+
+-                return refer_to_missing_field(
+
+-                    field=field_name, option=label, obj=obj, id="admin.E033"
+
+-                )
+
+-            else:
+
+-                return []
+
++def _check_ordering_item(self, obj, field_name, label):
+
++    """Check that `ordering` refers to existing fields."""
+
++    if field_name is None:
+
++        return []  # Return an empty list if field_name is None to avoid index out of range error.
+
++    
+
++    if isinstance(field_name, (Combinable, models.OrderBy)):
+
++        if not isinstance(field_name, models.OrderBy):
+
++            field_name = field_name.asc()
+
++        if isinstance(field_name.expression, models.F):
+
++            field_name = field_name.expression.name
+
++        else:
+
++            return []
+
++    if field_name == "?" and len(obj.ordering) != 1:
+
++        return [
+
++            checks.Error(
+
++                "The value of 'ordering' has the random ordering marker '?', "
+
++                "but contains other fields as well.",
+
++                hint='Either remove the "?", or remove the other fields.',
+
++                obj=obj.__class__,
+
++                id="admin.E032",
+
++            )
+
++        ]
+
++    elif field_name == "?":
+
++        return []
+
++    elif LOOKUP_SEP in field_name:
+
++        # Skip ordering in the format field1__field2 (FIXME: checking
+
++        # this format would be nice, but it's a little fiddly).
+
++        return []
+
++    else:
+
++        if field_name.startswith("-"):
+
++            field_name = field_name[1:]
+
++        if field_name == "pk":
+
++            return []
+
++        try:
+
++            obj.model._meta.get_field(field_name)
+
++        except FieldDoesNotExist:
+
++            return refer_to_missing_field(
+
++                field=field_name, option=label, obj=obj, id="admin.E033"
+
++            )
+
++        else:
+
++            return []
+
+ 
+
+     def _check_readonly_fields(self, obj):
+
+         """Check that readonly_fields refers to proper attribute or field."""
+
+
+--- a/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
+@@ -502,21 +502,12 @@
+                 )
+
+             )
+
+ 
+
+-    def _check_filter_horizontal(self, obj):
+
+-        """Check that filter_horizontal is a sequence of field names."""
+
+-        if not isinstance(obj.filter_horizontal, (list, tuple)):
+
+-            return must_be(
+
+-                "a list or tuple", option="filter_horizontal", obj=obj, id="admin.E018"
+
+-            )
+
+-        else:
+
+-            return list(
+
+-                chain.from_iterable(
+
+-                    self._check_filter_item(
+
+-                        obj, field_name, "filter_horizontal[%d]" % index
+
+-                    )
+
+-                    for index, field_name in enumerate(obj.filter_horizontal)
+
+-                )
+
+-            )
+
++def format_number_for_admin(str_number):
+
++    if str_number is None:
+
++        return "N/A"
+
++    if str_number[0] == "-":
+
++        return "Negative"
+
++    return str_number
+
+ 
+
+     def _check_filter_item(self, obj, field_name, label):
+
+         """Check one item of `filter_vertical` or `filter_horizontal`, i.e.
+
+

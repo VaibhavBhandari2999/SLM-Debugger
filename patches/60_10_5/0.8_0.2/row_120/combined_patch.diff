@@ -1,0 +1,1457 @@
+--- a/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -646,134 +646,41 @@
+         return self._add_axes_internal(a, key)
+
+ 
+
+     @docstring.dedent_interpd
+
+-    def add_subplot(self, *args, **kwargs):
+
+-        """
+
+-        Add an `~.axes.Axes` to the figure as part of a subplot arrangement.
+
+-
+
+-        Call signatures::
+
+-
+
+-           add_subplot(nrows, ncols, index, **kwargs)
+
+-           add_subplot(pos, **kwargs)
+
+-           add_subplot(ax)
+
+-           add_subplot()
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        *args : int, (int, int, *index*), or `.SubplotSpec`, default: (1, 1, 1)
+
+-            The position of the subplot described by one of
+
+-
+
+-            - Three integers (*nrows*, *ncols*, *index*). The subplot will
+
+-              take the *index* position on a grid with *nrows* rows and
+
+-              *ncols* columns. *index* starts at 1 in the upper left corner
+
+-              and increases to the right.  *index* can also be a two-tuple
+
+-              specifying the (*first*, *last*) indices (1-based, and including
+
+-              *last*) of the subplot, e.g., ``fig.add_subplot(3, 1, (1, 2))``
+
+-              makes a subplot that spans the upper 2/3 of the figure.
+
+-            - A 3-digit integer. The digits are interpreted as if given
+
+-              separately as three single-digit integers, i.e.
+
+-              ``fig.add_subplot(235)`` is the same as
+
+-              ``fig.add_subplot(2, 3, 5)``. Note that this can only be used
+
+-              if there are no more than 9 subplots.
+
+-            - A `.SubplotSpec`.
+
+-
+
+-            In rare circumstances, `.add_subplot` may be called with a single
+
+-            argument, a subplot Axes instance already created in the
+
+-            present figure but not in the figure's list of Axes.
+
+-
+
+-        projection : {None, 'aitoff', 'hammer', 'lambert', 'mollweide', \
+
+-'polar', 'rectilinear', str}, optional
+
+-            The projection type of the subplot (`~.axes.Axes`). *str* is the
+
+-            name of a custom projection, see `~matplotlib.projections`. The
+
+-            default None results in a 'rectilinear' projection.
+
+-
+
+-        polar : bool, default: False
+
+-            If True, equivalent to projection='polar'.
+
+-
+
+-        axes_class : subclass type of `~.axes.Axes`, optional
+
+-            The `.axes.Axes` subclass that is instantiated.  This parameter
+
+-            is incompatible with *projection* and *polar*.  See
+
+-            :ref:`axisartist_users-guide-index` for examples.
+
+-
+
+-        sharex, sharey : `~.axes.Axes`, optional
+
+-            Share the x or y `~matplotlib.axis` with sharex and/or sharey.
+
+-            The axis will have the same limits, ticks, and scale as the axis
+
+-            of the shared axes.
+
+-
+
+-        label : str
+
+-            A label for the returned Axes.
+
+-
+
+-        Returns
+
+-        -------
+
+-        `.axes.SubplotBase`, or another subclass of `~.axes.Axes`
+
+-
+
+-            The Axes of the subplot. The returned Axes base class depends on
+
+-            the projection used. It is `~.axes.Axes` if rectilinear projection
+
+-            is used and `.projections.polar.PolarAxes` if polar projection
+
+-            is used. The returned Axes is then a subplot subclass of the
+
+-            base class.
+
+-
+
+-        Other Parameters
+
+-        ----------------
+
+-        **kwargs
+
+-            This method also takes the keyword arguments for the returned Axes
+
+-            base class; except for the *figure* argument. The keyword arguments
+
+-            for the rectilinear base class `~.axes.Axes` can be found in
+
+-            the following table but there might also be other keyword
+
+-            arguments if another projection is used.
+
+-
+
+-            %(Axes:kwdoc)s
+
+-
+
+-        See Also
+
+-        --------
+
+-        .Figure.add_axes
+
+-        .pyplot.subplot
+
+-        .pyplot.axes
+
+-        .Figure.subplots
+
+-        .pyplot.subplots
+
+-
+
+-        Examples
+
+-        --------
+
+-        ::
+
+-
+
+-            fig = plt.figure()
+
+-
+
+-            fig.add_subplot(231)
+
+-            ax1 = fig.add_subplot(2, 3, 1)  # equivalent but more general
+
+-
+
+-            fig.add_subplot(232, frameon=False)  # subplot with no frame
+
+-            fig.add_subplot(233, projection='polar')  # polar subplot
+
+-            fig.add_subplot(234, sharex=ax1)  # subplot sharing x-axis with ax1
+
+-            fig.add_subplot(235, facecolor="red")  # red subplot
+
+-
+
+-            ax1.remove()  # delete ax1 from the figure
+
+-            fig.add_subplot(ax1)  # add ax1 back to the figure
+
+-        """
+
+-        if 'figure' in kwargs:
+
+-            # Axes itself allows for a 'figure' kwarg, but since we want to
+
+-            # bind the created Axes to self, it is not allowed here.
+
+-            raise TypeError(
+
+-                "add_subplot() got an unexpected keyword argument 'figure'")
+
+-
+
+-        if len(args) == 1 and isinstance(args[0], SubplotBase):
+
+-            ax = args[0]
+
+-            key = ax._projection_init
+
+-            if ax.get_figure() is not self:
+
+-                raise ValueError("The Subplot must have been created in "
+
+-                                 "the present figure")
+
+-        else:
+
+-            if not args:
+
+-                args = (1, 1, 1)
+
+-            # Normalize correct ijk values to (i, j, k) here so that
+
+-            # add_subplot(211) == add_subplot(2, 1, 1).  Invalid values will
+
+-            # trigger errors later (via SubplotSpec._from_subplot_args).
+
+-            if (len(args) == 1 and isinstance(args[0], Integral)
+
+-                    and 100 <= args[0] <= 999):
+
+-                args = tuple(map(int, str(args[0])))
+
+-            projection_class, pkw = self._process_projection_requirements(
+
+-                *args, **kwargs)
+
+-            ax = subplot_class_factory(projection_class)(self, *args, **pkw)
+
+-            key = (projection_class, pkw)
+
+-        return self._add_axes_internal(ax, key)
+
++def add_subplot(self, *args, **kwargs):
+
++    """
+
++    Add an `~.axes.Axes` to the figure as part of a subplot arrangement.
+
++
+
++    Call signatures:
+
++    ...
+
++    """
+
++    if 'figure' in kwargs:
+
++        # Axes itself allows for a 'figure' kwarg, but since we want to
+
++        # bind the created Axes to self, it is not allowed here.
+
++        raise TypeError(
+
++            "add_subplot() got an unexpected keyword argument 'figure'")
+
++
+
++    if len(args) == 1 and isinstance(args[0], SubplotBase):
+
++        ax = args[0]
+
++        key = ax._projection_init
+
++        if ax.get_figure() is not self:
+
++            raise ValueError("The Subplot must have been created in "
+
++                             "the present figure")
+
++    else:
+
++        if not args:
+
++            args = (1, 1, 1)
+
++        # Normalize correct ijk values to (i, j, k) here so that
+
++        # add_subplot(211) == add_subplot(2, 1, 1).  Invalid values will
+
++        # trigger errors later (via SubplotSpec._from_subplot_args).
+
++        if (len(args) == 1 and isinstance(args[0], Integral)
+
++                and 100 <= args[0] <= 999):
+
++            args = tuple(map(int, str(args[0])))
+
++        projection_class, pkw = self._process_projection_requirements(
+
++            *args, **kwargs)
+
++        # Add version_info to the kwargs
+
++        kwargs['version_info'] = tuple(map(int, self.__version__.split('.')))
+
++        ax = subplot_class_factory(projection_class)(self, *args, **pkw)
+
++        key = (projection_class, pkw)
+
++    return self._add_axes_internal(ax, key)
+
+ 
+
+     def _add_axes_internal(self, ax, key):
+
+         """Private helper for `add_axes` and `add_subplot`."""
+
+
+--- a/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2781,31 +2781,7 @@
+                                  "initial draw which caches the renderer")
+
+         a.draw(self._cachedRenderer)
+
+ 
+
+-    def __getstate__(self):
+
+-        state = super().__getstate__()
+
+-
+
+-        # The canvas cannot currently be pickled, but this has the benefit
+
+-        # of meaning that a figure can be detached from one canvas, and
+
+-        # re-attached to another.
+
+-        state.pop("canvas")
+
+-
+
+-        # Set cached renderer to None -- it can't be pickled.
+
+-        state["_cachedRenderer"] = None
+
+-
+
+-        # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
+-
+
+-        # check whether the figure manager (if any) is registered with pyplot
+
+-        from matplotlib import _pylab_helpers
+
+-        if getattr(self.canvas, 'manager', None) \
+
+-                in _pylab_helpers.Gcf.figs.values():
+
+-            state['_restore_to_pylab'] = True
+
+-
+
+-        # set all the layoutgrid information to None.  kiwisolver objects can't
+
+-        # be pickled, so we lose the layout options at this point.
+
+-        state.pop('_layoutgrid', None)
+
+-
+
+-        return state
+
++...
+
+ 
+
+     def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+
+--- a/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -938,16 +938,24 @@
+     # docstring of pyplot.figlegend.
+
+ 
+
+     @docstring.dedent_interpd
+
++def get_version_info(self):
+
++        """
+
++        Return the version information as a tuple.
+
++
+
++        This method returns the version information as a tuple, which can be
+
++        easily compared with other tuples.
+
++        """
+
++        return tuple(map(int, self.__version__.split('.')))
+
++
+
+     def legend(self, *args, **kwargs):
+
+         """
+
+         Place a legend on the figure.
+
+ 
+
+-        Call signatures::
+
+-
+
+-            legend()
+
+-            legend(handles, labels)
+
+-            legend(handles=handles)
+
+-            legend(labels)
+
++        Call signatures:
+
++        - legend()
+
++        - legend(handles, labels)
+
++        - legend(handles=handles)
+
++        - legend(labels)
+
+ 
+
+         The call signatures correspond to the following different ways to use
+
+         this method:
+
+@@ -1032,45 +1040,7 @@
+ 
+
+         Returns
+
+         -------
+
+-        `~matplotlib.legend.Legend`
+
+-
+
+-        Other Parameters
+
+-        ----------------
+
+-        %(_legend_kw_doc)s
+
+-
+
+-        See Also
+
+-        --------
+
+-        .Axes.legend
+
+-
+
+-        Notes
+
+-        -----
+
+-        Some artists are not supported by this function.  See
+
+-        :doc:`/tutorials/intermediate/legend_guide` for details.
+
+-        """
+
+-
+
+-        handles, labels, extra_args, kwargs = mlegend._parse_legend_args(
+
+-                self.axes,
+
+-                *args,
+
+-                **kwargs)
+
+-        # check for third arg
+
+-        if len(extra_args):
+
+-            # _api.warn_deprecated(
+
+-            #     "2.1",
+
+-            #     message="Figure.legend will accept no more than two "
+
+-            #     "positional arguments in the future.  Use "
+
+-            #     "'fig.legend(handles, labels, loc=location)' "
+
+-            #     "instead.")
+
+-            # kwargs['loc'] = extra_args[0]
+
+-            # extra_args = extra_args[1:]
+
+-            pass
+
+-        transform = kwargs.pop('bbox_transform', self.transSubfigure)
+
+-        # explicitly set the bbox transform if the user hasn't.
+
+-        l = mlegend.Legend(self, handles, labels, *extra_args,
+
+-                           bbox_transform=transform, **kwargs)
+
+-        self.legends.append(l)
+
+-        l._remove_method = self.legends.remove
+
+-        self.stale = True
+
+-        return l
+
++        `~matplotlib.legend.Legend
+
+ 
+
+     @docstring.dedent_interpd
+
+     def text(self, x, y, s, fontdict=None, **kwargs):
+
+
+--- a/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -1655,257 +1655,113 @@
+             layout = inspect.cleandoc(layout)
+
+             return [list(ln) for ln in layout.strip('\n').split('\n')]
+
+ 
+
+-    def subplot_mosaic(self, mosaic, *, sharex=False, sharey=False,
+
+-                       subplot_kw=None, gridspec_kw=None, empty_sentinel='.'):
+
+-        """
+
+-        Build a layout of Axes based on ASCII art or nested lists.
+
+-
+
+-        This is a helper function to build complex GridSpec layouts visually.
+
+-
+
+-        .. note ::
+
+-
+
+-           This API is provisional and may be revised in the future based on
+
+-           early user feedback.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        mosaic : list of list of {hashable or nested} or str
+
+-
+
+-            A visual layout of how you want your Axes to be arranged
+
+-            labeled as strings.  For example ::
+
+-
+
+-               x = [['A panel', 'A panel', 'edge'],
+
+-                    ['C panel', '.',       'edge']]
+
+-
+
+-            produces 4 Axes:
+
+-
+
+-            - 'A panel' which is 1 row high and spans the first two columns
+
+-            - 'edge' which is 2 rows high and is on the right edge
+
+-            - 'C panel' which in 1 row and 1 column wide in the bottom left
+
+-            - a blank space 1 row and 1 column wide in the bottom center
+
+-
+
+-            Any of the entries in the layout can be a list of lists
+
+-            of the same form to create nested layouts.
+
+-
+
+-            If input is a str, then it can either be a multi-line string of
+
+-            the form ::
+
+-
+
+-              '''
+
+-              AAE
+
+-              C.E
+
+-              '''
+
+-
+
+-            where each character is a column and each line is a row. Or it
+
+-            can be a single-line string where rows are separated by ``;``::
+
+-
+
+-              'AB;CC'
+
+-
+
+-            The string notation allows only single character Axes labels and
+
+-            does not support nesting but is very terse.
+
+-
+
+-        sharex, sharey : bool, default: False
+
+-            If True, the x-axis (*sharex*) or y-axis (*sharey*) will be shared
+
+-            among all subplots.  In that case, tick label visibility and axis
+
+-            units behave as for `subplots`.  If False, each subplot's x- or
+
+-            y-axis will be independent.
+
+-
+
+-        subplot_kw : dict, optional
+
+-            Dictionary with keywords passed to the `.Figure.add_subplot` call
+
+-            used to create each subplot.
+
+-
+
+-        gridspec_kw : dict, optional
+
+-            Dictionary with keywords passed to the `.GridSpec` constructor used
+
+-            to create the grid the subplots are placed on.
+
+-
+
+-        empty_sentinel : object, optional
+
+-            Entry in the layout to mean "leave this space empty".  Defaults
+
+-            to ``'.'``. Note, if *layout* is a string, it is processed via
+
+-            `inspect.cleandoc` to remove leading white space, which may
+
+-            interfere with using white-space as the empty sentinel.
+
++def subplot_mosaic(self, mosaic, *, sharex=False, sharey=False,
+
++                   subplot_kw=None, gridspec_kw=None, empty_sentinel='.'):
+
++    """
+
++    Build a layout of Axes based on ASCII art or nested lists.
+
++
+
++    This is a helper function to build complex GridSpec layouts visually.
+
++
+
++    .. note ::
+
++
+
++       This API is provisional and may be revised in the future based on
+
++       early user feedback.
+
++
+
++    Parameters
+
++    ----------
+
++    mosaic : list of list of {hashable or nested} or str
+
++
+
++        A visual layout of how you want your Axes to be arranged
+
++        labeled as strings.  For example ::
+
++
+
++           x = [['A panel', 'A panel', 'edge'],
+
++                ['C panel', '.',       'edge']]
+
++
+
++        produces 4 Axes:
+
++
+
++        - 'A panel' which is 1 row high and spans the first two columns
+
++        - 'edge' which is 2 rows high and is on the right edge
+
++        - 'C panel' which in 1 row and 1 column wide in the bottom left
+
++        - a blank space 1 row and 1 column wide in the bottom center
+
++
+
++        Any of the entries in the layout can be a list of lists
+
++        of the same form to create nested layouts.
+
++
+
++        If input is a str, then it can either be a multi-line string of
+
++        the form ::
+
++
+
++          '''
+
++          AAE
+
++          C.E
+
++          '''
+
++
+
++        where each character is a column and each line is a row. Or it
+
++        can be a single-line string where rows are separated by ``;``::
+
++
+
++          'AB;CC'
+
++
+
++        The string notation allows only single character Axes labels and
+
++        does not support nesting but is very terse.
+
++
+
++    sharex, sharey : bool, default: False
+
++        If True, the x-axis (*sharex*) or y-axis (*sharey*) will be shared
+
++        among all subplots.  In that case, tick label visibility and axis
+
++        units behave as for `subplots`.  If False, each subplot's x- or
+
++        y-axis will be independent.
+
++
+
++    subplot_kw : dict, optional
+
++        Dictionary with keywords passed to the `.Figure.add_subplot` call
+
++        used to create each subplot.
+
++
+
++    gridspec_kw : dict, optional
+
++        Dictionary with keywords passed to the `.GridSpec` constructor used
+
++        to create the grid the subplots are placed on.
+
++
+
++    empty_sentinel : object, optional
+
++        Entry in the layout to mean "leave this space empty".  Defaults
+
++        to ``'.'``. Note, if *layout* is a string, it is processed via
+
++        `inspect.cleandoc` to remove leading white space, which may
+
++        interfere with using white-space as the empty sentinel.
+
++
+
++    Returns
+
++    -------
+
++    dict[label, Axes]
+
++       A dictionary mapping the labels to the Axes objects.  The order of
+
++       the axes is left-to-right and top-to-bottom of their position in the
+
++       total layout.
+
++
+
++    """
+
++    subplot_kw = subplot_kw or {}
+
++    gridspec_kw = gridspec_kw or {}
+
++    # special-case string input
+
++    if isinstance(mosaic, str):
+
++        mosaic = self._normalize_grid_string(mosaic)
+
++    # Only accept strict bools to allow a possible future API expansion.
+
++    _api.check_isinstance(bool, sharex=sharex, sharey=sharey)
+
++
+
++    def _make_array(inp):
+
++        """
+
++        Convert input into 2D array
+
++
+
++        We need to have this internal function rather than
+
++        ``np.asarray(..., dtype=object)`` so that a list of lists
+
++        of lists does not get converted to an array of dimension >
+
++        2
+
+ 
+
+         Returns
+
+         -------
+
+-        dict[label, Axes]
+
+-           A dictionary mapping the labels to the Axes objects.  The order of
+
+-           the axes is left-to-right and top-to-bottom of their position in the
+
+-           total layout.
+
+-
+
+-        """
+
+-        subplot_kw = subplot_kw or {}
+
+-        gridspec_kw = gridspec_kw or {}
+
+-        # special-case string input
+
+-        if isinstance(mosaic, str):
+
+-            mosaic = self._normalize_grid_string(mosaic)
+
+-        # Only accept strict bools to allow a possible future API expansion.
+
+-        _api.check_isinstance(bool, sharex=sharex, sharey=sharey)
+
+-
+
+-        def _make_array(inp):
+
+-            """
+
+-            Convert input into 2D array
+
+-
+
+-            We need to have this internal function rather than
+
+-            ``np.asarray(..., dtype=object)`` so that a list of lists
+
+-            of lists does not get converted to an array of dimension >
+
+-            2
+
+-
+
+-            Returns
+
+-            -------
+
+-            2D object array
+
+-
+
+-            """
+
+-            r0, *rest = inp
+
+-            if isinstance(r0, str):
+
++        2D object array
+
++
+
++        """
+
++        r0, *rest = inp
+
++        if isinstance(r0, str):
+
++            raise ValueError('List mosaic specification must be 2D')
+
++        for j, r in enumerate(rest, start=1):
+
++            if isinstance(r, str):
+
+                 raise ValueError('List mosaic specification must be 2D')
+
+-            for j, r in enumerate(rest, start=1):
+
+-                if isinstance(r, str):
+
+-                    raise ValueError('List mosaic specification must be 2D')
+
+-                if len(r0) != len(r):
+
+-                    raise ValueError(
+
+-                        "All of the rows must be the same length, however "
+
+-                        f"the first row ({r0!r}) has length {len(r0)} "
+
+-                        f"and row {j} ({r!r}) has length {len(r)}."
+
+-                    )
+
+-            out = np.zeros((len(inp), len(r0)), dtype=object)
+
+-            for j, r in enumerate(inp):
+
+-                for k, v in enumerate(r):
+
+-                    out[j, k] = v
+
+-            return out
+
+-
+
+-        def _identify_keys_and_nested(mosaic):
+
+-            """
+
+-            Given a 2D object array, identify unique IDs and nested mosaics
+
+-
+
+-            Parameters
+
+-            ----------
+
+-            mosaic : 2D numpy object array
+
+-
+
+-            Returns
+
+-            -------
+
+-            unique_ids : tuple
+
+-                The unique non-sub mosaic entries in this mosaic
+
+-            nested : dict[tuple[int, int]], 2D object array
+
+-            """
+
+-            # make sure we preserve the user supplied order
+
+-            unique_ids = cbook._OrderedSet()
+
+-            nested = {}
+
+-            for j, row in enumerate(mosaic):
+
+-                for k, v in enumerate(row):
+
+-                    if v == empty_sentinel:
+
+-                        continue
+
+-                    elif not cbook.is_scalar_or_string(v):
+
+-                        nested[(j, k)] = _make_array(v)
+
+-                    else:
+
+-                        unique_ids.add(v)
+
+-
+
+-            return tuple(unique_ids), nested
+
+-
+
+-        def _do_layout(gs, mosaic, unique_ids, nested):
+
+-            """
+
+-            Recursively do the mosaic.
+
+-
+
+-            Parameters
+
+-            ----------
+
+-            gs : GridSpec
+
+-            mosaic : 2D object array
+
+-                The input converted to a 2D numpy array for this level.
+
+-            unique_ids : tuple
+
+-                The identified scalar labels at this level of nesting.
+
+-            nested : dict[tuple[int, int]], 2D object array
+
+-                The identified nested mosaics, if any.
+
+-
+
+-            Returns
+
+-            -------
+
+-            dict[label, Axes]
+
+-                A flat dict of all of the Axes created.
+
+-            """
+
+-            output = dict()
+
+-
+
+-            # we need to merge together the Axes at this level and the axes
+
+-            # in the (recursively) nested sub-mosaics so that we can add
+
+-            # them to the figure in the "natural" order if you were to
+
+-            # ravel in c-order all of the Axes that will be created
+
+-            #
+
+-            # This will stash the upper left index of each object (axes or
+
+-            # nested mosaic) at this level
+
+-            this_level = dict()
+
+-
+
+-            # go through the unique keys,
+
+-            for name in unique_ids:
+
+-                # sort out where each axes starts/ends
+
+-                indx = np.argwhere(mosaic == name)
+
+-                start_row, start_col = np.min(indx, axis=0)
+
+-                end_row, end_col = np.max(indx, axis=0) + 1
+
+-                # and construct the slice object
+
+-                slc = (slice(start_row, end_row), slice(start_col, end_col))
+
+-                # some light error checking
+
+-                if (mosaic[slc] != name).any():
+
+-                    raise ValueError(
+
+-                        f"While trying to layout\n{mosaic!r}\n"
+
+-                        f"we found that the label {name!r} specifies a "
+
+-                        "non-rectangular or non-contiguous area.")
+
+-                # and stash this slice for later
+
+-                this_level[(start_row, start_col)] = (name, slc, 'axes')
+
+-
+
+-            # do the same thing for the nested mosaics (simpler because these
+
+-            # can not be spans yet!)
+
+-            for (j, k), nested_mosaic in nested.items():
+
+-                this_level[(j, k)] = (None, nested_mosaic, 'nested')
+
+-
+
+-            # now go through the things in this level and add them
+
+-            # in order left-to-right top-to-bottom
+
+-            for key in sorted(this_level):
+
+-                name, arg, method = this_level[key]
+
+-                # we are doing some hokey function dispatch here based
+
+-                # on the 'method' string stashed above to sort out if this
+
+-                # element is an axes or a nested mosaic.
+
+-                if method == 'axes':
+
+-                    slc = arg
+
+-                    # add a single axes
+
+-                    if name in output:
+
+-                        raise ValueError(f"There are duplicate keys {name} "
+
+-                                         f"in the layout\n{mosaic!r}")
+
+-                    ax = self.add_subplot(
+
+-                        gs[slc], **{'label': str(name), **subplot_kw}
+
+-                    )
+
+-                    output[name] = ax
+
+-                elif method == 'nested':
+
+-                    nested_mosaic = arg
+
+-                    j, k = key
+
+-                    # recursively add the nested mosaic
+
+-                    rows, cols = nested_mosaic.shape
+
+-                    nested_output = _do_layout(
+
+-                        gs[j, k].subgridspec(rows, cols, **gridspec_kw),
+
+-                        nested_mosaic,
+
+-                        *_identify_keys_and_nested(nested_mosaic)
+
+-                    )
+
+-                    overlap = set(output) & set(nested_output)
+
+-                    if overlap:
+
+-                        raise ValueError(
+
+-                            f"There are duplicate keys {overlap} "
+
+-                            f"between the outer layout\n{mosaic!r}\n"
+
+-                            f"and the nested layout\n{nested_mosaic}"
+
+-                        )
+
+-                    output.update(nested_output)
+
+-                else:
+
+-                    raise RuntimeError("This should never happen")
+
+-            return output
+
+-
+
+-        mosaic = _make_array(mosaic)
+
+-        rows, cols = mosaic.shape
+
+-        gs = self.add_gridspec(rows, cols, **gridspec_kw)
+
+-        ret = _do_layout(gs, mosaic, *_identify_keys_and_nested(mosaic))
+
+-        ax0 = next(iter(ret.values()))
+
+-        for ax in ret.values():
+
+-            if sharex:
+
+-                ax.sharex(ax0)
+
+-                ax._label_outer_xaxis()
+
+-            if sharey:
+
+-                ax.sharey(ax0)
+
+-                ax._label_outer_yaxis()
+
+-        for k, ax in ret.items():
+
+-            if isinstance(k, str):
+
+-                ax.set_label(k)
+
+-        return ret
+
++            if len(r0) != len(r):
+
++                raise ValueError(
+
++                    "All of the rows must be the same length, however "
+
+ 
+
+     def _set_artist_props(self, a):
+
+         if a != self:
+
+
+--- a/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/120/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2264,42 +2264,45 @@
+             from matplotlib.backends import backend_webagg
+
+             return backend_webagg.ipython_inline_display(self)
+
+ 
+
+-    def show(self, warn=True):
+
+-        """
+
+-        If using a GUI backend with pyplot, display the figure window.
+
+-
+
+-        If the figure was not created using `~.pyplot.figure`, it will lack
+
+-        a `~.backend_bases.FigureManagerBase`, and this method will raise an
+
+-        AttributeError.
+
+-
+
+-        .. warning::
+
+-
+
+-            This does not manage an GUI event loop. Consequently, the figure
+
+-            may only be shown briefly or not shown at all if you or your
+
+-            environment are not managing an event loop.
+
+-
+
+-            Proper use cases for `.Figure.show` include running this from a
+
+-            GUI application or an IPython shell.
+
+-
+
+-            If you're running a pure python shell or executing a non-GUI
+
+-            python script, you should use `matplotlib.pyplot.show` instead,
+
+-            which takes care of managing the event loop for you.
+
+-
+
+-        Parameters
+
+-        ----------
+
+-        warn : bool, default: True
+
+-            If ``True`` and we are not running headless (i.e. on Linux with an
+
+-            unset DISPLAY), issue warning when called on a non-GUI backend.
+
+-        """
+
+-        if self.canvas.manager is None:
+
+-            raise AttributeError(
+
+-                "Figure.show works only for figures managed by pyplot, "
+
+-                "normally created by pyplot.figure()")
+
+-        try:
+
+-            self.canvas.manager.show()
+
+-        except NonGuiException as exc:
+
+-            if warn:
+
+-                _api.warn_external(str(exc))
+
++def show(self, warn=True):
+
++    """
+
++    If using a GUI backend with pyplot, display the figure window.
+
++
+
++    If the figure was not created using `~.pyplot.figure`, it will lack
+
++    a `~.backend_bases.FigureManagerBase`, and this method will raise an
+
++    AttributeError.
+
++
+
++    .. warning::
+
++
+
++        This does not manage an GUI event loop. Consequently, the figure
+
++        may only be shown briefly or not shown at all if you or your
+
++        environment are not managing an event loop.
+
++
+
++        Proper use cases for `.Figure.show` include running this from a
+
++        GUI application or an IPython shell.
+
++
+
++        If you're running a pure python shell or executing a non-GUI
+
++        python script, you should use `matplotlib.pyplot.show` instead,
+
++        which takes care of managing the event loop for you.
+
++
+
++    Parameters
+
++    ----------
+
++    warn : bool, default: True
+
++        If ``True`` and we are not running headless (i.e. on Linux with an
+
++        unset DISPLAY), issue warning when called on a non-GUI backend.
+
++    """
+
++    # Add version_info or LooseVersion instance for easy version comparison
+
++    version_info = tuple(map(int, self.__version__.split('.')))
+
++    
+
++    if self.canvas.manager is None:
+
++        raise AttributeError(
+
++            "Figure.show works only for figures managed by pyplot, "
+
++            "normally created by pyplot.figure()")
+
++    try:
+
++        self.canvas.manager.show()
+
++    except NonGuiException as exc:
+
++        if warn:
+
++            _api.warn_external(str(exc))
+
+ 
+
+     @property
+
+     def axes(self):
+
+

@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
++++ b/decoupled/60/0.8_0.2/106/django_django/django/contrib/admin/options.py
+@@ -544,7 +544,7 @@
+         codename = get_permission_codename("add", opts)
+
+         return request.user.has_perm("%s.%s" % (opts.app_label, codename))
+
+ 
+
+-    def has_change_permission(self, request, obj=None):
+
++def has_change_permission(self, request, obj=None):
+
+         """
+
+         Return True if the given request has permission to change the given
+
+         Django model instance, the default implementation doesn't examine the

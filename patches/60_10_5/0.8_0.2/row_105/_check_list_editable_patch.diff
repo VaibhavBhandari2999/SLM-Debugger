@@ -1,0 +1,83 @@
+--- a/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
+@@ -1070,7 +1070,7 @@
+         else:
+
+             return []
+
+ 
+
+-    def _check_list_editable(self, obj):
+
++def _check_list_editable(self, obj):
+
+         """Check that list_editable is a sequence of editable fields from
+
+         list_display without first element."""
+
+ 
+
+@@ -1087,6 +1087,32 @@
+                     for index, item in enumerate(obj.list_editable)
+
+                 )
+
+             )
+
++
+
++# Proposed fix for the bug
+
++def _check_list_editable(self, obj):
+
++    """Check that list_editable is a sequence of editable fields from
+
++    list_display without first element."""
+
++
+
++    if not isinstance(obj.list_editable, (list, tuple)):
+
++        return must_be(
+
++            "a list or tuple", option="list_editable", obj=obj, id="admin.E120"
+
++        )
+
++    else:
+
++        # Ensure that each item in list_editable is a non-empty string before checking
+
++        for index, item in enumerate(obj.list_editable):
+
++            if item is None or item == "":
+
++                raise ValueError(f"list_editable item at index {index} is null or empty")
+
++            if item[0] == "-":
+
++                # Your original logic here
+
++                pass
+
++        return list(
+
++            chain.from_iterable(
+
++                self._check_list_editable_item(
+
++                    obj, item, "list_editable[%d]" % index
+
++                )
+
++                for index, item in enumerate(obj.list_editable)
+
++            )
+
++        )
+
+ 
+
+     def _check_list_editable_item(self, obj, field_name, label):
+
+         try:

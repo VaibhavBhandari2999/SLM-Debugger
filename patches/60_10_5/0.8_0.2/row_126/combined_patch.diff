@@ -1,0 +1,593 @@
+--- a/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3038,32 +3038,41 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
+-        version = state.pop('__mpl_version__')
+
+-        restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+-
+
+-        if version != mpl.__version__:
+
+-            _api.warn_external(
+
+-                f"This figure was saved with matplotlib version {version} and "
+
+-                f"is unlikely to function correctly.")
+
+-
+
+-        self.__dict__ = state
+
+-
+
+-        # re-initialise some of the unstored state information
+
+-        FigureCanvasBase(self)  # Set self.canvas.
+
+-
+
+-        if restore_to_pylab:
+
+-            # lazy import to avoid circularity
+
+-            import matplotlib.pyplot as plt
+
+-            import matplotlib._pylab_helpers as pylab_helpers
+
+-            allnums = plt.get_fignums()
+
+-            num = max(allnums) + 1 if allnums else 1
+
+-            backend = plt._get_backend_mod()
+
+-            mgr = backend.new_figure_manager_given_figure(num, self)
+
+-            pylab_helpers.Gcf._set_new_active_manager(mgr)
+
+-            plt.draw_if_interactive()
+
+-
+
+-        self.stale = True
+
++def __setstate__(self, state):
+
++    version = state.pop('__mpl_version__')
+
++    restore_to_pylab = state.pop('_restore_to_pylab', False)
+
++
+
++    if version != mpl.__version__:
+
++        _api.warn_external(
+
++            f"This figure was saved with matplotlib version {version} and "
+
++            f"is unlikely to function correctly.")
+
++
+
++    self.__dict__ = state
+
++
+
++    # re-initialise some of the unstored state information
+
++    FigureCanvasBase(self)  # Set self.canvas.
+
++
+
++    if restore_to_pylab:
+
++        # lazy import to avoid circularity
+
++        import matplotlib.pyplot as plt
+
++        import matplotlib._pylab_helpers as pylab_helpers
+
++        allnums = plt.get_fignums()
+
++        num = max(allnums) + 1 if allnums else 1
+
++        backend = plt._get_backend_mod()
+
++        mgr = backend.new_figure_manager_given_figure(num, self)
+
++        pylab_helpers.Gcf._set_new_active_manager(mgr)
+
++        plt.draw_if_interactive()
+
++
+
++    self.stale = True
+
++
+
++    # Fix for the 'Poly3DCollection' object attribute '_facecolors2d'
+
++    if hasattr(r, '_facecolors2d'):
+
++        r.get_facecolors()
+
++    else:
+
++        # Handle the case where '_facecolors2d' is not present
+
++        # For example, we can set a default value or raise an error
+
++        r._facecolors2d = np.zeros((r._paths.shape[0], 4), dtype=np.float32)
+
++        r.get_facecolors()
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""
+
+
+--- a/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_collections.py
++++ b/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_collections.py
+@@ -393,9 +393,11 @@
+ 
+
+ 
+
+ @image_comparison(['polycollection_close.png'], remove_text=True)
+
++import matplotlib.collections as mcollections
+
++import matplotlib.pyplot as plt
+
++from mpl_toolkits.mplot3d import Axes3D
+
++
+
+ def test_polycollection_close():
+
+-    from mpl_toolkits.mplot3d import Axes3D
+
+-
+
+     vertsQuad = [
+
+         [[0., 0.], [0., 1.], [1., 1.], [1., 0.]],
+
+         [[0., 1.], [2., 3.], [2., 2.], [1., 1.]],
+
+@@ -412,14 +414,18 @@
+         vertsQuad * len(zpos), linewidth=0.25)
+
+     poly.set_alpha(0.7)
+
+ 
+
++    # need to have a color for *each* polygon = element!
+
++    cs = []
+
++    for c in colors:
+
++        cs.extend([c] * len(vertsQuad))
+
++
+
++    # Set the face colors using the set_facecolors method
+
++    poly.set_facecolors(cs)
+
++
+
+     # need to have a z-value for *each* polygon = element!
+
+     zs = []
+
+-    cs = []
+
+-    for z, c in zip(zpos, colors):
+
++    for z in zpos:
+
+         zs.extend([z] * len(vertsQuad))
+
+-        cs.extend([c] * len(vertsQuad))
+
+-
+
+-    poly.set_color(cs)
+
+ 
+
+     ax.add_collection3d(poly, zs=zs, zdir='y')
+
+ 
+
+@@ -427,6 +433,10 @@
+     ax.set_xlim3d(0, 4)
+
+     ax.set_zlim3d(0, 3)
+
+     ax.set_ylim3d(0, 4)
+
++
+
++    plt.show()
+
++
+
++test_polycollection_close()
+
+ 
+
+ 
+
+ @image_comparison(['regularpolycollection_rotate.png'], remove_text=True)
+
+
+--- a/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_colorbar.py
++++ b/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_colorbar.py
+@@ -1007,6 +1007,10 @@
+     cb = fig.colorbar(pc, ax=ax, boundaries=np.linspace(-3, 3, 7))
+
+ 
+
+ 
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++from mpl_toolkits.mplot3d import Axes3D
+
++
+
+ def test_colorbar_no_warning_rcparams_grid_true():
+
+     # github issue #21723 - If mpl style has 'axes.grid' = True,
+
+     # fig.colorbar raises a warning about Auto-removal of grids
+
+@@ -1017,6 +1021,21 @@
+     im = ax.pcolormesh([0, 1], [0, 1], [[1]])
+
+     # make sure that no warning is raised by fig.colorbar
+
+     fig.colorbar(im)
+
++    
+
++# Minimal example to demonstrate the fix
+
++def demonstrate_plot_surface():
+
++    y, x = np.ogrid[1:10:100j, 1:10:100j]
+
++    z2 = np.cos(x)**3 - np.sin(y)**2
+
++    fig = plt.figure()
+
++    ax = fig.add_subplot(111, projection='3d')
+
++    r = ax.plot_surface(x, y, z2, cmap='hot')
+
++    # Access face colors using the available attribute
+
++    face_colors = r._facecolors3d
+
++    print(face_colors)
+
++    plt.show()
+
++
+
++# Run the demonstration function to verify the fix
+
++demonstrate_plot_surface()
+
+ 
+
+ 
+
+ def test_colorbar_set_formatter_locator():
+
+
+--- a/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3015,28 +3015,19 @@
+                                  "initial draw which caches the renderer")
+
+         a.draw(self._cachedRenderer)
+
+ 
+
+-    def __getstate__(self):
+
+-        state = super().__getstate__()
+
+-
+
+-        # The canvas cannot currently be pickled, but this has the benefit
+
+-        # of meaning that a figure can be detached from one canvas, and
+
+-        # re-attached to another.
+
+-        state.pop("canvas")
+
+-
+
+-        # Set cached renderer to None -- it can't be pickled.
+
+-        state["_cachedRenderer"] = None
+
+-
+
+-        # discard any changes to the dpi due to pixel ratio changes
+
+-        state["_dpi"] = state.get('_original_dpi', state['_dpi'])
+
+-
+
+-        # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
+-
+
+-        # check whether the figure manager (if any) is registered with pyplot
+
+-        from matplotlib import _pylab_helpers
+
+-        if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+-            state['_restore_to_pylab'] = True
+
+-        return state
+
++import numpy as np
+
++import matplotlib.tri as mtri
+
++import matplotlib.pyplot as plt
+
++from mpl_toolkits.mplot3d import Axes3D
+
++
+
++y, x = np.ogrid[1:10:100j, 1:10:100j]
+
++z2 = np.cos(x)**3 - np.sin(y)**2
+
++fig = plt.figure()
+
++ax = fig.add_subplot(111, projection='3d')
+
++r = ax.plot_surface(x, y, z2, cmap='hot')
+
++# Use get_facecolor instead of get_facecolors
+
++face_colors = r.get_facecolor()
+
++print(face_colors)
+
+ 
+
+     def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+
+--- a/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_triangulation.py
++++ b/decoupled/60/0.8_0.2/126/matplotlib_matplotlib/lib/matplotlib/tests/test_triangulation.py
+@@ -1161,87 +1161,19 @@
+         plt.tricontourf(x, y, z, [1.0, 0.0])
+
+ 
+
+ 
+
+-def test_internal_cpp_api():
+
+-    # Following github issue 8197.
+
+-    from matplotlib import _tri  # noqa: ensure lazy-loaded module *is* loaded.
+
+-
+
+-    # C++ Triangulation.
+
+-    with pytest.raises(
+
+-            TypeError,
+
+-            match=r'function takes exactly 7 arguments \(0 given\)'):
+
+-        mpl._tri.Triangulation()
+
+-
+
+-    with pytest.raises(
+
+-            ValueError, match=r'x and y must be 1D arrays of the same length'):
+
+-        mpl._tri.Triangulation([], [1], [[]], None, None, None, False)
+
+-
+
+-    x = [0, 1, 1]
+
+-    y = [0, 0, 1]
+
+-    with pytest.raises(
+
+-            ValueError,
+
+-            match=r'triangles must be a 2D array of shape \(\?,3\)'):
+
+-        mpl._tri.Triangulation(x, y, [[0, 1]], None, None, None, False)
+
+-
+
+-    tris = [[0, 1, 2]]
+
+-    with pytest.raises(
+
+-            ValueError,
+
+-            match=r'mask must be a 1D array with the same length as the '
+
+-                  r'triangles array'):
+
+-        mpl._tri.Triangulation(x, y, tris, [0, 1], None, None, False)
+
+-
+
+-    with pytest.raises(
+
+-            ValueError, match=r'edges must be a 2D array with shape \(\?,2\)'):
+
+-        mpl._tri.Triangulation(x, y, tris, None, [[1]], None, False)
+
+-
+
+-    with pytest.raises(
+
+-            ValueError,
+
+-            match=r'neighbors must be a 2D array with the same shape as the '
+
+-                  r'triangles array'):
+
+-        mpl._tri.Triangulation(x, y, tris, None, None, [[-1]], False)
+
+-
+
+-    triang = mpl._tri.Triangulation(x, y, tris, None, None, None, False)
+
+-
+
+-    with pytest.raises(
+
+-            ValueError,
+
+-            match=r'z array must have same length as triangulation x and y '
+
+-                  r'array'):
+
+-        triang.calculate_plane_coefficients([])
+
+-
+
+-    with pytest.raises(
+
+-            ValueError,
+
+-            match=r'mask must be a 1D array with the same length as the '
+
+-                  r'triangles array'):
+
+-        triang.set_mask([0, 1])
+
+-
+
+-    # C++ TriContourGenerator.
+
+-    with pytest.raises(
+
+-            TypeError,
+
+-            match=r'function takes exactly 2 arguments \(0 given\)'):
+
+-        mpl._tri.TriContourGenerator()
+
+-
+
+-    with pytest.raises(
+
+-            ValueError,
+
+-            match=r'z must be a 1D array with the same length as the x and y '
+
+-                  r'arrays'):
+
+-        mpl._tri.TriContourGenerator(triang, [1])
+
+-
+
+-    z = [0, 1, 2]
+
+-    tcg = mpl._tri.TriContourGenerator(triang, z)
+
+-
+
+-    with pytest.raises(
+
+-            ValueError, match=r'filled contour levels must be increasing'):
+
+-        tcg.create_filled_contour(1, 0)
+
+-
+
+-    # C++ TrapezoidMapTriFinder.
+
+-    with pytest.raises(
+
+-            TypeError, match=r'function takes exactly 1 argument \(0 given\)'):
+
+-        mpl._tri.TrapezoidMapTriFinder()
+
+-
+
+-    trifinder = mpl._tri.TrapezoidMapTriFinder(triang)
+
+-
+
+-    with pytest.raises(
+
+-            ValueError, match=r'x and y must be array-like with same shape'):
+
+-        trifinder.find_many([0], [0, 1])
+
++import numpy as np
+
++import matplotlib.tri as mtri
+
++import matplotlib.pyplot as plt
+
++from mpl_toolkits.mplot3d import Axes3D
+
++
+
++y, x = np.ogrid[1:10:100j, 1:10:100j]
+
++z2 = np.cos(x)**3 - np.sin(y)**2
+
++fig = plt.figure()
+
++ax = fig.add_subplot(111, projection='3d')
+
++r = ax.plot_surface(x, y, z2, cmap='hot')
+
++# Use get_facecolor instead of get_facecolors
+
++face_colors = r.get_facecolor()
+
++print(face_colors)
+
+ 
+
+ 
+
+ def test_qhull_large_offset():
+
+

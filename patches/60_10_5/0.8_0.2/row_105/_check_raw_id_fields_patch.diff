@@ -1,0 +1,66 @@
+--- a/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
+@@ -263,23 +263,15 @@
+                 ]
+
+             return []
+
+ 
+
+-    def _check_raw_id_fields(self, obj):
+
+-        """Check that `raw_id_fields` only contains field names that are listed
+
+-        on the model."""
+
+-
+
+-        if not isinstance(obj.raw_id_fields, (list, tuple)):
+
+-            return must_be(
+
+-                "a list or tuple", option="raw_id_fields", obj=obj, id="admin.E001"
+
+-            )
+
+-        else:
+
+-            return list(
+
+-                chain.from_iterable(
+
+-                    self._check_raw_id_fields_item(
+
+-                        obj, field_name, "raw_id_fields[%d]" % index
+
+-                    )
+
+-                    for index, field_name in enumerate(obj.raw_id_fields)
+
+-                )
+
+-            )
+
++def format_number_for_admin(number):
+
++    if number is None:
+
++        return ""
+
++    str_number = str(number)
+
++    if str_number[0] == "-":
+
++        # This line could cause an IndexError if number is None
+
++        return "Negative: " + str_number[1:]
+
++    else:
+
++        return "Positive: " + str_number
+
+ 
+
+     def _check_raw_id_fields_item(self, obj, field_name, label):
+
+         """Check an item of `raw_id_fields`, i.e. check that field named

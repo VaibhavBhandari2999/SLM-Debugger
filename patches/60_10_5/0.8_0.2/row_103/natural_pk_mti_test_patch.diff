@@ -1,0 +1,53 @@
+--- a/decoupled/60/0.8_0.2/103/django_django/tests/serializers/test_natural.py
++++ b/decoupled/60/0.8_0.2/103/django_django/tests/serializers/test_natural.py
+@@ -96,11 +96,16 @@
+     """
+
+     child_1 = Child.objects.create(parent_data="1", child_data="1")
+
+     child_2 = Child.objects.create(parent_data="2", child_data="2")
+
++    # Use enum._decompose to get the list of flags and create an expression to OR them together
+
++    default_value = re.UNICODE | re.IGNORECASE
+
++    decomposed_flags = [flag for flag, value in re.RegexFlag._decompose(default_value)]
+
++    regex_flag_expression = reduce(lambda x, y: x | y, decomposed_flags)
+
+     string_data = serializers.serialize(
+
+         format,
+
+         [child_1.parent_ptr, child_2.parent_ptr, child_2, child_1],
+
+         use_natural_foreign_keys=True,
+
+         use_natural_primary_keys=True,
+
++        regex_flags=regex_flag_expression,
+
+     )
+
+     child_1.delete()
+
+     child_2.delete()
+
+@@ -109,8 +114,7 @@
+     children = Child.objects.all()
+
+     self.assertEqual(len(children), 2)
+
+     for child in children:
+
+-        # If it's possible to find the superclass from the subclass and it's
+
+-        # the correct superclass, it's working.
+
++        # If it's possible to find the superclass from the subclass and it's the correct superclass, it's working.
+
+         self.assertEqual(child.child_data, child.parent_data)
+
+ 
+
+ 

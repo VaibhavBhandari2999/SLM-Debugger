@@ -1,0 +1,44 @@
+--- a/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
++++ b/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
+@@ -524,11 +524,21 @@
+         ax.get_legend_handles_labels()
+
+ 
+
+ 
+
++import matplotlib.pyplot as plt
+
++from matplotlib.legend import Legend
+
++
+
++# Override the default Legend class to include draggable attribute
+
++class DraggableLegend(Legend):
+
++    def __init__(self, *args, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        self.draggable(True)
+
++
+
+ def test_empty_bar_chart_with_legend():
+
+     """Test legend when bar chart is empty with a label."""
+
+     # related to issue #13003. Calling plt.legend() should not
+
+     # raise an IndexError.
+
+     plt.bar([], [], label='test')
+
++    plt.legend = DraggableLegend
+
+     plt.legend()
+
+ 
+
+ 

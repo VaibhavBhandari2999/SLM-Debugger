@@ -1,0 +1,181 @@
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -417,7 +417,7 @@
+         """
+
+         return self.patch.get_visible()
+
+ 
+
+-    def set_linewidth(self, linewidth):
+
++def set_linewidth(self, linewidth):
+
+         """
+
+         Set the line width of the Figure rectangle.
+
+ 
+
+@@ -426,6 +426,81 @@
+         linewidth : number
+
+         """
+
+         self.patch.set_linewidth(linewidth)
+
++
+
++    def draw_text(self, gc, x, y, s, angle, *args, **kwargs):
+
++        """
+
++        Draw the text on the PostScript backend.
+
++
+
++        Parameters
+
++        ----------
+
++        gc : GraphicsContextBase
+
++            The graphics context to use for drawing.
+
++        x, y : float
+
++            The position to draw the text.
+
++        s : str
+
++            The text string to draw.
+
++        angle : float
+
++            The angle to rotate the text.
+
++        *args, **kwargs : dict
+
++            Additional arguments to pass to the text renderer.
+
++        """
+
++        if s is None:
+
++            return  # Avoid processing NoneType objects
+
++
+
++        textrenderer = self.text_renderer
+
++        textrenderer.set_text(s)
+
++        textrenderer.set_transform(gc.get_transform().frozen())
+
++        textrenderer.set_clip_rectangle(gc.get_clip_rectangle())
+
++        textrenderer.set_clip_path(gc.get_clip_path(), gc.get_clip_rule())
+
++        textrenderer.set_color(gc.get_rgb())
+
++        textrenderer.set_font_size(gc.get_font_size())
+
++        textrenderer.set_font_family(gc.get_font_family())
+
++        textrenderer.set_font_style(gc.get_font_style())
+
++        textrenderer.set_font_variant(gc.get_font_variant())
+
++        textrenderer.set_font_weight(gc.get_font_weight())
+
++        textrenderer.set_font_stretch(gc.get_font_stretch())
+
++        textrenderer.set_font_slant(gc.get_font_slant())
+
++        textrenderer.set_font_antialiased(gc.get_font_antialiased())
+
++        textrenderer.set_font_type1(gc.get_font_type1())
+
++        textrenderer.set_font_type3(gc.get_font_type3())
+
++        textrenderer.set_font_type42(gc.get_font_type42())
+
++        textrenderer.set_font_path(gc.get_font_path())
+
++        textrenderer.set_font_data(gc.get_font_data())
+
++        textrenderer.set_font_matrix(gc.get_font_matrix())
+
++        textrenderer.set_font_transform(gc.get_font_transform())
+
++        textrenderer.set_font_size(gc.get_font_size())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get_font_size_points())
+
++        textrenderer.set_font_size_points(gc.get
+
+ 
+
+     def get_linewidth(self):
+
+         """

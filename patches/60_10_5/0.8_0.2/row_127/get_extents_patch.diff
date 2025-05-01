@@ -1,0 +1,35 @@
+--- a/decoupled/60/0.8_0.2/127/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/127/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -601,7 +601,7 @@
+             transform = transform.frozen()
+
+         return _path.path_in_path(self, None, path, transform)
+
+ 
+
+-    def get_extents(self, transform=None, **kwargs):
+
++def get_extents(self, transform=None, **kwargs):
+
+         """
+
+         Get Bbox of the path.
+
+ 
+
+@@ -638,6 +638,8 @@
+                 xys.append(curve([0, *dzeros, 1]))
+
+             xys = np.concatenate(xys)
+
+         if len(xys):
+
++            # Ensure that the vertices are in the correct format
+
++            xys = np.array(xys)
+
+             return Bbox([xys.min(axis=0), xys.max(axis=0)])
+
+         else:
+
+             return Bbox.null()

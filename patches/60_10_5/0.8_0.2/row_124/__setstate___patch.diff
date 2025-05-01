@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/124/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2966,7 +2966,7 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
++def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+         restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+ 
+
+@@ -2991,6 +2991,9 @@
+             plt.draw_if_interactive()
+
+ 
+
+         self.stale = True
+
++
+
++        # Ensure the visibility is correctly set and propagated
+
++        self.figure.canvas.draw_idle()
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""

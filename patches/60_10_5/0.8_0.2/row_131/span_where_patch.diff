@@ -1,0 +1,73 @@
+--- a/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/collections.py
++++ b/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/collections.py
+@@ -1256,7 +1256,19 @@
+         super().__init__(verts, **kwargs)
+
+ 
+
+     @classmethod
+
+-    def span_where(cls, x, ymin, ymax, where, **kwargs):
+
++import numpy as np
+
++import matplotlib.cbook as cbook
+
++
+
++class BarCollection:
+
++    @staticmethod
+
++    def _safe_first_finite(obj):
+
++        try:
+
++            return next(val for val in obj if np.isfinite(val))
+
++        except StopIteration:
+
++            return np.nan
+
++
+
++    @staticmethod
+
++    def span_where(x, ymin, ymax, where, **kwargs):
+
+         """
+
+         Return a `.BrokenBarHCollection` that plots horizontal bars from
+
+         over the regions in *x* where *where* is True.  The bars range
+
+@@ -1270,7 +1282,14 @@
+             if not len(xslice):
+
+                 continue
+
+             xranges.append((xslice[0], xslice[-1] - xslice[0]))
+
+-        return cls(xranges, [ymin, ymax - ymin], **kwargs)
+
++        return BarCollection(xranges, [ymin, ymax - ymin], **kwargs)
+
++
+
++# Test the fixed function
+
++import matplotlib.pyplot as plt
+
++
+
++f, ax = plt.subplots()
+
++ax.bar([np.nan], [np.nan])
+
++plt.show()
+
+ 
+
+ 
+
+ class RegularPolyCollection(_CollectionWithSizes):

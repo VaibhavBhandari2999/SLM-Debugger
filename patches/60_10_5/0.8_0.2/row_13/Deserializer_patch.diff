@@ -1,0 +1,188 @@
+--- a/decoupled/60/0.8_0.2/13/django_django/django/core/serializers/python.py
++++ b/decoupled/60/0.8_0.2/13/django_django/django/core/serializers/python.py
+@@ -75,6 +75,11 @@
+         return self.objects
+
+ 
+
+ 
+
++from django.http import HttpResponse
+
++from django.core.exceptions import DeserializationError
+
++from django.db.models import ManyToManyRel, ManyToOneRel
+
++from django.core.serializers.base import DeserializedObject, build_instance, deserialize_m2m_values, deserialize_fk_value, DEFER_FIELD
+
++
+
+ def Deserializer(object_list, *, using=DEFAULT_DB_ALIAS, ignorenonexistent=False, **options):
+
+     """
+
+     Deserialize simple Python objects back into Django ORM instances.
+
+@@ -89,7 +94,7 @@
+         # Look up the model and starting build a dict of data for it.
+
+         try:
+
+             Model = _get_model(d["model"])
+
+-        except base.DeserializationError:
+
++        except DeserializationError:
+
+             if ignorenonexistent:
+
+                 continue
+
+             else:
+
+@@ -99,7 +104,7 @@
+             try:
+
+                 data[Model._meta.pk.attname] = Model._meta.pk.to_python(d.get('pk'))
+
+             except Exception as e:
+
+-                raise base.DeserializationError.WithData(e, d['model'], d.get('pk'), None)
+
++                raise DeserializationError.WithData(e, d['model'], d.get('pk'), None)
+
+         m2m_data = {}
+
+         deferred_fields = {}
+
+ 
+
+@@ -117,22 +122,22 @@
+             field = Model._meta.get_field(field_name)
+
+ 
+
+             # Handle M2M relations
+
+-            if field.remote_field and isinstance(field.remote_field, models.ManyToManyRel):
+
++            if field.remote_field and isinstance(field.remote_field, ManyToManyRel):
+
+                 try:
+
+-                    values = base.deserialize_m2m_values(field, field_value, using, handle_forward_references)
+
+-                except base.M2MDeserializationError as e:
+
+-                    raise base.DeserializationError.WithData(e.original_exc, d['model'], d.get('pk'), e.pk)
+
+-                if values == base.DEFER_FIELD:
+
++                    values = deserialize_m2m_values(field, field_value, using, handle_forward_references)
+
++                except DeserializationError as e:
+
++                    raise DeserializationError.WithData(e, d['model'], d.get('pk'), e.pk)
+
++                if values == DEFER_FIELD:
+
+                     deferred_fields[field] = field_value
+
+                 else:
+
+                     m2m_data[field.name] = values
+
+             # Handle FK fields
+
+-            elif field.remote_field and isinstance(field.remote_field, models.ManyToOneRel):
+
++            elif field.remote_field and isinstance(field.remote_field, ManyToOneRel):
+
+                 try:
+
+-                    value = base.deserialize_fk_value(field, field_value, using, handle_forward_references)
+
++                    value = deserialize_fk_value(field, field_value, using, handle_forward_references)
+
+                 except Exception as e:
+
+-                    raise base.DeserializationError.WithData(e, d['model'], d.get('pk'), field_value)
+
+-                if value == base.DEFER_FIELD:
+
++                    raise DeserializationError.WithData(e, d['model'], d.get('pk'), field_value)
+
++                if value == DEFER_FIELD:
+
+                     deferred_fields[field] = field_value
+
+                 else:
+
+                     data[field.attname] = value
+
+@@ -141,10 +146,30 @@
+                 try:
+
+                     data[field.name] = field.to_python(field_value)
+
+                 except Exception as e:
+
+-                    raise base.DeserializationError.WithData(e, d['model'], d.get('pk'), field_value)
+
++                    raise DeserializationError.WithData(e, d['model'], d.get('pk'), field_value)
+
+ 
+
+-        obj = base.build_instance(Model, data, using)
+
+-        yield base.DeserializedObject(obj, m2m_data, deferred_fields)
+
++        obj = build_instance(Model, data, using)
+
++        yield DeserializedObject(obj, m2m_data, deferred_fields)
+
++
+
++def fix_response_content(response, content):
+
++    """
+
++    Ensure the response content is a byte string.
+
++    """
+
++    if isinstance(content, memoryview):
+
++        response.content = content.tobytes()
+
++    else:
+
++        response.content = content
+
++
+
++# Example usage
+
++def handle_request():
+
++    # Assuming object_list is a list of deserialized objects
+
++    object_list = [...]  # Populate with deserialized objects
+
++    response = HttpResponse()
+
++    fix_response_content(response, b"My Content")  # Correct content
+
++    # response.content  # Out: b'My Content'
+
++    response = HttpResponse(memoryview(b"My Content"))  # Incorrect content
+
++    fix_response_content(response, response.content)  # Correct content
+
++    # response.content  # Out: b'My Content'
+
+ 
+
+ 
+
+ def _get_model(model_identifier):

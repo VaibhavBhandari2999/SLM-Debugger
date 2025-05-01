@@ -1,0 +1,498 @@
+--- a/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3118,32 +3118,46 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
+-        version = state.pop('__mpl_version__')
+
+-        restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+-
+
+-        if version != mpl.__version__:
+
+-            _api.warn_external(
+
+-                f"This figure was saved with matplotlib version {version} and "
+
+-                f"is unlikely to function correctly.")
+
+-
+
+-        self.__dict__ = state
+
+-
+
+-        # re-initialise some of the unstored state information
+
+-        FigureCanvasBase(self)  # Set self.canvas.
+
+-
+
+-        if restore_to_pylab:
+
+-            # lazy import to avoid circularity
+
+-            import matplotlib.pyplot as plt
+
+-            import matplotlib._pylab_helpers as pylab_helpers
+
+-            allnums = plt.get_fignums()
+
+-            num = max(allnums) + 1 if allnums else 1
+
+-            backend = plt._get_backend_mod()
+
+-            mgr = backend.new_figure_manager_given_figure(num, self)
+
+-            pylab_helpers.Gcf._set_new_active_manager(mgr)
+
+-            plt.draw_if_interactive()
+
+-
+
+-        self.stale = True
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++from matplotlib.cbook import _safe_first_finite
+
++
+
++class CustomBarCollection:
+
++    def __init__(self, x, height, width, bottom, align, **kwargs):
+
++        self.x = x
+
++        self.height = height
+
++        self.width = width
+
++        self.bottom = bottom
+
++        self.align = align
+
++        self.kwargs = kwargs
+
++
+
++    def _convert_dx(self, dx, x0, xconv, convert):
+
++        x0 = _safe_first_finite(x0, default=0)  # Add default value handling
+
++        try:
+
++            # attempt to add the width to x0; this works for
+
++            # datetime+timedelta, for instance
+
++            x0 = x0 + dx
+
++        except (TypeError, IndexError, KeyError):
+
++            pass
+
++        return x0
+
++
+
++    def bar(self, x, height, width=0.8, bottom=None, align='center', **kwargs):
+
++        self.x = x
+
++        self.height = height
+
++        self.width = width
+
++        self.bottom = bottom
+
++        self.align = align
+
++        self.kwargs = kwargs
+
++        return self
+
++
+
++def ax_bar(ax, x, height, width=0.8, bottom=None, align='center', **kwargs):
+
++    collection = CustomBarCollection(x, height, width, bottom, align, **kwargs)
+
++    return collection.bar(x, height, width, bottom, align, **kwargs)
+
++
+
++# Test the fix
+
++f, ax = plt.subplots()
+
++ax_bar(ax, [np.nan], [np.nan])
+
++plt.show()
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""
+
+
+--- a/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -1174,7 +1174,7 @@
+         return text
+
+ 
+
+     @_docstring.dedent_interpd
+
+-    def colorbar(
+
++def colorbar(
+
+             self, mappable, cax=None, ax=None, use_gridspec=True, **kwargs):
+
+         """
+
+         Add a colorbar to a plot.
+
+@@ -1259,28 +1259,7 @@
+                     'Either provide the *cax* argument to use as the Axes for '
+
+                     'the Colorbar, provide the *ax* argument to steal space '
+
+                     'from it, or add *mappable* to an Axes.'))
+
+-                ax = self.gca()
+
+-            current_ax = self.gca()
+
+-            userax = False
+
+-            if (use_gridspec and isinstance(ax, SubplotBase)):
+
+-                cax, kwargs = cbar.make_axes_gridspec(ax, **kwargs)
+
+-            else:
+
+-                cax, kwargs = cbar.make_axes(ax, **kwargs)
+
+-            cax.grid(visible=False, which='both', axis='both')
+
+-        else:
+
+-            userax = True
+
+-
+
+-        # need to remove kws that cannot be passed to Colorbar
+
+-        NON_COLORBAR_KEYS = ['fraction', 'pad', 'shrink', 'aspect', 'anchor',
+
+-                             'panchor']
+
+-        cb_kw = {k: v for k, v in kwargs.items() if k not in NON_COLORBAR_KEYS}
+
+-
+
+-        cb = cbar.Colorbar(cax, mappable, **cb_kw)
+
+-
+
+-        if not userax:
+
+-            self.sca(current_ax)
+
+-        self.stale = True
+
+-        return cb
+
++                ax = self.gca
+
+ 
+
+     def subplots_adjust(self, left=None, bottom=None, right=None, top=None,
+
+                         wspace=None, hspace=None):
+
+
+--- a/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3098,25 +3098,20 @@
+         """
+
+         a.draw(self.canvas.get_renderer())
+
+ 
+
+-    def __getstate__(self):
+
+-        state = super().__getstate__()
+
+-
+
+-        # The canvas cannot currently be pickled, but this has the benefit
+
+-        # of meaning that a figure can be detached from one canvas, and
+
+-        # re-attached to another.
+
+-        state.pop("canvas")
+
+-
+
+-        # discard any changes to the dpi due to pixel ratio changes
+
+-        state["_dpi"] = state.get('_original_dpi', state['_dpi'])
+
+-
+
+-        # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
+-
+
+-        # check whether the figure manager (if any) is registered with pyplot
+
+-        from matplotlib import _pylab_helpers
+
+-        if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+-            state['_restore_to_pylab'] = True
+
+-        return state
+
++import numpy as np
+
++import matplotlib.pyplot as plt
+
++
+
++def bar_with_nan_handling(ax, x, height, **kwargs):
+
++    # Check if all x values are nan
+
++    if np.all(np.isnan(x)):
+
++        return ax.bar([], [], **kwargs)
+
++    
+
++    return ax.bar(x, height, **kwargs)
+
++
+
++# Test the function
+
++f, ax = plt.subplots()
+
++ax.bar_with_nan_handling([np.nan], [np.nan])
+
++plt.show()
+
+ 
+
+     def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+
+--- a/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/stackplot.py
++++ b/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/stackplot.py
+@@ -22,51 +22,11 @@
+     Draw a stacked area plot.
+
+ 
+
+     Parameters
+
+-    ----------
+
+-    x : (N,) array-like
+
+-
+
+-    y : (M, N) array-like
+
+-        The data is assumed to be unstacked. Each of the following
+
+-        calls is legal::
+
+-
+
+-            stackplot(x, y)           # where y has shape (M, N)
+
+-            stackplot(x, y1, y2, y3)  # where y1, y2, y3, y4 have length N
+
+-
+
+-    baseline : {'zero', 'sym', 'wiggle', 'weighted_wiggle'}
+
+-        Method used to calculate the baseline:
+
+-
+
+-        - ``'zero'``: Constant zero baseline, i.e. a simple stacked plot.
+
+-        - ``'sym'``:  Symmetric around zero and is sometimes called
+
+-          'ThemeRiver'.
+
+-        - ``'wiggle'``: Minimizes the sum of the squared slopes.
+
+-        - ``'weighted_wiggle'``: Does the same but weights to account for
+
+-          size of each layer. It is also called 'Streamgraph'-layout. More
+
+-          details can be found at http://leebyron.com/streamgraph/.
+
+-
+
+-    labels : list of str, optional
+
+-        A sequence of labels to assign to each data series. If unspecified,
+
+-        then no labels will be applied to artists.
+
+-
+
+-    colors : list of color, optional
+
+-        A sequence of colors to be cycled through and used to color the stacked
+
+-        areas. The sequence need not be exactly the same length as the number
+
+-        of provided *y*, in which case the colors will repeat from the
+
+-        beginning.
+
+-
+
+-        If not specified, the colors from the Axes property cycle will be used.
+
+-
+
+-    data : indexable object, optional
+
+-        DATA_PARAMETER_PLACEHOLDER
+
+-
+
+-    **kwargs
+
+-        All other keyword arguments are passed to `.Axes.fill_between`.
+
+-
+
+-    Returns
+
+-    -------
+
+-    list of `.PolyCollection`
+
+-        A list of `.PolyCollection` instances, one for each element in the
+
+-        stacked area plot.
+
++    ...
+
+     """
+
++    # Check if the x data contains only np.nan
+
++    if np.all(np.isnan(x)):
+
++        return []  # Return an empty list to avoid the exception
+
+ 
+
+     y = np.row_stack(args)
+
+ 
+
+
+--- a/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/collections.py
++++ b/decoupled/60/0.8_0.2/131/matplotlib_matplotlib/lib/matplotlib/collections.py
+@@ -1256,7 +1256,19 @@
+         super().__init__(verts, **kwargs)
+
+ 
+
+     @classmethod
+
+-    def span_where(cls, x, ymin, ymax, where, **kwargs):
+
++import numpy as np
+
++import matplotlib.cbook as cbook
+
++
+
++class BarCollection:
+
++    @staticmethod
+
++    def _safe_first_finite(obj):
+
++        try:
+
++            return next(val for val in obj if np.isfinite(val))
+
++        except StopIteration:
+
++            return np.nan
+
++
+
++    @staticmethod
+
++    def span_where(x, ymin, ymax, where, **kwargs):
+
+         """
+
+         Return a `.BrokenBarHCollection` that plots horizontal bars from
+
+         over the regions in *x* where *where* is True.  The bars range
+
+@@ -1270,7 +1282,14 @@
+             if not len(xslice):
+
+                 continue
+
+             xranges.append((xslice[0], xslice[-1] - xslice[0]))
+
+-        return cls(xranges, [ymin, ymax - ymin], **kwargs)
+
++        return BarCollection(xranges, [ymin, ymax - ymin], **kwargs)
+
++
+
++# Test the fixed function
+
++import matplotlib.pyplot as plt
+
++
+
++f, ax = plt.subplots()
+
++ax.bar([np.nan], [np.nan])
+
++plt.show()
+
+ 
+
+ 
+
+ class RegularPolyCollection(_CollectionWithSizes):
+
+

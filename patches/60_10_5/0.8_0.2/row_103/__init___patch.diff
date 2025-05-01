@@ -1,0 +1,47 @@
+--- a/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
++++ b/decoupled/60/0.8_0.2/103/django_django/django/db/models/expressions.py
+@@ -978,7 +978,7 @@
+     # instances to be compiled until a decision is taken in #25425.
+
+     for_save = False
+
+ 
+
+-    def __init__(self, value, output_field=None):
+
++def __init__(self, value, output_field=None):
+
+         """
+
+         Arguments:
+
+          * value: the value this expression represents. The value will be
+
+@@ -988,7 +988,13 @@
+            expression will return, such as IntegerField() or CharField().
+
+         """
+
+         super().__init__(output_field=output_field)
+
+-        self.value = value
+
++        if isinstance(value, int):
+
++            # Decompose the value into a list of Enum items
+
++            decomposed_values = enum._decompose(value)
+
++            # Create the Enum value by ORing the items together
+
++            self.value = reduce(lambda x, y: x | y, [getattr(enum, name) for name in decomposed_values])
+
++        else:
+
++            self.value = value
+
+ 
+
+     def __repr__(self):
+
+         return f"{self.__class__.__name__}({self.value!r})"

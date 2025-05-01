@@ -1,0 +1,39 @@
+--- a/decoupled/60/0.8_0.2/125/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/125/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2576,7 +2576,7 @@
+     def _get_dpi(self):
+
+         return self._dpi
+
+ 
+
+-    def _set_dpi(self, dpi, forward=True):
+
++def _set_dpi(self, dpi, forward=True):
+
+         """
+
+         Parameters
+
+         ----------
+
+@@ -2593,6 +2593,10 @@
+         w, h = self.get_size_inches()
+
+         self.set_size_inches(w, h, forward=forward)
+
+         self._fig_callbacks.process('dpi_changed', self)
+
++
+
++        # Ensure the DPI is not reset to a higher value when the figure is unpickled
+
++        if self._dpi > self._original_dpi:
+
++            self._dpi = self._original_dpi
+
+ 
+
+     dpi = property(_get_dpi, _set_dpi, doc="The resolution in dots per inch.")
+
+ 

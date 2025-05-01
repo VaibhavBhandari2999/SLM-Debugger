@@ -1,0 +1,36 @@
+--- a/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/105/django_django/django/contrib/admin/checks.py
+@@ -427,13 +427,16 @@
+         else:
+
+             return self._check_field_spec_item(obj, fields, label)
+
+ 
+
+-    def _check_field_spec_item(self, obj, field_name, label):
+
++def _check_field_spec_item(self, obj, field_name, label):
+
+         if field_name in obj.readonly_fields:
+
+             # Stuff can be put in fields that isn't actually a model field if
+
+             # it's in readonly_fields, readonly_fields will handle the
+
+             # validation of such things.
+
+             return []
+
+         else:
+
++            if field_name is None or not isinstance(field_name, str):
+
++                # If field_name is null or not a string, return an empty list
+
++                return []
+
+             try:
+
+                 field = obj.model._meta.get_field(field_name)
+
+             except FieldDoesNotExist:

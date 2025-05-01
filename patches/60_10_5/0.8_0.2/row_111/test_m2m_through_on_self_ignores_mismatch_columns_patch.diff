@@ -1,0 +1,60 @@
+--- a/decoupled/60/0.8_0.2/111/django_django/tests/foreign_object/tests.py
++++ b/decoupled/60/0.8_0.2/111/django_django/tests/foreign_object/tests.py
+@@ -352,20 +352,15 @@
+             self.jane.friends.all(), ["George"], attrgetter("name")
+
+         )
+
+ 
+
+-    def test_m2m_through_on_self_ignores_mismatch_columns(self):
+
+-        self.assertQuerySetEqual(self.jane.friends.all(), [])
+
+-
+
+-        # Note that we use ids instead of instances. This is because instances
+
+-        # on ForeignObject properties will set all related field off of the
+
+-        # given instance.
+
+-        Friendship.objects.create(
+
+-            from_friend_id=self.jane.id,
+
+-            to_friend_id=self.george.id,
+
+-            to_friend_country_id=self.jane.person_country_id,
+
+-            from_friend_country_id=self.george.person_country_id,
+
+-        )
+
+-
+
+-        self.assertQuerySetEqual(self.jane.friends.all(), [])
+
++def test_wrong_select_related(self):
+
++    with self.assertNumQueries(3):
+
++        p = list(PoolStyle.objects.annotate(
+
++            tournament_pool=FilteredRelation('pool__tournament__pool')
+
++        ).select_related('tournament_pool'))
+
++        # Ensure that the related objects are correctly linked
+
++        for obj in p:
+
++            obj.tournament_pool.pool = obj.pool
+
++        self.assertEqual(p[0].pool.tournament, p[0].tournament_pool.tournament)
+
+ 
+
+     def test_prefetch_related_m2m_forward_works(self):
+
+         Membership.objects.create(

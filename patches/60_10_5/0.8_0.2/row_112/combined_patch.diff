@@ -1,0 +1,488 @@
+--- a/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/helpers.py
++++ b/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/helpers.py
+@@ -166,11 +166,14 @@
+ 
+
+ 
+
+ class AdminField:
+
+-    def __init__(self, form, field, is_first):
+
++def __init__(self, form, field, is_first):
+
+         self.field = form[field]  # A django.forms.BoundField instance
+
+         self.is_first = is_first  # Whether this field is first on the line
+
+         self.is_checkbox = isinstance(self.field.field.widget, forms.CheckboxInput)
+
+         self.is_readonly = False
+
++        
+
++        # New check to ensure the user has add permission
+
++        self.show_save_as_new = not is_popup and has_add_permission and has_change_permission and change and save_as
+
+ 
+
+     def label_tag(self):
+
+         classes = []
+
+
+
+
+--- a/decoupled/60/0.8_0.2/112/django_django/django/contrib/auth/checks.py
++++ b/decoupled/60/0.8_0.2/112/django_django/django/contrib/auth/checks.py
+@@ -84,8 +84,8 @@
+     if isinstance(cls().is_anonymous, MethodType):
+
+         errors.append(
+
+             checks.Critical(
+
+-                "%s.is_anonymous must be an attribute or property rather than "
+
+-                "a method. Ignoring this is a security issue as anonymous "
+
++                "%s.is_anonymous must be an attribute or property rather "
+
++                "than a method. Ignoring this is a security issue as anonymous "
+
+                 "users will be treated as authenticated!" % cls,
+
+                 obj=cls,
+
+                 id="auth.C009",
+
+
+--- a/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/helpers.py
++++ b/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/helpers.py
+@@ -261,45 +261,61 @@
+         except NoReverseMatch:
+
+             return str(remote_obj)
+
+ 
+
+-    def contents(self):
+
++def contents(self):
+
++    from django.contrib.admin.templatetags.admin_modify import (
+
++        TEMPLATES as MODIFY_TEMPLATES,
+
++        show_save_as_new,
+
++    )
+
++    from django.contrib.admin.templatetags.admin_list import _boolean_icon
+
++
+
++    field, obj, model_admin = (
+
++        self.field["field"],
+
++        self.form.instance,
+
++        self.model_admin,
+
++    )
+
++    try:
+
++        f, attr, value = lookup_field(field, obj, model_admin)
+
++    except (AttributeError, ValueError, ObjectDoesNotExist):
+
++        result_repr = self.empty_value_display
+
++    else:
+
++        if field in self.form.fields:
+
++            widget = self.form[field].field.widget
+
++            # This isn't elegant but suffices for contrib.auth's
+
++            # ReadOnlyPasswordHashWidget.
+
++            if getattr(widget, "read_only", False):
+
++                return widget.render(field, value)
+
++        if f is None:
+
++            if getattr(attr, "boolean", False):
+
++                result_repr = _boolean_icon(value)
+
++            else:
+
++                if hasattr(value, "__html__"):
+
++                    result_repr = value
+
++                else:
+
++                    result_repr = linebreaksbr(value)
+
++        else:
+
++            if isinstance(f.remote_field, ManyToManyRel) and value is not None:
+
++                result_repr = ", ".join(map(str, value.all()))
+
++            elif (
+
++                isinstance(f.remote_field, (ForeignObjectRel, OneToOneField))
+
++                and value is not None
+
++            ):
+
++                result_repr = self.get_admin_url(f.remote_field, value)
+
++            else:
+
++                result_repr = display_for_field(value, f, self.empty_value_display)
+
++            result_repr = linebreaksbr(result_repr)
+
++    return conditional_escape(result_repr)
+
++
+
++    # Additional logic for show_save_as_new
+
++    def show_save_as_new(self):
+
++        from django.contrib.admin.templatetags.admin_modify import (
+
++            TEMPLATES as MODIFY_TEMPLATES,
+
++            show_save_as_new,
+
++        )
+
+         from django.contrib.admin.templatetags.admin_list import _boolean_icon
+
+ 
+
+-        field, obj, model_admin = (
+
+-            self.field["field"],
+
+-            self.form.instance,
+
+-            self.model_admin,
+
+-        )
+
+-        try:
+
+-            f, attr, value = lookup_field(field, obj, model_admin)
+
+-        except (AttributeError, ValueError, ObjectDoesNotExist):
+
+-            result_repr = self.empty_value_display
+
+-        else:
+
+-            if field in self.form.fields:
+
+-                widget = self.form[field].field.widget
+
+-                # This isn't elegant but suffices for contrib.auth's
+
+-                # ReadOnlyPasswordHashWidget.
+
+-                if getattr(widget, "read_only", False):
+
+-                    return widget.render(field, value)
+
+-            if f is None:
+
+-                if getattr(attr, "boolean", False):
+
+-                    result_repr = _boolean_icon(value)
+
+-                else:
+
+-                    if hasattr(value, "__html__"):
+
+-                        result_repr = value
+
+-                    else:
+
+-                        result_repr = linebreaksbr(value)
+
+-            else:
+
+-                if isinstance(f.remote_field, ManyToManyRel) and value is not None:
+
+-                    result_repr = ", ".join(map(str, value.all()))
+
+-                elif (
+
+-                    isinstance(f.remote_field, (ForeignObjectRel, OneToOneField))
+
+-                    and value is not None
+
+-                ):
+
+-                    result_repr = self.get_admin_url(f.remote_field, value)
+
+-                else:
+
+-                    result_repr = display_for_field(value, f, self.empty_value_display)
+
+-                result_repr = linebreaksbr(result_repr)
+
+-        return conditional_escape(result_repr)
+
++        if not is_popup and self.model_admin.has_add_permission(self.request) and self.model_admin.has_change_permission(self.request):
+
++            return show_save_as_new
+
++        return False
+
+ 
+
+ 
+
+ class InlineAdminFormSet:
+
+
+--- a/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/checks.py
++++ b/decoupled/60/0.8_0.2/112/django_django/django/contrib/admin/checks.py
+@@ -214,54 +214,64 @@
+                 )
+
+             )
+
+ 
+
+-    def _check_autocomplete_fields_item(self, obj, field_name, label):
+
+-        """
+
+-        Check that an item in `autocomplete_fields` is a ForeignKey or a
+
+-        ManyToManyField and that the item has a related ModelAdmin with
+
+-        search_fields defined.
+
+-        """
+
+-        try:
+
+-            field = obj.model._meta.get_field(field_name)
+
+-        except FieldDoesNotExist:
+
+-            return refer_to_missing_field(
+
+-                field=field_name, option=label, obj=obj, id="admin.E037"
+
+-            )
+
+-        else:
+
+-            if not field.many_to_many and not isinstance(field, models.ForeignKey):
+
+-                return must_be(
+
+-                    "a foreign key or a many-to-many field",
+
+-                    option=label,
+
+-                    obj=obj,
+
+-                    id="admin.E038",
+
+-                )
+
+-            related_admin = obj.admin_site._registry.get(field.remote_field.model)
+
+-            if related_admin is None:
+
+-                return [
+
+-                    checks.Error(
+
+-                        'An admin for model "%s" has to be registered '
+
+-                        "to be referenced by %s.autocomplete_fields."
+
+-                        % (
+
+-                            field.remote_field.model.__name__,
+
+-                            type(obj).__name__,
+
+-                        ),
+
+-                        obj=obj.__class__,
+
+-                        id="admin.E039",
+
+-                    )
+
+-                ]
+
+-            elif not related_admin.search_fields:
+
+-                return [
+
+-                    checks.Error(
+
+-                        '%s must define "search_fields", because it\'s '
+
+-                        "referenced by %s.autocomplete_fields."
+
+-                        % (
+
+-                            related_admin.__class__.__name__,
+
+-                            type(obj).__name__,
+
+-                        ),
+
+-                        obj=obj.__class__,
+
+-                        id="admin.E040",
+
+-                    )
+
+-                ]
+
+-            return []
+
++def _check_autocomplete_fields_item(self, obj, field_name, label):
+
++    """
+
++    Check that an item in `autocomplete_fields` is a ForeignKey or a
+
++    ManyToManyField and that the item has a related ModelAdmin with
+
++    search_fields defined.
+
++    """
+
++    try:
+
++        field = obj.model._meta.get_field(field_name)
+
++    except FieldDoesNotExist:
+
++        return refer_to_missing_field(
+
++            field=field_name, option=label, obj=obj, id="admin.E037"
+
++        )
+
++    else:
+
++        if not field.many_to_many and not isinstance(field, models.ForeignKey):
+
++            return must_be(
+
++                "a foreign key or a many-to-many field",
+
++                option=label,
+
++                obj=obj,
+
++                id="admin.E038",
+
++            )
+
++        related_admin = obj.admin_site._registry.get(field.remote_field.model)
+
++        if related_admin is None:
+
++            return [
+
++                checks.Error(
+
++                    'An admin for model "%s" has to be registered '
+
++                    "to be referenced by %s.autocomplete_fields."
+
++                    % (
+
++                        field.remote_field.model.__name__,
+
++                        type(obj).__name__,
+
++                    ),
+
++                    obj=obj.__class__,
+
++                    id="admin.E039",
+
++                )
+
++            ]
+
++        elif not related_admin.search_fields:
+
++            return [
+
++                checks.Error(
+
++                    '%s must define "search_fields", because it\'s '
+
++                    "referenced by %s.autocomplete_fields."
+
++                    % (
+
++                        related_admin.__class__.__name__,
+
++                        type(obj).__name__,
+
++                    ),
+
++                    obj=obj.__class__,
+
++                    id="admin.E040",
+
++                )
+
++            ]
+
++        # Add the check for has_add_permission
+
++        elif not obj.has_add_permission():
+
++            return [
+
++                checks.Error(
+
++                    "The user does not have the 'add' permission for model '%s'."
+
++                    % (field.remote_field.model.__name__),
+
++                    obj=obj.__class__,
+
++                    id="admin.E041",
+
++                )
+
++            ]
+
++        return []
+
+ 
+
+     def _check_raw_id_fields(self, obj):
+
+         """Check that `raw_id_fields` only contains field names that are listed
+
+

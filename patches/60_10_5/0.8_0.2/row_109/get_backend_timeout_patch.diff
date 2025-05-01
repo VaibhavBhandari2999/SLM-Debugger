@@ -1,0 +1,52 @@
+--- a/decoupled/60/0.8_0.2/109/django_django/django/core/cache/backends/redis.py
++++ b/decoupled/60/0.8_0.2/109/django_django/django/core/cache/backends/redis.py
+@@ -171,12 +171,19 @@
+     def _cache(self):
+
+         return self._class(self._servers, **self._options)
+
+ 
+
+-    def get_backend_timeout(self, timeout=DEFAULT_TIMEOUT):
+
+-        if timeout == DEFAULT_TIMEOUT:
+
+-            timeout = self.default_timeout
+
+-        # The key will be made persistent if None used as a timeout.
+
+-        # Non-positive values will cause the key to be deleted.
+
+-        return None if timeout is None else max(0, int(timeout))
+
++import os
+
++
+
++class FileBasedCache:
+
++    def has_key(self, key, version=None):
+
++        fname = self._key_to_file(key, version)
+
++        if os.path.exists(fname):
+
++            with open(fname, "rb") as f:
+
++                if self._is_expired(f):
+
++                    os.remove(fname)
+
++                    return False
+
++                else:
+
++                    return True
+
++        return False
+
+ 
+
+     def add(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
+
+         key = self.make_and_validate_key(key, version=version)

@@ -1,0 +1,68 @@
+--- a/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
++++ b/decoupled/60/0.8_0.2/128/matplotlib_matplotlib/lib/matplotlib/tests/test_legend.py
+@@ -541,15 +541,32 @@
+     assert leg.get_frame().get_alpha() == 1
+
+ 
+
+ 
+
++import matplotlib.pyplot as plt
+
++
+
++class CustomLegend(plt.legend):
+
++    def __init__(self, *args, draggable=False, **kwargs):
+
++        super().__init__(*args, **kwargs)
+
++        self.set_draggable(drivable)
+
++
+
++    def set_draggable(self, draggable):
+
++        self.draggable = draggable
+
++        if draggable:
+
++            self.draggable_ = True
+
++        else:
+
++            self.draggable_ = False
+
++
+
+ def test_legend_title_empty():
+
+     # test that if we don't set the legend title, that
+
+     # it comes back as an empty string, and that it is not
+
+     # visible:
+
+     fig, ax = plt.subplots()
+
+     ax.plot(range(10))
+
+-    leg = ax.legend()
+
++    leg = CustomLegend(ax, draggable=True)
+
+     assert leg.get_title().get_text() == ""
+
+     assert not leg.get_title().get_visible()
+
++
+
++# Run the test function
+
++test_legend_title_empty()
+
+ 
+
+ 
+
+ def test_legend_proper_window_extent():

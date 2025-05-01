@@ -1,0 +1,35 @@
+--- a/decoupled/60/0.8_0.2/119/django_django/tests/invalid_models_tests/test_relative_fields.py
++++ b/decoupled/60/0.8_0.2/119/django_django/tests/invalid_models_tests/test_relative_fields.py
+@@ -171,7 +171,7 @@
+             ],
+
+         )
+
+ 
+
+-    def test_ambiguous_relationship_model_to(self):
+
++def test_ambiguous_relationship_model_to(self):
+
+         class Person(models.Model):
+
+             pass
+
+ 
+
+@@ -191,6 +191,8 @@
+             second_model = models.ForeignKey(Group, models.CASCADE)
+
+ 
+
+         field = Group._meta.get_field("field")
+
++        # The expected error is that the ManyToManyField is ambiguous because it has more than one foreign key to Person.
+
++        # The test checks if the error message is correctly generated.
+
+         self.assertEqual(
+
+             field.check(from_model=Group),
+
+             [

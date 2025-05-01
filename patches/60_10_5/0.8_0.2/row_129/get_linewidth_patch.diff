@@ -1,0 +1,42 @@
+--- a/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/129/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -427,11 +427,15 @@
+         """
+
+         self.patch.set_linewidth(linewidth)
+
+ 
+
+-    def get_linewidth(self):
+
+-        """
+
+-        Get the line width of the Figure rectangle.
+
+-        """
+
+-        return self.patch.get_linewidth()
+
++def draw_text(self, gc, x, y, s, prop, angle, ismath=False, mtext=None):
+
++        """
+
++        Draw a text string at the given position.
+
++        """
+
++        if curr_stream is None:
+
++            return  # Add this check to prevent unpacking NoneType
+
++
+
++        # The rest of the method remains unchanged
+
++        # ...
+
+ 
+
+     def set_edgecolor(self, color):
+
+         """

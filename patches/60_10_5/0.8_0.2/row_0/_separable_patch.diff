@@ -1,0 +1,58 @@
+--- a/decoupled/60/0.8_0.2/0/astropy_astropy/astropy/modeling/separable.py
++++ b/decoupled/60/0.8_0.2/0/astropy_astropy/astropy/modeling/separable.py
+@@ -304,11 +304,25 @@
+     if (transform_matrix := transform._calculate_separability_matrix()) is not NotImplemented:
+
+         return transform_matrix
+
+     elif isinstance(transform, CompoundModel):
+
+-        sepleft = _separable(transform.left)
+
+-        sepright = _separable(transform.right)
+
+-        return _operators[transform.op](sepleft, sepright)
+
++        # Recursively check the separability of all sub-models
+
++        left_separable = _separable(transform.left)
+
++        right_separable = _separable(transform.right)
+
++        
+
++        # Combine the separability information
+
++        # For CompoundModel, we need to check if all outputs from left and right are separable
+
++        # and if the operation between them preserves separability
+
++        if transform.op == '&':
+
++            # For & (and), the outputs are separable if both left and right outputs are separable
+
++            return np.logical_and(left_separable, right_separable)
+
++        elif transform.op == '|':
+
++            # For | (or), the outputs are separable if at least one of the left or right outputs is separable
+
++            return np.logical_or(left_separable, right_separable)
+
++        else:
+
++            raise ValueError(f"Unsupported operation: {transform.op}")
+
+     elif isinstance(transform, Model):
+
+         return _coord_matrix(transform, 'left', transform.n_outputs)
+
++    else:
+
++        raise TypeError(f"Unsupported model type: {type(transform)}")
+
+ 
+
+ 
+
+ # Maps modeling operators to a function computing and represents the

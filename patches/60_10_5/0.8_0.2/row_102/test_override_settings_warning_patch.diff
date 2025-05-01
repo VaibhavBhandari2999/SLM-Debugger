@@ -1,0 +1,38 @@
+--- a/decoupled/60/0.8_0.2/102/django_django/tests/deprecation/test_use_l10n.py
++++ b/decoupled/60/0.8_0.2/102/django_django/tests/deprecation/test_use_l10n.py
+@@ -9,12 +9,12 @@
+ class DeprecationTests(TestCase):
+
+     msg = USE_L10N_DEPRECATED_MSG
+
+ 
+
+-    def test_override_settings_warning(self):
+
+-        # Warning is raised when USE_L10N is set in UserSettingsHolder (used by
+
+-        # the @override_settings decorator).
+
+-        with self.assertRaisesMessage(RemovedInDjango50Warning, self.msg):
+
+-            with self.settings(USE_L10N=True):
+
+-                pass
+
++def test_override_settings_warning(self):
+
++    # Warning is raised when USE_L10N is set in UserSettingsHolder (used by
+
++    # the @override_settings decorator).
+
++    with self.assertRaisesMessage(RemovedInDjango50Warning, self.msg):
+
++        with self.settings(USE_L10N=True):
+
++            pass
+
+ 
+
+     def test_settings_init_warning(self):
+
+         settings_module = ModuleType("fake_settings_module")

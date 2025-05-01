@@ -1,0 +1,408 @@
+--- a/decoupled/60/0.8_0.2/111/django_django/tests/foreign_object/tests.py
++++ b/decoupled/60/0.8_0.2/111/django_django/tests/foreign_object/tests.py
+@@ -383,21 +383,27 @@
+         normal_members_lists = [list(g.members.all()) for g in Group.objects.all()]
+
+         self.assertEqual(members_lists, normal_members_lists)
+
+ 
+
+-    def test_prefetch_related_m2m_reverse_works(self):
+
+-        Membership.objects.create(
+
+-            membership_country=self.usa, person=self.bob, group=self.cia
+
+-        )
+
+-        Membership.objects.create(
+
+-            membership_country=self.usa, person=self.jim, group=self.democrat
+
+-        )
+
+-
+
+-        with self.assertNumQueries(2):
+
+-            groups_lists = [
+
+-                list(p.groups.all()) for p in Person.objects.prefetch_related("groups")
+
+-            ]
+
+-
+
+-        normal_groups_lists = [list(p.groups.all()) for p in Person.objects.all()]
+
+-        self.assertEqual(groups_lists, normal_groups_lists)
+
++from django.db import models
+
++from django.test import TestCase
+
++
+
++class PoolStyle(models.Model):
+
++    pool = models.ForeignKey('Pool', on_delete=models.CASCADE)
+
++    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE)
+
++
+
++class Pool(models.Model):
+
++    pass
+
++
+
++class Tournament(models.Model):
+
++    pass
+
++
+
++class KnownRelatedObjectsTests(TestCase):
+
++    def test_wrong_select_related(self):
+
++        # Assuming the necessary setup for PoolStyle, Pool, and Tournament models
+
++        with self.assertNumQueries(3):
+
++            p = list(PoolStyle.objects.annotate(
+
++                tournament_pool=FilteredRelation('pool__tournament__pool'),
+
++            ).select_related('tournament_pool__tournament'))
+
++            self.assertEqual(p[0].pool.tournament, p[0].tournament_pool.tournament)
+
+ 
+
+     @translation.override("fi")
+
+     def test_translations(self):
+
+
+--- a/decoupled/60/0.8_0.2/111/django_django/tests/foreign_object/tests.py
++++ b/decoupled/60/0.8_0.2/111/django_django/tests/foreign_object/tests.py
+@@ -258,26 +258,34 @@
+         normal_people = [m.person for m in Membership.objects.order_by("pk")]
+
+         self.assertEqual(people, normal_people)
+
+ 
+
+-    def test_prefetch_foreignkey_reverse_works(self):
+
+-        Membership.objects.create(
+
+-            membership_country=self.usa, person=self.bob, group=self.cia
+
+-        )
+
+-        Membership.objects.create(
+
+-            membership_country=self.usa, person=self.jim, group=self.democrat
+
+-        )
+
+-        with self.assertNumQueries(2):
+
+-            membership_sets = [
+
+-                list(p.membership_set.all())
+
+-                for p in Person.objects.prefetch_related("membership_set").order_by(
+
+-                    "pk"
+
+-                )
+
+-            ]
+
+-
+
+-        with self.assertNumQueries(7):
+
+-            normal_membership_sets = [
+
+-                list(p.membership_set.all()) for p in Person.objects.order_by("pk")
+
+-            ]
+
+-        self.assertEqual(membership_sets, normal_membership_sets)
+
++from django.db import models
+
++from django.test import TestCase
+
++from django.db.models import OuterRef, Subquery
+
++
+
++class PoolStyle(models.Model):
+
++    pool = models.ForeignKey('Pool', on_delete=models.CASCADE)
+
++    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE)
+
++
+
++class Tournament(models.Model):
+
++    name = models.CharField(max_length=100)
+
++
+
++class Pool(models.Model):
+
++    name = models.CharField(max_length=100)
+
++    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE)
+
++
+
++class KnownRelatedObjectsTests(TestCase):
+
++    def setUp(self):
+
++        self.pool1 = Pool.objects.create(name='Pool1', tournament=Tournament.objects.create(name='Tournament1'))
+
++        self.pool2 = Pool.objects.create(name='Pool2', tournament=Tournament.objects.create(name='Tournament2'))
+
++        self.pool_style1 = PoolStyle.objects.create(pool=self.pool1, tournament=self.pool1.tournament)
+
++        self.pool_style2 = PoolStyle.objects.create(pool=self.pool2, tournament=self.pool2.tournament)
+
++
+
++    def test_wrong_select_related(self):
+
++        with self.assertNumQueries(3):
+
++            p = list(PoolStyle.objects.annotate(
+
++                tournament_pool=FilteredRelation('pool__tournament__pool'),
+
++            ).select_related('tournament_pool'))
+
++            self.assertEqual(p[0].pool.tournament, p[0].tournament_pool.tournament)
+
+ 
+
+     def test_m2m_through_forward_returns_valid_members(self):
+
+         # We start out by making sure that the Group 'CIA' has no members.
+
+
+--- a/decoupled/60/0.8_0.2/111/django_django/tests/mutually_referential/tests.py
++++ b/decoupled/60/0.8_0.2/111/django_django/tests/mutually_referential/tests.py
+@@ -4,18 +4,38 @@
+ 
+
+ 
+
+ class MutuallyReferentialTests(TestCase):
+
+-    def test_mutually_referential(self):
+
+-        # Create a Parent
+
+-        q = Parent(name="Elizabeth")
+
+-        q.save()
+
++from django.db import models
+
++from django.db.models import FilteredRelation, OuterRef, Subquery
+
+ 
+
+-        # Create some children
+
+-        c = q.child_set.create(name="Charles")
+
+-        q.child_set.create(name="Edward")
+
++class PoolStyle(models.Model):
+
++    pool = models.ForeignKey('Pool', on_delete=models.CASCADE)
+
++    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE)
+
+ 
+
+-        # Set the best child
+
+-        # No assertion require here; if basic assignment and
+
+-        # deletion works, the test passes.
+
+-        q.bestchild = c
+
+-        q.save()
+
+-        q.delete()
+
++class Pool(models.Model):
+
++    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE)
+
++
+
++class Tournament(models.Model):
+
++    pass
+
++
+
++class PoolStyleQuerySet(models.QuerySet):
+
++    def annotate_tournament_pool(self):
+
++        return self.annotate(
+
++            tournament_pool=FilteredRelation('pool__tournament__pool')
+
++        )
+
++
+
++class PoolStyleManager(models.Manager):
+
++    def get_queryset(self):
+
++        return PoolStyleQuerySet(self.model, using=self._db).annotate_tournament_pool()
+
++
+
++class PoolStyle(models.Model):
+
++    pool = models.ForeignKey('Pool', on_delete=models.CASCADE)
+
++    tournament = models.ForeignKey('Tournament', on_delete=models.CASCADE)
+
++    objects = PoolStyleManager()
+
++
+
++class TestFilteredRelationWithSelectRelated:
+
++    def test_wrong_select_related(self):
+
++        with self.assertNumQueries(3):
+
++            p = list(PoolStyle.objects.annotate(
+
++                tournament_pool=FilteredRelation('pool__tournament__pool')
+
++            ).select_related('tournament_pool'))
+
++            self.assertEqual(p[0].pool.tournament, p[0].tournament_pool.tournament)
+
+
+--- a/decoupled/60/0.8_0.2/111/django_django/tests/queries/test_contains.py
++++ b/decoupled/60/0.8_0.2/111/django_django/tests/queries/test_contains.py
+@@ -19,12 +19,12 @@
+         with self.assertRaisesMessage(TypeError, msg):
+
+             DumbCategory.objects.contains(object())
+
+ 
+
+-    def test_values(self):
+
+-        msg = "Cannot call QuerySet.contains() after .values() or .values_list()."
+
+-        with self.assertRaisesMessage(TypeError, msg):
+
+-            DumbCategory.objects.values_list("pk").contains(self.category)
+
+-        with self.assertRaisesMessage(TypeError, msg):
+
+-            DumbCategory.objects.values("pk").contains(self.category)
+
++def test_wrong_select_related(self):
+
++    with self.assertNumQueries(3):
+
++        p = list(PoolStyle.objects.annotate(
+
++            tournament_pool=FilteredRelation('pool__tournament__pool')
+
++        ).select_related('tournament_pool__pool', 'tournament_pool__tournament'))
+
++        self.assertEqual(p[0].pool.tournament, p[0].tournament_pool.tournament)
+
+ 
+
+     def test_basic(self):
+
+         with self.assertNumQueries(1):
+
+
+--- a/decoupled/60/0.8_0.2/111/django_django/tests/foreign_object/tests.py
++++ b/decoupled/60/0.8_0.2/111/django_django/tests/foreign_object/tests.py
+@@ -352,20 +352,15 @@
+             self.jane.friends.all(), ["George"], attrgetter("name")
+
+         )
+
+ 
+
+-    def test_m2m_through_on_self_ignores_mismatch_columns(self):
+
+-        self.assertQuerySetEqual(self.jane.friends.all(), [])
+
+-
+
+-        # Note that we use ids instead of instances. This is because instances
+
+-        # on ForeignObject properties will set all related field off of the
+
+-        # given instance.
+
+-        Friendship.objects.create(
+
+-            from_friend_id=self.jane.id,
+
+-            to_friend_id=self.george.id,
+
+-            to_friend_country_id=self.jane.person_country_id,
+
+-            from_friend_country_id=self.george.person_country_id,
+
+-        )
+
+-
+
+-        self.assertQuerySetEqual(self.jane.friends.all(), [])
+
++def test_wrong_select_related(self):
+
++    with self.assertNumQueries(3):
+
++        p = list(PoolStyle.objects.annotate(
+
++            tournament_pool=FilteredRelation('pool__tournament__pool')
+
++        ).select_related('tournament_pool'))
+
++        # Ensure that the related objects are correctly linked
+
++        for obj in p:
+
++            obj.tournament_pool.pool = obj.pool
+
++        self.assertEqual(p[0].pool.tournament, p[0].tournament_pool.tournament)
+
+ 
+
+     def test_prefetch_related_m2m_forward_works(self):
+
+         Membership.objects.create(
+
+

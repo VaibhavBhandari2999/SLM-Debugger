@@ -1,0 +1,37 @@
+--- a/decoupled/60/0.8_0.2/127/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/127/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -496,7 +496,7 @@
+         return Path(transform.transform(self.vertices), self.codes,
+
+                     self._interpolation_steps)
+
+ 
+
+-    def contains_point(self, point, transform=None, radius=0.0):
+
++def contains_point(self, point, transform=None, radius=0.0):
+
+         """
+
+         Return whether the area enclosed by the path contains the given point.
+
+ 
+
+@@ -544,6 +544,9 @@
+         if transform and not transform.is_affine:
+
+             self = transform.transform_path(self)
+
+             transform = None
+
++        # Ensure the path is closed by adding an implicit segment
+
++        if not self.vertices[-1].tolist() == self.vertices[0].tolist():
+
++            self.vertices = np.vstack((self.vertices, self.vertices[0]))
+
+         return _path.point_in_path(point[0], point[1], radius, self, transform)
+
+ 
+
+     def contains_points(self, points, transform=None, radius=0.0):

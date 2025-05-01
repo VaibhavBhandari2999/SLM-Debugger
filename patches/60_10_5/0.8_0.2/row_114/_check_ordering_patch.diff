@@ -1,0 +1,18 @@
+--- a/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
++++ b/decoupled/60/0.8_0.2/114/django_django/django/db/models/base.py
+@@ -2078,7 +2078,7 @@
+         return errors
+
+ 
+
+     @classmethod
+
+-    def _check_ordering(cls):
+
++def _check_ordering(cls):
+
+         """
+
+         Check "ordering" option -- is it a list of strings and do all fields
+
+         exist?

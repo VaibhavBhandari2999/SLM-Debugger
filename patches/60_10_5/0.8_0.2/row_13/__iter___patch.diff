@@ -1,0 +1,64 @@
+--- a/decoupled/60/0.8_0.2/13/django_django/django/db/models/sql/query.py
++++ b/decoupled/60/0.8_0.2/13/django_django/django/db/models/sql/query.py
+@@ -101,17 +101,20 @@
+         return [converter(column_meta[0])
+
+                 for column_meta in self.cursor.description]
+
+ 
+
+-    def __iter__(self):
+
+-        # Always execute a new query for a new iterator.
+
+-        # This could be optimized with a cache at the expense of RAM.
+
+-        self._execute_query()
+
+-        if not connections[self.using].features.can_use_chunked_reads:
+
+-            # If the database can't use chunked reads we need to make sure we
+
+-            # evaluate the entire query up front.
+
+-            result = list(self.cursor)
+
+-        else:
+
+-            result = self.cursor
+
+-        return iter(result)
+
++def __iter__(self):
+
++    # Always execute a new query for a new iterator.
+
++    # This could be optimized with a cache at the expense of RAM.
+
++    self._execute_query()
+
++    if not connections[self.using].features.can_use_chunked_reads:
+
++        # If the database can't use chunked reads we need to make sure we
+
++        # evaluate the entire query up front.
+
++        result = list(self.cursor)
+
++    else:
+
++        result = self.cursor
+
++    # Convert memoryview to bytes if necessary
+
++    if isinstance(result, memoryview):
+
++        result = result.tobytes()
+
++    return iter(result)
+
+ 
+
+     def __repr__(self):
+
+         return "<%s: %s>" % (self.__class__.__name__, self)

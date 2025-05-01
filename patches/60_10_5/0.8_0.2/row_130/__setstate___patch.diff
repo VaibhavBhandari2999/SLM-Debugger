@@ -1,0 +1,41 @@
+--- a/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/130/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3113,7 +3113,7 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
++def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+         restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+ 
+
+@@ -3139,6 +3139,11 @@
+             plt.draw_if_interactive()
+
+ 
+
+         self.stale = True
+
++
+
++        # Check if constrained_layout was explicitly set to False
+
++        if 'constrained_layout' in state and not state['constrained_layout']:
+
++            # Suppress the warning if constrained_layout is explicitly set to False
+
++            warnings.filterwarnings("ignore", message="This figure was using a layout engine that is incompatible with subplots_adjust and/or tight_layout; not calling subplots_adjust.")
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""

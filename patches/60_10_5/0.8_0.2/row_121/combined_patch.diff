@@ -1,0 +1,774 @@
+--- a/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2910,31 +2910,39 @@
+             state['_restore_to_pylab'] = True
+
+         return state
+
+ 
+
+-    def __setstate__(self, state):
+
+-        version = state.pop('__mpl_version__')
+
+-        restore_to_pylab = state.pop('_restore_to_pylab', False)
+
+-
+
+-        if version != mpl.__version__:
+
+-            _api.warn_external(
+
+-                f"This figure was saved with matplotlib version {version} and "
+
+-                f"is unlikely to function correctly.")
+
+-
+
+-        self.__dict__ = state
+
+-
+
+-        # re-initialise some of the unstored state information
+
+-        FigureCanvasBase(self)  # Set self.canvas.
+
+-
+
+-        if restore_to_pylab:
+
+-            # lazy import to avoid circularity
+
+-            import matplotlib.pyplot as plt
+
+-            import matplotlib._pylab_helpers as pylab_helpers
+
+-            allnums = plt.get_fignums()
+
+-            num = max(allnums) + 1 if allnums else 1
+
+-            mgr = plt._backend_mod.new_figure_manager_given_figure(num, self)
+
+-            pylab_helpers.Gcf._set_new_active_manager(mgr)
+
+-            plt.draw_if_interactive()
+
+-
+
+-        self.stale = True
+
++def set_val(self, val):
+
++    """
+
++    Set slider value to *val*.
+
++
+
++    Parameters
+
++    ----------
+
++    val : tuple or array-like of float
+
++    """
+
++    val = np.sort(np.asanyarray(val))
+
++    if val.shape != (2,):
+
++        raise ValueError(
+
++            f"val must have shape (2,) but has shape {val.shape}"
+
++        )
+
++    val[0] = self._min_in_bounds(val[0])
+
++    val[1] = self._max_in_bounds(val[1])
+
++    xy = self.poly.xy
+
++    if self.orientation == "vertical":
+
++        xy[0] = .25, val[0]
+
++        xy[1] = .25, val[1]
+
++        xy[2] = .75, val[1]
+
++        xy[3] = .75, val[0]
+
++    else:
+
++        xy[0] = val[0], .25
+
++        xy[1] = val[0], .75
+
++        xy[2] = val[1], .75
+
++        xy[3] = val[1], .25
+
++    self.poly.xy = xy
+
++    self.valtext.set_text(self._format(val))
+
++    if self.drawon:
+
++        self.ax.figure.canvas.draw_idle()
+
++    self.val = val
+
++    if self.eventson:
+
++        self._observers.process("changed", val)
+
+ 
+
+     def add_axobserver(self, func):
+
+         """Whenever the Axes state change, ``func(self)`` will be called."""
+
+
+--- a/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -2890,25 +2890,39 @@
+                                  "initial draw which caches the renderer")
+
+         a.draw(self._cachedRenderer)
+
+ 
+
+-    def __getstate__(self):
+
+-        state = super().__getstate__()
+
+-
+
+-        # The canvas cannot currently be pickled, but this has the benefit
+
+-        # of meaning that a figure can be detached from one canvas, and
+
+-        # re-attached to another.
+
+-        state.pop("canvas")
+
+-
+
+-        # Set cached renderer to None -- it can't be pickled.
+
+-        state["_cachedRenderer"] = None
+
+-
+
+-        # add version information to the state
+
+-        state['__mpl_version__'] = mpl.__version__
+
+-
+
+-        # check whether the figure manager (if any) is registered with pyplot
+
+-        from matplotlib import _pylab_helpers
+
+-        if self.canvas.manager in _pylab_helpers.Gcf.figs.values():
+
+-            state['_restore_to_pylab'] = True
+
+-        return state
+
++def set_val(self, val):
+
++    """
+
++    Set slider value to *val*.
+
++
+
++    Parameters
+
++    ----------
+
++    val : tuple or array-like of float
+
++    """
+
++    val = np.sort(np.asanyarray(val))
+
++    if val.shape != (2,):
+
++        raise ValueError(
+
++            f"val must have shape (2,) but has shape {val.shape}"
+
++        )
+
++    val[0] = self._min_in_bounds(val[0])
+
++    val[1] = self._max_in_bounds(val[1])
+
++    xy = self.poly.xy
+
++    if self.orientation == "vertical":
+
++        xy[0] = .25, val[0]
+
++        xy[1] = .25, val[1]
+
++        xy[2] = .75, val[1]
+
++        xy[3] = .75, val[0]
+
++    else:
+
++        xy[0] = val[0], .25
+
++        xy[1] = val[0], .75
+
++        xy[2] = val[1], .75
+
++        xy[3] = val[1], .25
+
++    self.poly.xy = xy
+
++    self.valtext.set_text(self._format(val))
+
++    if self.drawon:
+
++        self.ax.figure.canvas.draw_idle()
+
++    self.val = val
+
++    if self.eventson:
+
++        self._observers.process("changed", val)
+
+ 
+
+     def __setstate__(self, state):
+
+         version = state.pop('__mpl_version__')
+
+
+--- a/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -3241,81 +3241,36 @@
+             self.set_layout_engine(None)
+
+ 
+
+ 
+
+-def figaspect(arg):
+
++def set_val(self, val):
+
+     """
+
+-    Calculate the width and height for a figure with a specified aspect ratio.
+
+-
+
+-    While the height is taken from :rc:`figure.figsize`, the width is
+
+-    adjusted to match the desired aspect ratio. Additionally, it is ensured
+
+-    that the width is in the range [4., 16.] and the height is in the range
+
+-    [2., 16.]. If necessary, the default height is adjusted to ensure this.
+
++    Set slider value to *val*.
+
+ 
+
+     Parameters
+
+     ----------
+
+-    arg : float or 2D array
+
+-        If a float, this defines the aspect ratio (i.e. the ratio height /
+
+-        width).
+
+-        In case of an array the aspect ratio is number of rows / number of
+
+-        columns, so that the array could be fitted in the figure undistorted.
+
+-
+
+-    Returns
+
+-    -------
+
+-    width, height : float
+
+-        The figure size in inches.
+
+-
+
+-    Notes
+
+-    -----
+
+-    If you want to create an Axes within the figure, that still preserves the
+
+-    aspect ratio, be sure to create it with equal width and height. See
+
+-    examples below.
+
+-
+
+-    Thanks to Fernando Perez for this function.
+
+-
+
+-    Examples
+
+-    --------
+
+-    Make a figure twice as tall as it is wide::
+
+-
+
+-        w, h = figaspect(2.)
+
+-        fig = Figure(figsize=(w, h))
+
+-        ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+
+-        ax.imshow(A, **kwargs)
+
+-
+
+-    Make a figure with the proper aspect for an array::
+
+-
+
+-        A = rand(5, 3)
+
+-        w, h = figaspect(A)
+
+-        fig = Figure(figsize=(w, h))
+
+-        ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+
+-        ax.imshow(A, **kwargs)
+
++    val : tuple or array-like of float
+
+     """
+
+-
+
+-    isarray = hasattr(arg, 'shape') and not np.isscalar(arg)
+
+-
+
+-    # min/max sizes to respect when autoscaling.  If John likes the idea, they
+
+-    # could become rc parameters, for now they're hardwired.
+
+-    figsize_min = np.array((4.0, 2.0))  # min length for width/height
+
+-    figsize_max = np.array((16.0, 16.0))  # max length for width/height
+
+-
+
+-    # Extract the aspect ratio of the array
+
+-    if isarray:
+
+-        nr, nc = arg.shape[:2]
+
+-        arr_ratio = nr / nc
+
++    val = np.sort(np.asanyarray(val))
+
++    if val.shape != (2,):
+
++        raise ValueError(
+
++            f"val must have shape (2,) but has shape {val.shape}"
+
++        )
+
++    val[0] = self._min_in_bounds(val[0])
+
++    val[1] = self._max_in_bounds(val[1])
+
++    xy = self.poly.xy
+
++    if self.orientation == "vertical":
+
++        xy[0] = .25, val[0]
+
++        xy[1] = .25, val[1]
+
++        xy[2] = .75, val[1]
+
++        xy[3] = .75, val[0]
+
+     else:
+
+-        arr_ratio = arg
+
+-
+
+-    # Height of user figure defaults
+
+-    fig_height = mpl.rcParams['figure.figsize'][1]
+
+-
+
+-    # New size for the figure, keeping the aspect ratio of the caller
+
+-    newsize = np.array((fig_height / arr_ratio, fig_height))
+
+-
+
+-    # Sanity checks, don't drop either dimension below figsize_min
+
+-    newsize /= min(1.0, *(newsize / figsize_min))
+
+-
+
+-    # Avoid humongous windows as well
+
+-    newsize /= max(1.0, *(newsize / figsize_max))
+
+-
+
+-    # Finally, if we have a really funky aspect ratio, break it but respect
+
+-    # the min/max dimensions (we don't want figures 10 feet tall!)
+
+-    newsize = np.clip(newsize, figsize_min, figsize_max)
+
+-    return newsize
+
++        xy[0] = val[0], .25
+
++        xy[1] = val[0], .75
+
++        xy[2] = val[1], .75
+
++        xy[3] = val[1], .25
+
++    self.poly.xy = xy
+
++    self.valtext.set_text(self._format(val))
+
++    if self.drawon:
+
++        self.ax.figure.canvas.draw_idle()
+
++    self.val = val
+
++    if self.eventson:
+
++        self._observers.process("changed", val)
+
+
+--- a/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/path.py
++++ b/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/path.py
+@@ -590,46 +590,39 @@
+             transform = transform.frozen()
+
+         return _path.path_in_path(self, None, path, transform)
+
+ 
+
+-    def get_extents(self, transform=None, **kwargs):
+
+-        """
+
+-        Get Bbox of the path.
+
++def set_val(self, val):
+
++        """
+
++        Set slider value to *val*.
+
+ 
+
+         Parameters
+
+         ----------
+
+-        transform : matplotlib.transforms.Transform, optional
+
+-            Transform to apply to path before computing extents, if any.
+
+-        **kwargs
+
+-            Forwarded to `.iter_bezier`.
+
+-
+
+-        Returns
+
+-        -------
+
+-        matplotlib.transforms.Bbox
+
+-            The extents of the path Bbox([[xmin, ymin], [xmax, ymax]])
+
+-        """
+
+-        from .transforms import Bbox
+
+-        if transform is not None:
+
+-            self = transform.transform_path(self)
+
+-        if self.codes is None:
+
+-            xys = self.vertices
+
+-        elif len(np.intersect1d(self.codes, [Path.CURVE3, Path.CURVE4])) == 0:
+
+-            # Optimization for the straight line case.
+
+-            # Instead of iterating through each curve, consider
+
+-            # each line segment's end-points
+
+-            # (recall that STOP and CLOSEPOLY vertices are ignored)
+
+-            xys = self.vertices[np.isin(self.codes,
+
+-                                        [Path.MOVETO, Path.LINETO])]
+
++        val : tuple or array-like of float
+
++        """
+
++        val = np.sort(np.asanyarray(val))
+
++        if val.shape != (2,):
+
++            raise ValueError(
+
++                f"val must have shape (2,) but has shape {val.shape}"
+
++            )
+
++        val[0] = self._min_in_bounds(val[0])
+
++        val[1] = self._max_in_bounds(val[1)
+
++        xy = self.poly.xy
+
++        if self.orientation == "vertical":
+
++            xy[0] = .25, val[0]
+
++            xy[1] = .25, val[1]
+
++            xy[2] = .75, val[1]
+
++            xy[3] = .75, val[0]
+
+         else:
+
+-            xys = []
+
+-            for curve, code in self.iter_bezier(**kwargs):
+
+-                # places where the derivative is zero can be extrema
+
+-                _, dzeros = curve.axis_aligned_extrema()
+
+-                # as can the ends of the curve
+
+-                xys.append(curve([0, *dzeros, 1]))
+
+-            xys = np.concatenate(xys)
+
+-        if len(xys):
+
+-            return Bbox([xys.min(axis=0), xys.max(axis=0)])
+
+-        else:
+
+-            return Bbox.null()
+
++            xy[0] = val[0], .25
+
++            xy[1] = val[0], .75
+
++            xy[2] = val[1], .75
+
++            xy[3] = val[1], .25
+
++        self.poly.xy = xy
+
++        self.valtext.set_text(self._format(val))
+
++        if self.drawon:
+
++            self.ax.figure.canvas.draw_idle()
+
++        self.val = val
+
++        if self.eventson:
+
++            self._observers.process("changed", val)
+
+ 
+
+     def intersects_path(self, other, filled=True):
+
+         """
+
+
+--- a/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
++++ b/decoupled/60/0.8_0.2/121/matplotlib_matplotlib/lib/matplotlib/figure.py
+@@ -158,37 +158,41 @@
+     Base class for `.Figure` and `.SubFigure` containing the methods that add
+
+     artists to the figure or subfigure, create Axes, etc.
+
+     """
+
+-    def __init__(self, **kwargs):
+
+-        super().__init__()
+
+-        # remove the non-figure artist _axes property
+
+-        # as it makes no sense for a figure to be _in_ an Axes
+
+-        # this is used by the property methods in the artist base class
+
+-        # which are over-ridden in this class
+
+-        del self._axes
+
+-
+
+-        self._suptitle = None
+
+-        self._supxlabel = None
+
+-        self._supylabel = None
+
+-
+
+-        # groupers to keep track of x and y labels we want to align.
+
+-        # see self.align_xlabels and self.align_ylabels and
+
+-        # axis._get_tick_boxes_siblings
+
+-        self._align_label_groups = {"x": cbook.Grouper(), "y": cbook.Grouper()}
+
+-
+
+-        self.figure = self
+
+-        # list of child gridspecs for this figure
+
+-        self._gridspecs = []
+
+-        self._localaxes = []  # track all axes
+
+-        self.artists = []
+
+-        self.lines = []
+
+-        self.patches = []
+
+-        self.texts = []
+
+-        self.images = []
+
+-        self.legends = []
+
+-        self.subfigs = []
+
+-        self.stale = True
+
+-        self.suppressComposite = None
+
+-        self.set(**kwargs)
+
++from matplotlib.widgets import RangeSlider
+
++
+
++def set_val(self, val):
+
++    """
+
++    Set slider value to *val*.
+
++
+
++    Parameters
+
++    ----------
+
++    val : tuple or array-like of float
+
++    """
+
++    val = np.sort(np.asanyarray(val))
+
++    if val.shape != (2,):
+
++        raise ValueError(
+
++            f"val must have shape (2,) but has shape {val.shape}"
+
++        )
+
++    val[0] = self._min_in_bounds(val[0])
+
++    val[1] = self._max_in_bounds(val[1])
+
++    xy = self.poly.xy
+
++    if self.orientation == "vertical":
+
++        xy[0] = .25, val[0]
+
++        xy[1] = .25, val[1]
+
++        xy[2] = .75, val[1]
+
++        xy[3] = .75, val[0]
+
++    else:
+
++        xy[0] = val[0], .25
+
++        xy[1] = val[0], .75
+
++        xy[2] = val[1], .75
+
++        xy[3] = val[1], .25
+
++    self.poly.xy = xy
+
++    self.valtext.set_text(self._format(val))
+
++    if self.drawon:
+
++        self.ax.figure.canvas.draw_idle()
+
++    self.val = val
+
++    if self.eventson:
+
++        self._observers.process("changed", val)
+
+ 
+
+     def _get_draw_artists(self, renderer):
+
+         """Also runs apply_aspect"""
+
+

@@ -1,0 +1,192 @@
+--- a/decoupled/60/0.8_0.2/122/matplotlib_matplotlib/lib/matplotlib/cm.py
++++ b/decoupled/60/0.8_0.2/122/matplotlib_matplotlib/lib/matplotlib/cm.py
+@@ -196,64 +196,40 @@
+ _colormaps = ColormapRegistry(_cmap_registry)
+
+ 
+
+ 
+
+-def register_cmap(name=None, cmap=None, *, override_builtin=False):
+
+-    """
+
+-    Add a colormap to the set recognized by :func:`get_cmap`.
+
+-
+
+-    Register a new colormap to be accessed by name ::
+
+-
+
+-        LinearSegmentedColormap('swirly', data, lut)
+
+-        register_cmap(cmap=swirly_cmap)
+
++import matplotlib.artist as martist
+
++import matplotlib.colors as mcolors
+
++
+
++def format_cursor_data(self, x, y, z, image):
+
++    """
+
++    Format the data for the cursor position.
+
+ 
+
+     Parameters
+
+     ----------
+
+-    name : str, optional
+
+-       The name that can be used in :func:`get_cmap` or :rc:`image.cmap`
+
+-
+
+-       If absent, the name will be the :attr:`~matplotlib.colors.Colormap.name`
+
+-       attribute of the *cmap*.
+
+-
+
+-    cmap : matplotlib.colors.Colormap
+
+-       Despite being the second argument and having a default value, this
+
+-       is a required argument.
+
+-
+
+-    override_builtin : bool
+
+-
+
+-        Allow built-in colormaps to be overridden by a user-supplied
+
+-        colormap.
+
+-
+
+-        Please do not use this unless you are sure you need it.
+
+-
+
+-    Notes
+
+-    -----
+
+-    Registering a colormap stores a reference to the colormap object
+
+-    which can currently be modified and inadvertently change the global
+
+-    colormap state. This behavior is deprecated and in Matplotlib 3.5
+
+-    the registered colormap will be immutable.
+
+-
+
+-    """
+
+-    _api.check_isinstance((str, None), name=name)
+
+-    if name is None:
+
+-        try:
+
+-            name = cmap.name
+
+-        except AttributeError as err:
+
+-            raise ValueError("Arguments must include a name or a "
+
+-                             "Colormap") from err
+
+-    if name in _cmap_registry:
+
+-        if not override_builtin and name in __builtin_cmaps:
+
+-            msg = f"Trying to re-register the builtin cmap {name!r}."
+
+-            raise ValueError(msg)
+
+-        else:
+
+-            msg = f"Trying to register the cmap {name!r} which already exists."
+
+-            _api.warn_external(msg)
+
+-
+
+-    if not isinstance(cmap, colors.Colormap):
+
+-        raise ValueError("You must pass a Colormap instance. "
+
+-                         f"You passed {cmap} a {type(cmap)} object.")
+
+-
+
+-    cmap._global = True
+
+-    _cmap_registry[name] = cmap
+
+-    return
+
++    x, y : float
+
++        The x and y coordinates of the cursor.
+
++    z : float or None
+
++        The z value at the cursor position.
+
++    image : Image or QuadMesh
+
++        The image or quadmesh object.
+
++
+
++    Returns
+
++    -------
+
++    data : str
+
++        The formatted data string.
+
++    """
+
++    try:
+
++        # Attempt to get the z value using the inverse normalization
+
++        z = self.norm.inverse(z)
+
++    except ValueError:
+
++        # Handle the case where BoundaryNorm is not invertible
+
++        z = "BoundaryNorm is not invertible"
+
++
+
++    # Format the data string
+
++    data = f"x: {x:.2f}, y: {y:.2f}, z: {z}"
+
++    return data
+
++
+
++# Apply the fix to the format_cursor_data function
+
++martist.format_cursor_data = format_cursor_data
+
+ 
+
+ 
+
+ def get_cmap(name=None, lut=None):
