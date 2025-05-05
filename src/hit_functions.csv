@@ -1,0 +1,2391 @@
+index,repo,function_name,file_path,source,issue_description
+13,django/django,make_bytes,django/http/response.py,"    def make_bytes(self, value):
+        """"""Turn a value into a bytestring encoded in the output charset.""""""
+        # Per PEP 3333, this response body must be bytes. To avoid returning
+        # an instance of a subclass, this function returns `bytes(value)`.
+        # This doesn't make a copy when `value` already contains bytes.
+
+        # Handle string types -- we can't rely on force_bytes here because:
+        # - Python attempts str conversion first
+        # - when self._charset != 'utf-8' it re-encodes the content
+        if isinstance(value, bytes):
+            return bytes(value)
+        if isinstance(value, str):
+            return bytes(value.encode(self.charset))
+        # Handle non-string types.
+        return str(value).encode(self.charset)","HttpResponse doesn't handle memoryview objects
+Description
+	
+I am trying to write a BinaryField retrieved from the database into a HttpResponse. When the database is Sqlite this works correctly, but Postgresql returns the contents of the field as a memoryview object and it seems like current Django doesn't like this combination:
+from django.http import HttpResponse																	 
+# String content
+response = HttpResponse(""My Content"")																			
+response.content																								 
+# Out: b'My Content'
+# This is correct
+# Bytes content
+response = HttpResponse(b""My Content"")																		 
+response.content																								 
+# Out: b'My Content'
+# This is also correct
+# memoryview content
+response = HttpResponse(memoryview(b""My Content""))															 
+response.content
+# Out: b'<memory at 0x7fcc47ab2648>'
+# This is not correct, I am expecting b'My Content'
+"
+24,django/django,parse_http_date,django/utils/http.py,"def parse_http_date(date):
+    """"""
+    Parse a date format as specified by HTTP RFC7231 section 7.1.1.1.
+
+    The three formats allowed by the RFC are accepted, even if only the first
+    one is still in widespread use.
+
+    Return an integer expressed in seconds since the epoch, in UTC.
+    """"""
+    # email.utils.parsedate() does the job for RFC1123 dates; unfortunately
+    # RFC7231 makes it mandatory to support RFC850 dates too. So we roll
+    # our own RFC-compliant parsing.
+    for regex in RFC1123_DATE, RFC850_DATE, ASCTIME_DATE:
+        m = regex.match(date)
+        if m is not None:
+            break
+    else:
+        raise ValueError(""%r is not in a valid HTTP date format"" % date)
+    try:
+        year = int(m.group('year'))
+        if year < 100:
+            if year < 70:
+                year += 2000
+            else:
+                year += 1900
+        month = MONTHS.index(m.group('mon').lower()) + 1
+        day = int(m.group('day'))
+        hour = int(m.group('hour'))
+        min = int(m.group('min'))
+        sec = int(m.group('sec'))
+        result = datetime.datetime(year, month, day, hour, min, sec)
+        return calendar.timegm(result.utctimetuple())
+    except Exception as exc:
+        raise ValueError(""%r is not a valid date"" % date) from exc","django.utils.http.parse_http_date two digit year check is incorrect
+Description
+	 
+		(last modified by Ad Timmering)
+	 
+RFC 850 does not mention this, but in RFC 7231 (and there's something similar in RFC 2822), there's the following quote:
+Recipients of a timestamp value in rfc850-date format, which uses a
+two-digit year, MUST interpret a timestamp that appears to be more
+than 50 years in the future as representing the most recent year in
+the past that had the same last two digits.
+Current logic is hard coded to consider 0-69 to be in 2000-2069, and 70-99 to be 1970-1999, instead of comparing versus the current year.
+"
+37,django/django,_check_relationship_model,django/db/models/fields/related.py,"    def _check_relationship_model(self, from_model=None, **kwargs):
+        if hasattr(self.remote_field.through, '_meta'):
+            qualified_model_name = ""%s.%s"" % (
+                self.remote_field.through._meta.app_label, self.remote_field.through.__name__)
+        else:
+            qualified_model_name = self.remote_field.through
+
+        errors = []
+
+        if self.remote_field.through not in self.opts.apps.get_models(include_auto_created=True):
+            # The relationship model is not installed.
+            errors.append(
+                checks.Error(
+                    ""Field specifies a many-to-many relation through model ""
+                    ""'%s', which has not been installed."" % qualified_model_name,
+                    obj=self,
+                    id='fields.E331',
+                )
+            )
+
+        else:
+            assert from_model is not None, (
+                ""ManyToManyField with intermediate ""
+                ""tables cannot be checked if you don't pass the model ""
+                ""where the field is attached to.""
+            )
+            # Set some useful local variables
+            to_model = resolve_relation(from_model, self.remote_field.model)
+            from_model_name = from_model._meta.object_name
+            if isinstance(to_model, str):
+                to_model_name = to_model
+            else:
+                to_model_name = to_model._meta.object_name
+            relationship_model_name = self.remote_field.through._meta.object_name
+            self_referential = from_model == to_model
+            # Count foreign keys in intermediate model
+            if self_referential:
+                seen_self = sum(
+                    from_model == getattr(field.remote_field, 'model', None)
+                    for field in self.remote_field.through._meta.fields
+                )
+
+                if seen_self > 2 and not self.remote_field.through_fields:
+                    errors.append(
+                        checks.Error(
+                            ""The model is used as an intermediate model by ""
+                            ""'%s', but it has more than two foreign keys ""
+                            ""to '%s', which is ambiguous. You must specify ""
+                            ""which two foreign keys Django should use via the ""
+                            ""through_fields keyword argument."" % (self, from_model_name),
+                            hint=""Use through_fields to specify which two foreign keys Django should use."",
+                            obj=self.remote_field.through,
+                            id='fields.E333',
+                        )
+                    )
+
+            else:
+                # Count foreign keys in relationship model
+                seen_from = sum(
+                    from_model == getattr(field.remote_field, 'model', None)
+                    for field in self.remote_field.through._meta.fields
+                )
+                seen_to = sum(
+                    to_model == getattr(field.remote_field, 'model', None)
+                    for field in self.remote_field.through._meta.fields
+                )
+
+                if seen_from > 1 and not self.remote_field.through_fields:
+                    errors.append(
+                        checks.Error(
+                            (""The model is used as an intermediate model by ""
+                             ""'%s', but it has more than one foreign key ""
+                             ""from '%s', which is ambiguous. You must specify ""
+                             ""which foreign key Django should use via the ""
+                             ""through_fields keyword argument."") % (self, from_model_name),
+                            hint=(
+                                'If you want to create a recursive relationship, '
+                                'use ForeignKey(""%s"", symmetrical=False, through=""%s"").'
+                            ) % (
+                                RECURSIVE_RELATIONSHIP_CONSTANT,
+                                relationship_model_name,
+                            ),
+                            obj=self,
+                            id='fields.E334',
+                        )
+                    )
+
+                if seen_to > 1 and not self.remote_field.through_fields:
+                    errors.append(
+                        checks.Error(
+                            ""The model is used as an intermediate model by ""
+                            ""'%s', but it has more than one foreign key ""
+                            ""to '%s', which is ambiguous. You must specify ""
+                            ""which foreign key Django should use via the ""
+                            ""through_fields keyword argument."" % (self, to_model_name),
+                            hint=(
+                                'If you want to create a recursive relationship, '
+                                'use ForeignKey(""%s"", symmetrical=False, through=""%s"").'
+                            ) % (
+                                RECURSIVE_RELATIONSHIP_CONSTANT,
+                                relationship_model_name,
+                            ),
+                            obj=self,
+                            id='fields.E335',
+                        )
+                    )
+
+                if seen_from == 0 or seen_to == 0:
+                    errors.append(
+                        checks.Error(
+                            ""The model is used as an intermediate model by ""
+                            ""'%s', but it does not have a foreign key to '%s' or '%s'."" % (
+                                self, from_model_name, to_model_name
+                            ),
+                            obj=self.remote_field.through,
+                            id='fields.E336',
+                        )
+                    )
+
+        # Validate `through_fields`.
+        if self.remote_field.through_fields is not None:
+            # Validate that we're given an iterable of at least two items
+            # and that none of them is ""falsy"".
+            if not (len(self.remote_field.through_fields) >= 2 and
+                    self.remote_field.through_fields[0] and self.remote_field.through_fields[1]):
+                errors.append(
+                    checks.Error(
+                        ""Field specifies 'through_fields' but does not provide ""
+                        ""the names of the two link fields that should be used ""
+                        ""for the relation through model '%s'."" % qualified_model_name,
+                        hint=""Make sure you specify 'through_fields' as through_fields=('field1', 'field2')"",
+                        obj=self,
+                        id='fields.E337',
+                    )
+                )
+
+            # Validate the given through fields -- they should be actual
+            # fields on the through model, and also be foreign keys to the
+            # expected models.
+            else:
+                assert from_model is not None, (
+                    ""ManyToManyField with intermediate ""
+                    ""tables cannot be checked if you don't pass the model ""
+                    ""where the field is attached to.""
+                )
+
+                source, through, target = from_model, self.remote_field.through, self.remote_field.model
+                source_field_name, target_field_name = self.remote_field.through_fields[:2]
+
+                for field_name, related_model in ((source_field_name, source),
+                                                  (target_field_name, target)):
+
+                    possible_field_names = []
+                    for f in through._meta.fields:
+                        if hasattr(f, 'remote_field') and getattr(f.remote_field, 'model', None) == related_model:
+                            possible_field_names.append(f.name)
+                    if possible_field_names:
+                        hint = ""Did you mean one of the following foreign keys to '%s': %s?"" % (
+                            related_model._meta.object_name,
+                            ', '.join(possible_field_names),
+                        )
+                    else:
+                        hint = None
+
+                    try:
+                        field = through._meta.get_field(field_name)
+                    except exceptions.FieldDoesNotExist:
+                        errors.append(
+                            checks.Error(
+                                ""The intermediary model '%s' has no field '%s'.""
+                                % (qualified_model_name, field_name),
+                                hint=hint,
+                                obj=self,
+                                id='fields.E338',
+                            )
+                        )
+                    else:
+                        if not (hasattr(field, 'remote_field') and
+                                getattr(field.remote_field, 'model', None) == related_model):
+                            errors.append(
+                                checks.Error(
+                                    ""'%s.%s' is not a foreign key to '%s'."" % (
+                                        through._meta.object_name, field_name,
+                                        related_model._meta.object_name,
+                                    ),
+                                    hint=hint,
+                                    obj=self,
+                                    id='fields.E339',
+                                )
+                            )
+
+        return errors","Wrong hint about recursive relationship.
+Description
+	 
+		(last modified by Matheus Cunha Motta)
+	 
+When there's more than 2 ForeignKeys in an intermediary model of a m2m field and no through_fields have been set, Django will show an error with the following hint:
+hint=(
+	'If you want to create a recursive relationship, '
+	'use ForeignKey(""%s"", symmetrical=False, through=""%s"").'
+But 'symmetrical' and 'through' are m2m keyword arguments, not ForeignKey.
+This was probably a small mistake where the developer thought ManyToManyField but typed ForeignKey instead. And the symmetrical=False is an outdated requirement to recursive relationships with intermediary model to self, not required since 3.0. I'll provide a PR with a proposed correction shortly after.
+Edit: fixed description.
+"
+80,django/django,_wrapper,django/utils/decorators.py,"    def _wrapper(self, *args, **kwargs):
+        # bound_method has the signature that 'decorator' expects i.e. no
+        # 'self' argument, but it's a closure over self so it can call
+        # 'func'. Also, wrap method.__get__() in a function because new
+        # attributes can't be set on bound method objects, only on functions.
+        bound_method = partial(method.__get__(self, type(self)))
+        for dec in decorators:
+            bound_method = dec(bound_method)
+        return bound_method(*args, **kwargs)","method_decorator() should preserve wrapper assignments
+Description
+	
+the function that is passed to the decorator is a partial object and does not have any of the attributes expected from a function i.e. __name__, __module__ etc...
+consider the following case
+def logger(func):
+	@wraps(func)
+	def inner(*args, **kwargs):
+		try:
+			result = func(*args, **kwargs)
+		except Exception as e:
+			result = str(e)
+		finally:
+			logger.debug(f""{func.__name__} called with args: {args} and kwargs: {kwargs} resulting: {result}"")
+	return inner
+class Test:
+	@method_decorator(logger)
+	def hello_world(self):
+		return ""hello""
+Test().test_method()
+This results in the following exception
+AttributeError: 'functools.partial' object has no attribute '__name__'
+"
+81,django/django,get_admin_url,django/contrib/admin/helpers.py,"    def get_admin_url(self, remote_field, remote_obj):
+        url_name = 'admin:%s_%s_change' % (
+            remote_field.model._meta.app_label,
+            remote_field.model._meta.model_name,
+        )
+        try:
+            url = reverse(url_name, args=[quote(remote_obj.pk)])
+            return format_html('<a href=""{}"">{}</a>', url, remote_obj)
+        except NoReverseMatch:
+            return str(remote_obj)","Wrong URL generated by get_admin_url for readonly field in custom Admin Site
+Description
+	
+When a model containing a ForeignKey field is viewed (or edited) in a custom Admin Site, and that ForeignKey field is listed in readonly_fields, the url generated for the link is /admin/... instead of /custom-admin/....
+This appears to be caused by the following line in django.contrib.admin.helpers get_admin_url:
+url = reverse(url_name, args=[quote(remote_obj.pk)])
+Other parts of the admin use the current_app keyword parameter to identify the correct current name of the Admin Site. (See django.contrib.admin.options.ModelAdmin response_add as just one example)
+I have been able to correct this specific issue by replacing the above line with:
+url = reverse(
+	url_name,
+	args=[quote(remote_obj.pk)],
+	current_app=self.model_admin.admin_site.name
+)
+However, I don't know if there are any side effects and I have not yet run the full suite of tests on this. Mostly looking for feedback whether I'm on the right track.
+"
+97,django/django,json_script,django/utils/html.py,"def json_script(value, element_id=None):
+    """"""
+    Escape all the HTML/XML special characters with their unicode escapes, so
+    value is safe to be output anywhere except for inside a tag attribute. Wrap
+    the escaped JSON in a script tag.
+    """"""
+    from django.core.serializers.json import DjangoJSONEncoder
+
+    json_str = json.dumps(value, cls=DjangoJSONEncoder).translate(_json_script_escapes)
+    if element_id:
+        template = '<script id=""{}"" type=""application/json"">{}</script>'
+        args = (element_id, mark_safe(json_str))
+    else:
+        template = '<script type=""application/json"">{}</script>'
+        args = (mark_safe(json_str),)
+    return format_html(template, *args)","Add an encoder parameter to django.utils.html.json_script().
+Description
+	
+I have a use case where I want to customize the JSON encoding of some values to output to the template layer. It looks like django.utils.html.json_script is a good utility for that, however the JSON encoder is hardcoded to DjangoJSONEncoder. I think it would be nice to be able to pass a custom encoder class.
+By the way, django.utils.html.json_script is not documented (only its template filter counterpart is), would it be a good thing to add to the docs?
+"
+106,django/django,__init__,django/contrib/auth/forms.py,"    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        password = self.fields.get(""password"")
+        if password:
+            password.help_text = password.help_text.format(""../password/"")
+        user_permissions = self.fields.get(""user_permissions"")
+        if user_permissions:
+            user_permissions.queryset = user_permissions.queryset.select_related(
+                ""content_type""
+            )","Accessing UserAdmin via to_field leads to link to PasswordResetForm being broken (404)
+Description
+	 
+		(last modified by Simon Kern)
+	 
+Accessing the UserAdmin via another model's Admin that has a reference to User (with to_field set, e.g., to_field=""uuid"") leads to the UserAdmin being accessed via an url that looks similar to this one:
+.../user/22222222-3333-4444-5555-666677778888/change/?_to_field=uuid
+However the underlying form looks like this: 
+Code highlighting:
+class UserChangeForm(forms.ModelForm):
+	password = ReadOnlyPasswordHashField(
+		label=_(""Password""),
+		help_text=_(
+			""Raw passwords are not stored, so there is no way to see this ""
+			""user’s password, but you can change the password using ""
+			'<a href=""{}"">this form</a>.'
+		),
+	)
+	...
+	...
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		password = self.fields.get(""password"")
+		if password:
+			password.help_text = password.help_text.format(""../password/"")
+	...
+	...
+This results in the link to the PasswordResetForm being wrong and thus ending up in a 404. If we drop the assumption that UserAdmin is always accessed via its pk, then we're good to go. It's as simple as replacing password.help_text = password.help_text.format(""../password/"") with password.help_text = password.help_text.format(f""../../{self.instance.pk}/password/"")
+I've opened a pull request on GitHub for this Ticket, please see:
+​PR
+"
+108,django/django,get_latest_lastmod,django/contrib/sitemaps/__init__.py,"    def get_latest_lastmod(self):
+        if not hasattr(self, ""lastmod""):
+            return None
+        if callable(self.lastmod):
+            try:
+                return max([self.lastmod(item) for item in self.items()])
+            except TypeError:
+                return None
+        else:
+            return self.lastmod","Sitemaps without items raise ValueError on callable lastmod.
+Description
+	
+When sitemap contains not items, but supports returning lastmod for an item, it fails with a ValueError:
+Traceback (most recent call last):
+ File ""/usr/local/lib/python3.10/site-packages/django/core/handlers/exception.py"", line 55, in inner
+	response = get_response(request)
+ File ""/usr/local/lib/python3.10/site-packages/django/core/handlers/base.py"", line 197, in _get_response
+	response = wrapped_callback(request, *callback_args, **callback_kwargs)
+ File ""/usr/local/lib/python3.10/site-packages/django/utils/decorators.py"", line 133, in _wrapped_view
+	response = view_func(request, *args, **kwargs)
+ File ""/usr/local/lib/python3.10/site-packages/django/contrib/sitemaps/views.py"", line 34, in inner
+	response = func(request, *args, **kwargs)
+ File ""/usr/local/lib/python3.10/site-packages/django/contrib/sitemaps/views.py"", line 76, in index
+	site_lastmod = site.get_latest_lastmod()
+ File ""/usr/local/lib/python3.10/site-packages/django/contrib/sitemaps/__init__.py"", line 170, in get_latest_lastmod
+	return max([self.lastmod(item) for item in self.items()])
+Exception Type: ValueError at /sitemap.xml
+Exception Value: max() arg is an empty sequence
+Something like this might be a solution:
+	 def get_latest_lastmod(self):
+		 if not hasattr(self, ""lastmod""):
+			 return None
+		 if callable(self.lastmod):
+			 try:
+				 return max([self.lastmod(item) for item in self.items()])
+-			except TypeError:
++			except (TypeError, ValueError):
+				 return None
+		 else:
+			 return self.lastmod
+"
+122,matplotlib/matplotlib,format_cursor_data,lib/matplotlib/artist.py,"    def format_cursor_data(self, data):
+        """"""
+        Return a string representation of *data*.
+
+        .. note::
+            This method is intended to be overridden by artist subclasses.
+            As an end-user of Matplotlib you will most likely not call this
+            method yourself.
+
+        The default implementation converts ints and floats and arrays of ints
+        and floats into a comma-separated string enclosed in square brackets,
+        unless the artist has an associated colorbar, in which case scalar
+        values are formatted using the colorbar's formatter.
+
+        See Also
+        --------
+        get_cursor_data
+        """"""
+        if np.ndim(data) == 0 and isinstance(self, ScalarMappable):
+            # This block logically belongs to ScalarMappable, but can't be
+            # implemented in it because most ScalarMappable subclasses inherit
+            # from Artist first and from ScalarMappable second, so
+            # Artist.format_cursor_data would always have precedence over
+            # ScalarMappable.format_cursor_data.
+            n = self.cmap.N
+            if np.ma.getmask(data):
+                return ""[]""
+            normed = self.norm(data)
+            if np.isfinite(normed):
+                # Midpoints of neighboring color intervals.
+                neighbors = self.norm.inverse(
+                    (int(self.norm(data) * n) + np.array([0, 1])) / n)
+                delta = abs(neighbors - data).max()
+                g_sig_digits = cbook._g_sig_digits(data, delta)
+            else:
+                g_sig_digits = 3  # Consistent with default below.
+            return ""[{:-#.{}g}]"".format(data, g_sig_digits)
+        else:
+            try:
+                data[0]
+            except (TypeError, IndexError):
+                data = [data]
+            data_str = ', '.join('{:0.3g}'.format(item) for item in data
+                                 if isinstance(item, Number))
+            return ""["" + data_str + ""]""","[Bug]: scalar mappable format_cursor_data crashes on BoundarNorm
+### Bug summary
+
+In 3.5.0 if you do:
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib as mpl
+
+fig, ax = plt.subplots()
+norm = mpl.colors.BoundaryNorm(np.linspace(-4, 4, 5), 256)
+X = np.random.randn(10, 10)
+pc = ax.imshow(X, cmap='RdBu_r', norm=norm)
+```
+
+and mouse over the image, it crashes with
+
+```
+File ""/Users/jklymak/matplotlib/lib/matplotlib/artist.py"", line 1282, in format_cursor_data
+    neighbors = self.norm.inverse(
+  File ""/Users/jklymak/matplotlib/lib/matplotlib/colors.py"", line 1829, in inverse
+    raise ValueError(""BoundaryNorm is not invertible"")
+ValueError: BoundaryNorm is not invertible
+```
+
+and interaction stops.  
+
+Not sure if we should have a special check here, a try-except, or actually just make BoundaryNorm approximately invertible.  
+
+
+### Matplotlib Version
+
+main 3.5.0
+
+
+[Bug]: scalar mappable format_cursor_data crashes on BoundarNorm
+### Bug summary
+
+In 3.5.0 if you do:
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib as mpl
+
+fig, ax = plt.subplots()
+norm = mpl.colors.BoundaryNorm(np.linspace(-4, 4, 5), 256)
+X = np.random.randn(10, 10)
+pc = ax.imshow(X, cmap='RdBu_r', norm=norm)
+```
+
+and mouse over the image, it crashes with
+
+```
+File ""/Users/jklymak/matplotlib/lib/matplotlib/artist.py"", line 1282, in format_cursor_data
+    neighbors = self.norm.inverse(
+  File ""/Users/jklymak/matplotlib/lib/matplotlib/colors.py"", line 1829, in inverse
+    raise ValueError(""BoundaryNorm is not invertible"")
+ValueError: BoundaryNorm is not invertible
+```
+
+and interaction stops.  
+
+Not sure if we should have a special check here, a try-except, or actually just make BoundaryNorm approximately invertible.  
+
+
+### Matplotlib Version
+
+main 3.5.0
+
+
+"
+133,matplotlib/matplotlib,set_ticks,lib/matplotlib/axis.py,"    def set_ticks(self, ticks, labels=None, *, minor=False, **kwargs):
+        """"""
+        Set this Axis' tick locations and optionally labels.
+
+        If necessary, the view limits of the Axis are expanded so that all
+        given ticks are visible.
+
+        Parameters
+        ----------
+        ticks : list of floats
+            List of tick locations.  The axis `.Locator` is replaced by a
+            `~.ticker.FixedLocator`.
+
+            Some tick formatters will not label arbitrary tick positions;
+            e.g. log formatters only label decade ticks by default. In
+            such a case you can set a formatter explicitly on the axis
+            using `.Axis.set_major_formatter` or provide formatted
+            *labels* yourself.
+        labels : list of str, optional
+            List of tick labels. If not set, the labels are generated with
+            the axis tick `.Formatter`.
+        minor : bool, default: False
+            If ``False``, set the major ticks; if ``True``, the minor ticks.
+        **kwargs
+            `.Text` properties for the labels. These take effect only if you
+            pass *labels*. In other cases, please use `~.Axes.tick_params`.
+
+        Notes
+        -----
+        The mandatory expansion of the view limits is an intentional design
+        choice to prevent the surprise of a non-visible tick. If you need
+        other limits, you should set the limits explicitly after setting the
+        ticks.
+        """"""
+        result = self._set_tick_locations(ticks, minor=minor)
+        if labels is not None:
+            self.set_ticklabels(labels, minor=minor, **kwargs)
+        return result","[ENH]: Axes.set_xticks/Axis.set_ticks only validates kwargs if ticklabels are set, but they should
+### Problem
+
+Per the doc of `Axis.set_ticks`:
+```
+        **kwargs
+            `.Text` properties for the labels. These take effect only if you
+            pass *labels*. In other cases, please use `~.Axes.tick_params`.
+```
+This means that in e.g. `ax.set_xticks([0, 1], xticklabels=[""a"", ""b""])`, the incorrect `xticklabels` silently do nothing; they are not even validated (because `labels` has not been passed).
+
+### Proposed solution
+
+We should at least check that `kwargs` are valid Text properties in all cases; we could even consider making any kwargs an error if `labels` is not set.
+"
+147,pallets/flask,__init__,src/flask/blueprints.py,"    def __init__(
+        self,
+        blueprint: ""Blueprint"",
+        app: ""Flask"",
+        options: t.Any,
+        first_registration: bool,
+    ) -> None:
+        #: a reference to the current application
+        self.app = app
+
+        #: a reference to the blueprint that created this setup state.
+        self.blueprint = blueprint
+
+        #: a dictionary with all options that were passed to the
+        #: :meth:`~flask.Flask.register_blueprint` method.
+        self.options = options
+
+        #: as blueprints can be registered multiple times with the
+        #: application and not everything wants to be registered
+        #: multiple times on it, this attribute can be used to figure
+        #: out if the blueprint was registered in the past already.
+        self.first_registration = first_registration
+
+        subdomain = self.options.get(""subdomain"")
+        if subdomain is None:
+            subdomain = self.blueprint.subdomain
+
+        #: The subdomain that the blueprint should be active for, ``None``
+        #: otherwise.
+        self.subdomain = subdomain
+
+        url_prefix = self.options.get(""url_prefix"")
+        if url_prefix is None:
+            url_prefix = self.blueprint.url_prefix
+        #: The prefix that should be used for all URLs defined on the
+        #: blueprint.
+        self.url_prefix = url_prefix
+
+        self.name_prefix = self.options.get(""name_prefix"", """")
+
+        #: A dictionary with URL defaults that is added to each and every
+        #: URL that was defined with the blueprint.
+        self.url_defaults = dict(self.blueprint.url_values_defaults)
+        self.url_defaults.update(self.options.get(""url_defaults"", ()))","Raise error when blueprint name contains a dot
+This is required since every dot is now significant since blueprints can be nested. An error was already added for endpoint names in 1.0, but should have been added for this as well.
+"
+148,pallets/flask,from_file,src/flask/config.py,"    def from_file(
+        self,
+        filename: str,
+        load: t.Callable[[t.IO[t.Any]], t.Mapping],
+        silent: bool = False,
+    ) -> bool:
+        """"""Update the values in the config from a file that is loaded
+        using the ``load`` parameter. The loaded data is passed to the
+        :meth:`from_mapping` method.
+
+        .. code-block:: python
+
+            import json
+            app.config.from_file(""config.json"", load=json.load)
+
+            import toml
+            app.config.from_file(""config.toml"", load=toml.load)
+
+        :param filename: The path to the data file. This can be an
+            absolute path or relative to the config root path.
+        :param load: A callable that takes a file handle and returns a
+            mapping of loaded data from the file.
+        :type load: ``Callable[[Reader], Mapping]`` where ``Reader``
+            implements a ``read`` method.
+        :param silent: Ignore the file if it doesn't exist.
+        :return: ``True`` if the file was loaded successfully.
+
+        .. versionadded:: 2.0
+        """"""
+        filename = os.path.join(self.root_path, filename)
+
+        try:
+            with open(filename) as f:
+                obj = load(f)
+        except OSError as e:
+            if silent and e.errno in (errno.ENOENT, errno.EISDIR):
+                return False
+
+            e.strerror = f""Unable to load configuration file ({e.strerror})""
+            raise
+
+        return self.from_mapping(obj)","Add a file mode parameter to flask.Config.from_file()
+Python 3.11 introduced native TOML support with the `tomllib` package. This could work nicely with the `flask.Config.from_file()` method as an easy way to load TOML config files:
+
+```python
+app.config.from_file(""config.toml"", tomllib.load)
+```
+
+However, `tomllib.load()` takes an object readable in binary mode, while `flask.Config.from_file()` opens a file in text mode, resulting in this error:
+
+```
+TypeError: File must be opened in binary mode, e.g. use `open('foo.toml', 'rb')`
+```
+
+We can get around this with a more verbose expression, like loading from a file opened with the built-in `open()` function and passing the `dict` to `app.Config.from_mapping()`:
+
+```python
+# We have to repeat the path joining that from_file() does
+with open(os.path.join(app.config.root_path, ""config.toml""), ""rb"") as file:
+    app.config.from_mapping(tomllib.load(file))
+```
+
+But adding a file mode parameter to `flask.Config.from_file()` would enable the use of a simpler expression. E.g.:
+
+```python
+app.config.from_file(""config.toml"", tomllib.load, mode=""b"")
+```
+
+"
+150,psf/requests,resolve_redirects,requests/sessions.py,"    def resolve_redirects(self, resp, req, stream=False, timeout=None,
+                          verify=True, cert=None, proxies=None):
+        """"""Receives a Response. Returns a generator of Responses.""""""
+
+        i = 0
+
+        while resp.is_redirect:
+            prepared_request = req.copy()
+
+            resp.content  # Consume socket so it can be released
+
+            if i >= self.max_redirects:
+                raise TooManyRedirects('Exceeded %s redirects.' % self.max_redirects)
+
+            # Release the connection back into the pool.
+            resp.close()
+
+            url = resp.headers['location']
+            method = req.method
+
+            # Handle redirection without scheme (see: RFC 1808 Section 4)
+            if url.startswith('//'):
+                parsed_rurl = urlparse(resp.url)
+                url = '%s:%s' % (parsed_rurl.scheme, url)
+
+            # The scheme should be lower case...
+            parsed = urlparse(url)
+            url = parsed.geturl()
+
+            # Facilitate non-RFC2616-compliant 'location' headers
+            # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
+            # Compliant with RFC3986, we percent encode the url.
+            if not urlparse(url).netloc:
+                url = urljoin(resp.url, requote_uri(url))
+            else:
+                url = requote_uri(url)
+
+            prepared_request.url = to_native_string(url)
+
+            # http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.3.4
+            if (resp.status_code == codes.see_other and
+                    method != 'HEAD'):
+                method = 'GET'
+
+            # Do what the browsers do, despite standards...
+            # First, turn 302s into GETs.
+            if resp.status_code == codes.found and method != 'HEAD':
+                method = 'GET'
+
+            # Second, if a POST is responded to with a 301, turn it into a GET.
+            # This bizarre behaviour is explained in Issue 1704.
+            if resp.status_code == codes.moved and method == 'POST':
+                method = 'GET'
+
+            prepared_request.method = method
+
+            # https://github.com/kennethreitz/requests/issues/1084
+            if resp.status_code not in (codes.temporary, codes.resume):
+                if 'Content-Length' in prepared_request.headers:
+                    del prepared_request.headers['Content-Length']
+
+                prepared_request.body = None
+
+            headers = prepared_request.headers
+            try:
+                del headers['Cookie']
+            except KeyError:
+                pass
+
+            extract_cookies_to_jar(prepared_request._cookies, prepared_request, resp.raw)
+            prepared_request._cookies.update(self.cookies)
+            prepared_request.prepare_cookies(prepared_request._cookies)
+
+            if 'Authorization' in headers:
+                # If we get redirected to a new host, we should strip out any
+                # authentication headers.
+                original_parsed = urlparse(resp.request.url)
+                redirect_parsed = urlparse(url)
+
+                if (original_parsed.hostname != redirect_parsed.hostname):
+                    del headers['Authorization']
+
+            # .netrc might have more auth for us.
+            new_auth = get_netrc_auth(url) if self.trust_env else None
+            if new_auth is not None:
+                prepared_request.prepare_auth(new_auth)
+
+            resp = self.send(
+                prepared_request,
+                stream=stream,
+                timeout=timeout,
+                verify=verify,
+                cert=cert,
+                proxies=proxies,
+                allow_redirects=False,
+            )
+
+            extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
+
+            i += 1
+            yield resp","`Session.resolve_redirects` copies the original request for all subsequent requests, can cause incorrect method selection
+Consider the following redirection chain:
+
+```
+POST /do_something HTTP/1.1
+Host: server.example.com
+...
+
+HTTP/1.1 303 See Other
+Location: /new_thing_1513
+
+GET /new_thing_1513
+Host: server.example.com
+...
+
+HTTP/1.1 307 Temporary Redirect
+Location: //failover.example.com/new_thing_1513
+```
+
+The intermediate 303 See Other has caused the POST to be converted to
+a GET.  The subsequent 307 should preserve the GET.  However, because
+`Session.resolve_redirects` starts each iteration by copying the _original_
+request object, Requests will issue a POST!
+
+"
+157,pydata/xarray,to_unstacked_dataset,xarray/core/dataarray.py,"    def to_unstacked_dataset(self, dim, level=0):
+        """"""Unstack DataArray expanding to Dataset along a given level of a
+        stacked coordinate.
+
+        This is the inverse operation of Dataset.to_stacked_array.
+
+        Parameters
+        ----------
+        dim : str
+            Name of existing dimension to unstack
+        level : int or str
+            The MultiIndex level to expand to a dataset along. Can either be
+            the integer index of the level or its name.
+        label : int, default 0
+            Label of the level to expand dataset along. Overrides the label
+            argument if given.
+
+        Returns
+        -------
+        unstacked: Dataset
+
+        Examples
+        --------
+        >>> import xarray as xr
+        >>> arr = xr.DataArray(
+        ...     np.arange(6).reshape(2, 3),
+        ...     coords=[(""x"", [""a"", ""b""]), (""y"", [0, 1, 2])],
+        ... )
+        >>> data = xr.Dataset({""a"": arr, ""b"": arr.isel(y=0)})
+        >>> data
+        <xarray.Dataset>
+        Dimensions:  (x: 2, y: 3)
+        Coordinates:
+          * x        (x) <U1 'a' 'b'
+          * y        (y) int64 0 1 2
+        Data variables:
+            a        (x, y) int64 0 1 2 3 4 5
+            b        (x) int64 0 3
+        >>> stacked = data.to_stacked_array(""z"", [""y""])
+        >>> stacked.indexes[""z""]
+        MultiIndex(levels=[['a', 'b'], [0, 1, 2]],
+                labels=[[0, 0, 0, 1], [0, 1, 2, -1]],
+                names=['variable', 'y'])
+        >>> roundtripped = stacked.to_unstacked_dataset(dim=""z"")
+        >>> data.identical(roundtripped)
+        True
+
+        See Also
+        --------
+        Dataset.to_stacked_array
+        """"""
+
+        idx = self.indexes[dim]
+        if not isinstance(idx, pd.MultiIndex):
+            raise ValueError(f""'{dim}' is not a stacked coordinate"")
+
+        level_number = idx._get_level_number(level)
+        variables = idx.levels[level_number]
+        variable_dim = idx.names[level_number]
+
+        # pull variables out of datarray
+        data_dict = {}
+        for k in variables:
+            data_dict[k] = self.sel({variable_dim: k}).squeeze(drop=True)
+
+        # unstacked dataset
+        return Dataset(data_dict)","to_unstacked_dataset broken for single-dim variables
+<!-- A short summary of the issue, if appropriate -->
+
+
+#### MCVE Code Sample
+
+```python
+arr = xr.DataArray(
+     np.arange(3),
+     coords=[(""x"", [0, 1, 2])],
+ )
+data = xr.Dataset({""a"": arr, ""b"": arr})
+stacked = data.to_stacked_array('y', sample_dims=['x'])
+unstacked = stacked.to_unstacked_dataset('y')
+# MergeError: conflicting values for variable 'y' on objects to be combined. You can skip this check by specifying compat='override'.
+```
+
+#### Expected Output
+A working roundtrip.
+
+#### Problem Description
+I need to stack a bunch of variables and later unstack them again, however this doesn't work if the variables only have a single dimension.
+
+#### Versions
+
+<details><summary>Output of <tt>xr.show_versions()</tt></summary>
+
+INSTALLED VERSIONS
+------------------
+commit: None
+python: 3.7.3 (default, Mar 27 2019, 22:11:17) 
+[GCC 7.3.0]
+python-bits: 64
+OS: Linux
+OS-release: 4.15.0-96-generic
+machine: x86_64
+processor: x86_64
+byteorder: little
+LC_ALL: None
+LANG: en_GB.UTF-8
+LOCALE: en_GB.UTF-8
+libhdf5: 1.10.4
+libnetcdf: 4.6.2
+
+xarray: 0.15.1
+pandas: 1.0.3
+numpy: 1.17.3
+scipy: 1.3.1
+netCDF4: 1.4.2
+pydap: None
+h5netcdf: None
+h5py: 2.10.0
+Nio: None
+zarr: None
+cftime: 1.0.4.2
+nc_time_axis: None
+PseudoNetCDF: None
+rasterio: None
+cfgrib: None
+iris: None
+bottleneck: None
+dask: 2.10.1
+distributed: 2.10.0
+matplotlib: 3.1.1
+cartopy: None
+seaborn: 0.10.0
+numbagg: None
+setuptools: 41.0.0
+pip: 19.0.3
+conda: 4.8.3
+pytest: 5.3.5
+IPython: 7.9.0
+sphinx: None
+
+
+</details>
+
+"
+185,scikit-learn/scikit-learn,transform,sklearn/preprocessing/label.py,"    def transform(self, y):
+        """"""Transform multi-class labels to binary labels
+
+        The output of transform is sometimes referred to by some authors as
+        the 1-of-K coding scheme.
+
+        Parameters
+        ----------
+        y : array or sparse matrix of shape [n_samples,] or \
+            [n_samples, n_classes]
+            Target values. The 2-d matrix should only contain 0 and 1,
+            represents multilabel classification. Sparse matrix can be
+            CSR, CSC, COO, DOK, or LIL.
+
+        Returns
+        -------
+        Y : numpy array or CSR matrix of shape [n_samples, n_classes]
+            Shape will be [n_samples, 1] for binary problems.
+        """"""
+        check_is_fitted(self, 'classes_')
+
+        y_is_multilabel = type_of_target(y).startswith('multilabel')
+        if y_is_multilabel and not self.y_type_.startswith('multilabel'):
+            raise ValueError(""The object was not fitted with multilabel""
+                             "" input."")
+
+        return label_binarize(y, self.classes_,
+                              pos_label=self.pos_label,
+                              neg_label=self.neg_label,
+                              sparse_output=self.sparse_output)","LabelEncoder transform fails for empty lists (for certain inputs)
+Python 3.6.3, scikit_learn 0.19.1
+
+Depending on which datatypes were used to fit the LabelEncoder, transforming empty lists works or not. Expected behavior would be that empty arrays are returned in both cases.
+
+```python
+>>> from sklearn.preprocessing import LabelEncoder
+>>> le = LabelEncoder()
+>>> le.fit([1,2])
+LabelEncoder()
+>>> le.transform([])
+array([], dtype=int64)
+>>> le.fit([""a"",""b""])
+LabelEncoder()
+>>> le.transform([])
+Traceback (most recent call last):
+  File ""[...]\Python36\lib\site-packages\numpy\core\fromnumeric.py"", line 57, in _wrapfunc
+    return getattr(obj, method)(*args, **kwds)
+TypeError: Cannot cast array data from dtype('float64') to dtype('<U32') according to the rule 'safe'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File ""<stdin>"", line 1, in <module>
+  File ""[...]\Python36\lib\site-packages\sklearn\preprocessing\label.py"", line 134, in transform
+    return np.searchsorted(self.classes_, y)
+  File ""[...]\Python36\lib\site-packages\numpy\core\fromnumeric.py"", line 1075, in searchsorted
+    return _wrapfunc(a, 'searchsorted', v, side=side, sorter=sorter)
+  File ""[...]\Python36\lib\site-packages\numpy\core\fromnumeric.py"", line 67, in _wrapfunc
+    return _wrapit(obj, method, *args, **kwds)
+  File ""[...]\Python36\lib\site-packages\numpy\core\fromnumeric.py"", line 47, in _wrapit
+    result = getattr(asarray(obj), method)(*args, **kwds)
+TypeError: Cannot cast array data from dtype('float64') to dtype('<U32') according to the rule 'safe'
+```
+"
+186,scikit-learn/scikit-learn,check_array,sklearn/utils/validation.py,"def check_array(array, accept_sparse=False, accept_large_sparse=True,
+                dtype=""numeric"", order=None, copy=False, force_all_finite=True,
+                ensure_2d=True, allow_nd=False, ensure_min_samples=1,
+                ensure_min_features=1, warn_on_dtype=False, estimator=None):
+
+    """"""Input validation on an array, list, sparse matrix or similar.
+
+    By default, the input is converted to an at least 2D numpy array.
+    If the dtype of the array is object, attempt converting to float,
+    raising on failure.
+
+    Parameters
+    ----------
+    array : object
+        Input object to check / convert.
+
+    accept_sparse : string, boolean or list/tuple of strings (default=False)
+        String[s] representing allowed sparse matrix formats, such as 'csc',
+        'csr', etc. If the input is sparse but not in the allowed format,
+        it will be converted to the first listed format. True allows the input
+        to be any format. False means that a sparse matrix input will
+        raise an error.
+
+        .. deprecated:: 0.19
+           Passing 'None' to parameter ``accept_sparse`` in methods is
+           deprecated in version 0.19 ""and will be removed in 0.21. Use
+           ``accept_sparse=False`` instead.
+
+    accept_large_sparse : bool (default=True)
+        If a CSR, CSC, COO or BSR sparse matrix is supplied and accepted by
+        accept_sparse, accept_large_sparse=False will cause it to be accepted
+        only if its indices are stored with a 32-bit dtype.
+
+        .. versionadded:: 0.20
+
+    dtype : string, type, list of types or None (default=""numeric"")
+        Data type of result. If None, the dtype of the input is preserved.
+        If ""numeric"", dtype is preserved unless array.dtype is object.
+        If dtype is a list of types, conversion on the first type is only
+        performed if the dtype of the input is not in the list.
+
+    order : 'F', 'C' or None (default=None)
+        Whether an array will be forced to be fortran or c-style.
+        When order is None (default), then if copy=False, nothing is ensured
+        about the memory layout of the output array; otherwise (copy=True)
+        the memory layout of the returned array is kept as close as possible
+        to the original array.
+
+    copy : boolean (default=False)
+        Whether a forced copy will be triggered. If copy=False, a copy might
+        be triggered by a conversion.
+
+    force_all_finite : boolean or 'allow-nan', (default=True)
+        Whether to raise an error on np.inf and np.nan in X. The possibilities
+        are:
+
+        - True: Force all values of X to be finite.
+        - False: accept both np.inf and np.nan in X.
+        - 'allow-nan':  accept  only  np.nan  values in  X.  Values  cannot  be
+          infinite.
+
+        .. versionadded:: 0.20
+           ``force_all_finite`` accepts the string ``'allow-nan'``.
+
+    ensure_2d : boolean (default=True)
+        Whether to raise a value error if X is not 2d.
+
+    allow_nd : boolean (default=False)
+        Whether to allow X.ndim > 2.
+
+    ensure_min_samples : int (default=1)
+        Make sure that the array has a minimum number of samples in its first
+        axis (rows for a 2D array). Setting to 0 disables this check.
+
+    ensure_min_features : int (default=1)
+        Make sure that the 2D array has some minimum number of features
+        (columns). The default value of 1 rejects empty datasets.
+        This check is only enforced when the input data has effectively 2
+        dimensions or is originally 1D and ``ensure_2d`` is True. Setting to 0
+        disables this check.
+
+    warn_on_dtype : boolean (default=False)
+        Raise DataConversionWarning if the dtype of the input data structure
+        does not match the requested dtype, causing a memory copy.
+
+    estimator : str or estimator instance (default=None)
+        If passed, include the name of the estimator in warning messages.
+
+    Returns
+    -------
+    X_converted : object
+        The converted and validated X.
+
+    """"""
+    # accept_sparse 'None' deprecation check
+    if accept_sparse is None:
+        warnings.warn(
+            ""Passing 'None' to parameter 'accept_sparse' in methods ""
+            ""check_array and check_X_y is deprecated in version 0.19 ""
+            ""and will be removed in 0.21. Use 'accept_sparse=False' ""
+            "" instead."", DeprecationWarning)
+        accept_sparse = False
+
+    # store reference to original array to check if copy is needed when
+    # function returns
+    array_orig = array
+
+    # store whether originally we wanted numeric dtype
+    dtype_numeric = isinstance(dtype, six.string_types) and dtype == ""numeric""
+
+    dtype_orig = getattr(array, ""dtype"", None)
+    if not hasattr(dtype_orig, 'kind'):
+        # not a data type (e.g. a column named dtype in a pandas DataFrame)
+        dtype_orig = None
+
+    if dtype_numeric:
+        if dtype_orig is not None and dtype_orig.kind == ""O"":
+            # if input is object, convert to float.
+            dtype = np.float64
+        else:
+            dtype = None
+
+    if isinstance(dtype, (list, tuple)):
+        if dtype_orig is not None and dtype_orig in dtype:
+            # no dtype conversion required
+            dtype = None
+        else:
+            # dtype conversion required. Let's select the first element of the
+            # list of accepted types.
+            dtype = dtype[0]
+
+    if force_all_finite not in (True, False, 'allow-nan'):
+        raise ValueError('force_all_finite should be a bool or ""allow-nan""'
+                         '. Got {!r} instead'.format(force_all_finite))
+
+    if estimator is not None:
+        if isinstance(estimator, six.string_types):
+            estimator_name = estimator
+        else:
+            estimator_name = estimator.__class__.__name__
+    else:
+        estimator_name = ""Estimator""
+    context = "" by %s"" % estimator_name if estimator is not None else """"
+
+    if sp.issparse(array):
+        _ensure_no_complex_data(array)
+        array = _ensure_sparse_format(array, accept_sparse=accept_sparse,
+                                      dtype=dtype, copy=copy,
+                                      force_all_finite=force_all_finite,
+                                      accept_large_sparse=accept_large_sparse)
+    else:
+        # If np.array(..) gives ComplexWarning, then we convert the warning
+        # to an error. This is needed because specifying a non complex
+        # dtype to the function converts complex to real dtype,
+        # thereby passing the test made in the lines following the scope
+        # of warnings context manager.
+        with warnings.catch_warnings():
+            try:
+                warnings.simplefilter('error', ComplexWarning)
+                array = np.asarray(array, dtype=dtype, order=order)
+            except ComplexWarning:
+                raise ValueError(""Complex data not supported\n""
+                                 ""{}\n"".format(array))
+
+        # It is possible that the np.array(..) gave no warning. This happens
+        # when no dtype conversion happened, for example dtype = None. The
+        # result is that np.array(..) produces an array of complex dtype
+        # and we need to catch and raise exception for such cases.
+        _ensure_no_complex_data(array)
+
+        if ensure_2d:
+            # If input is scalar raise error
+            if array.ndim == 0:
+                raise ValueError(
+                    ""Expected 2D array, got scalar array instead:\narray={}.\n""
+                    ""Reshape your data either using array.reshape(-1, 1) if ""
+                    ""your data has a single feature or array.reshape(1, -1) ""
+                    ""if it contains a single sample."".format(array))
+            # If input is 1D raise error
+            if array.ndim == 1:
+                raise ValueError(
+                    ""Expected 2D array, got 1D array instead:\narray={}.\n""
+                    ""Reshape your data either using array.reshape(-1, 1) if ""
+                    ""your data has a single feature or array.reshape(1, -1) ""
+                    ""if it contains a single sample."".format(array))
+
+        # in the future np.flexible dtypes will be handled like object dtypes
+        if dtype_numeric and np.issubdtype(array.dtype, np.flexible):
+            warnings.warn(
+                ""Beginning in version 0.22, arrays of strings will be ""
+                ""interpreted as decimal numbers if parameter 'dtype' is ""
+                ""'numeric'. It is recommended that you convert the array to ""
+                ""type np.float64 before passing it to check_array."",
+                FutureWarning)
+
+        # make sure we actually converted to numeric:
+        if dtype_numeric and array.dtype.kind == ""O"":
+            array = array.astype(np.float64)
+        if not allow_nd and array.ndim >= 3:
+            raise ValueError(""Found array with dim %d. %s expected <= 2.""
+                             % (array.ndim, estimator_name))
+        if force_all_finite:
+            _assert_all_finite(array,
+                               allow_nan=force_all_finite == 'allow-nan')
+
+    shape_repr = _shape_repr(array.shape)
+    if ensure_min_samples > 0:
+        n_samples = _num_samples(array)
+        if n_samples < ensure_min_samples:
+            raise ValueError(""Found array with %d sample(s) (shape=%s) while a""
+                             "" minimum of %d is required%s.""
+                             % (n_samples, shape_repr, ensure_min_samples,
+                                context))
+
+    if ensure_min_features > 0 and array.ndim == 2:
+        n_features = array.shape[1]
+        if n_features < ensure_min_features:
+            raise ValueError(""Found array with %d feature(s) (shape=%s) while""
+                             "" a minimum of %d is required%s.""
+                             % (n_features, shape_repr, ensure_min_features,
+                                context))
+
+    if warn_on_dtype and dtype_orig is not None and array.dtype != dtype_orig:
+        msg = (""Data with input dtype %s was converted to %s%s.""
+               % (dtype_orig, array.dtype, context))
+        warnings.warn(msg, DataConversionWarning)
+
+    if copy and np.may_share_memory(array, array_orig):
+        array = np.array(array, dtype=dtype, order=order)
+
+    return array","warn_on_dtype with DataFrame
+#### Description
+
+``warn_on_dtype`` has no effect when input is a pandas ``DataFrame``
+
+#### Steps/Code to Reproduce
+```python
+from sklearn.utils.validation import check_array
+import pandas as pd
+df = pd.DataFrame([[1, 2, 3], [2, 3, 4]], dtype=object)
+checked = check_array(df, warn_on_dtype=True)
+```
+
+#### Expected result: 
+
+```python-traceback
+DataConversionWarning: Data with input dtype object was converted to float64.
+```
+
+#### Actual Results
+No warning is thrown
+
+#### Versions
+Linux-4.4.0-116-generic-x86_64-with-debian-stretch-sid
+Python 3.6.3 |Anaconda, Inc.| (default, Nov  3 2017, 19:19:16) 
+[GCC 7.2.0]
+NumPy 1.13.1
+SciPy 0.19.1
+Scikit-Learn 0.20.dev0
+Pandas 0.21.0
+
+warn_on_dtype with DataFrame
+#### Description
+
+``warn_on_dtype`` has no effect when input is a pandas ``DataFrame``
+
+#### Steps/Code to Reproduce
+```python
+from sklearn.utils.validation import check_array
+import pandas as pd
+df = pd.DataFrame([[1, 2, 3], [2, 3, 4]], dtype=object)
+checked = check_array(df, warn_on_dtype=True)
+```
+
+#### Expected result: 
+
+```python-traceback
+DataConversionWarning: Data with input dtype object was converted to float64.
+```
+
+#### Actual Results
+No warning is thrown
+
+#### Versions
+Linux-4.4.0-116-generic-x86_64-with-debian-stretch-sid
+Python 3.6.3 |Anaconda, Inc.| (default, Nov  3 2017, 19:19:16) 
+[GCC 7.2.0]
+NumPy 1.13.1
+SciPy 0.19.1
+Scikit-Learn 0.20.dev0
+Pandas 0.21.0
+
+"
+194,scikit-learn/scikit-learn,_estimate_mi,sklearn/feature_selection/mutual_info_.py,"def _estimate_mi(X, y, discrete_features='auto', discrete_target=False,
+                 n_neighbors=3, copy=True, random_state=None):
+    """"""Estimate mutual information between the features and the target.
+
+    Parameters
+    ----------
+    X : array_like or sparse matrix, shape (n_samples, n_features)
+        Feature matrix.
+
+    y : array_like, shape (n_samples,)
+        Target vector.
+
+    discrete_features : {'auto', bool, array_like}, default 'auto'
+        If bool, then determines whether to consider all features discrete
+        or continuous. If array, then it should be either a boolean mask
+        with shape (n_features,) or array with indices of discrete features.
+        If 'auto', it is assigned to False for dense `X` and to True for
+        sparse `X`.
+
+    discrete_target : bool, default False
+        Whether to consider `y` as a discrete variable.
+
+    n_neighbors : int, default 3
+        Number of neighbors to use for MI estimation for continuous variables,
+        see [1]_ and [2]_. Higher values reduce variance of the estimation, but
+        could introduce a bias.
+
+    copy : bool, default True
+        Whether to make a copy of the given data. If set to False, the initial
+        data will be overwritten.
+
+    random_state : int, RandomState instance or None, optional, default None
+        The seed of the pseudo random number generator for adding small noise
+        to continuous variables in order to remove repeated values.  If int,
+        random_state is the seed used by the random number generator; If
+        RandomState instance, random_state is the random number generator; If
+        None, the random number generator is the RandomState instance used by
+        `np.random`.
+
+    Returns
+    -------
+    mi : ndarray, shape (n_features,)
+        Estimated mutual information between each feature and the target.
+        A negative value will be replaced by 0.
+
+    References
+    ----------
+    .. [1] A. Kraskov, H. Stogbauer and P. Grassberger, ""Estimating mutual
+           information"". Phys. Rev. E 69, 2004.
+    .. [2] B. C. Ross ""Mutual Information between Discrete and Continuous
+           Data Sets"". PLoS ONE 9(2), 2014.
+    """"""
+    X, y = check_X_y(X, y, accept_sparse='csc', y_numeric=not discrete_target)
+    n_samples, n_features = X.shape
+
+    if discrete_features == 'auto':
+        discrete_features = issparse(X)
+
+    if isinstance(discrete_features, bool):
+        discrete_mask = np.empty(n_features, dtype=bool)
+        discrete_mask.fill(discrete_features)
+    else:
+        discrete_features = np.asarray(discrete_features)
+        if discrete_features.dtype != 'bool':
+            discrete_mask = np.zeros(n_features, dtype=bool)
+            discrete_mask[discrete_features] = True
+        else:
+            discrete_mask = discrete_features
+
+    continuous_mask = ~discrete_mask
+    if np.any(continuous_mask) and issparse(X):
+        raise ValueError(""Sparse matrix `X` can't have continuous features."")
+
+    rng = check_random_state(random_state)
+    if np.any(continuous_mask):
+        if copy:
+            X = X.copy()
+
+        if not discrete_target:
+            X[:, continuous_mask] = scale(X[:, continuous_mask],
+                                          with_mean=False, copy=False)
+
+        # Add small noise to continuous features as advised in Kraskov et. al.
+        X = X.astype(float, **_astype_copy_false(X))
+        means = np.maximum(1, np.mean(np.abs(X[:, continuous_mask]), axis=0))
+        X[:, continuous_mask] += 1e-10 * means * rng.randn(
+                n_samples, np.sum(continuous_mask))
+
+    if not discrete_target:
+        y = scale(y, with_mean=False)
+        y += 1e-10 * np.maximum(1, np.mean(np.abs(y))) * rng.randn(n_samples)
+
+    mi = [_compute_mi(x, y, discrete_feature, discrete_target, n_neighbors) for
+          x, discrete_feature in zip(_iterate_columns(X), discrete_mask)]
+
+    return np.array(mi)","Comparing string to array in _estimate_mi
+In ``_estimate_mi`` there is ``discrete_features == 'auto'`` but discrete features can be an array of indices or a boolean mask.
+This will error in future versions of numpy.
+Also this means we never test this function with discrete features != 'auto', it seems?
+"
+199,scikit-learn/scikit-learn,_sparse_fit,sklearn/svm/base.py,"    def _sparse_fit(self, X, y, sample_weight, solver_type, kernel,
+                    random_seed):
+        X.data = np.asarray(X.data, dtype=np.float64, order='C')
+        X.sort_indices()
+
+        kernel_type = self._sparse_kernels.index(kernel)
+
+        libsvm_sparse.set_verbosity_wrap(self.verbose)
+
+        self.support_, self.support_vectors_, dual_coef_data, \
+            self.intercept_, self._n_support, \
+            self.probA_, self.probB_, self.fit_status_ = \
+            libsvm_sparse.libsvm_sparse_train(
+                X.shape[1], X.data, X.indices, X.indptr, y, solver_type,
+                kernel_type, self.degree, self._gamma, self.coef0, self.tol,
+                self.C, self.class_weight_,
+                sample_weight, self.nu, self.cache_size, self.epsilon,
+                int(self.shrinking), int(self.probability), self.max_iter,
+                random_seed)
+
+        self._warn_from_fit_status()
+
+        if hasattr(self, ""classes_""):
+            n_class = len(self.classes_) - 1
+        else:  # regression
+            n_class = 1
+        n_SV = self.support_vectors_.shape[0]
+
+        dual_coef_indices = np.tile(np.arange(n_SV), n_class)
+        dual_coef_indptr = np.arange(0, dual_coef_indices.size + 1,
+                                     dual_coef_indices.size / n_class)
+        self.dual_coef_ = sp.csr_matrix(
+            (dual_coef_data, dual_coef_indices, dual_coef_indptr),
+            (n_class, n_SV))","ZeroDivisionError in _sparse_fit for SVM with empty support_vectors_
+#### Description
+When using sparse data, in the case where the support_vectors_ attribute is be empty, _fit_sparse gives a ZeroDivisionError
+
+#### Steps/Code to Reproduce
+```
+import numpy as np
+import scipy
+import sklearn
+from sklearn.svm import SVR
+x_train = np.array([[0, 1, 0, 0],
+[0, 0, 0, 1],
+[0, 0, 1, 0],
+[0, 0, 0, 1]])
+y_train = np.array([0.04, 0.04, 0.10, 0.16])
+model = SVR(C=316.227766017, cache_size=200, coef0=0.0, degree=3, epsilon=0.1,
+  	    gamma=1.0, kernel='linear', max_iter=15000,
+  	    shrinking=True, tol=0.001, verbose=False)
+# dense x_train has no error
+model.fit(x_train, y_train)
+
+# convert to sparse
+xtrain= scipy.sparse.csr_matrix(x_train)
+model.fit(xtrain, y_train)
+
+```
+#### Expected Results
+No error is thrown and  `self.dual_coef_ = sp.csr_matrix([])`
+
+#### Actual Results
+```
+Traceback (most recent call last):
+  File ""<stdin>"", line 1, in <module>
+  File ""/usr/local/lib/python3.5/dist-packages/sklearn/svm/base.py"", line 209, in fit
+    fit(X, y, sample_weight, solver_type, kernel, random_seed=seed)
+  File ""/usr/local/lib/python3.5/dist-packages/sklearn/svm/base.py"", line 302, in _sparse_fit
+    dual_coef_indices.size / n_class)
+ZeroDivisionError: float division by zero
+```
+
+#### Versions
+```
+>>> sklearn.show_versions() 
+
+System:
+executable: /usr/bin/python3
+    python: 3.5.2 (default, Nov 12 2018, 13:43:14)  [GCC 5.4.0 20160609]
+   machine: Linux-4.15.0-58-generic-x86_64-with-Ubuntu-16.04-xenial
+
+Python deps:
+     numpy: 1.17.0
+    Cython: None
+       pip: 19.2.1
+    pandas: 0.22.0
+   sklearn: 0.21.3
+     scipy: 1.3.0
+setuptools: 40.4.3
+```
+"
+201,scikit-learn/scikit-learn,affinity_propagation,sklearn/cluster/_affinity_propagation.py,"def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
+                         damping=0.5, copy=True, verbose=False,
+                         return_n_iter=False):
+    """"""Perform Affinity Propagation Clustering of data
+
+    Read more in the :ref:`User Guide <affinity_propagation>`.
+
+    Parameters
+    ----------
+
+    S : array-like, shape (n_samples, n_samples)
+        Matrix of similarities between points
+
+    preference : array-like, shape (n_samples,) or float, optional
+        Preferences for each point - points with larger values of
+        preferences are more likely to be chosen as exemplars. The number of
+        exemplars, i.e. of clusters, is influenced by the input preferences
+        value. If the preferences are not passed as arguments, they will be
+        set to the median of the input similarities (resulting in a moderate
+        number of clusters). For a smaller amount of clusters, this can be set
+        to the minimum value of the similarities.
+
+    convergence_iter : int, optional, default: 15
+        Number of iterations with no change in the number
+        of estimated clusters that stops the convergence.
+
+    max_iter : int, optional, default: 200
+        Maximum number of iterations
+
+    damping : float, optional, default: 0.5
+        Damping factor between 0.5 and 1.
+
+    copy : boolean, optional, default: True
+        If copy is False, the affinity matrix is modified inplace by the
+        algorithm, for memory efficiency
+
+    verbose : boolean, optional, default: False
+        The verbosity level
+
+    return_n_iter : bool, default False
+        Whether or not to return the number of iterations.
+
+    Returns
+    -------
+
+    cluster_centers_indices : array, shape (n_clusters,)
+        index of clusters centers
+
+    labels : array, shape (n_samples,)
+        cluster labels for each point
+
+    n_iter : int
+        number of iterations run. Returned only if `return_n_iter` is
+        set to True.
+
+    Notes
+    -----
+    For an example, see :ref:`examples/cluster/plot_affinity_propagation.py
+    <sphx_glr_auto_examples_cluster_plot_affinity_propagation.py>`.
+
+    When the algorithm does not converge, it returns an empty array as
+    ``cluster_center_indices`` and ``-1`` as label for each training sample.
+
+    When all training samples have equal similarities and equal preferences,
+    the assignment of cluster centers and labels depends on the preference.
+    If the preference is smaller than the similarities, a single cluster center
+    and label ``0`` for every sample will be returned. Otherwise, every
+    training sample becomes its own cluster center and is assigned a unique
+    label.
+
+    References
+    ----------
+    Brendan J. Frey and Delbert Dueck, ""Clustering by Passing Messages
+    Between Data Points"", Science Feb. 2007
+    """"""
+    S = as_float_array(S, copy=copy)
+    n_samples = S.shape[0]
+
+    if S.shape[0] != S.shape[1]:
+        raise ValueError(""S must be a square array (shape=%s)"" % repr(S.shape))
+
+    if preference is None:
+        preference = np.median(S)
+    if damping < 0.5 or damping >= 1:
+        raise ValueError('damping must be >= 0.5 and < 1')
+
+    preference = np.array(preference)
+
+    if (n_samples == 1 or
+            _equal_similarities_and_preferences(S, preference)):
+        # It makes no sense to run the algorithm in this case, so return 1 or
+        # n_samples clusters, depending on preferences
+        warnings.warn(""All samples have mutually equal similarities. ""
+                      ""Returning arbitrary cluster center(s)."")
+        if preference.flat[0] >= S.flat[n_samples - 1]:
+            return ((np.arange(n_samples), np.arange(n_samples), 0)
+                    if return_n_iter
+                    else (np.arange(n_samples), np.arange(n_samples)))
+        else:
+            return ((np.array([0]), np.array([0] * n_samples), 0)
+                    if return_n_iter
+                    else (np.array([0]), np.array([0] * n_samples)))
+
+    random_state = np.random.RandomState(0)
+
+    # Place preference on the diagonal of S
+    S.flat[::(n_samples + 1)] = preference
+
+    A = np.zeros((n_samples, n_samples))
+    R = np.zeros((n_samples, n_samples))  # Initialize messages
+    # Intermediate results
+    tmp = np.zeros((n_samples, n_samples))
+
+    # Remove degeneracies
+    S += ((np.finfo(np.double).eps * S + np.finfo(np.double).tiny * 100) *
+          random_state.randn(n_samples, n_samples))
+
+    # Execute parallel affinity propagation updates
+    e = np.zeros((n_samples, convergence_iter))
+
+    ind = np.arange(n_samples)
+
+    for it in range(max_iter):
+        # tmp = A + S; compute responsibilities
+        np.add(A, S, tmp)
+        I = np.argmax(tmp, axis=1)
+        Y = tmp[ind, I]  # np.max(A + S, axis=1)
+        tmp[ind, I] = -np.inf
+        Y2 = np.max(tmp, axis=1)
+
+        # tmp = Rnew
+        np.subtract(S, Y[:, None], tmp)
+        tmp[ind, I] = S[ind, I] - Y2
+
+        # Damping
+        tmp *= 1 - damping
+        R *= damping
+        R += tmp
+
+        # tmp = Rp; compute availabilities
+        np.maximum(R, 0, tmp)
+        tmp.flat[::n_samples + 1] = R.flat[::n_samples + 1]
+
+        # tmp = -Anew
+        tmp -= np.sum(tmp, axis=0)
+        dA = np.diag(tmp).copy()
+        tmp.clip(0, np.inf, tmp)
+        tmp.flat[::n_samples + 1] = dA
+
+        # Damping
+        tmp *= 1 - damping
+        A *= damping
+        A -= tmp
+
+        # Check for convergence
+        E = (np.diag(A) + np.diag(R)) > 0
+        e[:, it % convergence_iter] = E
+        K = np.sum(E, axis=0)
+
+        if it >= convergence_iter:
+            se = np.sum(e, axis=1)
+            unconverged = (np.sum((se == convergence_iter) + (se == 0))
+                           != n_samples)
+            if (not unconverged and (K > 0)) or (it == max_iter):
+                if verbose:
+                    print(""Converged after %d iterations."" % it)
+                break
+    else:
+        if verbose:
+            print(""Did not converge"")
+
+    I = np.flatnonzero(E)
+    K = I.size  # Identify exemplars
+
+    if K > 0:
+        c = np.argmax(S[:, I], axis=1)
+        c[I] = np.arange(K)  # Identify clusters
+        # Refine the final set of exemplars and clusters and return results
+        for k in range(K):
+            ii = np.where(c == k)[0]
+            j = np.argmax(np.sum(S[ii[:, np.newaxis], ii], axis=0))
+            I[k] = ii[j]
+
+        c = np.argmax(S[:, I], axis=1)
+        c[I] = np.arange(K)
+        labels = I[c]
+        # Reduce labels to a sorted, gapless, list
+        cluster_centers_indices = np.unique(labels)
+        labels = np.searchsorted(cluster_centers_indices, labels)
+    else:
+        warnings.warn(""Affinity propagation did not converge, this model ""
+                      ""will not have any cluster centers."", ConvergenceWarning)
+        labels = np.array([-1] * n_samples)
+        cluster_centers_indices = []
+
+    if return_n_iter:
+        return cluster_centers_indices, labels, it + 1
+    else:
+        return cluster_centers_indices, labels","Return values of non converged affinity propagation clustering
+The affinity propagation Documentation states: 
+""When the algorithm does not converge, it returns an empty array as cluster_center_indices and -1 as label for each training sample.""
+
+Example:
+```python
+from sklearn.cluster import AffinityPropagation
+import pandas as pd
+
+data = pd.DataFrame([[1,0,0,0,0,0],[0,1,1,1,0,0],[0,0,1,0,0,1]])
+af = AffinityPropagation(affinity='euclidean', verbose=True, copy=False, max_iter=2).fit(data)
+
+print(af.cluster_centers_indices_)
+print(af.labels_)
+
+```
+I would expect that the clustering here (which does not converge) prints first an empty List and then [-1,-1,-1], however, I get [2] as cluster center and [0,0,0] as cluster labels. 
+The only way I currently know if the clustering fails is if I use the verbose option, however that is very unhandy. A hacky solution is to check if max_iter == n_iter_ but it could have converged exactly 15 iterations before max_iter (although unlikely).
+I am not sure if this is intended behavior and the documentation is wrong?
+
+For my use-case within a bigger script, I would prefer to get back -1 values or have a property to check if it has converged, as otherwise, a user might not be aware that the clustering never converged.
+
+
+#### Versions
+System:
+    python: 3.6.7 | packaged by conda-forge | (default, Nov 21 2018, 02:32:25)  [GCC 4.8.2 20140120 (Red Hat 4.8.2-15)]
+executable: /home/jenniferh/Programs/anaconda3/envs/TF_RDKit_1_19/bin/python
+   machine: Linux-4.15.0-52-generic-x86_64-with-debian-stretch-sid
+BLAS:
+    macros: SCIPY_MKL_H=None, HAVE_CBLAS=None
+  lib_dirs: /home/jenniferh/Programs/anaconda3/envs/TF_RDKit_1_19/lib
+cblas_libs: mkl_rt, pthread
+Python deps:
+    pip: 18.1
+   setuptools: 40.6.3
+   sklearn: 0.20.3
+   numpy: 1.15.4
+   scipy: 1.2.0
+   Cython: 0.29.2
+   pandas: 0.23.4
+
+
+"
+214,sphinx-doc/sphinx,format_signature,sphinx/ext/autodoc/__init__.py,"    def format_signature(self, **kwargs: Any) -> str:
+        if self.doc_as_attr:
+            return ''
+
+        sig = super().format_signature()
+        sigs = []
+
+        overloads = self.get_overloaded_signatures()
+        if overloads:
+            # Use signatures for overloaded methods instead of the implementation method.
+            method = safe_getattr(self._signature_class, self._signature_method_name, None)
+            __globals__ = safe_getattr(method, '__globals__', {})
+            for overload in overloads:
+                overload = evaluate_signature(overload, __globals__,
+                                              self.env.config.autodoc_type_aliases)
+
+                parameters = list(overload.parameters.values())
+                overload = overload.replace(parameters=parameters[1:],
+                                            return_annotation=Parameter.empty)
+                sig = stringify_signature(overload, **kwargs)
+                sigs.append(sig)
+        else:
+            sigs.append(sig)
+
+        return ""\n"".join(sigs)","autodoc_typehints does not effect to overloaded callables
+**Describe the bug**
+autodoc_typehints does not effect to overloaded callables.
+
+**To Reproduce**
+
+```
+# in conf.py
+autodoc_typehints = 'none'
+```
+```
+# in index.rst
+.. automodule:: example
+   :members:
+   :undoc-members:
+```
+```
+# in example.py
+from typing import overload
+
+
+@overload
+def foo(x: int) -> int:
+    ...
+
+
+@overload
+def foo(x: float) -> float:
+    ...
+
+
+def foo(x):
+    return x
+```
+
+**Expected behavior**
+All typehints for overloaded callables are obeyed `autodoc_typehints` setting.
+
+**Your project**
+No
+
+**Screenshots**
+No
+
+**Environment info**
+- OS: Mac
+- Python version: 3.8.2
+- Sphinx version: 3.1.0dev
+- Sphinx extensions: sphinx.ext.autodoc
+- Extra tools: No
+
+**Additional context**
+No
+"
+230,sympy/sympy,__new__,sympy/combinatorics/permutations.py,"    def __new__(cls, *args, **kwargs):
+        """"""
+        Constructor for the Permutation object from a list or a
+        list of lists in which all elements of the permutation may
+        appear only once.
+
+        Examples
+        ========
+
+        >>> from sympy.combinatorics.permutations import Permutation
+        >>> Permutation.print_cyclic = False
+
+        Permutations entered in array-form are left unaltered:
+
+        >>> Permutation([0, 2, 1])
+        Permutation([0, 2, 1])
+
+        Permutations entered in cyclic form are converted to array form;
+        singletons need not be entered, but can be entered to indicate the
+        largest element:
+
+        >>> Permutation([[4, 5, 6], [0, 1]])
+        Permutation([1, 0, 2, 3, 5, 6, 4])
+        >>> Permutation([[4, 5, 6], [0, 1], [19]])
+        Permutation([1, 0, 2, 3, 5, 6, 4], size=20)
+
+        All manipulation of permutations assumes that the smallest element
+        is 0 (in keeping with 0-based indexing in Python) so if the 0 is
+        missing when entering a permutation in array form, an error will be
+        raised:
+
+        >>> Permutation([2, 1])
+        Traceback (most recent call last):
+        ...
+        ValueError: Integers 0 through 2 must be present.
+
+        If a permutation is entered in cyclic form, it can be entered without
+        singletons and the ``size`` specified so those values can be filled
+        in, otherwise the array form will only extend to the maximum value
+        in the cycles:
+
+        >>> Permutation([[1, 4], [3, 5, 2]], size=10)
+        Permutation([0, 4, 3, 5, 1, 2], size=10)
+        >>> _.array_form
+        [0, 4, 3, 5, 1, 2, 6, 7, 8, 9]
+        """"""
+        size = kwargs.pop('size', None)
+        if size is not None:
+            size = int(size)
+
+        #a) ()
+        #b) (1) = identity
+        #c) (1, 2) = cycle
+        #d) ([1, 2, 3]) = array form
+        #e) ([[1, 2]]) = cyclic form
+        #f) (Cycle) = conversion to permutation
+        #g) (Permutation) = adjust size or return copy
+        ok = True
+        if not args:  # a
+            return _af_new(list(range(size or 0)))
+        elif len(args) > 1:  # c
+            return _af_new(Cycle(*args).list(size))
+        if len(args) == 1:
+            a = args[0]
+            if isinstance(a, Perm):  # g
+                if size is None or size == a.size:
+                    return a
+                return Perm(a.array_form, size=size)
+            if isinstance(a, Cycle):  # f
+                return _af_new(a.list(size))
+            if not is_sequence(a):  # b
+                return _af_new(list(range(a + 1)))
+            if has_variety(is_sequence(ai) for ai in a):
+                ok = False
+        else:
+            ok = False
+        if not ok:
+            raise ValueError(""Permutation argument must be a list of ints, ""
+                             ""a list of lists, Permutation or Cycle."")
+
+
+        # safe to assume args are valid; this also makes a copy
+        # of the args
+        args = list(args[0])
+
+        is_cycle = args and is_sequence(args[0])
+        if is_cycle:  # e
+            args = [[int(i) for i in c] for c in args]
+        else:  # d
+            args = [int(i) for i in args]
+
+        # if there are n elements present, 0, 1, ..., n-1 should be present
+        # unless a cycle notation has been provided. A 0 will be added
+        # for convenience in case one wants to enter permutations where
+        # counting starts from 1.
+
+        temp = flatten(args)
+        if has_dups(temp):
+            if is_cycle:
+                raise ValueError('there were repeated elements; to resolve '
+                'cycles use Cycle%s.' % ''.join([str(tuple(c)) for c in args]))
+            else:
+                raise ValueError('there were repeated elements.')
+        temp = set(temp)
+
+        if not is_cycle and \
+                any(i not in temp for i in range(len(temp))):
+            raise ValueError(""Integers 0 through %s must be present."" %
+                             max(temp))
+
+        if is_cycle:
+            # it's not necessarily canonical so we won't store
+            # it -- use the array form instead
+            c = Cycle()
+            for ci in args:
+                c = c(*ci)
+            aform = c.list()
+        else:
+            aform = list(args)
+        if size and size > len(aform):
+            # don't allow for truncation of permutation which
+            # might split a cycle and lead to an invalid aform
+            # but do allow the permutation size to be increased
+            aform.extend(list(range(len(aform), size)))
+        size = len(aform)
+        obj = Basic.__new__(cls, aform)
+        obj._array_form = aform
+        obj._size = size
+        return obj","`Permutation` constructor fails with non-disjoint cycles
+Calling `Permutation([[0,1],[0,1]])` raises a `ValueError` instead of constructing the identity permutation.  If the cycles passed in are non-disjoint, they should be applied in left-to-right order and the resulting permutation should be returned.
+
+This should be easy to compute.  I don't see a reason why non-disjoint cycles should be forbidden.
+"
+266,sympy/sympy,diophantine,sympy/solvers/diophantine.py,"def diophantine(eq, param=symbols(""t"", integer=True), syms=None,
+                permute=False):
+    """"""
+    Simplify the solution procedure of diophantine equation ``eq`` by
+    converting it into a product of terms which should equal zero.
+
+    For example, when solving, `x^2 - y^2 = 0` this is treated as
+    `(x + y)(x - y) = 0` and `x + y = 0` and `x - y = 0` are solved
+    independently and combined. Each term is solved by calling
+    ``diop_solve()``. (Although it is possible to call ``diop_solve()``
+    directly, one must be careful to pass an equation in the correct
+    form and to interpret the output correctly; ``diophantine()`` is
+    the public-facing function to use in general.)
+
+    Output of ``diophantine()`` is a set of tuples. The elements of the
+    tuple are the solutions for each variable in the equation and
+    are arranged according to the alphabetic ordering of the variables.
+    e.g. For an equation with two variables, `a` and `b`, the first
+    element of the tuple is the solution for `a` and the second for `b`.
+
+    Usage
+    =====
+
+    ``diophantine(eq, t, syms)``: Solve the diophantine
+    equation ``eq``.
+    ``t`` is the optional parameter to be used by ``diop_solve()``.
+    ``syms`` is an optional list of symbols which determines the
+    order of the elements in the returned tuple.
+
+    By default, only the base solution is returned. If ``permute`` is set to
+    True then permutations of the base solution and/or permutations of the
+    signs of the values will be returned when applicable.
+
+    >>> from sympy.solvers.diophantine import diophantine
+    >>> from sympy.abc import a, b
+    >>> eq = a**4 + b**4 - (2**4 + 3**4)
+    >>> diophantine(eq)
+    {(2, 3)}
+    >>> diophantine(eq, permute=True)
+    {(-3, -2), (-3, 2), (-2, -3), (-2, 3), (2, -3), (2, 3), (3, -2), (3, 2)}
+
+    Details
+    =======
+
+    ``eq`` should be an expression which is assumed to be zero.
+    ``t`` is the parameter to be used in the solution.
+
+    Examples
+    ========
+
+    >>> from sympy.abc import x, y, z
+    >>> diophantine(x**2 - y**2)
+    {(t_0, -t_0), (t_0, t_0)}
+
+    >>> diophantine(x*(2*x + 3*y - z))
+    {(0, n1, n2), (t_0, t_1, 2*t_0 + 3*t_1)}
+    >>> diophantine(x**2 + 3*x*y + 4*x)
+    {(0, n1), (3*t_0 - 4, -t_0)}
+
+    See Also
+    ========
+
+    diop_solve()
+    sympy.utilities.iterables.permute_signs
+    sympy.utilities.iterables.signed_permutations
+    """"""
+
+    from sympy.utilities.iterables import (
+        subsets, permute_signs, signed_permutations)
+
+    if isinstance(eq, Eq):
+        eq = eq.lhs - eq.rhs
+
+    try:
+        var = list(eq.expand(force=True).free_symbols)
+        var.sort(key=default_sort_key)
+        if syms:
+            if not is_sequence(syms):
+                raise TypeError(
+                    'syms should be given as a sequence, e.g. a list')
+            syms = [i for i in syms if i in var]
+            if syms != var:
+                dict_sym_index = dict(zip(syms, range(len(syms))))
+                return {tuple([t[dict_sym_index[i]] for i in var])
+                            for t in diophantine(eq, param)}
+        n, d = eq.as_numer_denom()
+        if n.is_number:
+            return set()
+        if not d.is_number:
+            dsol = diophantine(d)
+            good = diophantine(n) - dsol
+            return {s for s in good if _mexpand(d.subs(zip(var, s)))}
+        else:
+            eq = n
+        eq = factor_terms(eq)
+        assert not eq.is_number
+        eq = eq.as_independent(*var, as_Add=False)[1]
+        p = Poly(eq)
+        assert not any(g.is_number for g in p.gens)
+        eq = p.as_expr()
+        assert eq.is_polynomial()
+    except (GeneratorsNeeded, AssertionError, AttributeError):
+        raise TypeError(filldedent('''
+    Equation should be a polynomial with Rational coefficients.'''))
+
+    # permute only sign
+    do_permute_signs = False
+    # permute sign and values
+    do_permute_signs_var = False
+    # permute few signs
+    permute_few_signs = False
+    try:
+        # if we know that factoring should not be attempted, skip
+        # the factoring step
+        v, c, t = classify_diop(eq)
+
+        # check for permute sign
+        if permute:
+            len_var = len(v)
+            permute_signs_for = [
+                'general_sum_of_squares',
+                'general_sum_of_even_powers']
+            permute_signs_check = [
+                'homogeneous_ternary_quadratic',
+                'homogeneous_ternary_quadratic_normal',
+                'binary_quadratic']
+            if t in permute_signs_for:
+                do_permute_signs_var = True
+            elif t in permute_signs_check:
+                # if all the variables in eq have even powers
+                # then do_permute_sign = True
+                if len_var == 3:
+                    var_mul = list(subsets(v, 2))
+                    # here var_mul is like [(x, y), (x, z), (y, z)]
+                    xy_coeff = True
+                    x_coeff = True
+                    var1_mul_var2 = map(lambda a: a[0]*a[1], var_mul)
+                    # if coeff(y*z), coeff(y*x), coeff(x*z) is not 0 then
+                    # `xy_coeff` => True and do_permute_sign => False.
+                    # Means no permuted solution.
+                    for v1_mul_v2 in var1_mul_var2:
+                        try:
+                            coeff = c[v1_mul_v2]
+                        except KeyError:
+                            coeff = 0
+                        xy_coeff = bool(xy_coeff) and bool(coeff)
+                    var_mul = list(subsets(v, 1))
+                    # here var_mul is like [(x,), (y, )]
+                    for v1 in var_mul:
+                        try:
+                            coeff = c[v1[0]]
+                        except KeyError:
+                            coeff = 0
+                        x_coeff = bool(x_coeff) and bool(coeff)
+                    if not any([xy_coeff, x_coeff]):
+                        # means only x**2, y**2, z**2, const is present
+                        do_permute_signs = True
+                    elif not x_coeff:
+                        permute_few_signs = True
+                elif len_var == 2:
+                    var_mul = list(subsets(v, 2))
+                    # here var_mul is like [(x, y)]
+                    xy_coeff = True
+                    x_coeff = True
+                    var1_mul_var2 = map(lambda x: x[0]*x[1], var_mul)
+                    for v1_mul_v2 in var1_mul_var2:
+                        try:
+                            coeff = c[v1_mul_v2]
+                        except KeyError:
+                            coeff = 0
+                        xy_coeff = bool(xy_coeff) and bool(coeff)
+                    var_mul = list(subsets(v, 1))
+                    # here var_mul is like [(x,), (y, )]
+                    for v1 in var_mul:
+                        try:
+                            coeff = c[v1[0]]
+                        except KeyError:
+                            coeff = 0
+                        x_coeff = bool(x_coeff) and bool(coeff)
+                    if not any([xy_coeff, x_coeff]):
+                        # means only x**2, y**2 and const is present
+                        # so we can get more soln by permuting this soln.
+                        do_permute_signs = True
+                    elif not x_coeff:
+                        # when coeff(x), coeff(y) is not present then signs of
+                        #  x, y can be permuted such that their sign are same
+                        # as sign of x*y.
+                        # e.g 1. (x_val,y_val)=> (x_val,y_val), (-x_val,-y_val)
+                        # 2. (-x_vall, y_val)=> (-x_val,y_val), (x_val,-y_val)
+                        permute_few_signs = True
+        if t == 'general_sum_of_squares':
+            # trying to factor such expressions will sometimes hang
+            terms = [(eq, 1)]
+        else:
+            raise TypeError
+    except (TypeError, NotImplementedError):
+        terms = factor_list(eq)[1]
+
+    sols = set([])
+
+    for term in terms:
+
+        base, _ = term
+        var_t, _, eq_type = classify_diop(base, _dict=False)
+        _, base = signsimp(base, evaluate=False).as_coeff_Mul()
+        solution = diop_solve(base, param)
+
+        if eq_type in [
+                ""linear"",
+                ""homogeneous_ternary_quadratic"",
+                ""homogeneous_ternary_quadratic_normal"",
+                ""general_pythagorean""]:
+            sols.add(merge_solution(var, var_t, solution))
+
+        elif eq_type in [
+                ""binary_quadratic"",
+                ""general_sum_of_squares"",
+                ""general_sum_of_even_powers"",
+                ""univariate""]:
+            for sol in solution:
+                sols.add(merge_solution(var, var_t, sol))
+
+        else:
+            raise NotImplementedError('unhandled type: %s' % eq_type)
+
+    # remove null merge results
+    if () in sols:
+        sols.remove(())
+    null = tuple([0]*len(var))
+    # if there is no solution, return trivial solution
+    if not sols and eq.subs(zip(var, null)).is_zero:
+        sols.add(null)
+    final_soln = set([])
+    for sol in sols:
+        if all(_is_int(s) for s in sol):
+            if do_permute_signs:
+                permuted_sign = set(permute_signs(sol))
+                final_soln.update(permuted_sign)
+            elif permute_few_signs:
+                lst = list(permute_signs(sol))
+                lst = list(filter(lambda x: x[0]*x[1] == sol[1]*sol[0], lst))
+                permuted_sign = set(lst)
+                final_soln.update(permuted_sign)
+            elif do_permute_signs_var:
+                permuted_sign_var = set(signed_permutations(sol))
+                final_soln.update(permuted_sign_var)
+            else:
+                final_soln.add(sol)
+        else:
+                final_soln.add(sol)
+    return final_soln","diophantine: incomplete results depending on syms order with permute=True
+```
+In [10]: diophantine(n**4 + m**4 - 2**4 - 3**4, syms=(m,n), permute=True)
+Out[10]: {(-3, -2), (-3, 2), (-2, -3), (-2, 3), (2, -3), (2, 3), (3, -2), (3, 2)}
+
+In [11]: diophantine(n**4 + m**4 - 2**4 - 3**4, syms=(n,m), permute=True)
+Out[11]: {(3, 2)}
+```
+
+diophantine: incomplete results depending on syms order with permute=True
+```
+In [10]: diophantine(n**4 + m**4 - 2**4 - 3**4, syms=(m,n), permute=True)
+Out[10]: {(-3, -2), (-3, 2), (-2, -3), (-2, 3), (2, -3), (2, 3), (3, -2), (3, 2)}
+
+In [11]: diophantine(n**4 + m**4 - 2**4 - 3**4, syms=(n,m), permute=True)
+Out[11]: {(3, 2)}
+```
+
+"
+267,sympy/sympy,nthroot_mod,sympy/ntheory/residue_ntheory.py,"def nthroot_mod(a, n, p, all_roots=False):
+    """"""
+    Find the solutions to ``x**n = a mod p``
+
+    Parameters
+    ==========
+
+    a : integer
+    n : positive integer
+    p : positive integer
+    all_roots : if False returns the smallest root, else the list of roots
+
+    Examples
+    ========
+
+    >>> from sympy.ntheory.residue_ntheory import nthroot_mod
+    >>> nthroot_mod(11, 4, 19)
+    8
+    >>> nthroot_mod(11, 4, 19, True)
+    [8, 11]
+    >>> nthroot_mod(68, 3, 109)
+    23
+    """"""
+    from sympy.core.numbers import igcdex
+    a, n, p = as_int(a), as_int(n), as_int(p)
+    if n == 2:
+        return sqrt_mod(a, p, all_roots)
+    # see Hackman ""Elementary Number Theory"" (2009), page 76
+    if not is_nthpow_residue(a, n, p):
+        return None
+    if not isprime(p):
+        raise NotImplementedError(""Not implemented for composite p"")
+
+    if (p - 1) % n == 0:
+        return _nthroot_mod1(a, n, p, all_roots)
+    # The roots of ``x**n - a = 0 (mod p)`` are roots of
+    # ``gcd(x**n - a, x**(p - 1) - 1) = 0 (mod p)``
+    pa = n
+    pb = p - 1
+    b = 1
+    if pa < pb:
+        a, pa, b, pb = b, pb, a, pa
+    while pb:
+        # x**pa - a = 0; x**pb - b = 0
+        # x**pa - a = x**(q*pb + r) - a = (x**pb)**q * x**r - a =
+        #             b**q * x**r - a; x**r - c = 0; c = b**-q * a mod p
+        q, r = divmod(pa, pb)
+        c = pow(b, q, p)
+        c = igcdex(c, p)[0]
+        c = (c * a) % p
+        pa, pb = pb, r
+        a, b = b, c
+    if pa == 1:
+        if all_roots:
+            res = [a]
+        else:
+            res = a
+    elif pa == 2:
+        return sqrt_mod(a, p , all_roots)
+    else:
+        res = _nthroot_mod1(a, pa, p, all_roots)
+    return res","nthroot_mod function misses one root of x = 0 mod p.
+When in the equation x**n = a mod p , when a % p == 0. Then x = 0 mod p is also a root of this equation. But right now `nthroot_mod` does not check for this condition. `nthroot_mod(17*17, 5 , 17)` has a root `0 mod 17`. But it does not return it.
+"
+271,sympy/sympy,uniq,sympy/utilities/iterables.py,"def uniq(seq, result=None):
+    """"""
+    Yield unique elements from ``seq`` as an iterator. The second
+    parameter ``result``  is used internally; it is not necessary to pass
+    anything for this.
+
+    Examples
+    ========
+
+    >>> from sympy.utilities.iterables import uniq
+    >>> dat = [1, 4, 1, 5, 4, 2, 1, 2]
+    >>> type(uniq(dat)) in (list, tuple)
+    False
+
+    >>> list(uniq(dat))
+    [1, 4, 5, 2]
+    >>> list(uniq(x for x in dat))
+    [1, 4, 5, 2]
+    >>> list(uniq([[1], [2, 1], [1]]))
+    [[1], [2, 1]]
+    """"""
+    try:
+        seen = set()
+        result = result or []
+        for i, s in enumerate(seq):
+            if not (s in seen or seen.add(s)):
+                yield s
+    except TypeError:
+        if s not in result:
+            yield s
+            result.append(s)
+        if hasattr(seq, '__getitem__'):
+            for s in uniq(seq[i + 1:], result):
+                yield s
+        else:
+            for s in uniq(seq, result):
+                yield s","uniq modifies list argument
+When you iterate over a dictionary or set and try to modify it while doing so you get an error from Python:
+```python
+>>> multiset('THISTLE')
+{'T': 2, 'H': 1, 'I': 1, 'S': 1, 'L': 1, 'E': 1}
+>>> for i in _:
+...   _.pop(i)
+...
+2
+Traceback (most recent call last):
+  File ""<stdin>"", line 1, in <module>
+RuntimeError: dictionary changed size during iteration
+```
+It would be good to do the same thing from within `uniq` because the output will silently be wrong if you modify a passed list:
+```python
+>>> f=list('THISTLE')
+>>> for i in uniq(f):
+...   f.remove(i)
+...   i
+...
+'T'
+'I'
+'L'
+```
+I think this would entail recording the size at the start and then checking the size and raising a similar RuntimeError if the size changes.
+"
