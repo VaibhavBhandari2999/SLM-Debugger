@@ -113,7 +113,8 @@ slm-debugger/
 │   ├── ranking.py                    # Ranking utilities
 │   ├── docstring_utils.py            # Docstring utilities
 │   ├── bug_localization.py           # Bug localization and fixing
-│   └── utils.py                      #  Utilities for various tasks
+│   └── utils.py                      # Utilities for various tasks
+|   └── model_utils.py                # model utilities
 ├── top_files/                        # Top files data
 ├── enhanced_data/                    # Enhanced data with docstrings
 ├── narrowed_data/                    # Narrowed top files data
